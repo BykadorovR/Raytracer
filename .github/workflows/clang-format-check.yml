@@ -1,0 +1,20 @@
+name: clang-format-check
+
+on:
+  push:
+  pull_request:
+    branches: [master, dev]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: DoozyX/clang-format-lint-action@v0.13
+      with:
+        source: '.'
+        exclude: './dependencies'
+        extensions: 'h,cpp,cu,fsh,vsh,gsh'
+        clangFormatVersion: 13
