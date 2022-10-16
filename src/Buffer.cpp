@@ -79,6 +79,8 @@ void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
   vkFreeCommandBuffers(_device->getLogicalDevice(), commandPool->getCommandPool(), 1, &commandBuffer);
 }
 
+VkDeviceSize& Buffer::getSize() { return _size; }
+
 VkBuffer& Buffer::getData() { return _data; }
 
 VkDeviceMemory& Buffer::getMemory() { return _memory; }
@@ -134,14 +136,15 @@ IndexBuffer::IndexBuffer(std::vector<uint16_t> indices,
 
 std::shared_ptr<Buffer> IndexBuffer::getBuffer() { return _buffer; }
 
-UniformBuffer::UniformBuffer(int size,
+UniformBuffer::UniformBuffer(int number,
+                             int size,
                              std::shared_ptr<CommandPool> commandPool,
                              std::shared_ptr<Queue> queue,
                              std::shared_ptr<Device> device) {
-  _buffer.resize(size);
-  VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+  _buffer.resize(number);
+  VkDeviceSize bufferSize = size;
 
-  for (int i = 0; i < size; i++)
+  for (int i = 0; i < number; i++)
     _buffer[i] = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                           device);
@@ -175,18 +178,18 @@ DescriptorSetLayout::~DescriptorSetLayout() {
   vkDestroyDescriptorSetLayout(_device->getLogicalDevice(), _descriptorSetLayout, nullptr);
 }
 
-DescriptorPool::DescriptorPool(int size, std::shared_ptr<Device> device) {
+DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
   _device = device;
 
   VkDescriptorPoolSize poolSize{};
   poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSize.descriptorCount = static_cast<uint32_t>(size);
+  poolSize.descriptorCount = static_cast<uint32_t>(number);
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
   poolInfo.poolSizeCount = 1;
   poolInfo.pPoolSizes = &poolSize;
-  poolInfo.maxSets = static_cast<uint32_t>(size);
+  poolInfo.maxSets = static_cast<uint32_t>(number);
 
   if (vkCreateDescriptorPool(device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create descriptor pool!");
@@ -197,33 +200,34 @@ VkDescriptorPool& DescriptorPool::getDescriptorPool() { return _descriptorPool; 
 
 DescriptorPool::~DescriptorPool() { vkDestroyDescriptorPool(_device->getLogicalDevice(), _descriptorPool, nullptr); }
 
-DescriptorSet::DescriptorSet(int size,
+DescriptorSet::DescriptorSet(int number,
+                             int binding,
                              std::shared_ptr<UniformBuffer> uniformBuffer,
                              std::shared_ptr<DescriptorSetLayout> layout,
                              std::shared_ptr<DescriptorPool> pool,
                              std::shared_ptr<Device> device) {
-  std::vector<VkDescriptorSetLayout> layouts(size, layout->getDescriptorSetLayout());
+  std::vector<VkDescriptorSetLayout> layouts(number, layout->getDescriptorSetLayout());
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = pool->getDescriptorPool();
-  allocInfo.descriptorSetCount = static_cast<uint32_t>(size);
+  allocInfo.descriptorSetCount = static_cast<uint32_t>(number);
   allocInfo.pSetLayouts = layouts.data();
 
-  _descriptorSets.resize(size);
+  _descriptorSets.resize(number);
   if (vkAllocateDescriptorSets(device->getLogicalDevice(), &allocInfo, _descriptorSets.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate descriptor sets!");
   }
 
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < number; i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
     bufferInfo.offset = 0;
-    bufferInfo.range = sizeof(UniformBufferObject);
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
 
     VkWriteDescriptorSet descriptorWrite{};
     descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrite.dstSet = _descriptorSets[i];
-    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstBinding = binding;
     descriptorWrite.dstArrayElement = 0;
     descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrite.descriptorCount = 1;

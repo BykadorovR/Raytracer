@@ -16,17 +16,17 @@ VkCommandPool& CommandPool::getCommandPool() { return _commandPool; }
 
 CommandPool::~CommandPool() { vkDestroyCommandPool(_device->getLogicalDevice(), _commandPool, nullptr); }
 
-CommandBuffer::CommandBuffer(int size, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device) {
+CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device) {
   _pool = pool;
   _device = device;
 
-  _buffer.resize(size);
+  _buffer.resize(number);
 
   VkCommandBufferAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   allocInfo.commandPool = pool->getCommandPool();
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = size;
+  allocInfo.commandBufferCount = number;
 
   if (vkAllocateCommandBuffers(device->getLogicalDevice(), &allocInfo, _buffer.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate command buffers!");

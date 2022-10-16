@@ -19,7 +19,7 @@ class CommandBuffer {
   std::shared_ptr<CommandPool> _pool;
 
  public:
-  CommandBuffer(int size, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device);
+  CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device);
   std::vector<VkCommandBuffer>& getCommandBuffer();
   ~CommandBuffer();
 };

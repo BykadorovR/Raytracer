@@ -23,6 +23,12 @@ const std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
+struct UniformObject {
+  alignas(16) glm::mat4 model;
+  alignas(16) glm::mat4 view;
+  alignas(16) glm::mat4 proj;
+};
+
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
@@ -35,8 +41,12 @@ std::shared_ptr<Queue> queue;
 std::shared_ptr<VertexBuffer> vertexBuffer;
 std::shared_ptr<IndexBuffer> indexBuffer;
 std::shared_ptr<UniformBuffer> uniformBuffer;
+std::shared_ptr<UniformBuffer> uniformBuffer2;
 std::shared_ptr<DescriptorPool> descriptorPool;
+
 std::shared_ptr<DescriptorSet> descriptorSet;
+std::shared_ptr<DescriptorSet> descriptorSet2;
+
 std::shared_ptr<CommandBuffer> commandBuffer;
 std::array<std::shared_ptr<Semaphore>, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores, renderFinishedSemaphores;
 std::array<std::shared_ptr<Fence>, MAX_FRAMES_IN_FLIGHT> inFlightFences;
@@ -62,11 +72,16 @@ void initialize() {
 
   vertexBuffer = std::make_shared<VertexBuffer>(vertices, commandPool, queue, device);
   indexBuffer = std::make_shared<IndexBuffer>(indices, commandPool, queue, device);
-  uniformBuffer = std::make_shared<UniformBuffer>(MAX_FRAMES_IN_FLIGHT, commandPool, queue, device);
-
-  descriptorPool = std::make_shared<DescriptorPool>(MAX_FRAMES_IN_FLIGHT, device);
-  descriptorSet = std::make_shared<DescriptorSet>(MAX_FRAMES_IN_FLIGHT, uniformBuffer, descriptorSetLayout,
+  uniformBuffer = std::make_shared<UniformBuffer>(MAX_FRAMES_IN_FLIGHT, sizeof(UniformObject), commandPool, queue,
+                                                  device);
+  uniformBuffer2 = std::make_shared<UniformBuffer>(MAX_FRAMES_IN_FLIGHT, sizeof(UniformObject), commandPool, queue,
+                                                   device);
+  descriptorPool = std::make_shared<DescriptorPool>(4 * MAX_FRAMES_IN_FLIGHT, device);
+  descriptorSet = std::make_shared<DescriptorSet>(MAX_FRAMES_IN_FLIGHT, 0, uniformBuffer, descriptorSetLayout,
                                                   descriptorPool, device);
+  descriptorSet2 = std::make_shared<DescriptorSet>(MAX_FRAMES_IN_FLIGHT, 0, uniformBuffer2, descriptorSetLayout,
+                                                   descriptorPool, device);
+
   commandBuffer = std::make_shared<CommandBuffer>(MAX_FRAMES_IN_FLIGHT, commandPool, device);
   for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
     imageAvailableSemaphores[i] = std::make_shared<Semaphore>(device);
@@ -96,19 +111,36 @@ void drawFrame() {
   auto currentTime = std::chrono::high_resolution_clock::now();
   float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-  UniformBufferObject ubo{};
-  ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  ubo.proj = glm::perspective(glm::radians(45.0f),
-                              swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
-                              0.1f, 10.0f);
-  ubo.proj[1][1] *= -1;
+  {
+    // set global matricies
+    UniformObject ubo{};
+    UniformObject ubo2{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f),
+                                swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
+                                0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
 
-  void* data;
-  vkMapMemory(device->getLogicalDevice(), uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(device->getLogicalDevice(), uniformBuffer->getBuffer()[currentFrame]->getMemory());
+    ubo2.model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.5f, 0.f));
+    ubo2.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo2.proj = glm::perspective(glm::radians(45.0f),
+                                 swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
+                                 0.1f, 10.0f);
+    ubo2.proj[1][1] *= -1;
+
+    void* data;
+    vkMapMemory(device->getLogicalDevice(), uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
+                &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(device->getLogicalDevice(), uniformBuffer->getBuffer()[currentFrame]->getMemory());
+
+    data = nullptr;
+    vkMapMemory(device->getLogicalDevice(), uniformBuffer2->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo2), 0,
+                &data);
+    memcpy(data, &ubo2, sizeof(ubo2));
+    vkUnmapMemory(device->getLogicalDevice(), uniformBuffer2->getBuffer()[currentFrame]->getMemory());
+  }
   //
 
   vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
@@ -161,6 +193,12 @@ void drawFrame() {
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           pipeline->getPipelineLayout(), 0, 1, &descriptorSet->getDescriptorSets()[currentFrame], 0,
+                          nullptr);
+
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          pipeline->getPipelineLayout(), 0, 1, &descriptorSet2->getDescriptorSets()[currentFrame], 0,
                           nullptr);
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);

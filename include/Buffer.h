@@ -49,6 +49,7 @@ class Buffer {
   Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
   void copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandPool> commandPool, std::shared_ptr<Queue> queue);
   VkBuffer& getData();
+  VkDeviceSize& getSize();
   VkDeviceMemory& getMemory();
   ~Buffer();
 };
@@ -77,18 +78,13 @@ class IndexBuffer {
   std::shared_ptr<Buffer> getBuffer();
 };
 
-struct UniformBufferObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 proj;
-};
-
 class UniformBuffer {
  private:
   std::vector<std::shared_ptr<Buffer>> _buffer;
 
  public:
-  UniformBuffer(int size,
+  UniformBuffer(int number,
+                int size,
                 std::shared_ptr<CommandPool> commandPool,
                 std::shared_ptr<Queue> queue,
                 std::shared_ptr<Device> device);
@@ -112,7 +108,7 @@ class DescriptorPool {
   VkDescriptorPool _descriptorPool;
 
  public:
-  DescriptorPool(int size, std::shared_ptr<Device> device);
+  DescriptorPool(int number, std::shared_ptr<Device> device);
   VkDescriptorPool& getDescriptorPool();
   ~DescriptorPool();
 };
@@ -122,7 +118,8 @@ class DescriptorSet {
   std::vector<VkDescriptorSet> _descriptorSets;
 
  public:
-  DescriptorSet(int size,
+  DescriptorSet(int number,
+                int binding,
                 std::shared_ptr<UniformBuffer> uniformBuffer,
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
