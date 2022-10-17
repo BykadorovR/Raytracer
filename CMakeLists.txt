@@ -37,18 +37,33 @@ ExternalProject_Add(
 )
 
 #affects all projects, add folder "include" to include section in VS
-include_directories("include/")
+include_directories("include/Graphic")
+include_directories("include/Primitive")
+include_directories("include/Common")
 
-file(GLOB_RECURSE app_source "src/*.c*")
-source_group("src" FILES ${app_source})
-file(GLOB_RECURSE app_header "include/*.h*")
-source_group("include" FILES ${app_header})
+file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
+source_group("Graphic\\src" FILES ${app_source_graphic})
+file(GLOB_RECURSE app_header_graphic "include/Graphic/*.h*")
+source_group("Graphic\\include" FILES ${app_header_graphic})
+file(GLOB_RECURSE app_source_primitive "src/Primitive/*.c*")
+source_group("Primitive\\src" FILES ${app_source_primitive})
+file(GLOB_RECURSE app_header_primitive "include/Primitive/*.h*")
+source_group("Primitive\\include" FILES ${app_header_primitive})
+file(GLOB_RECURSE app_source_common "src/Common/*.c*")
+source_group("Common\\src" FILES ${app_source_common})
+file(GLOB_RECURSE app_header_common "include/Common/*.h*")
+source_group("Common\\include" FILES ${app_header_common})
+file(GLOB_RECURSE app_source_entry "src/Entry/*.c*")
+source_group("Entry\\src" FILES ${app_source_entry})
 
 ###############################
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 #include headers to project (so they will be shown in include folder)
-add_executable(${PROJECT_NAME} ${app_header} ${app_source})
+add_executable(${PROJECT_NAME} ${app_header_graphic} ${app_source_graphic}
+                               ${app_header_primitive} ${app_source_primitive}
+                               ${app_header_common} ${app_source_common}
+                               ${app_source_entry})
 ###############################
 
 find_package(Vulkan REQUIRED)
