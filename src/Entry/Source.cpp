@@ -16,6 +16,7 @@
 #include "Command.h"
 #include "Settings.h"
 #include "Sprite.h"
+#include "SpriteManager.h"
 
 const std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -45,6 +46,7 @@ std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinished
 std::vector<std::shared_ptr<Fence>> inFlightFences;
 
 std::shared_ptr<Settings> settings;
+std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
 
 uint64_t currentFrame = 0;
@@ -68,8 +70,22 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  sprite1 = std::make_shared<Sprite>(descriptorPool, commandPool, commandBuffer, queue, renderPass, device, settings);
-  sprite2 = std::make_shared<Sprite>(descriptorPool, commandPool, commandBuffer, queue, renderPass, device, settings);
+  spriteManager = std::make_shared<SpriteManager>(descriptorPool, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
+  sprite1 = spriteManager->createSprite();
+  spriteManager->registerSprite(sprite1);
+  sprite2 = spriteManager->createSprite();
+  spriteManager->registerSprite(sprite2);
+  auto view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+  auto proj = glm::perspective(glm::radians(45.0f),
+                               swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
+                               0.1f, 10.0f);
+  proj[1][1] *= -1;
+  sprite1->setView(view);
+  sprite1->setProjection(proj);
+
+  sprite2->setView(view);
+  sprite2->setProjection(proj);
 }
 
 void drawFrame() {
@@ -95,11 +111,9 @@ void drawFrame() {
 
   auto model1 = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   auto model2 = glm::translate(glm::mat4(1.f), glm::vec3(-1.f, 1.f, 0.f));
-  auto view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  auto proj = glm::perspective(glm::radians(45.0f),
-                               swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
-                               0.1f, 10.0f);
-  proj[1][1] *= -1;
+
+  sprite1->setModel(model1);
+  sprite2->setModel(model2);
 
   vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
   vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
@@ -124,10 +138,7 @@ void drawFrame() {
   renderPassInfo.pClearValues = &clearColor;
 
   vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-  sprite1->draw(currentFrame, model1, view, proj);
-  sprite2->draw(currentFrame, model2, view, proj);
-
+  spriteManager->draw(currentFrame);
   vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
