@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <array>
-#include "Image.h"
 #include "Command.h"
 #include "Queue.h"
 

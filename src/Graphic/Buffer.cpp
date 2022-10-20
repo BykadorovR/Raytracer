@@ -47,36 +47,14 @@ Buffer::Buffer(VkDeviceSize size,
 void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
                       std::shared_ptr<CommandPool> commandPool,
                       std::shared_ptr<Queue> queue) {
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandPool = commandPool->getCommandPool();
-  allocInfo.commandBufferCount = 1;
-
-  VkCommandBuffer commandBuffer;
-  vkAllocateCommandBuffers(_device->getLogicalDevice(), &allocInfo, &commandBuffer);
-
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-  vkBeginCommandBuffer(commandBuffer, &beginInfo);
+  auto commandBuffer = std::make_shared<CommandBuffer>(1, commandPool, _device);
+  commandBuffer->beginSingleTimeCommands(0);
 
   VkBufferCopy copyRegion{};
   copyRegion.size = _size;
-  vkCmdCopyBuffer(commandBuffer, buffer->getData(), _data, 1, &copyRegion);
+  vkCmdCopyBuffer(commandBuffer->getCommandBuffer()[0], buffer->getData(), _data, 1, &copyRegion);
 
-  vkEndCommandBuffer(commandBuffer);
-
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer;
-
-  vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(queue->getGraphicQueue());
-
-  vkFreeCommandBuffers(_device->getLogicalDevice(), commandPool->getCommandPool(), 1, &commandBuffer);
+  commandBuffer->endSingleTimeCommands(0, queue);
 }
 
 VkDeviceSize& Buffer::getSize() { return _size; }

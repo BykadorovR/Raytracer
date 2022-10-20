@@ -40,6 +40,8 @@ ExternalProject_Add(
 include_directories("include/Graphic")
 include_directories("include/Primitive")
 include_directories("include/Common")
+include_directories("dependencies")
+
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})

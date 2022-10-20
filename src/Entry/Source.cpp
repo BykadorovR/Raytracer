@@ -62,7 +62,6 @@ void initialize() {
   framebuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain, renderPass, device);
   commandPool = std::make_shared<CommandPool>(device);
   queue = std::make_shared<Queue>(device);
-  descriptorPool = std::make_shared<DescriptorPool>(2 * settings->getMaxFramesInFlight(), device);
   commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
@@ -70,8 +69,7 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  spriteManager = std::make_shared<SpriteManager>(descriptorPool, commandPool, commandBuffer, queue, renderPass, device,
-                                                  settings);
+  spriteManager = std::make_shared<SpriteManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
   sprite1 = spriteManager->createSprite();
   spriteManager->registerSprite(sprite1);
   sprite2 = spriteManager->createSprite();

@@ -33,6 +33,26 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
   }
 }
 
+void CommandBuffer::beginSingleTimeCommands(int commandNumber) {
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  vkBeginCommandBuffer(_buffer[commandNumber], &beginInfo);
+}
+
+void CommandBuffer::endSingleTimeCommands(int commandNumber, std::shared_ptr<Queue> queue) {
+  vkEndCommandBuffer(_buffer[commandNumber]);
+
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &_buffer[commandNumber];
+
+  vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+  vkQueueWaitIdle(queue->getGraphicQueue());
+}
+
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }
 
 CommandBuffer::~CommandBuffer() {

@@ -1,5 +1,6 @@
 #pragma once
 #include "Device.h"
+#include "Queue.h"
 
 class CommandPool {
  private:
@@ -20,6 +21,8 @@ class CommandBuffer {
 
  public:
   CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device);
+  void beginSingleTimeCommands(int commandNumber);
+  void endSingleTimeCommands(int commandNumber, std::shared_ptr<Queue> queue);
   std::vector<VkCommandBuffer>& getCommandBuffer();
   ~CommandBuffer();
 };
