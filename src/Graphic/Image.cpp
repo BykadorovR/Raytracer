@@ -1,6 +1,4 @@
 #include "Image.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 Image::Image(std::tuple<int, int> resolution,
              VkFormat format,
@@ -138,7 +136,8 @@ Image::~Image() {
   vkFreeMemory(_device->getLogicalDevice(), _imageMemory, nullptr);
 }
 
-ImageView::ImageView(VkImage& image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device) {
+ImageView::ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device) {
+  _device = device;
   _imageFormat = format;
 
   VkImageViewCreateInfo viewInfo{};
@@ -164,3 +163,5 @@ ImageView::ImageView(VkImage& image, VkFormat format, VkImageAspectFlags aspectF
 VkImageView& ImageView::getImageView() { return _imageView; }
 
 VkFormat& ImageView::getImageFormat() { return _imageFormat; }
+
+ImageView::~ImageView() { vkDestroyImageView(_device->getLogicalDevice(), _imageView, nullptr); }

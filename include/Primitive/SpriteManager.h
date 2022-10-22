@@ -25,7 +25,7 @@ class SpriteManager {
                 std::shared_ptr<RenderPass> render,
                 std::shared_ptr<Device> device,
                 std::shared_ptr<Settings> settings);
-  std::shared_ptr<Sprite> createSprite();
+  std::shared_ptr<Sprite> createSprite(std::shared_ptr<Texture> texture);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void draw(int currentFrame);

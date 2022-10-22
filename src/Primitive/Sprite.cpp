@@ -1,9 +1,9 @@
 #include "Sprite.h"
 
-const std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                                      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                                      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+const std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                                      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+                                      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                                      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 struct UniformObject {
   alignas(16) glm::mat4 model;
@@ -11,7 +11,8 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
-Sprite::Sprite(std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+Sprite::Sprite(std::shared_ptr<Texture> texture,
+               std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
                std::shared_ptr<Pipeline> pipeline,
                std::shared_ptr<DescriptorPool> descriptorPool,
                std::shared_ptr<CommandPool> commandPool,
@@ -23,12 +24,13 @@ Sprite::Sprite(std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
   _commandBuffer = commandBuffer;
   _device = device;
   _settings = settings;
+  _texture = texture;
 
   _vertexBuffer = std::make_shared<VertexBuffer>(vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(indices, commandPool, queue, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
-  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), 0, _uniformBuffer,
+  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), texture, _uniformBuffer,
                                                    descriptorSetLayout, descriptorPool, device);
 }
 

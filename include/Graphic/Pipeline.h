@@ -3,6 +3,7 @@
 #include "Shader.h"
 #include "Buffer.h"
 #include "Render.h"
+#include "Descriptor.h"
 
 class Pipeline {
  private:

@@ -18,13 +18,13 @@ SpriteManager::SpriteManager(std::shared_ptr<CommandPool> commandPool,
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, render, device);
 }
 
-std::shared_ptr<Sprite> SpriteManager::createSprite() {
+std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture) {
   if ((_spritesCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
   }
   _spritesCreated++;
-  return std::make_shared<Sprite>(_descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool, _commandBuffer,
-                                  _queue, _device, _settings);
+  return std::make_shared<Sprite>(texture, _descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool,
+                                  _commandBuffer, _queue, _device, _settings);
 }
 
 void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) { _sprites.push_back(sprite); }

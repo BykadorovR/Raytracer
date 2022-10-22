@@ -69,10 +69,11 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
+  std::shared_ptr<Texture> texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
   spriteManager = std::make_shared<SpriteManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
-  sprite1 = spriteManager->createSprite();
+  sprite1 = spriteManager->createSprite(texture);
   spriteManager->registerSprite(sprite1);
-  sprite2 = spriteManager->createSprite();
+  sprite2 = spriteManager->createSprite(texture);
   spriteManager->registerSprite(sprite2);
   auto view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   auto proj = glm::perspective(glm::radians(45.0f),

@@ -101,10 +101,4 @@ VkSwapchainKHR& Swapchain::getSwapchain() { return _swapchain; }
 
 VkExtent2D& Swapchain::getSwapchainExtent() { return _swapchainExtent; }
 
-Swapchain::~Swapchain() {
-  for (auto imageView : _swapchainImageViews) {
-    vkDestroyImageView(_device->getLogicalDevice(), imageView->getImageView(), nullptr);
-  }
-
-  vkDestroySwapchainKHR(_device->getLogicalDevice(), _swapchain, nullptr);
-}
+Swapchain::~Swapchain() { vkDestroySwapchainKHR(_device->getLogicalDevice(), _swapchain, nullptr); }

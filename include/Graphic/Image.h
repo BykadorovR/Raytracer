@@ -34,9 +34,12 @@ class ImageView {
  private:
   VkImageView _imageView;
   VkFormat _imageFormat;
+  std::shared_ptr<Device> _device;
 
  public:
-  ImageView(VkImage& image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device);
+  ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device);
   VkImageView& getImageView();
   VkFormat& getImageFormat();
+
+  ~ImageView();
 };

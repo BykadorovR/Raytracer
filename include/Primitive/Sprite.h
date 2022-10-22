@@ -16,6 +16,7 @@ class Sprite {
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<CommandBuffer> _commandBuffer;
+  std::shared_ptr<Texture> _texture;
 
   std::shared_ptr<VertexBuffer> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
@@ -24,7 +25,8 @@ class Sprite {
   glm::mat4 _model, _view, _projection;
 
  public:
-  Sprite(std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+  Sprite(std::shared_ptr<Texture> texture,
+         std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
          std::shared_ptr<Pipeline> pipeline,
          std::shared_ptr<DescriptorPool> descriptorPool,
          std::shared_ptr<CommandPool> commandPool,
