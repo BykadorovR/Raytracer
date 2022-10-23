@@ -1,4 +1,8 @@
 #pragma once
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -42,5 +46,8 @@ class Device {
   VkSurfaceCapabilitiesKHR& getSupportedSurfaceCapabilities();
   std::optional<uint32_t> getSupportedGraphicsFamilyIndex();
   std::optional<uint32_t> getSupportedPresentFamilyIndex();
+  VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
+                                          VkImageTiling tiling,
+                                          VkFormatFeatureFlags features);
   ~Device();
 };

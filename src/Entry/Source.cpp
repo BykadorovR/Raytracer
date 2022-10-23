@@ -18,19 +18,6 @@
 #include "Sprite.h"
 #include "SpriteManager.h"
 
-const std::vector<Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                      {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                                      {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                                      {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
-
-const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
-
-struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 proj;
-};
-
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
@@ -109,7 +96,7 @@ void drawFrame() {
   float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
   auto model1 = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  auto model2 = glm::translate(glm::mat4(1.f), glm::vec3(-1.f, 1.f, 0.f));
+  auto model2 = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -0.5f));
 
   sprite1->setModel(model1);
   sprite2->setModel(model2);
@@ -132,9 +119,12 @@ void drawFrame() {
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
 
-  VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearColor;
+  std::array<VkClearValue, 2> clearValues{};
+  clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  clearValues[1].depthStencil = {1.0f, 0};
+
+  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+  renderPassInfo.pClearValues = clearValues.data();
 
   vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
   spriteManager->draw(currentFrame);

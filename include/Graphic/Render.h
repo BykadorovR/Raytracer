@@ -6,10 +6,6 @@ class RenderPass {
   std::shared_ptr<Device> _device;
   VkRenderPass _renderPass;
 
-  VkFormat _findSupportedFormat(const std::vector<VkFormat>& candidates,
-                                VkImageTiling tiling,
-                                VkFormatFeatureFlags features);
-
  public:
   RenderPass(std::shared_ptr<Swapchain> swapchain, std::shared_ptr<Device> device);
   VkRenderPass& getRenderPass();

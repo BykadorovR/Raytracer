@@ -91,11 +91,22 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
                                                  device);
     _swapchainImageViews[i] = imageView;
   }
+
+  VkFormat depthFormat = _device->findDepthBufferSupportedFormat(
+      {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
+      VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+  _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+  _depthImageView = std::make_shared<ImageView>(_depthImage->getImage(), depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                device);
 }
 
 VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }
 
 std::vector<std::shared_ptr<ImageView>>& Swapchain::getImageViews() { return _swapchainImageViews; }
+
+std::shared_ptr<ImageView> Swapchain::getDepthImageView() { return _depthImageView; }
 
 VkSwapchainKHR& Swapchain::getSwapchain() { return _swapchain; }
 

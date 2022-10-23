@@ -8,6 +8,8 @@ class Swapchain {
   VkSwapchainKHR _swapchain;
   std::vector<VkImage> _swapchainImages;
   std::vector<std::shared_ptr<ImageView>> _swapchainImageViews;
+  std::shared_ptr<Image> _depthImage;
+  std::shared_ptr<ImageView> _depthImageView;
   VkFormat _swapchainImageFormat;
   VkExtent2D _swapchainExtent;
 
@@ -16,6 +18,7 @@ class Swapchain {
   VkSwapchainKHR& getSwapchain();
   VkExtent2D& getSwapchainExtent();
   std::vector<std::shared_ptr<ImageView>>& getImageViews();
+  std::shared_ptr<ImageView> getDepthImageView();
   VkFormat& getImageFormat();
   ~Swapchain();
 };
