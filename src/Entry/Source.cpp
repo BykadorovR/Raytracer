@@ -17,6 +17,8 @@
 #include "Settings.h"
 #include "Sprite.h"
 #include "SpriteManager.h"
+#include "Model.h"
+#include "ModelManager.h"
 
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
@@ -35,6 +37,8 @@ std::vector<std::shared_ptr<Fence>> inFlightFences;
 std::shared_ptr<Settings> settings;
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
+std::shared_ptr<Model3DManager> modelManager;
+std::shared_ptr<Model3D> model3D;
 
 uint64_t currentFrame = 0;
 
@@ -72,6 +76,15 @@ void initialize() {
 
   sprite2->setView(view);
   sprite2->setProjection(proj);
+
+  std::shared_ptr<Texture> textureModel = std::make_shared<Texture>("../data/viking_room.png", commandPool, queue,
+                                                                    device);
+  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
+  model3D = modelManager->createModel("../data/viking_room.obj", textureModel);
+  modelManager->registerModel(model3D);
+
+  model3D->setView(view);
+  model3D->setProjection(proj);
 }
 
 void drawFrame() {
@@ -97,9 +110,12 @@ void drawFrame() {
 
   auto model1 = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   auto model2 = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -0.5f));
+  auto model3 = glm::translate(glm::mat4(1.f), glm::vec3(1.f, -1.f, 0.f));
+  model3 = glm::rotate(model3, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
   sprite1->setModel(model1);
   sprite2->setModel(model2);
+  model3D->setModel(model3);
 
   vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
   vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
@@ -128,6 +144,7 @@ void drawFrame() {
 
   vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
   spriteManager->draw(currentFrame);
+  modelManager->draw(currentFrame);
   vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {

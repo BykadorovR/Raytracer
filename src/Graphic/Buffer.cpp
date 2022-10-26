@@ -91,7 +91,7 @@ VertexBuffer::VertexBuffer(std::vector<Vertex> vertices,
 
 std::shared_ptr<Buffer> VertexBuffer::getBuffer() { return _buffer; }
 
-IndexBuffer::IndexBuffer(std::vector<uint16_t> indices,
+IndexBuffer::IndexBuffer(std::vector<uint32_t> indices,
                          std::shared_ptr<CommandPool> commandPool,
                          std::shared_ptr<Queue> queue,
                          std::shared_ptr<Device> device) {

@@ -1,10 +1,5 @@
 #include "Sprite.h"
 
-const std::vector<Vertex> vertices = {{{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                                      {{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                                      {{0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                                      {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
-const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 struct UniformObject {
   alignas(16) glm::mat4 model;
   alignas(16) glm::mat4 view;
@@ -26,8 +21,8 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _settings = settings;
   _texture = texture;
 
-  _vertexBuffer = std::make_shared<VertexBuffer>(vertices, commandPool, queue, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(indices, commandPool, queue, device);
+  _vertexBuffer = std::make_shared<VertexBuffer>(_vertices, commandPool, queue, device);
+  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), texture, _uniformBuffer,
@@ -57,10 +52,11 @@ void Sprite::draw(int currentFrame) {
   vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
   vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
-                       VK_INDEX_TYPE_UINT16);
+                       VK_INDEX_TYPE_UINT32);
   vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
                           nullptr);
 
-  vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+  vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
+                   0);
 }
