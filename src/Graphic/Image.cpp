@@ -1,5 +1,14 @@
 #include "Image.h"
 
+Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device) {
+  _image = image;
+  _device = device;
+  _resolution = resolution;
+  _format = format;
+
+  _external = true;
+}
+
 Image::Image(std::tuple<int, int> resolution,
              VkFormat format,
              VkImageTiling tiling,
@@ -54,6 +63,8 @@ Image::Image(std::tuple<int, int> resolution,
 
   vkBindImageMemory(device->getLogicalDevice(), _image, _imageMemory, 0);
 }
+
+VkFormat& Image::getFormat() { return _format; }
 
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
@@ -129,22 +140,22 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
 
 VkImage& Image::getImage() { return _image; }
 
-VkDeviceMemory& Image::getImageMemory() { return _imageMemory; }
-
 Image::~Image() {
-  vkDestroyImage(_device->getLogicalDevice(), _image, nullptr);
-  vkFreeMemory(_device->getLogicalDevice(), _imageMemory, nullptr);
+  if (_external == false) {
+    vkDestroyImage(_device->getLogicalDevice(), _image, nullptr);
+    vkFreeMemory(_device->getLogicalDevice(), _imageMemory, nullptr);
+  }
 }
 
-ImageView::ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device) {
+ImageView::ImageView(std::shared_ptr<Image> image, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device) {
   _device = device;
-  _imageFormat = format;
+  _image = image;
 
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = image;
+  viewInfo.image = image->getImage();
   viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  viewInfo.format = format;
+  viewInfo.format = image->getFormat();
   viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -162,6 +173,6 @@ ImageView::ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFl
 
 VkImageView& ImageView::getImageView() { return _imageView; }
 
-VkFormat& ImageView::getImageFormat() { return _imageFormat; }
+std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
 ImageView::~ImageView() { vkDestroyImageView(_device->getLogicalDevice(), _imageView, nullptr); }

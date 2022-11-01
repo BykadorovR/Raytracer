@@ -8,7 +8,6 @@ class Texture {
  private:
   std::string _path;
   std::shared_ptr<Device> _device;
-  std::shared_ptr<Image> _image;
   std::shared_ptr<ImageView> _imageView;
   std::shared_ptr<Sampler> _sampler;
 
@@ -17,7 +16,7 @@ class Texture {
           std::shared_ptr<CommandPool> commandPool,
           std::shared_ptr<Queue> queue,
           std::shared_ptr<Device> device);
-  std::shared_ptr<Image> getImage();
+  Texture(std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device);
   std::shared_ptr<ImageView> getImageView();
   std::shared_ptr<Sampler> getSampler();
 };

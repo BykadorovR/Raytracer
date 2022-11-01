@@ -10,6 +10,7 @@ class Pipeline {
   std::shared_ptr<Device> _device;
   VkPipeline _pipeline;
   VkPipelineLayout _pipelineLayout;
+  std::shared_ptr<Shader> _shader;
 
  public:
   Pipeline(std::shared_ptr<Shader> shader,

@@ -25,7 +25,9 @@ std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass;
+std::shared_ptr<RenderPass> renderPassOffscreen;
 std::shared_ptr<Framebuffer> framebuffer;
+std::shared_ptr<Framebuffer> framebufferOffscreen;
 std::shared_ptr<CommandPool> commandPool;
 std::shared_ptr<Queue> queue;
 std::shared_ptr<DescriptorPool> descriptorPool;
@@ -35,12 +37,15 @@ std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinished
 std::vector<std::shared_ptr<Fence>> inFlightFences;
 
 std::shared_ptr<Settings> settings;
-std::shared_ptr<SpriteManager> spriteManager;
+std::shared_ptr<SpriteManager> spriteManager, spriteManagerOffscreen;
 std::shared_ptr<Sprite> sprite1, sprite2;
+std::vector<std::shared_ptr<Sprite>> spriteScreen;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<Model3D> model3D;
 
 uint64_t currentFrame = 0;
+std::vector<std::shared_ptr<ImageView>> colorViews;
+std::shared_ptr<ImageView> depthView;
 
 void initialize() {
   settings = std::make_shared<Settings>(std::tuple{800, 600}, 2);
@@ -49,8 +54,31 @@ void initialize() {
   std::shared_ptr<Surface> surface = std::make_shared<Surface>(window, instance);
   device = std::make_shared<Device>(surface, instance);
   swapchain = std::make_shared<Swapchain>(window, surface, device);
-  renderPass = std::make_shared<RenderPass>(swapchain, device);
-  framebuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain, renderPass, device);
+  renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
+  renderPass->initialize();
+  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_R8G8B8A8_UNORM, device);
+  renderPassOffscreen->initializeOffscreen();
+  {
+    for (int i = 0; i < 3; i++) {
+      std::shared_ptr<Image> image = std::make_shared<Image>(
+          settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+          device);
+      std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
+      colorViews.push_back(imageView);
+    }
+
+    std::shared_ptr<Image> image = std::make_shared<Image>(
+        settings->getResolution(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+    depthView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, device);
+  }
+
+  framebuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
+                                              swapchain->getDepthImageView(), renderPass, device);
+  framebufferOffscreen = std::make_shared<Framebuffer>(settings->getResolution(), colorViews, depthView,
+                                                       renderPassOffscreen, device);
+
   commandPool = std::make_shared<CommandPool>(device);
   queue = std::make_shared<Queue>(device);
   commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
@@ -61,11 +89,19 @@ void initialize() {
   }
 
   std::shared_ptr<Texture> texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
-  spriteManager = std::make_shared<SpriteManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
-  sprite1 = spriteManager->createSprite(texture);
-  spriteManager->registerSprite(sprite1);
-  sprite2 = spriteManager->createSprite(texture);
-  spriteManager->registerSprite(sprite2);
+  auto shader = std::make_shared<Shader>("../shaders/simple_vertex.spv", "../shaders/simple_fragment.spv", device);
+  auto shaderGray = std::make_shared<Shader>("../shaders/grayscale_vertex.spv", "../shaders/grayscale_fragment.spv",
+                                             device);
+  spriteManagerOffscreen = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue,
+                                                           renderPassOffscreen, device, settings);
+  spriteManager = std::make_shared<SpriteManager>(shaderGray, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
+
+  sprite1 = spriteManagerOffscreen->createSprite(texture);
+  spriteManagerOffscreen->registerSprite(sprite1);
+  sprite2 = spriteManagerOffscreen->createSprite(texture);
+  spriteManagerOffscreen->registerSprite(sprite2);
+  spriteScreen.resize(3);
   auto view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
   auto proj = glm::perspective(glm::radians(45.0f),
                                swapchain->getSwapchainExtent().width / (float)swapchain->getSwapchainExtent().height,
@@ -77,9 +113,20 @@ void initialize() {
   sprite2->setView(view);
   sprite2->setProjection(proj);
 
+  for (int i = 0; i < 3; i++) {
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>(colorViews[i], device);
+    spriteScreen[i] = spriteManager->createSprite(texture);
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -0.5f));
+    model = glm::scale(model, glm::vec3(2.f, 2.f, 1.f));
+    spriteScreen[i]->setModel(model);
+    spriteScreen[i]->setView(view);
+    spriteScreen[i]->setProjection(proj);
+  }
+
   std::shared_ptr<Texture> textureModel = std::make_shared<Texture>("../data/viking_room.png", commandPool, queue,
                                                                     device);
-  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
+  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPassOffscreen, device,
+                                                  settings);
   model3D = modelManager->createModel("../data/viking_room.obj", textureModel);
   modelManager->registerModel(model3D);
 
@@ -128,24 +175,51 @@ void drawFrame() {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
 
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = renderPass->getRenderPass();
-  renderPassInfo.framebuffer = framebuffer->getBuffer()[imageIndex];
-  renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
+  {
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
 
-  std::array<VkClearValue, 2> clearValues{};
-  clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-  clearValues[1].depthStencil = {1.0f, 0};
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPassOffscreen->getRenderPass();
+    renderPassInfo.framebuffer = framebufferOffscreen->getBuffer()[imageIndex];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
 
-  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-  renderPassInfo.pClearValues = clearValues.data();
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
-  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-  spriteManager->draw(currentFrame);
-  modelManager->draw(currentFrame);
-  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    spriteManagerOffscreen->draw(currentFrame);
+    modelManager->draw(currentFrame);
+    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  }
+  /////////////////////////////////////////////////////////////////////////////////////////
+  {
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass->getRenderPass();
+    renderPassInfo.framebuffer = framebuffer->getBuffer()[imageIndex];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
+
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    for (auto sprite : spriteScreen) {
+      spriteManager->unregisterSprite(sprite);
+    }
+    spriteManager->registerSprite(spriteScreen[currentFrame]);
+    spriteManager->draw(currentFrame);
+    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  }
+  ///////////////////////////////////////////////////////////////////////////////////////////
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer!");

@@ -19,7 +19,8 @@ class SpriteManager {
   std::vector<std::shared_ptr<Sprite>> _sprites;
 
  public:
-  SpriteManager(std::shared_ptr<CommandPool> commandPool,
+  SpriteManager(std::shared_ptr<Shader> shader,
+                std::shared_ptr<CommandPool> commandPool,
                 std::shared_ptr<CommandBuffer> commandBuffer,
                 std::shared_ptr<Queue> queue,
                 std::shared_ptr<RenderPass> render,

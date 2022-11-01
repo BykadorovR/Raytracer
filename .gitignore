@@ -1,5 +1,6 @@
 data/
 TODO.txt
+*.spv
 *.bat
 *.h264
 .idea

@@ -6,6 +6,8 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader,
                    std::shared_ptr<RenderPass> renderPass,
                    std::shared_ptr<Device> device) {
   _device = device;
+  _shader = shader;
+
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 

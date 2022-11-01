@@ -1,6 +1,7 @@
 #include "SpriteManager.h"
 
-SpriteManager::SpriteManager(std::shared_ptr<CommandPool> commandPool,
+SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
+                             std::shared_ptr<CommandPool> commandPool,
                              std::shared_ptr<CommandBuffer> commandBuffer,
                              std::shared_ptr<Queue> queue,
                              std::shared_ptr<RenderPass> render,
@@ -14,7 +15,6 @@ SpriteManager::SpriteManager(std::shared_ptr<CommandPool> commandPool,
 
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  auto shader = std::make_shared<Shader>("../shaders/simple_vertex.spv", "../shaders/simple_fragment.spv", device);
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, render, device);
 }
 

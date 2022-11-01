@@ -10,8 +10,10 @@ class Image {
   VkImage _image;
   VkDeviceMemory _imageMemory;
   VkFormat _format;
+  bool _external = false;
 
  public:
+  Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
   Image(std::tuple<int, int> resolution,
         VkFormat format,
         VkImageTiling tiling,
@@ -25,21 +27,21 @@ class Image {
                     std::shared_ptr<CommandPool> commandPool,
                     std::shared_ptr<Queue> queue);
   VkImage& getImage();
-  VkDeviceMemory& getImageMemory();
+  VkFormat& getFormat();
 
   ~Image();
 };
 
 class ImageView {
  private:
+  std::shared_ptr<Image> _image;
   VkImageView _imageView;
-  VkFormat _imageFormat;
   std::shared_ptr<Device> _device;
 
  public:
-  ImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device);
+  ImageView(std::shared_ptr<Image> image, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device);
   VkImageView& getImageView();
-  VkFormat& getImageFormat();
+  std::shared_ptr<Image> getImage();
 
   ~ImageView();
 };
