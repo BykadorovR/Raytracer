@@ -14,7 +14,7 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;
+    gl_Position = vec4(fragTexCoord * 2.0f - 1.0f, 0.0f, 1.0f);
 }
