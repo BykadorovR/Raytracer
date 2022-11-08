@@ -142,6 +142,7 @@ void drawFrame() {
   vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE, UINT64_MAX);
 
   uint32_t imageIndex;
+  // RETURNS ONLY INDEX, NOT IMAGE
   VkResult result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
                                           imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE,
                                           &imageIndex);
