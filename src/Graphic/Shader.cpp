@@ -15,32 +15,20 @@ VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
   return shaderModule;
 }
 
-Shader::Shader(std::string vertex, std::string fragment, std::shared_ptr<Device> device) {
-  _device = device;
+Shader::Shader(std::shared_ptr<Device> device) { _device = device; }
 
-  auto vertShaderCode = readFile(vertex);
-  auto fragShaderCode = readFile(fragment);
-  VkShaderModule vertShaderModule = _createShaderModule(vertShaderCode);
-  VkShaderModule fragShaderModule = _createShaderModule(fragShaderCode);
-
-  _vertShaderStageInfo = {};
-  _vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  _vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-  _vertShaderStageInfo.module = vertShaderModule;
-  _vertShaderStageInfo.pName = "main";
-
-  _fragShaderStageInfo = {};
-  _fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  _fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-  _fragShaderStageInfo.module = fragShaderModule;
-  _fragShaderStageInfo.pName = "main";
+void Shader::add(std::string text, VkShaderStageFlagBits type) {
+  auto shaderCode = readFile(text);
+  VkShaderModule shaderModule = _createShaderModule(shaderCode);
+  _shaders[type] = {};
+  _shaders[type].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  _shaders[type].stage = type;
+  _shaders[type].module = shaderModule;
+  _shaders[type].pName = "main";
 }
 
-VkPipelineShaderStageCreateInfo& Shader::getFragShaderStageInfo() { return _fragShaderStageInfo; }
-
-VkPipelineShaderStageCreateInfo& Shader::getVertShaderStageInfo() { return _vertShaderStageInfo; }
+VkPipelineShaderStageCreateInfo& Shader::getShaderStageInfo(VkShaderStageFlagBits type) { return _shaders[type]; }
 
 Shader::~Shader() {
-  vkDestroyShaderModule(_device->getLogicalDevice(), _vertShaderStageInfo.module, nullptr);
-  vkDestroyShaderModule(_device->getLogicalDevice(), _fragShaderStageInfo.module, nullptr);
+  for (auto& [type, shader] : _shaders) vkDestroyShaderModule(_device->getLogicalDevice(), shader.module, nullptr);
 }

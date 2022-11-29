@@ -30,7 +30,6 @@ std::shared_ptr<Framebuffer> framebuffer;
 std::shared_ptr<Framebuffer> framebufferOffscreen;
 std::shared_ptr<CommandPool> commandPool;
 std::shared_ptr<Queue> queue;
-std::shared_ptr<DescriptorPool> descriptorPool;
 
 std::shared_ptr<CommandBuffer> commandBuffer;
 std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
@@ -45,19 +44,27 @@ std::shared_ptr<Model3D> model3D;
 std::shared_ptr<Surface> surface;
 
 uint64_t currentFrame = 0;
-std::vector<std::shared_ptr<ImageView>> colorViews;
+std::vector<std::shared_ptr<Texture>> computeTextures;
+std::vector<std::shared_ptr<Texture>> colorViewsTextures;
+std::shared_ptr<Pipeline> computePipeline;
 std::shared_ptr<ImageView> depthView;
+std::shared_ptr<DescriptorSet> computeDescriptorSet;
+std::shared_ptr<DescriptorPool> descriptorPool;
 
 void initializeOffscreen() {
-  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_B8G8R8A8_SRGB, device);
+  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_B8G8R8A8_UNORM, device);
   renderPassOffscreen->initializeOffscreen();
 
+  std::vector<std::shared_ptr<ImageView>> colorViews;
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_B8G8R8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+        settings->getResolution(), VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
     std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
     colorViews.push_back(imageView);
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
+    colorViewsTextures.push_back(texture);
   }
 
   std::shared_ptr<Image> image = std::make_shared<Image>(
@@ -69,7 +76,9 @@ void initializeOffscreen() {
                                                        renderPassOffscreen, device);
   // Initialize scene
   std::shared_ptr<Texture> texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
-  auto shader = std::make_shared<Shader>("../shaders/simple_vertex.spv", "../shaders/simple_fragment.spv", device);
+  auto shader = std::make_shared<Shader>(device);
+  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPassOffscreen,
                                                   device, settings);
 
@@ -100,6 +109,33 @@ void initializeOffscreen() {
   model3D->setProjection(proj);
 }
 
+void initializeCompute() {
+  // allocate textures where to store compute shader result
+  computeTextures.resize(settings->getMaxFramesInFlight());
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    // Image will be sampled in the fragment shader and used as storage target in the compute shader
+    std::shared_ptr<Image> image = std::make_shared<Image>(
+        settings->getResolution(), VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
+    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
+    computeTextures[i] = texture;
+  }
+
+  std::shared_ptr<DescriptorSetLayout> computeDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
+  computeDescriptorSetLayout->createCompute();
+  auto shader = std::make_shared<Shader>(device);
+  shader->add("../shaders/grayscale_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  computePipeline = std::make_shared<Pipeline>(shader, computeDescriptorSetLayout, device);
+  computePipeline->createCompute();
+
+  descriptorPool = std::make_shared<DescriptorPool>(100, device);
+  computeDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), computeDescriptorSetLayout,
+                                                         descriptorPool, device);
+  computeDescriptorSet->createCompute(colorViewsTextures, computeTextures);
+}
+
 void initializeScreen() {
   swapchain = std::make_shared<Swapchain>(window, surface, device);
   renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
@@ -108,19 +144,19 @@ void initializeScreen() {
   framebuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
 
-  auto shaderGray = std::make_shared<Shader>("../shaders/grayscale_vertex.spv", "../shaders/grayscale_fragment.spv",
-                                             device);
+  auto shaderGray = std::make_shared<Shader>(device);
+  shaderGray->add("../shaders/final_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderGray->add("../shaders/final_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   spriteManagerScreen = std::make_shared<SpriteManager>(shaderGray, commandPool, commandBuffer, queue, renderPass,
                                                         device, settings);
   spriteScreen.resize(settings->getMaxFramesInFlight());
   for (int i = 0; i < spriteScreen.size(); i++) {
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(colorViews[i], device);
-    spriteScreen[i] = spriteManagerScreen->createSprite(texture);
+    spriteScreen[i] = spriteManagerScreen->createSprite(computeTextures[i]);
   }
 }
 
 void initialize() {
-  settings = std::make_shared<Settings>(std::tuple{800, 600}, 2);
+  settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
   instance = std::make_shared<Instance>("Vulkan", true, window);
   surface = std::make_shared<Surface>(window, instance);
@@ -135,6 +171,7 @@ void initialize() {
   }
 
   initializeOffscreen();
+  initializeCompute();
   initializeScreen();
 }
 
@@ -202,6 +239,66 @@ void drawFrame() {
     modelManager->draw(currentFrame);
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
   }
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // graphic to compute barrier
+  /////////////////////////////////////////////////////////////////////////////////////////
+  {
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = colorViewsTextures[currentFrame]->getImageView()->getImage()->getImage();
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], sourceStage, destinationStage, 0, 0, nullptr,
+                         0, nullptr, 1, &barrier);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // compute
+  /////////////////////////////////////////////////////////////////////////////////////////
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
+                    computePipeline->getPipeline());
+  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
+                          computePipeline->getPipelineLayout(), 0, 1,
+                          &computeDescriptorSet->getDescriptorSets()[currentFrame], 0, 0);
+
+  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(settings->getResolution()) / 16,
+                std::get<1>(settings->getResolution()) / 16, 1);
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // compute to graphic barrier
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // Image memory barrier to make sure that compute shader writes are finished before sampling from the texture
+  VkImageMemoryBarrier imageMemoryBarrier = {};
+  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  // We won't be changing the layout of the image
+  imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+  imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+  imageMemoryBarrier.image = computeTextures[currentFrame]->getImageView()->getImage()->getImage();
+  imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+  imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+  imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -238,7 +335,7 @@ void drawFrame() {
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
   VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]->getSemaphore()};
-  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
   submitInfo.waitSemaphoreCount = 1;
   submitInfo.pWaitSemaphores = waitSemaphores;
   submitInfo.pWaitDstStageMask = waitStages;

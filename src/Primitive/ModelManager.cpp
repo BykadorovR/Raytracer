@@ -14,8 +14,12 @@ Model3DManager::Model3DManager(std::shared_ptr<CommandPool> commandPool,
 
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  auto shader = std::make_shared<Shader>("../shaders/simple_vertex.spv", "../shaders/simple_fragment.spv", device);
-  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, render, device);
+  _descriptorSetLayout->createGraphic();
+  auto shader = std::make_shared<Shader>(device);
+  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
+  _pipeline->createGraphic(render);
 }
 
 std::shared_ptr<Model3D> Model3DManager::createModel(std::string path, std::shared_ptr<Texture> texture) {

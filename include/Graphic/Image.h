@@ -11,6 +11,7 @@ class Image {
   VkDeviceMemory _imageMemory;
   VkFormat _format;
   bool _external = false;
+  VkImageLayout _imageLayout;
 
  public:
   Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
@@ -28,6 +29,7 @@ class Image {
                     std::shared_ptr<Queue> queue);
   VkImage& getImage();
   VkFormat& getFormat();
+  VkImageLayout& getImageLayout();
 
   ~Image();
 };

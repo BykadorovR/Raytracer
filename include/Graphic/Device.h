@@ -28,6 +28,7 @@ class Device {
   // supported queues
   std::optional<uint32_t> _graphicsFamily;
   std::optional<uint32_t> _presentFamily;
+  std::optional<uint32_t> _computeFamily;
   // supported surface capabilities
   VkSurfaceCapabilitiesKHR _surfaceCapabilities;
   std::vector<VkSurfaceFormatKHR> _surfaceFormats;
@@ -46,6 +47,8 @@ class Device {
   VkSurfaceCapabilitiesKHR& getSupportedSurfaceCapabilities();
   std::optional<uint32_t> getSupportedGraphicsFamilyIndex();
   std::optional<uint32_t> getSupportedPresentFamilyIndex();
+  std::optional<uint32_t> getSupportedComputeFamilyIndex();
+
   VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
                                           VkImageTiling tiling,
                                           VkFormatFeatureFlags features);

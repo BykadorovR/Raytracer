@@ -15,7 +15,9 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
 
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, render, device);
+  _descriptorSetLayout->createGraphic();
+  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
+  _pipeline->createGraphic(render);
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture) {

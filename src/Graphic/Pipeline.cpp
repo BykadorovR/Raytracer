@@ -3,11 +3,25 @@
 
 Pipeline::Pipeline(std::shared_ptr<Shader> shader,
                    std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
-                   std::shared_ptr<RenderPass> renderPass,
                    std::shared_ptr<Device> device) {
   _device = device;
   _shader = shader;
+  _descriptorSetLayout = descriptorSetLayout;
+}
 
+void Pipeline::createGraphic(std::shared_ptr<RenderPass> renderPass) {
+  // create pipeline layout
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+
+  if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create pipeline layout!");
+  }
+
+  // create pipeline
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -66,16 +80,6 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader,
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
   dynamicState.pDynamicStates = dynamicStates.data();
 
-  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout->getDescriptorSetLayout();
-
-  if (vkCreatePipelineLayout(device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
-      VK_SUCCESS) {
-    throw std::runtime_error("failed to create pipeline layout!");
-  }
-
   VkPipelineDepthStencilStateCreateInfo depthStencil{};
   depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depthStencil.depthTestEnable = VK_TRUE;
@@ -91,7 +95,8 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader,
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   pipelineInfo.stageCount = 2;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {shader->getVertShaderStageInfo(), shader->getFragShaderStageInfo()};
+  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                    _shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
   pipelineInfo.pStages = shaderStages;
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -106,10 +111,31 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader,
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-  if (vkCreateGraphicsPipelines(device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline) !=
+  if (vkCreateGraphicsPipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics pipeline!");
   }
+}
+
+void Pipeline::createCompute() {
+  // create pipeline layout
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+
+  if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create pipeline layout!");
+  }
+
+  VkComputePipelineCreateInfo computePipelineCreateInfo{};
+  computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+  computePipelineCreateInfo.layout = _pipelineLayout;
+  computePipelineCreateInfo.flags = 0;
+  computePipelineCreateInfo.stage = _shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT);
+  vkCreateComputePipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
+                           &_pipeline);
 }
 
 VkPipeline& Pipeline::getPipeline() { return _pipeline; }

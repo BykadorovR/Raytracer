@@ -10,6 +10,8 @@ std::optional<uint32_t> Device::getSupportedGraphicsFamilyIndex() { return _grap
 
 std::optional<uint32_t> Device::getSupportedPresentFamilyIndex() { return _presentFamily; }
 
+std::optional<uint32_t> Device::getSupportedComputeFamilyIndex() { return _computeFamily; }
+
 bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check if queue supported
   uint32_t queueFamilyCount = 0;
@@ -24,6 +26,10 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
       _graphicsFamily = i;
     }
 
+    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+      _computeFamily = i;
+    }
+
     VkBool32 presentSupport = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface->getSurface(), &presentSupport);
 
@@ -31,7 +37,7 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
       _presentFamily = i;
     }
 
-    if (_presentFamily.has_value() && _graphicsFamily.has_value()) {
+    if (_presentFamily.has_value() && _graphicsFamily.has_value() && _computeFamily.has_value()) {
       break;
     }
 
@@ -79,8 +85,8 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check device features
   vkGetPhysicalDeviceFeatures(device, &_supportedFeatures);
 
-  return _presentFamily.has_value() && _graphicsFamily.has_value() && requiredExtensions.empty() && swapChainAdequate &&
-         _supportedFeatures.samplerAnisotropy;
+  return _presentFamily.has_value() && _graphicsFamily.has_value() && _computeFamily.has_value() &&
+         requiredExtensions.empty() && swapChainAdequate && _supportedFeatures.samplerAnisotropy;
 }
 
 void Device::_pickPhysicalDevice() {
@@ -108,7 +114,7 @@ void Device::_pickPhysicalDevice() {
 
 void Device::_createLogicalDevice() {
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-  std::set<uint32_t> uniqueQueueFamilies = {_graphicsFamily.value(), _presentFamily.value()};
+  std::set<uint32_t> uniqueQueueFamilies = {_graphicsFamily.value(), _presentFamily.value(), _computeFamily.value()};
 
   float queuePriority = 1.0f;
   for (uint32_t queueFamily : uniqueQueueFamilies) {

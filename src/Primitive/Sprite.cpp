@@ -25,8 +25,9 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
-  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), texture, _uniformBuffer,
-                                                   descriptorSetLayout, descriptorPool, device);
+  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
+                                                   descriptorPool, device);
+  _descriptorSet->createGraphic(texture, _uniformBuffer);
 }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }
