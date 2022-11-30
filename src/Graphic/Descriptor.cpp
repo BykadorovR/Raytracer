@@ -150,12 +150,10 @@ void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureI
     VkDescriptorImageInfo imageInfoIn{};
     imageInfoIn.imageLayout = textureIn[i]->getImageView()->getImage()->getImageLayout();
     imageInfoIn.imageView = textureIn[i]->getImageView()->getImageView();
-    imageInfoIn.sampler = textureIn[i]->getSampler()->getSampler();
 
     VkDescriptorImageInfo imageInfoOut{};
     imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
     imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
-    imageInfoOut.sampler = textureOut[i]->getSampler()->getSampler();
 
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

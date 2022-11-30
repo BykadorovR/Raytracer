@@ -101,7 +101,9 @@ void Device::_pickPhysicalDevice() {
   vkEnumeratePhysicalDevices(_instance->getInstance(), &deviceCount, devices.data());
 
   for (const auto& device : devices) {
-    if (_isDeviceSuitable(device)) {
+    VkPhysicalDeviceProperties props;
+    vkGetPhysicalDeviceProperties(device, &props);
+    if (_isDeviceSuitable(device) && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
       _physicalDevice = device;
       break;
     }
