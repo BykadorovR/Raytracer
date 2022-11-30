@@ -52,13 +52,13 @@ std::shared_ptr<DescriptorSet> computeDescriptorSet;
 std::shared_ptr<DescriptorPool> descriptorPool;
 
 void initializeOffscreen() {
-  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_B8G8R8A8_UNORM, device);
+  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_R8G8B8A8_UNORM, device);
   renderPassOffscreen->initializeOffscreen();
 
   std::vector<std::shared_ptr<ImageView>> colorViews;
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
     std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
@@ -115,7 +115,7 @@ void initializeCompute() {
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // Image will be sampled in the fragment shader and used as storage target in the compute shader
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
     std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
