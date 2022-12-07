@@ -10,7 +10,7 @@ class Shader {
 
  public:
   Shader(std::shared_ptr<Device> device);
-  void add(std::string text, VkShaderStageFlagBits type);
+  void add(std::string path, VkShaderStageFlagBits type);
   VkPipelineShaderStageCreateInfo& getShaderStageInfo(VkShaderStageFlagBits type);
   ~Shader();
 };

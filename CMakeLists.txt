@@ -36,12 +36,34 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
+  "cmake_minimum_required(VERSION 3.16)\n"
+  "project(imgui LANGUAGES CXX)\n"
+  "include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)\n"
+  "add_library(imgui "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui/imgui.cpp"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui/imgui_draw.cpp"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui/imgui_tables.cpp"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui/imgui_widgets.cpp"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui/imgui_demo.cpp"
+                     )"
+  )
+
+ExternalProject_Add(
+  imgui
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui
+  GIT_REPOSITORY https://github.com/ocornut/imgui
+  GIT_TAG 713e034d95f6cc8a57ca504d52cb4f60da6359d9
+  CONFIGURE_COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/
+  INSTALL_COMMAND ""
+)
+
 #affects all projects, add folder "include" to include section in VS
 include_directories("include/Graphic")
 include_directories("include/Primitive")
-include_directories("include/Common")
+include_directories("include/Utility")
 include_directories("dependencies")
-
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -51,10 +73,10 @@ file(GLOB_RECURSE app_source_primitive "src/Primitive/*.c*")
 source_group("Primitive\\src" FILES ${app_source_primitive})
 file(GLOB_RECURSE app_header_primitive "include/Primitive/*.h*")
 source_group("Primitive\\include" FILES ${app_header_primitive})
-file(GLOB_RECURSE app_source_common "src/Common/*.c*")
-source_group("Common\\src" FILES ${app_source_common})
-file(GLOB_RECURSE app_header_common "include/Common/*.h*")
-source_group("Common\\include" FILES ${app_header_common})
+file(GLOB_RECURSE app_source_utility "src/Utility/*.c*")
+source_group("Utility\\src" FILES ${app_source_utility})
+file(GLOB_RECURSE app_header_utility "include/Utility/*.h*")
+source_group("Utility\\include" FILES ${app_header_utility})
 file(GLOB_RECURSE app_source_entry "src/Entry/*.c*")
 source_group("Entry\\src" FILES ${app_source_entry})
 
@@ -64,7 +86,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 #include headers to project (so they will be shown in include folder)
 add_executable(${PROJECT_NAME} ${app_header_graphic} ${app_source_graphic}
                                ${app_header_primitive} ${app_source_primitive}
-                               ${app_header_common} ${app_source_common}
+                               ${app_header_utility} ${app_source_utility}
                                ${app_source_entry})
 ###############################
 
@@ -72,9 +94,13 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} glfw glm)
+add_dependencies(${PROJECT_NAME} glfw glm imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)
+#link imgui libraries
+target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui-build/Debug/imgui.lib)
+target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui-build/Release/imgui.lib)

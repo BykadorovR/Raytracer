@@ -17,8 +17,8 @@ VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
 
 Shader::Shader(std::shared_ptr<Device> device) { _device = device; }
 
-void Shader::add(std::string text, VkShaderStageFlagBits type) {
-  auto shaderCode = readFile(text);
+void Shader::add(std::string path, VkShaderStageFlagBits type) {
+  auto shaderCode = readFile(path);
   VkShaderModule shaderModule = _createShaderModule(shaderCode);
   _shaders[type] = {};
   _shaders[type].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
