@@ -17,8 +17,13 @@ class Pipeline {
   Pipeline(std::shared_ptr<Shader> shader,
            std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
            std::shared_ptr<Device> device);
-  void createGraphic(std::shared_ptr<RenderPass> renderPass);
+  void createGraphic(VkVertexInputBindingDescription bindingDescription,
+                     std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
+                     std::shared_ptr<RenderPass> renderPass);
   void createCompute();
+  void createGUI(VkVertexInputBindingDescription bindingDescription,
+                 std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
+                 std::shared_ptr<RenderPass> renderPass);
 
   VkPipeline& getPipeline();
   VkPipelineLayout& getPipelineLayout();

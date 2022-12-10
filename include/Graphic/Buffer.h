@@ -62,6 +62,7 @@ class Buffer {
   VkDeviceMemory _memory;
   VkDeviceSize _size;
   std::shared_ptr<Device> _device;
+  void* _mapped = nullptr;
 
  public:
   Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
@@ -69,6 +70,10 @@ class Buffer {
   VkBuffer& getData();
   VkDeviceSize& getSize();
   VkDeviceMemory& getMemory();
+  void map();
+  void unmap();
+  void flush();
+  void* getMappedMemory();
   ~Buffer();
 };
 

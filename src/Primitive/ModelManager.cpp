@@ -19,7 +19,7 @@ Model3DManager::Model3DManager(std::shared_ptr<CommandPool> commandPool,
   shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
-  _pipeline->createGraphic(render);
+  _pipeline->createGraphic(Vertex::getBindingDescription(), Vertex::getAttributeDescriptions(), render);
 }
 
 std::shared_ptr<Model3D> Model3DManager::createModel(std::string path, std::shared_ptr<Texture> texture) {

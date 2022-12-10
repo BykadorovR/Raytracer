@@ -19,6 +19,7 @@
 #include "SpriteManager.h"
 #include "Model.h"
 #include "ModelManager.h"
+#include "GUI.h"
 
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
@@ -26,6 +27,7 @@ std::shared_ptr<Device> device;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass;
 std::shared_ptr<RenderPass> renderPassOffscreen;
+std::shared_ptr<RenderPass> renderPassGUI;
 std::shared_ptr<Framebuffer> framebuffer;
 std::shared_ptr<Framebuffer> framebufferOffscreen;
 std::shared_ptr<CommandPool> commandPool;
@@ -42,6 +44,7 @@ std::vector<std::shared_ptr<Sprite>> spriteScreen;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<Model3D> model3D;
 std::shared_ptr<Surface> surface;
+std::shared_ptr<GUI> gui;
 
 uint64_t currentFrame = 0;
 std::vector<std::shared_ptr<Texture>> computeTextures;
@@ -173,6 +176,9 @@ void initialize() {
   initializeOffscreen();
   initializeCompute();
   initializeScreen();
+
+  gui = std::make_shared<GUI>(settings->getResolution(), window, device);
+  gui->initialize(renderPass, queue, commandPool);
 }
 
 void drawFrame() {
@@ -193,6 +199,9 @@ void drawFrame() {
 
   vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
   vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+
+  gui->newFrame();
+  gui->updateBuffers(currentFrame);
 
   // record command buffer
   VkCommandBufferBeginInfo beginInfo{};
@@ -323,6 +332,8 @@ void drawFrame() {
     }
     spriteManagerScreen->registerSprite(spriteScreen[currentFrame]);
     spriteManagerScreen->draw(currentFrame);
+    gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
+
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
   }
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -376,9 +387,19 @@ void drawFrame() {
 }
 
 void mainLoop() {
+  auto startTime = std::chrono::high_resolution_clock::now();
+  int frame = 0;
   while (!glfwWindowShouldClose(window->getWindow())) {
     glfwPollEvents();
     drawFrame();
+    frame++;
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
+    if (elapsed > 1000.f) {
+      gui->setFPS((float)frame * (1000.f / elapsed));
+      startTime = end;
+      frame = 0;
+    }
   }
 
   vkDeviceWaitIdle(device->getLogicalDevice());

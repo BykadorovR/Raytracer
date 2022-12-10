@@ -15,5 +15,6 @@ class Window {
   Window(std::tuple<int, int> resolution);
   GLFWwindow* getWindow();
   std::vector<const char*> getExtensions();
+
   ~Window();
 };

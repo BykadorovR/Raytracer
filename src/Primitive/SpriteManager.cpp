@@ -17,7 +17,7 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayout->createGraphic();
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
-  _pipeline->createGraphic(render);
+  _pipeline->createGraphic(Vertex::getBindingDescription(), Vertex::getAttributeDescriptions(), render);
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture) {
