@@ -51,7 +51,6 @@ class GUI {
   std::tuple<int, int> _resolution;
   std::shared_ptr<Device> _device;
   std::shared_ptr<Window> _window;
-  VkPhysicalDeviceDriverProperties _driverProperties = {};
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
   std::array<std::shared_ptr<Buffer>, 2> _vertexBuffer;

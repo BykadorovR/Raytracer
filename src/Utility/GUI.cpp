@@ -120,9 +120,6 @@ void GUI::newFrame() {
   ImGui::SetWindowSize(ImVec2(150 * _scale, 60 * _scale), ImGuiCond_Always);
   ImGui::Text(std::string("FPS " + std::to_string(_fps)).c_str());
 
-  // SRS - ShowDemoWindow() sets its own initial position and size, cannot override here
-  ImGui::ShowDemoWindow();
-
   // Render to generate draw buffers
   ImGui::Render();
 }
@@ -230,4 +227,4 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
   io.MouseDown[1] = mouseDownRight;
 }
 
-GUI::~GUI() {}
+GUI::~GUI() { ImGui::DestroyContext(); }
