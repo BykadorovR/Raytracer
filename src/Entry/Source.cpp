@@ -21,6 +21,8 @@
 #include "ModelManager.h"
 #include "GUI.h"
 
+#include "OffscreenPart.h"
+
 float fps = 0;
 
 std::shared_ptr<Window> window;
@@ -28,10 +30,8 @@ std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass;
-std::shared_ptr<RenderPass> renderPassOffscreen;
 std::shared_ptr<RenderPass> renderPassGUI;
 std::shared_ptr<Framebuffer> framebuffer;
-std::shared_ptr<Framebuffer> framebufferOffscreen;
 std::shared_ptr<CommandPool> commandPool;
 std::shared_ptr<Queue> queue;
 
@@ -50,42 +50,21 @@ std::shared_ptr<GUI> gui;
 
 uint64_t currentFrame = 0;
 std::vector<std::shared_ptr<Texture>> computeTextures;
-std::vector<std::shared_ptr<Texture>> colorViewsTextures;
 std::shared_ptr<Pipeline> computePipeline;
 std::shared_ptr<ImageView> depthView;
 std::shared_ptr<DescriptorSet> computeDescriptorSet;
 std::shared_ptr<DescriptorPool> descriptorPool;
 
-void initializeOffscreen() {
-  renderPassOffscreen = std::make_shared<RenderPass>(VK_FORMAT_R8G8B8A8_UNORM, device);
-  renderPassOffscreen->initializeOffscreen();
+std::shared_ptr<OffscreenPart> offscreenPart;
 
-  std::vector<std::shared_ptr<ImageView>> colorViews;
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
-    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
-    colorViews.push_back(imageView);
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
-    colorViewsTextures.push_back(texture);
-  }
-
-  std::shared_ptr<Image> image = std::make_shared<Image>(
-      settings->getResolution(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-  depthView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, device);
-
-  framebufferOffscreen = std::make_shared<Framebuffer>(settings->getResolution(), colorViews, depthView,
-                                                       renderPassOffscreen, device);
+void initializeScene() {
+  auto shader = std::make_shared<Shader>(device);
   // Initialize scene
   std::shared_ptr<Texture> texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
-  auto shader = std::make_shared<Shader>(device);
   shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPassOffscreen,
-                                                  device, settings);
+  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue,
+                                                  offscreenPart->getRenderPass(), device, settings);
 
   sprite1 = spriteManager->createSprite(texture);
   spriteManager->registerSprite(sprite1);
@@ -105,13 +84,17 @@ void initializeOffscreen() {
 
   std::shared_ptr<Texture> textureModel = std::make_shared<Texture>("../data/viking_room.png", commandPool, queue,
                                                                     device);
-  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPassOffscreen, device,
-                                                  settings);
+  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, offscreenPart->getRenderPass(),
+                                                  device, settings);
   model3D = modelManager->createModel("../data/viking_room.obj", textureModel);
   modelManager->registerModel(model3D);
 
   model3D->setView(view);
   model3D->setProjection(proj);
+}
+
+void initializeOffscreen() {
+  offscreenPart = std::make_shared<OffscreenPart>(device, queue, commandPool, commandBuffer, settings);
 }
 
 void initializeCompute() {
@@ -138,7 +121,7 @@ void initializeCompute() {
   descriptorPool = std::make_shared<DescriptorPool>(100, device);
   computeDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), computeDescriptorSetLayout,
                                                          descriptorPool, device);
-  computeDescriptorSet->createCompute(colorViewsTextures, computeTextures);
+  computeDescriptorSet->createCompute(offscreenPart->getResultTextures(), computeTextures);
 }
 
 void initializeScreen() {
@@ -176,6 +159,7 @@ void initialize() {
   }
 
   initializeOffscreen();
+  initializeScene();
   initializeCompute();
   initializeScreen();
 
@@ -237,8 +221,8 @@ void drawFrame() {
 
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPassOffscreen->getRenderPass();
-    renderPassInfo.framebuffer = framebufferOffscreen->getBuffer()[currentFrame];
+    renderPassInfo.renderPass = offscreenPart->getRenderPass()->getRenderPass();
+    renderPassInfo.framebuffer = offscreenPart->getFramebuffer()->getBuffer()[currentFrame];
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
 
@@ -262,7 +246,7 @@ void drawFrame() {
 
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = colorViewsTextures[currentFrame]->getImageView()->getImage()->getImage();
+    barrier.image = offscreenPart->getResultTextures()[currentFrame]->getImageView()->getImage()->getImage();
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
