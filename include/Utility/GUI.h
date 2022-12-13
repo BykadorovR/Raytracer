@@ -47,7 +47,7 @@ void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 
 class GUI {
  private:
-  float _scale = 1.f;
+  float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
   std::shared_ptr<Device> _device;
   std::shared_ptr<Window> _window;
@@ -66,17 +66,23 @@ class GUI {
   std::shared_ptr<ImageView> _imageView;
   std::array<int32_t, 2> _vertexCount = {0, 0};
   std::array<int32_t, 2> _indexCount = {0, 0};
-  float _fps = 0;
+
+  int _calls = 0;
 
  public:
   GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
   void initialize(std::shared_ptr<RenderPass> renderPass,
                   std::shared_ptr<Queue> queue,
                   std::shared_ptr<CommandPool> commandPool);
-  void newFrame();
+  void addText(std::string name,
+               std::tuple<int, int> position,
+               std::tuple<int, int> size,
+               std::vector<std::string> text);
+  void addCheckbox(std::string name,
+                   std::tuple<int, int> position,
+                   std::tuple<int, int> size,
+                   std::map<std::string, bool*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, VkCommandBuffer commandBuffer);
-
-  void setFPS(float fps);
   ~GUI();
 };

@@ -34,9 +34,9 @@ GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::s
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
-  io.FontGlobalScale = _scale;
+  io.FontGlobalScale = _fontScale;
   ImGuiStyle& style = ImGui::GetStyle();
-  style.ScaleAllSizes(_scale);
+  style.ScaleAllSizes(_fontScale);
   // Color scheme
   style.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
   style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
@@ -111,20 +111,39 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   _pipeline->createGUI(VertexGUI::getBindingDescription(), VertexGUI::getAttributeDescriptions(), renderPass);
 }
 
-void GUI::newFrame() {
-  ImGui::NewFrame();
-  // Init imGui windows and elements
-  // SRS - Set initial position of default Debug window (note: Debug window sets its own initial size, use
-  // ImGuiSetCond_Always to override)
-  ImGui::SetWindowPos(ImVec2(20 * _scale, 20 * _scale), ImGuiCond_FirstUseEver);
-  ImGui::SetWindowSize(ImVec2(150 * _scale, 60 * _scale), ImGuiCond_Always);
-  ImGui::Text(std::string("FPS " + std::to_string(_fps)).c_str());
+void GUI::addCheckbox(std::string name,
+                      std::tuple<int, int> position,
+                      std::tuple<int, int> size,
+                      std::map<std::string, bool*> variable) {
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str());
+    ImGui::Checkbox(key.c_str(), value);
+    ImGui::End();
+  }
+  _calls++;
+}
 
-  // Render to generate draw buffers
-  ImGui::Render();
+void GUI::addText(std::string name,
+                  std::tuple<int, int> position,
+                  std::tuple<int, int> size,
+                  std::vector<std::string> text) {
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto value : text) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str());
+    ImGui::Text(value.c_str());
+    ImGui::End();
+  }
+  _calls++;
 }
 
 void GUI::updateBuffers(int current) {
+  ImGui::Render();
+  _calls = 0;
   ImDrawData* imDrawData = ImGui::GetDrawData();
 
   // Note: Alignment is done inside buffer creation
@@ -165,8 +184,6 @@ void GUI::updateBuffers(int current) {
   _vertexBuffer[current]->flush();
   _indexBuffer[current]->flush();
 }
-
-void GUI::setFPS(float fps) { _fps = fps; }
 
 void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
   ImGuiIO& io = ImGui::GetIO();

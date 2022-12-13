@@ -21,6 +21,8 @@
 #include "ModelManager.h"
 #include "GUI.h"
 
+float fps = 0;
+
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
@@ -200,7 +202,7 @@ void drawFrame() {
   vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
   vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
 
-  gui->newFrame();
+  gui->addText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
   gui->updateBuffers(currentFrame);
 
   // record command buffer
@@ -396,7 +398,7 @@ void mainLoop() {
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
     if (elapsed > 1000.f) {
-      gui->setFPS((float)frame * (1000.f / elapsed));
+      fps = (float)frame * (1000.f / elapsed);
       startTime = end;
       frame = 0;
     }
