@@ -22,40 +22,34 @@
 #include "GUI.h"
 
 #include "OffscreenPart.h"
+#include "ComputePart.h"
+#include "ScreenPart.h"
 
 float fps = 0;
+uint64_t currentFrame = 0;
 
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<Swapchain> swapchain;
-std::shared_ptr<RenderPass> renderPass;
-std::shared_ptr<RenderPass> renderPassGUI;
-std::shared_ptr<Framebuffer> framebuffer;
+std::shared_ptr<CommandBuffer> commandBuffer;
 std::shared_ptr<CommandPool> commandPool;
 std::shared_ptr<Queue> queue;
+std::shared_ptr<Surface> surface;
+std::shared_ptr<Settings> settings;
+std::array<VkClearValue, 2> clearValues{};
 
-std::shared_ptr<CommandBuffer> commandBuffer;
 std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
 std::vector<std::shared_ptr<Fence>> inFlightFences;
 
-std::shared_ptr<Settings> settings;
-std::shared_ptr<SpriteManager> spriteManager, spriteManagerScreen;
+std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
-std::vector<std::shared_ptr<Sprite>> spriteScreen;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<Model3D> model3D;
-std::shared_ptr<Surface> surface;
+
 std::shared_ptr<GUI> gui;
-
-uint64_t currentFrame = 0;
-std::vector<std::shared_ptr<Texture>> computeTextures;
-std::shared_ptr<Pipeline> computePipeline;
-std::shared_ptr<ImageView> depthView;
-std::shared_ptr<DescriptorSet> computeDescriptorSet;
-std::shared_ptr<DescriptorPool> descriptorPool;
-
 std::shared_ptr<OffscreenPart> offscreenPart;
+std::shared_ptr<ComputePart> computePart;
+std::shared_ptr<ScreenPart> screenPart;
 
 void initializeScene() {
   auto shader = std::make_shared<Shader>(device);
@@ -98,52 +92,18 @@ void initializeOffscreen() {
 }
 
 void initializeCompute() {
-  // allocate textures where to store compute shader result
-  computeTextures.resize(settings->getMaxFramesInFlight());
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    // Image will be sampled in the fragment shader and used as storage target in the compute shader
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
-    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
-    computeTextures[i] = texture;
-  }
-
-  std::shared_ptr<DescriptorSetLayout> computeDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  computeDescriptorSetLayout->createCompute();
-  auto shader = std::make_shared<Shader>(device);
-  shader->add("../shaders/grayscale_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-  computePipeline = std::make_shared<Pipeline>(shader, computeDescriptorSetLayout, device);
-  computePipeline->createCompute();
-
-  descriptorPool = std::make_shared<DescriptorPool>(100, device);
-  computeDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), computeDescriptorSetLayout,
-                                                         descriptorPool, device);
-  computeDescriptorSet->createCompute(offscreenPart->getResultTextures(), computeTextures);
+  computePart = std::make_shared<ComputePart>(offscreenPart->getResultTextures(), device, queue, commandPool, settings);
 }
 
 void initializeScreen() {
-  swapchain = std::make_shared<Swapchain>(window, surface, device);
-  renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
-  renderPass->initialize();
-
-  framebuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
-                                              swapchain->getDepthImageView(), renderPass, device);
-
-  auto shaderGray = std::make_shared<Shader>(device);
-  shaderGray->add("../shaders/final_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shaderGray->add("../shaders/final_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  spriteManagerScreen = std::make_shared<SpriteManager>(shaderGray, commandPool, commandBuffer, queue, renderPass,
-                                                        device, settings);
-  spriteScreen.resize(settings->getMaxFramesInFlight());
-  for (int i = 0; i < spriteScreen.size(); i++) {
-    spriteScreen[i] = spriteManagerScreen->createSprite(computeTextures[i]);
-  }
+  screenPart = std::make_shared<ScreenPart>(computePart->getResultTextures(), window, surface, device, queue,
+                                            commandPool, commandBuffer, settings);
 }
 
 void initialize() {
+  clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+  clearValues[1].depthStencil = {1.0f, 0};
+
   settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
   instance = std::make_shared<Instance>("Vulkan", true, window);
@@ -164,7 +124,24 @@ void initialize() {
   initializeScreen();
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
-  gui->initialize(renderPass, queue, commandPool);
+  gui->initialize(screenPart->getRenderPass(), queue, commandPool);
+}
+
+VkRenderPassBeginInfo render(int index,
+                             std::shared_ptr<RenderPass> renderPass,
+                             std::shared_ptr<Framebuffer> framebuffer,
+                             std::shared_ptr<Swapchain> swapchain) {
+  VkRenderPassBeginInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassInfo.renderPass = renderPass->getRenderPass();
+  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
+  renderPassInfo.renderArea.offset = {0, 0};
+  renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
+
+  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+  renderPassInfo.pClearValues = clearValues.data();
+
+  return renderPassInfo;
 }
 
 void drawFrame() {
@@ -172,9 +149,9 @@ void drawFrame() {
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
-  VkResult result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
-                                          imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE,
-                                          &imageIndex);
+  VkResult result = vkAcquireNextImageKHR(device->getLogicalDevice(), screenPart->getSwapchain()->getSwapchain(),
+                                          UINT64_MAX, imageAvailableSemaphores[currentFrame]->getSemaphore(),
+                                          VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     // TODO: recreate swapchain
@@ -215,19 +192,8 @@ void drawFrame() {
     sprite2->setModel(model2);
     model3D->setModel(model3);
     // render
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-    clearValues[1].depthStencil = {1.0f, 0};
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = offscreenPart->getRenderPass()->getRenderPass();
-    renderPassInfo.framebuffer = offscreenPart->getFramebuffer()->getBuffer()[currentFrame];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
-
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    auto renderPassInfo = render(currentFrame, offscreenPart->getRenderPass(), offscreenPart->getFramebuffer(),
+                                 screenPart->getSwapchain());
 
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     spriteManager->draw(currentFrame);
@@ -269,10 +235,10 @@ void drawFrame() {
   // compute
   /////////////////////////////////////////////////////////////////////////////////////////
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                    computePipeline->getPipeline());
+                    computePart->getPipeline()->getPipeline());
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                          computePipeline->getPipelineLayout(), 0, 1,
-                          &computeDescriptorSet->getDescriptorSets()[currentFrame], 0, 0);
+                          computePart->getPipeline()->getPipelineLayout(), 0, 1,
+                          &computePart->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, 0);
 
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(settings->getResolution()) / 16,
                 std::get<1>(settings->getResolution()) / 16, 1);
@@ -286,7 +252,7 @@ void drawFrame() {
   // We won't be changing the layout of the image
   imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
   imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-  imageMemoryBarrier.image = computeTextures[currentFrame]->getImageView()->getImage()->getImage();
+  imageMemoryBarrier.image = computePart->getResultTextures()[currentFrame]->getImageView()->getImage()->getImage();
   imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
   imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
   imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -298,26 +264,15 @@ void drawFrame() {
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-    clearValues[1].depthStencil = {1.0f, 0};
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass->getRenderPass();
-    renderPassInfo.framebuffer = framebuffer->getBuffer()[imageIndex];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
-
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    auto renderPassInfo = render(imageIndex, screenPart->getRenderPass(), screenPart->getFramebuffer(),
+                                 screenPart->getSwapchain());
 
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    for (auto sprite : spriteScreen) {
-      spriteManagerScreen->unregisterSprite(sprite);
+    for (auto sprite : screenPart->getSprites()) {
+      screenPart->getSpriteManager()->unregisterSprite(sprite);
     }
-    spriteManagerScreen->registerSprite(spriteScreen[currentFrame]);
-    spriteManagerScreen->draw(currentFrame);
+    screenPart->getSpriteManager()->registerSprite(screenPart->getSprites()[currentFrame]);
+    screenPart->getSpriteManager()->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -354,7 +309,7 @@ void drawFrame() {
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = signalSemaphores;
 
-  VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
+  VkSwapchainKHR swapChains[] = {screenPart->getSwapchain()->getSwapchain()};
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swapChains;
 
