@@ -47,53 +47,10 @@ std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<Model3D> model3D;
 
 std::shared_ptr<GUI> gui;
-std::shared_ptr<OffscreenPart> offscreenPart;
 std::shared_ptr<ComputePart> computePart;
 std::shared_ptr<ScreenPart> screenPart;
 
-void initializeScene() {
-  auto shader = std::make_shared<Shader>(device);
-  // Initialize scene
-  std::shared_ptr<Texture> texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
-  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue,
-                                                  offscreenPart->getRenderPass(), device, settings);
-
-  sprite1 = spriteManager->createSprite(texture);
-  spriteManager->registerSprite(sprite1);
-  sprite2 = spriteManager->createSprite(texture);
-  spriteManager->registerSprite(sprite2);
-
-  auto view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-  auto proj = glm::perspective(
-      glm::radians(45.0f),
-      (float)std::get<0>(settings->getResolution()) / (float)std::get<1>(settings->getResolution()), 0.1f, 10.0f);
-  proj[1][1] *= -1;
-  sprite1->setView(view);
-  sprite1->setProjection(proj);
-
-  sprite2->setView(view);
-  sprite2->setProjection(proj);
-
-  std::shared_ptr<Texture> textureModel = std::make_shared<Texture>("../data/viking_room.png", commandPool, queue,
-                                                                    device);
-  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, offscreenPart->getRenderPass(),
-                                                  device, settings);
-  model3D = modelManager->createModel("../data/viking_room.obj", textureModel);
-  modelManager->registerModel(model3D);
-
-  model3D->setView(view);
-  model3D->setProjection(proj);
-}
-
-void initializeOffscreen() {
-  offscreenPart = std::make_shared<OffscreenPart>(device, queue, commandPool, commandBuffer, settings);
-}
-
-void initializeCompute() {
-  computePart = std::make_shared<ComputePart>(offscreenPart->getResultTextures(), device, queue, commandPool, settings);
-}
+void initializeCompute() { computePart = std::make_shared<ComputePart>(device, queue, commandPool, settings); }
 
 void initializeScreen() {
   screenPart = std::make_shared<ScreenPart>(computePart->getResultTextures(), window, surface, device, queue,
@@ -118,8 +75,6 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  initializeOffscreen();
-  initializeScene();
   initializeCompute();
   initializeScreen();
 
@@ -173,64 +128,6 @@ void drawFrame() {
   if (vkBeginCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], &beginInfo) != VK_SUCCESS) {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
-  ////////////////////////////////////////////////////////////////////////
-  // render scene
-  ////////////////////////////////////////////////////////////////////////
-  {
-    // Update uniform
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    auto model1 = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    auto model2 = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -0.5f));
-    auto model3 = glm::translate(glm::mat4(1.f), glm::vec3(1.f, -1.f, 0.f));
-    model3 = glm::rotate(model3, time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-
-    sprite1->setModel(model1);
-    sprite2->setModel(model2);
-    model3D->setModel(model3);
-    // render
-    auto renderPassInfo = render(currentFrame, offscreenPart->getRenderPass(), offscreenPart->getFramebuffer(),
-                                 screenPart->getSwapchain());
-
-    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    spriteManager->draw(currentFrame);
-    modelManager->draw(currentFrame);
-    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-  }
-
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // graphic to compute barrier
-  /////////////////////////////////////////////////////////////////////////////////////////
-  {
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = offscreenPart->getResultTextures()[currentFrame]->getImageView()->getImage()->getImage();
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
-
-    barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    destinationStage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], sourceStage, destinationStage, 0, 0, nullptr,
-                         0, nullptr, 1, &barrier);
-  }
-
   /////////////////////////////////////////////////////////////////////////////////////////
   // compute
   /////////////////////////////////////////////////////////////////////////////////////////

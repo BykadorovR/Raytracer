@@ -3,27 +3,18 @@
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
 void DescriptorSetLayout::createCompute() {
-  // input image (read-only)
-  VkDescriptorSetLayoutBinding computeLayoutBindingInput{};
-  computeLayoutBindingInput.binding = 0;
-  computeLayoutBindingInput.descriptorCount = 1;
-  computeLayoutBindingInput.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  computeLayoutBindingInput.pImmutableSamplers = nullptr;
-  computeLayoutBindingInput.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
   // output image
   VkDescriptorSetLayoutBinding computeLayoutBindingOutput{};
-  computeLayoutBindingOutput.binding = 1;
+  computeLayoutBindingOutput.binding = 0;
   computeLayoutBindingOutput.descriptorCount = 1;
   computeLayoutBindingOutput.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   computeLayoutBindingOutput.pImmutableSamplers = nullptr;
   computeLayoutBindingOutput.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings = {computeLayoutBindingInput, computeLayoutBindingOutput};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-  layoutInfo.pBindings = bindings.data();
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &computeLayoutBindingOutput;
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -205,36 +196,22 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
   }
 }
 
-void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureIn,
-                                  std::vector<std::shared_ptr<Texture>> textureOut) {
+void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorImageInfo imageInfoIn{};
-    imageInfoIn.imageLayout = textureIn[i]->getImageView()->getImage()->getImageLayout();
-    imageInfoIn.imageView = textureIn[i]->getImageView()->getImageView();
-
     VkDescriptorImageInfo imageInfoOut{};
     imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
     imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = _descriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pImageInfo = &imageInfoIn;
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pImageInfo = &imageInfoOut;
 
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = _descriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfoOut;
-
-    vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
-                           descriptorWrites.data(), 0, nullptr);
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
   }
 }
 
