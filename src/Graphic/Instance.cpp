@@ -100,6 +100,10 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
       func(_instance, &createInfo, nullptr, &_debugMessenger);
     else
       throw std::runtime_error("failed to set up debug messenger!");
+
+    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
+    CreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(
+        _instance, "vkCreateDebugReportCallbackEXT");
   }
 }
 

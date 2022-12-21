@@ -57,6 +57,10 @@ void initializeScreen() {
                                             commandPool, commandBuffer, settings);
 }
 
+PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
+PFN_vkCmdEndDebugUtilsLabelEXT CmdEndDebugUtilsLabelEXT;
+PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
+
 void initialize() {
   clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
   clearValues[1].depthStencil = {1.0f, 0};
@@ -64,6 +68,13 @@ void initialize() {
   settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
   instance = std::make_shared<Instance>("Vulkan", true, window);
+  CmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance->getInstance(),
+                                                                                       "vkCmdBeginDebugUtilsLabelEXT");
+  CmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance->getInstance(),
+                                                                                   "vkCmdEndDebugUtilsLabelEXT");
+  SetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(instance->getInstance(),
+                                                                                       "vkSetDebugUtilsObjectNameEXT");
+
   surface = std::make_shared<Surface>(window, instance);
   device = std::make_shared<Device>(surface, instance);
   commandPool = std::make_shared<CommandPool>(device);
@@ -128,6 +139,22 @@ void drawFrame() {
   if (vkBeginCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], &beginInfo) != VK_SUCCESS) {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
+
+  // Set a name for the command buffer
+  VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {
+      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+      .pNext = NULL,
+      .objectType = VK_OBJECT_TYPE_COMMAND_BUFFER,
+      .objectHandle = (uint64_t)commandBuffer->getCommandBuffer()[currentFrame],
+      .pObjectName = "Raytracing command buffer",
+  };
+  SetDebugUtilsObjectNameEXT(device->getLogicalDevice(), &cmdBufInfo);
+
+  VkDebugUtilsLabelEXT markerInfo = {};
+  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+  markerInfo.pLabelName = "Raytraycing compute";
+  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
+
   /////////////////////////////////////////////////////////////////////////////////////////
   // compute
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -139,6 +166,13 @@ void drawFrame() {
 
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(settings->getResolution()) / 16,
                 std::get<1>(settings->getResolution()) / 16, 1);
+
+  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
+
+  markerInfo = {};
+  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+  markerInfo.pLabelName = "Compute-Render sync";
+  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // compute to graphic barrier
@@ -157,6 +191,13 @@ void drawFrame() {
   imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+
+  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
+
+  markerInfo = {};
+  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+  markerInfo.pLabelName = "Render to screen";
+  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -175,6 +216,8 @@ void drawFrame() {
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
   }
   ///////////////////////////////////////////////////////////////////////////////////////////
+
+  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer!");
