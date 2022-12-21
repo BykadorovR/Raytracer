@@ -6,10 +6,50 @@ layout (binding = 0, rgba8) uniform writeonly image2D resultImage;
 //gl_GlobalInvocationID.x, gl_GlobalInvocationID.y
 //ivec2 dim = imageSize(resultImage);
 
+//t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
+float hitSphere(vec3 center, float radius, vec3 rayO, vec3 rayE) {
+  vec3 dir = normalize(rayE - rayO);
+  vec3 oc = rayO - center;
+  float a = dot(dir, dir);
+  float b = 2 * dot(dir, oc);
+  float c = dot(oc, oc) - radius * radius;
+  float disc = b * b - 4 * a * c;
+  if (disc < 0)
+    return -1;
+  else
+    return (-b - sqrt(disc) ) / (2.0*a);
+}
+
+vec3 rayColor(vec3 rayO, vec3 rayE) {
+  vec3 sphereCenter = vec3(0.0, 0.0, -1.0);
+  float t = hitSphere(sphereCenter, 0.5, rayO, rayE);
+  if (t > 0.0) {
+    //normal = point on ray that intersect shpere - sphere center
+    vec3 normal = normalize(vec3(rayO + rayE * t - sphereCenter));
+    //map -1 1 range to 0 1 range
+    return 0.5 * vec3(normal.x + 1, normal.y + 1, normal.z + 1);
+  }
+  vec3 dir = normalize(rayE - rayO);
+  t = 0.5 * (dir.y + 1);
+  return (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+}
+
+
 void main()
-{   
-    vec4 res = vec4(1, 0, 0, 1);
-    if (gl_GlobalInvocationID.x > 300)
-        res = vec4(0, 1, 0, 1);
-    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), res);
+{
+  ivec2 dim = imageSize(resultImage);
+  //need to pass via uniform
+  float aspect = 800.0 / 592.0;
+  float focalLength = 1;
+
+  //range is [0, 1]
+  vec2 uv = vec2(gl_GlobalInvocationID.xy) / dim;
+
+  //should be origin of camera
+  vec3 rayO = vec3(0.0, 0.0, 0.0);
+  //assume surface size as -1 1 but need to take in account aspect ratio
+  //assume f is 1
+  vec3 rayE = vec3((uv * 2.0 - 1.0) * vec2(aspect, 1.0), -focalLength);
+  vec3 color = rayColor(rayO, rayE);
+  imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(color, 1.0));
 }
