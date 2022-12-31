@@ -9,9 +9,20 @@ layout (binding = 0, rgba8) uniform writeonly image2D resultImage;
 #define MAX_SPHERES 10
 #define MAX_DEPTH 50
 
+#define MATERIAL_DIFFUSE 0
+#define MATERIAL_METAL 1
+
+struct Material {
+  int type;
+  vec3 attenuation;
+  //actual only for metal
+  float fuzz;
+};
+
 struct Sphere {
   vec3 center;
   float radius;
+  Material material;
 };
 
 Sphere spheres[MAX_SPHERES];
@@ -27,6 +38,7 @@ struct HitRecord {
   vec3 normal;
   vec3 point;
   float t;
+  Material material;
 };
 
 //https://github.com/GPSnoopy/RayTracingInVulkan/blob/master/assets/shaders/Random.glsl
@@ -61,8 +73,7 @@ float RandomFloat(inout uint seed)
   return (float(RandomInt(seed) & 0x00FFFFFF) / float(0x01000000));
 }
 
-vec3 RandomInUnitSphere(inout uint seed)
-{
+vec3 RandomInUnitSphere(inout uint seed) {
   for (;;)
   {
     const vec3 p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
@@ -71,6 +82,36 @@ vec3 RandomInUnitSphere(inout uint seed)
       return p;
     }
   }
+}
+
+bool nearZero(vec3 v) {
+  // Return true if the vector is close to zero in all dimensions.
+  float s = 1e-8;
+  return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
+}
+
+//glsl has own function reflect
+vec3 reflectRay(vec3 v, vec3 n) {
+  return v - 2 * dot(v, n) * n;
+}
+
+bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
+  vec3 direction = reflectRay(ray.direction, hitRecord.normal);
+  ray = Ray(hitRecord.point, direction + hitRecord.material.fuzz * RandomInUnitSphere(seed));
+  color *= hitRecord.material.attenuation;
+  return (dot(direction, hitRecord.normal) > 0);
+}
+
+bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
+  vec3 direction = hitRecord.normal + RandomInUnitSphere(seed);
+  //if direction == 0 we will have issues with such direction (nan, undefined behavior)
+  if (nearZero(direction)) {
+    direction = hitRecord.normal;
+  }
+  ray = Ray(hitRecord.point, normalize(direction));
+  //half of color is absorbing and half reflecting
+  color *= hitRecord.material.attenuation;
+  return true;
 }
 
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
@@ -101,13 +142,10 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
     Sphere sphere = spheres[i];
     float t = hitSphere(ray, sphere, tMin, tMax);
     if (t > 0.0) {
+      hitRecord.material = sphere.material;
       hitRecord.point = ray.origin + ray.direction * t;
       //normal = point on ray that intersect shpere - sphere center
       hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-      if (dot(ray.direction, hitRecord.normal) > 0.0) {
-        // ray is inside the sphere
-        hitRecord.normal *= -1;
-      }
       tMax = t;
       hit = true;
     }
@@ -124,10 +162,20 @@ vec3 rayColor(Ray ray) {
     HitRecord hitRecord;
     //check if ray hit object, pick the closest object and generate reflected ray
     if (hitWorld(ray, 0.001, 100000, hitRecord)) {
-      vec3 target = hitRecord.point + hitRecord.normal + RandomInUnitSphere(seed);
-      ray = Ray(hitRecord.point, normalize(target - hitRecord.point));
-      //half of color is absorbing and half reflecting
-      resultColor *= vec3(0.5, 0.5, 0.5);
+      bool success;
+      if (hitRecord.material.type == MATERIAL_DIFFUSE) {
+        success = diffuseMaterial(hitRecord, ray, resultColor);
+      }
+      if (hitRecord.material.type == MATERIAL_METAL) {
+        success = metalMaterial(hitRecord, ray, resultColor);
+      }
+
+      //if some error (mirrored ray goes exactly with the same direction back, i.e. input direction = output direction, so infinite bounces)
+      //we break calculations
+      if (success == false) {
+        depth = 0;
+        break;
+      }
       depth -= 1;
     } else {
       break;
@@ -148,10 +196,14 @@ void main() {
   //need to pass via uniform
   float aspect = 800.0 / 592.0;
   float focalLength = 1;
-  spheres[0] = Sphere(vec3(0.0, 0.0, -1.0), 0.5);
-  spheres[1] = Sphere(vec3(0.0, -100.5, -1.0), 100);
+
+  spheresNumber = 4;
+  spheres[0] = Sphere(vec3(0.0, 0.0, -1.0), 0.5, Material(MATERIAL_DIFFUSE, vec3(0.1, 0.5, 0.1), 0.0));
+  spheres[1] = Sphere(vec3(0.0, -100.5, -1.0), 100, Material(MATERIAL_DIFFUSE, vec3(0.5, 0.5, 0.5), 0.0));
+  spheres[2] = Sphere(vec3(-1.0, 0.0, -1.0), 0.5, Material(MATERIAL_METAL, vec3(0.8, 0.8, 0.8), 0.3));
+  spheres[3] = Sphere(vec3(1.0, 0.0, -1.0), 0.5, Material(MATERIAL_METAL, vec3(0.8, 0.6, 0.2), 1.0));
   
-  spheresNumber = 2; 
+  
   //TODO: generate once outside shader
   vec2 aa[AA_SAMPLES];
   int number = 0;
