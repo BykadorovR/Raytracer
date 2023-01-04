@@ -249,12 +249,45 @@ vec3 rayColor(Ray ray) {
   return resultColor * ((1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0));
 }
 
+mat4 lookAt(vec3 lookFrom, vec3 lookTo, vec3 up) {
+  vec3  f = normalize(lookTo - lookFrom);
+  vec3  u = normalize(up);
+  vec3  s = normalize(cross(f, u));
+  u = cross(s, f);
+
+  mat4 result = mat4(1.0);
+  result[0][0] = s.x;
+  result[0][1] = s.y;
+  result[0][2] = s.z;
+  result[0][3] =-dot(s, lookFrom);
+
+  result[1][0] = u.x;
+  result[1][1] = u.y;
+  result[1][2] = u.z;
+  result[1][3] =-dot(u, lookFrom);
+
+  result[2][0] =-f.x;
+  result[2][1] =-f.y;
+  result[2][2] =-f.z;
+  result[2][3] = dot(f, lookFrom);
+
+  return result;
+}
+
 void main() {
   seed = InitRandomSeed(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
   ivec2 dim = imageSize(resultImage);
   //need to pass via uniform
   float aspect = 800.0 / 592.0;
-  float focalLength = 1;
+  float fov = tan(radians(90) / 2.0);
+  float focalLength = 1.0;
+  vec3 cameraOrigin = vec3(0.0, 0.0, 0.0);
+
+  vec3 lookFrom = vec3(0.0, 0.0, 0.0);
+  vec3 lookTo = vec3(0.0, 0.0, -1.0);
+  vec3 up = vec3(0.0, 1.0, 0.0);
+  mat4 camera = lookAt(lookFrom, lookTo, up);
+
 
   spheresNumber = 4;
   spheres[0] = Sphere(vec3(0.0, 0.0, -1.0), 0.5, Material(MATERIAL_DIELECTRIC, vec3(1.0, 1.0, 1.0), 0.0, 1.0 / 1.5));
@@ -277,11 +310,15 @@ void main() {
     //range is [0, 1]
     vec2 uv = (gl_GlobalInvocationID.xy + aa[i]) / dim;
     //should be origin of camera
-    vec3 rayO = vec3(0.0, 0.0, 0.0);
+    vec3 rayO = cameraOrigin;
     //assume surface size as -1 1 but need to take in account aspect ratio
     //assume f is 1
-    vec3 rayE = vec3((uv * 2.0 - 1.0) * vec2(aspect, 1.0), -focalLength);
-    Ray ray = Ray(rayO, normalize(rayE - rayO));
+    vec3 rayE = vec3((uv * 2.0 - 1.0) * vec2(aspect, 1.0) * fov, -focalLength);
+
+    vec4 rayOCamera = (camera * vec4(rayO, 1));
+    vec4 rayECamera = (camera * vec4(rayE, 1));
+
+    Ray ray = Ray(lookFrom, normalize(rayECamera.xyz - rayOCamera.xyz));
     result += rayColor(ray);
   }
   result /= AA_SAMPLES;
