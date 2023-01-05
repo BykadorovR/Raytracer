@@ -3,18 +3,25 @@
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
 void DescriptorSetLayout::createCompute() {
-  // output image
-  VkDescriptorSetLayoutBinding computeLayoutBindingOutput{};
-  computeLayoutBindingOutput.binding = 0;
-  computeLayoutBindingOutput.descriptorCount = 1;
-  computeLayoutBindingOutput.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  computeLayoutBindingOutput.pImmutableSamplers = nullptr;
-  computeLayoutBindingOutput.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+  VkDescriptorSetLayoutBinding uboLayoutBinding{};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.pImmutableSamplers = nullptr;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+  VkDescriptorSetLayoutBinding imageLayoutBinding{};
+  imageLayoutBinding.binding = 1;
+  imageLayoutBinding.descriptorCount = 1;
+  imageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  imageLayoutBinding.pImmutableSamplers = nullptr;
+  imageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, imageLayoutBinding};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = 1;
-  layoutInfo.pBindings = &computeLayoutBindingOutput;
+  layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+  layoutInfo.pBindings = bindings.data();
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -196,22 +203,36 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
   }
 }
 
-void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut) {
+void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
+                                  std::shared_ptr<UniformBuffer> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
     VkDescriptorImageInfo imageInfoOut{};
     imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
     imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
 
-    VkWriteDescriptorSet descriptorWrites{};
-    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites.dstSet = _descriptorSets[i];
-    descriptorWrites.dstBinding = 0;
-    descriptorWrites.dstArrayElement = 0;
-    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    descriptorWrites.descriptorCount = 1;
-    descriptorWrites.pImageInfo = &imageInfoOut;
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pImageInfo = &imageInfoOut;
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
+                           descriptorWrites.data(), 0, nullptr);
   }
 }
 
