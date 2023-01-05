@@ -50,7 +50,9 @@ std::shared_ptr<GUI> gui;
 std::shared_ptr<ComputePart> computePart;
 std::shared_ptr<ScreenPart> screenPart;
 
-void initializeCompute() { computePart = std::make_shared<ComputePart>(device, queue, commandPool, settings); }
+void initializeCompute() {
+  computePart = std::make_shared<ComputePart>(device, queue, commandBuffer, commandPool, settings);
+}
 
 void initializeScreen() {
   screenPart = std::make_shared<ScreenPart>(computePart->getResultTextures(), window, surface, device, queue,
@@ -160,12 +162,7 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                     computePart->getPipeline()->getPipeline());
-  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                          computePart->getPipeline()->getPipelineLayout(), 0, 1,
-                          &computePart->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, 0);
-
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(settings->getResolution()) / 16,
-                std::get<1>(settings->getResolution()) / 16, 1);
+  computePart->draw(currentFrame);
 
   CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
 
