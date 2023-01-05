@@ -20,6 +20,7 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "GUI.h"
+#include "Input.h"
 
 #include "OffscreenPart.h"
 #include "ComputePart.h"
@@ -69,6 +70,7 @@ void initialize() {
 
   settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
+  Input::initialize(window);
   instance = std::make_shared<Instance>("Vulkan", true, window);
   CmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance->getInstance(),
                                                                                        "vkCmdBeginDebugUtilsLabelEXT");
