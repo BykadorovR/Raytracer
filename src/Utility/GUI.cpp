@@ -1,35 +1,12 @@
 #include "GUI.h"
 #include "Sampler.h"
 #include "Descriptor.h"
-
-std::tuple<float, float> mousePos;
-bool mouseDownLeft = false;
-bool mouseDownRight = false;
-
-void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) { mousePos = {xpos, ypos}; }
-
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    mouseDownLeft = true;
-  }
-  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-    mouseDownRight = true;
-  }
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-    mouseDownLeft = false;
-  }
-  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
-    mouseDownRight = false;
-  }
-}
+#include "Input.h"
 
 GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
   _device = device;
   _window = window;
   _resolution = resolution;
-
-  glfwSetCursorPosCallback(_window->getWindow(), cursorPositionCallback);
-  glfwSetMouseButtonCallback(_window->getWindow(), mouseButtonCallback);
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -239,9 +216,9 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
     }
   }
 
-  io.MousePos = ImVec2(std::get<0>(mousePos), std::get<1>(mousePos));
-  io.MouseDown[0] = mouseDownLeft;
-  io.MouseDown[1] = mouseDownRight;
+  io.MousePos = ImVec2(std::get<0>(Input::mousePos), std::get<1>(Input::mousePos));
+  io.MouseDown[0] = Input::mouseDownLeft;
+  io.MouseDown[1] = Input::mouseDownRight;
 }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
