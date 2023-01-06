@@ -4,7 +4,7 @@
 struct UniformCamera {
   float fov;
   alignas(16) glm::vec3 origin;
-  glm::mat4 camera;
+  alignas(16) glm::mat4 camera;
 };
 
 enum MaterialType { MATERIAL_DIFFUSE = 0, MATERIAL_METAL = 1, MATERIAL_DIELECTRIC = 2 };
