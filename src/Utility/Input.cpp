@@ -7,6 +7,7 @@ bool Input::keyW = false;
 bool Input::keyS = false;
 bool Input::keyA = false;
 bool Input::keyD = false;
+bool Input::keySpace = false;
 glm::vec3 Input::direction = glm::vec3(0, 0, 0);
 bool firstMouse = true;
 float lastX, lastY;
@@ -34,11 +35,13 @@ void Input::keyCallback(GLFWwindow* window, int key, int scancode, int action, i
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) keyS = true;
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) keyA = true;
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) keyD = true;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) keySpace = true;
 
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) keyW = false;
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) keyS = false;
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) keyA = false;
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) keyD = false;
+  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) keySpace = false;
 }
 
 void Input::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
