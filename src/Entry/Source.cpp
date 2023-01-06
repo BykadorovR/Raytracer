@@ -115,13 +115,14 @@ VkRenderPassBeginInfo render(int index,
 }
 
 void drawFrame() {
-  vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE, UINT64_MAX);
+  auto result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
+                                UINT64_MAX);
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
-  VkResult result = vkAcquireNextImageKHR(device->getLogicalDevice(), screenPart->getSwapchain()->getSwapchain(),
-                                          UINT64_MAX, imageAvailableSemaphores[currentFrame]->getSemaphore(),
-                                          VK_NULL_HANDLE, &imageIndex);
+  result = vkAcquireNextImageKHR(device->getLogicalDevice(), screenPart->getSwapchain()->getSwapchain(), UINT64_MAX,
+                                 imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     // TODO: recreate swapchain

@@ -27,7 +27,7 @@ struct UniformSphere {
 
 struct UniformSpheres {
   int number;
-  UniformSphere spheres[200];
+  UniformSphere spheres[30];
 };
 
 ComputePart::ComputePart(std::shared_ptr<Device> device,
@@ -88,61 +88,61 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   }
 
   int current = 1;
-  for (int a = -2; a < 2; a++) {
-    for (int b = -2; b < 2; b++) {
-      float chooseMat = dist(e2);
-      glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
+  // for (int a = -8; a < 8; a++) {
+  //   for (int b = -8; b < 8; b++) {
+  //     float chooseMat = dist(e2);
+  //     glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
 
-      if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
-        if (chooseMat < 0.8) {
-          // diffuse
-          auto albedo = glm::vec3(dist(e2), dist(e2), dist(e2));
-          {
-            UniformSphere sphere{};
-            sphere.center = center;
-            sphere.radius = 0.2;
-            UniformMaterial material{};
-            material.type = MATERIAL_DIFFUSE;
-            material.attenuation = albedo;
-            material.fuzz = 0;
-            material.refraction = 1;
-            sphere.material = material;
-            spheres.spheres[current++] = sphere;
-          }
-        } else if (chooseMat < 0.95) {
-          // metal
-          auto albedo = glm::vec3(dist3(e2), dist3(e2), dist3(e2));
-          auto fuzz = dist2(e2);
-          {
-            UniformSphere sphere{};
-            sphere.center = center;
-            sphere.radius = 0.2;
-            UniformMaterial material{};
-            material.type = MATERIAL_METAL;
-            material.attenuation = albedo;
-            material.fuzz = fuzz;
-            material.refraction = 1;
-            sphere.material = material;
-            spheres.spheres[current++] = sphere;
-          }
-        } else {
-          // glass
-          {
-            UniformSphere sphere{};
-            sphere.center = center;
-            sphere.radius = 0.2;
-            UniformMaterial material{};
-            material.type = MATERIAL_DIELECTRIC;
-            material.attenuation = glm::vec3(1.f, 1.f, 1.f);
-            material.fuzz = 0;
-            material.refraction = 1.f / 1.5f;
-            sphere.material = material;
-            spheres.spheres[current++] = sphere;
-          }
-        }
-      }
-    }
-  }
+  //    if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
+  //      if (chooseMat < 0.8) {
+  //        // diffuse
+  //        auto albedo = glm::vec3(dist(e2), dist(e2), dist(e2));
+  //        {
+  //          UniformSphere sphere{};
+  //          sphere.center = center;
+  //          sphere.radius = 0.2;
+  //          UniformMaterial material{};
+  //          material.type = MATERIAL_DIFFUSE;
+  //          material.attenuation = albedo;
+  //          material.fuzz = 0;
+  //          material.refraction = 1;
+  //          sphere.material = material;
+  //          spheres.spheres[current++] = sphere;
+  //        }
+  //      } else if (chooseMat < 0.95) {
+  //        // metal
+  //        auto albedo = glm::vec3(dist3(e2), dist3(e2), dist3(e2));
+  //        auto fuzz = dist2(e2);
+  //        {
+  //          UniformSphere sphere{};
+  //          sphere.center = center;
+  //          sphere.radius = 0.2;
+  //          UniformMaterial material{};
+  //          material.type = MATERIAL_METAL;
+  //          material.attenuation = albedo;
+  //          material.fuzz = fuzz;
+  //          material.refraction = 1;
+  //          sphere.material = material;
+  //          spheres.spheres[current++] = sphere;
+  //        }
+  //      } else {
+  //        // glass
+  //        {
+  //          UniformSphere sphere{};
+  //          sphere.center = center;
+  //          sphere.radius = 0.2;
+  //          UniformMaterial material{};
+  //          material.type = MATERIAL_DIELECTRIC;
+  //          material.attenuation = glm::vec3(1.f, 1.f, 1.f);
+  //          material.fuzz = 0;
+  //          material.refraction = 1.f / 1.5f;
+  //          sphere.material = material;
+  //          spheres.spheres[current++] = sphere;
+  //        }
+  //      }
+  //    }
+  //  }
+  //}
 
   {
     UniformSphere sphere{};
@@ -192,7 +192,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBuffer2);
 }
 
-glm::vec3 from = glm::vec3(0, 0, 3);
+glm::vec3 from = glm::vec3(0, 2, 3);
 glm::vec3 up = glm::vec3(0, 1, 0);
 float cameraSpeed = 0.05f;
 float deltaTime = 0.f;
