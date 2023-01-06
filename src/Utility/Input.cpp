@@ -1,5 +1,18 @@
 #include "Input.h"
 
+std::tuple<float, float> Input::mousePos = {0, 0};
+bool Input::mouseDownLeft = false;
+bool Input::mouseDownRight = false;
+bool Input::keyW = false;
+bool Input::keyS = false;
+bool Input::keyA = false;
+bool Input::keyD = false;
+glm::vec3 Input::direction = glm::vec3(0, 0, 0);
+bool firstMouse = true;
+float lastX, lastY;
+float yaw = -90.f;
+float pitch = 0;
+
 void Input::initialize(std::shared_ptr<Window> window) {
   static bool initialized = false;
   if (initialized == false) {
@@ -8,6 +21,11 @@ void Input::initialize(std::shared_ptr<Window> window) {
     glfwSetMouseButtonCallback(window->getWindow(), Input::mouseButtonCallback);
     glfwSetKeyCallback(window->getWindow(), Input::keyCallback);
     initialized = true;
+
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction = glm::normalize(direction);
   }
 }
 
@@ -23,10 +41,6 @@ void Input::keyCallback(GLFWwindow* window, int key, int scancode, int action, i
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) keyD = false;
 }
 
-bool firstMouse = true;
-float lastX, lastY;
-float yaw = -90.f;
-float pitch = 0;
 void Input::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
   mousePos = {xpos, ypos};
   if (firstMouse) {
@@ -70,12 +84,3 @@ void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int 
     mouseDownRight = false;
   }
 }
-
-std::tuple<float, float> Input::mousePos = {0, 0};
-bool Input::mouseDownLeft = false;
-bool Input::mouseDownRight = false;
-bool Input::keyW = false;
-bool Input::keyS = false;
-bool Input::keyA = false;
-bool Input::keyD = false;
-glm::vec3 Input::direction = glm::vec3(0, 0, -1);
