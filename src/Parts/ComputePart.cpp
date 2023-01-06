@@ -1,5 +1,6 @@
 #include "ComputePart.h"
 #include "Input.h"
+#include <random>
 
 struct UniformCamera {
   float fov;
@@ -26,7 +27,7 @@ struct UniformSphere {
 
 struct UniformSpheres {
   int number;
-  UniformSphere spheres[2];
+  UniformSphere spheres[200];
 };
 
 ComputePart::ComputePart(std::shared_ptr<Device> device,
@@ -66,6 +67,12 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
                                                    queue, device);
   _uniformBuffer2 = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSpheres),
                                                     commandPool, queue, device);
+  std::random_device rd;
+  std::mt19937 e2(rd());
+  std::uniform_real_distribution<> dist(0, 1);
+  std::uniform_real_distribution<> dist2(0, 0.5);
+  std::uniform_real_distribution<> dist3(0.5, 1);
+
   UniformSpheres spheres;
   {
     UniformSphere sphere{};
@@ -79,19 +86,101 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     sphere.material = material;
     spheres.spheres[0] = sphere;
   }
+
+  int current = 1;
+  for (int a = -2; a < 2; a++) {
+    for (int b = -2; b < 2; b++) {
+      float chooseMat = dist(e2);
+      glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
+
+      if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
+        if (chooseMat < 0.8) {
+          // diffuse
+          auto albedo = glm::vec3(dist(e2), dist(e2), dist(e2));
+          {
+            UniformSphere sphere{};
+            sphere.center = center;
+            sphere.radius = 0.2;
+            UniformMaterial material{};
+            material.type = MATERIAL_DIFFUSE;
+            material.attenuation = albedo;
+            material.fuzz = 0;
+            material.refraction = 1;
+            sphere.material = material;
+            spheres.spheres[current++] = sphere;
+          }
+        } else if (chooseMat < 0.95) {
+          // metal
+          auto albedo = glm::vec3(dist3(e2), dist3(e2), dist3(e2));
+          auto fuzz = dist2(e2);
+          {
+            UniformSphere sphere{};
+            sphere.center = center;
+            sphere.radius = 0.2;
+            UniformMaterial material{};
+            material.type = MATERIAL_METAL;
+            material.attenuation = albedo;
+            material.fuzz = fuzz;
+            material.refraction = 1;
+            sphere.material = material;
+            spheres.spheres[current++] = sphere;
+          }
+        } else {
+          // glass
+          {
+            UniformSphere sphere{};
+            sphere.center = center;
+            sphere.radius = 0.2;
+            UniformMaterial material{};
+            material.type = MATERIAL_DIELECTRIC;
+            material.attenuation = glm::vec3(1.f, 1.f, 1.f);
+            material.fuzz = 0;
+            material.refraction = 1.f / 1.5f;
+            sphere.material = material;
+            spheres.spheres[current++] = sphere;
+          }
+        }
+      }
+    }
+  }
+
   {
     UniformSphere sphere{};
-    sphere.center = glm::vec3(0.f, 1.f, 0.f);
-    sphere.radius = 1.f;
+    sphere.center = glm::vec3(0, 1, 0);
+    sphere.radius = 1.0;
+    UniformMaterial material{};
+    material.type = MATERIAL_DIELECTRIC;
+    material.attenuation = glm::vec3(1.f, 1.f, 1.f);
+    material.fuzz = 0;
+    material.refraction = 1.f / 1.5f;
+    sphere.material = material;
+    spheres.spheres[current++] = sphere;
+  }
+  {
+    UniformSphere sphere{};
+    sphere.center = glm::vec3(-4, 1, 0);
+    sphere.radius = 1.0;
     UniformMaterial material{};
     material.type = MATERIAL_DIFFUSE;
-    material.attenuation = glm::vec3(1.0, 1.0, 1.0);
+    material.attenuation = glm::vec3(0.4f, 0.2f, 0.1f);
     material.fuzz = 0;
-    material.refraction = 1;
+    material.refraction = 1.f;
     sphere.material = material;
-    spheres.spheres[1] = sphere;
+    spheres.spheres[current++] = sphere;
   }
-  spheres.number = 2;
+  {
+    UniformSphere sphere{};
+    sphere.center = glm::vec3(4, 1, 0);
+    sphere.radius = 1.0;
+    UniformMaterial material{};
+    material.type = MATERIAL_METAL;
+    material.attenuation = glm::vec3(0.7f, 0.6f, 0.5f);
+    material.fuzz = 0;
+    material.refraction = 1.f;
+    sphere.material = material;
+    spheres.spheres[current++] = sphere;
+  }
+  spheres.number = current;
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     void* data;
@@ -118,6 +207,9 @@ void ComputePart::draw(int currentFrame) {
   if (Input::keyS) from -= deltaTime * Input::direction;
   if (Input::keyA) from -= glm::normalize(glm::cross(Input::direction, up)) * deltaTime;
   if (Input::keyD) from += glm::normalize(glm::cross(Input::direction, up)) * deltaTime;
+  if (Input::keySpace) {
+    from += deltaTime * up;
+  }
 
   UniformCamera ubo{};
   ubo.fov = glm::tan(glm::radians(fov) / 2.f);
