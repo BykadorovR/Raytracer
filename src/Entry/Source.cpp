@@ -130,8 +130,11 @@ void drawFrame() {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
 
-  vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
-  vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+  result = vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
+  result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   gui->addText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
   gui->updateBuffers(currentFrame);
@@ -238,7 +241,8 @@ void drawFrame() {
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  if (vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, inFlightFences[currentFrame]->getFence()) != VK_SUCCESS) {
+  result = vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, inFlightFences[currentFrame]->getFence());
+  if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to submit draw command buffer!");
   }
 
