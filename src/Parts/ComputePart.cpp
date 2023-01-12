@@ -22,6 +22,7 @@ struct UniformMaterial {
 struct UniformSphere {
   alignas(16) glm::vec3 center;
   float radius;
+  int index;
   UniformMaterial material;
 };
 
@@ -29,6 +30,61 @@ struct UniformSpheres {
   int number;
   UniformSphere spheres[30];
 };
+
+struct HitBox {
+  glm::vec3 center;
+  glm::vec3 bias;
+  int left;
+  int right;
+  int sphere;
+};
+
+struct UniformHitBox {
+  int number = 0;
+  HitBox hitbox[30];
+};
+
+HitBox mergeHitBoxes(UniformHitBox& hitBox, int left, int right) {
+  auto leftHitBox = hitBox.hitbox[left];
+  auto rightHitBox = hitBox.hitbox[right];
+  HitBox result;
+  float minX = std::min(leftHitBox.center.x - leftHitBox.bias.x, rightHitBox.center.x - rightHitBox.bias.x);
+  float maxX = std::max(leftHitBox.center.x + leftHitBox.bias.x, rightHitBox.center.x + rightHitBox.bias.x);
+  float minY = std::min(leftHitBox.center.y - leftHitBox.bias.y, rightHitBox.center.y - rightHitBox.bias.y);
+  float maxY = std::max(leftHitBox.center.y + leftHitBox.bias.y, rightHitBox.center.y + rightHitBox.bias.y);
+  float minZ = std::min(leftHitBox.center.z - leftHitBox.bias.z, rightHitBox.center.z - rightHitBox.bias.z);
+  float maxZ = std::max(leftHitBox.center.z + leftHitBox.bias.z, rightHitBox.center.z + rightHitBox.bias.z);
+  result.center = glm::vec3((minX + maxX) / 2.f, (minY + maxY) / 2.f, (minZ + maxZ) / 2.f);
+  result.bias = glm::vec3(result.center.x - minX, result.center.y - minY, result.center.z - minZ);
+  return result;
+}
+
+int calculateHitbox(std::vector<UniformSphere> spheres, UniformHitBox& hitBox) {
+  HitBox current;
+  if (spheres.size() == 1) {
+    current.center = spheres[0].center;
+    current.bias = glm::vec3(spheres[0].radius, spheres[0].radius, spheres[0].radius);
+    current.left = -1;
+    current.right = -1;
+    current.sphere = spheres[0].index;
+  } else {
+    std::sort(spheres.begin(), spheres.end(), [](UniformSphere& left, UniformSphere& right) {
+      return (left.center - left.radius).x < (right.center - right.radius).x;
+    });
+
+    int mid = spheres.size() / 2;
+    auto left = calculateHitbox(std::vector<UniformSphere>(spheres.begin(), spheres.begin() + mid), hitBox);
+    auto right = calculateHitbox(std::vector<UniformSphere>(spheres.begin() + mid, spheres.end()), hitBox);
+    current = mergeHitBoxes(hitBox, left, right);
+    current.left = left;
+    current.right = right;
+    current.sphere = -1;
+  }
+  int index = hitBox.number;
+  hitBox.hitbox[index] = current;
+  hitBox.number++;
+  return index;
+}
 
 ComputePart::ComputePart(std::shared_ptr<Device> device,
                          std::shared_ptr<Queue> queue,
@@ -74,10 +130,12 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   std::uniform_real_distribution<> dist3(0.5, 1);
 
   UniformSpheres spheres;
+  int current = 0;
   {
     UniformSphere sphere{};
     sphere.center = glm::vec3(0.f, -1000.f, 0.f);
     sphere.radius = 1000.f;
+    sphere.index = current;
     UniformMaterial material{};
     material.type = MATERIAL_DIFFUSE;
     material.attenuation = glm::vec3(0.5, 0.5, 0.5);
@@ -87,7 +145,6 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     spheres.spheres[0] = sphere;
   }
 
-  int current = 1;
   /*
   for (int a = -11; a < 11; a++) {
     for (int b = -11; b < 11; b++) {
@@ -149,6 +206,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     UniformSphere sphere{};
     sphere.center = glm::vec3(0, 1, 0);
     sphere.radius = 1.0;
+    sphere.index = current;
     UniformMaterial material{};
     material.type = MATERIAL_DIELECTRIC;
     material.attenuation = glm::vec3(1.f, 1.f, 1.f);
@@ -161,6 +219,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     UniformSphere sphere{};
     sphere.center = glm::vec3(-4, 1, 0);
     sphere.radius = 1.0;
+    sphere.index = current;
     UniformMaterial material{};
     material.type = MATERIAL_DIFFUSE;
     material.attenuation = glm::vec3(0.4f, 0.2f, 0.1f);
@@ -173,6 +232,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     UniformSphere sphere{};
     sphere.center = glm::vec3(4, 1, 0);
     sphere.radius = 1.0;
+    sphere.index = current;
     UniformMaterial material{};
     material.type = MATERIAL_METAL;
     material.attenuation = glm::vec3(0.7f, 0.6f, 0.5f);
@@ -182,6 +242,9 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     spheres.spheres[current++] = sphere;
   }
   spheres.number = current;
+
+  UniformHitBox hitboxes;
+  calculateHitbox(std::vector<UniformSphere>(spheres.spheres, spheres.spheres + spheres.number), hitboxes);
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     void* data;
