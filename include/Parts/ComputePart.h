@@ -21,7 +21,7 @@ class ComputePart {
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<UniformBuffer> _uniformBuffer, _uniformBuffer2;
+  std::shared_ptr<UniformBuffer> _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
 
   std::vector<std::shared_ptr<Texture>> _resultTextures;

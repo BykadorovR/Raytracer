@@ -24,7 +24,15 @@ void DescriptorSetLayout::createCompute() {
   uboLayoutBinding2.pImmutableSamplers = nullptr;
   uboLayoutBinding2.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-  std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, imageLayoutBinding, uboLayoutBinding2};
+  VkDescriptorSetLayoutBinding uboLayoutBinding3{};
+  uboLayoutBinding3.binding = 3;
+  uboLayoutBinding3.descriptorCount = 1;
+  uboLayoutBinding3.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding3.pImmutableSamplers = nullptr;
+  uboLayoutBinding3.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  std::array<VkDescriptorSetLayoutBinding, 4> bindings = {uboLayoutBinding, imageLayoutBinding, uboLayoutBinding2,
+                                                          uboLayoutBinding3};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -213,7 +221,8 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
 
 void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                                   std::shared_ptr<UniformBuffer> uniformBuffer,
-                                  std::shared_ptr<UniformBuffer> uniformSpheres) {
+                                  std::shared_ptr<UniformBuffer> uniformSpheres,
+                                  std::shared_ptr<UniformBuffer> uniformHitboxes) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
@@ -225,11 +234,16 @@ void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureO
     bufferInfo2.offset = 0;
     bufferInfo2.range = uniformSpheres->getBuffer()[i]->getSize();
 
+    VkDescriptorBufferInfo bufferInfo3{};
+    bufferInfo3.buffer = uniformHitboxes->getBuffer()[i]->getData();
+    bufferInfo3.offset = 0;
+    bufferInfo3.range = uniformHitboxes->getBuffer()[i]->getSize();
+
     VkDescriptorImageInfo imageInfoOut{};
     imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
     imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
 
-    std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+    std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = _descriptorSets[i];
     descriptorWrites[0].dstBinding = 0;
@@ -253,6 +267,14 @@ void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureO
     descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrites[2].descriptorCount = 1;
     descriptorWrites[2].pBufferInfo = &bufferInfo2;
+
+    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[3].dstSet = _descriptorSets[i];
+    descriptorWrites[3].dstBinding = 3;
+    descriptorWrites[3].dstArrayElement = 0;
+    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[3].descriptorCount = 1;
+    descriptorWrites[3].pBufferInfo = &bufferInfo3;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);
