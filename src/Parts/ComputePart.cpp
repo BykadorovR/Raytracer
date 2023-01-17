@@ -32,8 +32,8 @@ struct UniformSpheres {
 };
 
 struct HitBox {
-  glm::vec3 center;
-  glm::vec3 bias;
+  alignas(16) glm::vec3 center;
+  alignas(16) glm::vec3 bias;
   int left;
   int right;
   int sphere;
@@ -48,14 +48,18 @@ HitBox mergeHitBoxes(UniformHitBox& hitBox, int left, int right) {
   auto leftHitBox = hitBox.hitbox[left];
   auto rightHitBox = hitBox.hitbox[right];
   HitBox result;
-  float minX = std::min(leftHitBox.center.x - leftHitBox.bias.x, rightHitBox.center.x - rightHitBox.bias.x);
-  float maxX = std::max(leftHitBox.center.x + leftHitBox.bias.x, rightHitBox.center.x + rightHitBox.bias.x);
-  float minY = std::min(leftHitBox.center.y - leftHitBox.bias.y, rightHitBox.center.y - rightHitBox.bias.y);
-  float maxY = std::max(leftHitBox.center.y + leftHitBox.bias.y, rightHitBox.center.y + rightHitBox.bias.y);
-  float minZ = std::min(leftHitBox.center.z - leftHitBox.bias.z, rightHitBox.center.z - rightHitBox.bias.z);
-  float maxZ = std::max(leftHitBox.center.z + leftHitBox.bias.z, rightHitBox.center.z + rightHitBox.bias.z);
-  result.center = glm::vec3((minX + maxX) / 2.f, (minY + maxY) / 2.f, (minZ + maxZ) / 2.f);
-  result.bias = glm::vec3(result.center.x - minX, result.center.y - minY, result.center.z - minZ);
+  glm::vec3 minLeft = leftHitBox.center - leftHitBox.bias;
+  glm::vec3 maxLeft = leftHitBox.center + leftHitBox.bias;
+  glm::vec3 minRight = rightHitBox.center - rightHitBox.bias;
+  glm::vec3 maxRight = rightHitBox.center + rightHitBox.bias;
+
+  glm::vec3 minBoth = glm::vec3(std::min(minLeft.x, minRight.x), std::min(minLeft.y, minRight.y),
+                                std::min(minLeft.z, minRight.z));
+  glm::vec3 maxBoth = glm::vec3(std::max(maxLeft.x, maxRight.x), std::max(maxLeft.y, maxRight.y),
+                                std::max(maxLeft.z, maxRight.z));
+
+  result.center = (minBoth + maxBoth) / 2.f;
+  result.bias = result.center - minBoth;
   return result;
 }
 
@@ -121,8 +125,10 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
                                                    _descriptorPool, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformCamera), commandPool,
                                                    queue, device);
-  _uniformBuffer2 = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSpheres),
-                                                    commandPool, queue, device);
+  _uniformBufferSpheres = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSpheres),
+                                                          commandPool, queue, device);
+  _uniformBufferHitboxes = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformHitBox),
+                                                           commandPool, queue, device);
   std::random_device rd;
   std::mt19937 e2(rd());
   std::uniform_real_distribution<> dist(0, 1);
@@ -142,12 +148,11 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     material.fuzz = 0;
     material.refraction = 1;
     sphere.material = material;
-    spheres.spheres[0] = sphere;
+    spheres.spheres[current++] = sphere;
   }
-
   /*
-  for (int a = -11; a < 11; a++) {
-    for (int b = -11; b < 11; b++) {
+  for (int a = -1; a < 1; a++) {
+    for (int b = -1; b < 1; b++) {
       float chooseMat = dist(e2);
       glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
 
@@ -248,12 +253,21 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer2->getBuffer()[i]->getMemory(), 0, sizeof(spheres), 0,
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferSpheres->getBuffer()[i]->getMemory(), 0, sizeof(spheres), 0,
                 &data);
     memcpy(data, &spheres, sizeof(spheres));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer2->getBuffer()[i]->getMemory());
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferSpheres->getBuffer()[i]->getMemory());
   }
-  _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBuffer2);
+
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferHitboxes->getBuffer()[i]->getMemory(), 0, sizeof(hitboxes),
+                0, &data);
+    memcpy(data, &hitboxes, sizeof(hitboxes));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferHitboxes->getBuffer()[i]->getMemory());
+  }
+
+  _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes);
 }
 
 glm::vec3 from = glm::vec3(0, 2, 3);
