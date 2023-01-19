@@ -4,7 +4,7 @@
 
 # What's this project about
 
-Experements with raytracing in Vulkan
+Experiments with raytracing in Vulkan
 
 # Goal
 
