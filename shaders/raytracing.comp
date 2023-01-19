@@ -44,8 +44,12 @@ layout (binding = 2) uniform Spheres {
 struct Hitbox {
   vec3 center;
   vec3 bias;
+  int index;
   int left;
   int right;
+  int parent;
+  int next;
+  int exit;
   int sphere;
 };
 
@@ -223,76 +227,39 @@ bool hitBoundingBox(Ray ray, Hitbox bb, float tMin, float tMax) {
   return true;
 }
 
-int queue[MAX_HITBOXES];
-bool visited[MAX_HITBOXES];
-int spheresIdx[MAX_SPHERES];
-int sphereFromHitbox(Ray ray, float tMin, float tMax) {
-  int spheresNumber = 0;
-  int current = 0;
-  for (int i = 0; i < hitboxNumber; i++) {
-    queue[i] = -1;
-    visited[i] = false;
-  }
-
-  //the biggest one
-  queue[current] = hitboxNumber - 1;
-  visited[queue[current]] = true;
-  current++;
-  for (int i = 0; i < hitboxNumber; i++) {
-    int currentQueue = queue[i];
-    if (currentQueue == -1)
-      break;
-
-    Hitbox currentHitbox = hitboxes[currentQueue];
-    if (hitBoundingBox(ray, currentHitbox, tMin, tMax)) {
-      bool child = false;
-      if (currentHitbox.left != -1 && visited[currentHitbox.left] == false) {
-        queue[current] = currentHitbox.left;
-        current++;
-        child = true;
-      } 
-      if (currentHitbox.right != -1 && visited[currentHitbox.right] == false) {
-        queue[current] = currentHitbox.right;
-        current++;
-        child = true;
-      }
-      if (child == false) {
-        spheresIdx[spheresNumber] = currentHitbox.sphere;
-        spheresNumber++;
-      }
-    }
-  }
-  
-  return spheresNumber;
-}
-
 bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   bool hit = false;
-  int numberHit = sphereFromHitbox(ray, tMin, tMax);
+  int boxIndex = 0;
+  for (int i = 0; i < hitboxNumber; i++) {
+    if (i != boxIndex)
+      continue;
 
-  if (numberHit == 0)
-    return false;
+    Hitbox current = hitboxes[i];
+    if (hitBoundingBox(ray, current, tMin, tMax)) {
+      if (current.sphere != -1) {
+        //hit
+        Sphere sphere = spheres[current.sphere];
+        float t = hitSphere(ray, sphere, tMin, tMax);
+        if (t > 0.0) {
+          hitRecord.material = sphere.material;
+          hitRecord.point = ray.origin + ray.direction * t;
+          //normal = point on ray that intersect shpere - sphere center
+          hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
+          //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
+          hitRecord.frontFace = true;
+          if (dot(ray.direction, hitRecord.normal) > 0) {
+            //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
+            hitRecord.normal = -hitRecord.normal;
+            hitRecord.frontFace = false;
+          }
 
-  //check if ray hit object, pick the closest object and generate reflected ray
-  for (int i = 0; i < numberHit; i++) {
-    Sphere sphere = spheres[spheresIdx[i]];
-    //first check bounding box
-    float t = hitSphere(ray, sphere, tMin, tMax);
-    if (t > 0.0) {
-      hitRecord.material = sphere.material;
-      hitRecord.point = ray.origin + ray.direction * t;
-      //normal = point on ray that intersect shpere - sphere center
-      hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-      //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
-      hitRecord.frontFace = true;
-      if (dot(ray.direction, hitRecord.normal) > 0) {
-        //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
-        hitRecord.normal = -hitRecord.normal;
-        hitRecord.frontFace = false;
+          tMax = t;
+          hit = true;
+        }
       }
-
-      tMax = t;
-      hit = true;
+      boxIndex = current.next;
+    } else {
+      boxIndex = current.exit;
     }
   }
 

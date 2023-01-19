@@ -34,8 +34,12 @@ struct UniformSpheres {
 struct HitBox {
   alignas(16) glm::vec3 center;
   alignas(16) glm::vec3 bias;
+  int index;
   int left;
   int right;
+  int parent;
+  int next;
+  int exit;
   int sphere;
 };
 
@@ -63,8 +67,41 @@ HitBox mergeHitBoxes(UniformHitBox& hitBox, int left, int right) {
   return result;
 }
 
-int calculateHitbox(std::vector<UniformSphere> spheres, UniformHitBox& hitBox) {
+void calculateThreadedBVH(UniformHitBox& hitBox) {
+  hitBox.hitbox[0].next = hitBox.hitbox[1].index;
+  hitBox.hitbox[0].exit = -1;
+
+  for (int i = 1; i < hitBox.number - 1; i++) {
+    hitBox.hitbox[i].next = hitBox.hitbox[i + 1].index;
+    hitBox.hitbox[i].exit = -1;
+
+    if (hitBox.hitbox[i].left == -1 && hitBox.hitbox[i].right == -1) {
+      hitBox.hitbox[i].exit = hitBox.hitbox[i].next;
+    } else {
+      auto parentNode = hitBox.hitbox[hitBox.hitbox[i].parent];
+      if (parentNode.left == hitBox.hitbox[i].index) {
+        // left
+        // internal
+        hitBox.hitbox[i].exit = parentNode.right;
+      } else {
+        // right
+        // internal
+        if (parentNode.parent != -1) {
+          auto grandparentNode = hitBox.hitbox[parentNode.parent];
+          if (grandparentNode.right != -1) hitBox.hitbox[i].exit = grandparentNode.right;
+        }
+      }
+    }
+  }
+
+  hitBox.hitbox[hitBox.number - 1].next = -1;
+  hitBox.hitbox[hitBox.number - 1].exit = -1;
+}
+
+int calculateHitbox(std::vector<UniformSphere> spheres, UniformHitBox& hitBox, int parent) {
   HitBox current;
+  int index = hitBox.number;
+  hitBox.number++;
   if (spheres.size() == 1) {
     current.center = spheres[0].center;
     current.bias = glm::vec3(spheres[0].radius, spheres[0].radius, spheres[0].radius);
@@ -77,16 +114,18 @@ int calculateHitbox(std::vector<UniformSphere> spheres, UniformHitBox& hitBox) {
     });
 
     int mid = spheres.size() / 2;
-    auto left = calculateHitbox(std::vector<UniformSphere>(spheres.begin(), spheres.begin() + mid), hitBox);
-    auto right = calculateHitbox(std::vector<UniformSphere>(spheres.begin() + mid, spheres.end()), hitBox);
+    auto left = calculateHitbox(std::vector<UniformSphere>(spheres.begin(), spheres.begin() + mid), hitBox, index);
+    auto right = calculateHitbox(std::vector<UniformSphere>(spheres.begin() + mid, spheres.end()), hitBox, index);
     current = mergeHitBoxes(hitBox, left, right);
     current.left = left;
     current.right = right;
     current.sphere = -1;
   }
-  int index = hitBox.number;
+
+  current.index = index;
+  current.parent = parent;
+
   hitBox.hitbox[index] = current;
-  hitBox.number++;
   return index;
 }
 
@@ -249,8 +288,8 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   spheres.number = current;
 
   UniformHitBox hitboxes;
-  calculateHitbox(std::vector<UniformSphere>(spheres.spheres, spheres.spheres + spheres.number), hitboxes);
-
+  calculateHitbox(std::vector<UniformSphere>(spheres.spheres, spheres.spheres + spheres.number), hitboxes, -1);
+  calculateThreadedBVH(hitboxes);
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBufferSpheres->getBuffer()[i]->getMemory(), 0, sizeof(spheres), 0,
