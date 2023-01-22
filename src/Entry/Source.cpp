@@ -138,6 +138,7 @@ void drawFrame() {
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   gui->addText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
+  gui->addCheckbox("Compute", {20, 80}, {100, 60}, computePart->getCheckboxes());
   gui->updateBuffers(currentFrame);
 
   // record command buffer

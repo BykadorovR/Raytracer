@@ -12,8 +12,8 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 //ivec2 dim = imageSize(resultImage);
 
 #define AA_SAMPLES 100
-#define MAX_SPHERES 30
-#define MAX_HITBOXES 30
+#define MAX_SPHERES 300
+#define MAX_HITBOXES 300
 #define MAX_DEPTH 50
 
 #define MATERIAL_DIFFUSE 0
@@ -42,12 +42,8 @@ layout (binding = 2) uniform Spheres {
 };
 
 struct Hitbox {
-  vec3 center;
-  vec3 bias;
-  int index;
-  int left;
-  int right;
-  int parent;
+  vec3 min;
+  vec3 max;
   int next;
   int exit;
   int sphere;
@@ -72,6 +68,10 @@ struct HitRecord {
   Material material;
   bool frontFace;
 };
+
+layout (binding = 4) uniform Settings {
+  int useBVH;
+} settings;
 
 //https://github.com/GPSnoopy/RayTracingInVulkan/blob/master/assets/shaders/Random.glsl
 uint InitRandomSeed(uint val0, uint val1)
@@ -211,10 +211,8 @@ float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax) {
 }
 
 bool hitBoundingBox(Ray ray, Hitbox bb, float tMin, float tMax) {
-  vec3 bbMin = bb.center - bb.bias;
-  vec3 bbMax = bb.center + bb.bias;
-  vec3 first = (bbMin - ray.origin) / ray.direction;
-  vec3 second = (bbMax - ray.origin) / ray.direction;
+  vec3 first = (bb.min - ray.origin) / ray.direction;
+  vec3 second = (bb.max - ray.origin) / ray.direction;
   for (int i = 0; i < 3; i++) {
     float t0 = min(first[i], second[i]);
     float t1 = max(first[i], second[i]);
@@ -227,15 +225,14 @@ bool hitBoundingBox(Ray ray, Hitbox bb, float tMin, float tMax) {
   return true;
 }
 
-bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
+bool hitWorldBVH(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   bool hit = false;
   int boxIndex = 0;
-  for (int i = 0; i < hitboxNumber; i++) {
-    if (i != boxIndex)
-      continue;
-
-    Hitbox current = hitboxes[i];
+  while (boxIndex != -1) {
+    Hitbox current = hitboxes[boxIndex];
+    boxIndex = current.exit;
     if (hitBoundingBox(ray, current, tMin, tMax)) {
+      boxIndex = current.next;
       if (current.sphere != -1) {
         //hit
         Sphere sphere = spheres[current.sphere];
@@ -257,9 +254,34 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
           hit = true;
         }
       }
-      boxIndex = current.next;
-    } else {
-      boxIndex = current.exit;
+    }
+  }
+
+  return hit;
+}
+
+bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
+  bool hit = false;
+  //check if ray hit object, pick the closest object and generate reflected ray
+  for (int i = 0; i < spheresNumber; i++) {
+    Sphere sphere = spheres[i];
+    //first check bounding box
+    float t = hitSphere(ray, sphere, tMin, tMax);
+    if (t > 0.0) {
+      hitRecord.material = sphere.material;
+      hitRecord.point = ray.origin + ray.direction * t;
+      //normal = point on ray that intersect shpere - sphere center
+      hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
+      //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
+      hitRecord.frontFace = true;
+      if (dot(ray.direction, hitRecord.normal) > 0) {
+        //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
+        hitRecord.normal = -hitRecord.normal;
+        hitRecord.frontFace = false;
+      }
+
+      tMax = t;
+      hit = true;
     }
   }
 
@@ -270,10 +292,14 @@ vec3 rayColor(Ray ray) {
   vec3 resultColor = vec3(1.0, 1.0, 1.0);
   int depth = MAX_DEPTH;
   while (depth > 0) {
-    bool hit = false;
     HitRecord hitRecord;
     //check if ray hit object, pick the closest object and generate reflected ray
-    if (hitWorld(ray, 0.001, 100000, hitRecord)) {
+    bool hit = false;
+    if (settings.useBVH == 0)
+      hit = hitWorld(ray, 0.001, 100000, hitRecord);
+    else  
+      hit = hitWorldBVH(ray, 0.001, 100000, hitRecord);
+    if (hit) {
       bool success;
       if (hitRecord.material.type == MATERIAL_DIFFUSE) {
         success = diffuseMaterial(hitRecord, ray, resultColor);
