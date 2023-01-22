@@ -28,30 +28,40 @@ struct UniformSphere {
 
 struct UniformSpheres {
   int number;
-  UniformSphere spheres[30];
+  UniformSphere spheres[300];
 };
 
-struct HitBox {
-  alignas(16) glm::vec3 center;
-  alignas(16) glm::vec3 bias;
+struct HitBoxTemp {
+  glm::vec3 center;
+  glm::vec3 bias;
   int index;
   int left;
   int right;
   int parent;
+  int sphere;
+};
+
+struct HitBox {
+  alignas(16) glm::vec3 min;
+  alignas(16) glm::vec3 max;
   int next;
   int exit;
   int sphere;
 };
 
 struct UniformHitBox {
-  int number = 0;
-  HitBox hitbox[30];
+  int number;
+  HitBox hitbox[300];
 };
 
-HitBox mergeHitBoxes(UniformHitBox& hitBox, int left, int right) {
-  auto leftHitBox = hitBox.hitbox[left];
-  auto rightHitBox = hitBox.hitbox[right];
-  HitBox result;
+struct UniformSettings {
+  int useBVH;
+};
+
+HitBoxTemp mergeHitBoxes(std::vector<HitBoxTemp>& hitBox, int left, int right) {
+  auto leftHitBox = hitBox[left];
+  auto rightHitBox = hitBox[right];
+  HitBoxTemp result;
   glm::vec3 minLeft = leftHitBox.center - leftHitBox.bias;
   glm::vec3 maxLeft = leftHitBox.center + leftHitBox.bias;
   glm::vec3 minRight = rightHitBox.center - rightHitBox.bias;
@@ -67,65 +77,91 @@ HitBox mergeHitBoxes(UniformHitBox& hitBox, int left, int right) {
   return result;
 }
 
-void calculateThreadedBVH(UniformHitBox& hitBox) {
-  hitBox.hitbox[0].next = hitBox.hitbox[1].index;
-  hitBox.hitbox[0].exit = -1;
+void calculateThreadedBVH(std::vector<HitBoxTemp> hitBox, UniformHitBox& hitBoxResult) {
+  hitBoxResult.hitbox[0].next = hitBox[1].index;
+  hitBoxResult.hitbox[0].exit = -1;
+  hitBoxResult.hitbox[0].min = hitBox[0].center - hitBox[0].bias;
+  hitBoxResult.hitbox[0].max = hitBox[0].center + hitBox[0].bias;
+  hitBoxResult.hitbox[0].sphere = hitBox[0].sphere;
 
-  for (int i = 1; i < hitBox.number - 1; i++) {
-    hitBox.hitbox[i].next = hitBox.hitbox[i + 1].index;
-    hitBox.hitbox[i].exit = -1;
+  for (int i = 1; i < hitBox.size() - 1; i++) {
+    hitBoxResult.hitbox[i].next = hitBox[i + 1].index;
+    hitBoxResult.hitbox[i].exit = -1;
+    hitBoxResult.hitbox[i].min = hitBox[i].center - hitBox[i].bias;
+    hitBoxResult.hitbox[i].max = hitBox[i].center + hitBox[i].bias;
+    hitBoxResult.hitbox[i].sphere = hitBox[i].sphere;
 
-    if (hitBox.hitbox[i].left == -1 && hitBox.hitbox[i].right == -1) {
-      hitBox.hitbox[i].exit = hitBox.hitbox[i].next;
+    if (hitBox[i].left == -1 && hitBox[i].right == -1) {
+      hitBoxResult.hitbox[i].exit = hitBoxResult.hitbox[i].next;
     } else {
-      auto parentNode = hitBox.hitbox[hitBox.hitbox[i].parent];
-      if (parentNode.left == hitBox.hitbox[i].index) {
+      auto parentNode = hitBox[hitBox[i].parent];
+      if (parentNode.left == hitBox[i].index) {
         // left
         // internal
-        hitBox.hitbox[i].exit = parentNode.right;
+        hitBoxResult.hitbox[i].exit = parentNode.right;
       } else {
         // right
         // internal
-        if (parentNode.parent != -1) {
-          auto grandparentNode = hitBox.hitbox[parentNode.parent];
-          if (grandparentNode.right != -1) hitBox.hitbox[i].exit = grandparentNode.right;
+
+        // check if parent exist and it's not right child
+        while (parentNode.parent != -1) {
+          auto grandparentNode = hitBox[parentNode.parent];
+          if (grandparentNode.right != parentNode.index) {
+            hitBoxResult.hitbox[i].exit = grandparentNode.right;
+            break;
+          }
+          parentNode = grandparentNode;
         }
       }
     }
   }
 
-  hitBox.hitbox[hitBox.number - 1].next = -1;
-  hitBox.hitbox[hitBox.number - 1].exit = -1;
+  hitBoxResult.hitbox[hitBox.size() - 1].next = -1;
+  hitBoxResult.hitbox[hitBox.size() - 1].exit = -1;
+  hitBoxResult.hitbox[hitBox.size() - 1].min = hitBox[hitBox.size() - 1].center - hitBox[hitBox.size() - 1].bias;
+  hitBoxResult.hitbox[hitBox.size() - 1].max = hitBox[hitBox.size() - 1].center + hitBox[hitBox.size() - 1].bias;
+  hitBoxResult.hitbox[hitBox.size() - 1].sphere = hitBox[hitBox.size() - 1].sphere;
 }
 
-int calculateHitbox(std::vector<UniformSphere> spheres, UniformHitBox& hitBox, int parent) {
-  HitBox current;
-  int index = hitBox.number;
-  hitBox.number++;
+int calculateHitbox(std::vector<UniformSphere> spheres, std::vector<HitBoxTemp>& hitBox, int parent) {
+  HitBoxTemp current;
+  int index = hitBox.size();
+  hitBox.push_back(current);
+
   if (spheres.size() == 1) {
-    current.center = spheres[0].center;
-    current.bias = glm::vec3(spheres[0].radius, spheres[0].radius, spheres[0].radius);
-    current.left = -1;
-    current.right = -1;
-    current.sphere = spheres[0].index;
+    hitBox[index].center = spheres[0].center;
+    hitBox[index].bias = glm::vec3(spheres[0].radius, spheres[0].radius, spheres[0].radius);
+    hitBox[index].left = -1;
+    hitBox[index].right = -1;
+    hitBox[index].sphere = spheres[0].index;
   } else {
-    std::sort(spheres.begin(), spheres.end(), [](UniformSphere& left, UniformSphere& right) {
-      return (left.center - left.radius).x < (right.center - right.radius).x;
-    });
+    int axis = rand() % 3;
+    if (axis == 0) {
+      std::sort(spheres.begin(), spheres.end(), [](UniformSphere& left, UniformSphere& right) {
+        return (left.center - left.radius).x < (right.center - right.radius).x;
+      });
+    } else if (axis == 1) {
+      std::sort(spheres.begin(), spheres.end(), [](UniformSphere& left, UniformSphere& right) {
+        return (left.center - left.radius).y < (right.center - right.radius).y;
+      });
+    } else {
+      std::sort(spheres.begin(), spheres.end(), [](UniformSphere& left, UniformSphere& right) {
+        return (left.center - left.radius).z < (right.center - right.radius).z;
+      });
+    }
 
     int mid = spheres.size() / 2;
     auto left = calculateHitbox(std::vector<UniformSphere>(spheres.begin(), spheres.begin() + mid), hitBox, index);
     auto right = calculateHitbox(std::vector<UniformSphere>(spheres.begin() + mid, spheres.end()), hitBox, index);
-    current = mergeHitBoxes(hitBox, left, right);
-    current.left = left;
-    current.right = right;
-    current.sphere = -1;
+    hitBox[index] = mergeHitBoxes(hitBox, left, right);
+    hitBox[index].left = left;
+    hitBox[index].right = right;
+    hitBox[index].sphere = -1;
   }
 
-  current.index = index;
-  current.parent = parent;
+  hitBox[index].index = index;
+  hitBox[index].parent = parent;
 
-  hitBox.hitbox[index] = current;
   return index;
 }
 
@@ -168,6 +204,8 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
                                                           commandPool, queue, device);
   _uniformBufferHitboxes = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformHitBox),
                                                            commandPool, queue, device);
+  _uniformBufferSettings = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSettings),
+                                                           commandPool, queue, device);
   std::random_device rd;
   std::mt19937 e2(rd());
   std::uniform_real_distribution<> dist(0, 1);
@@ -189,9 +227,8 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     sphere.material = material;
     spheres.spheres[current++] = sphere;
   }
-  /*
-  for (int a = -1; a < 1; a++) {
-    for (int b = -1; b < 1; b++) {
+  for (int a = -4; a < 4; a++) {
+    for (int b = -4; b < 4; b++) {
       float chooseMat = dist(e2);
       glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
 
@@ -203,6 +240,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
             UniformSphere sphere{};
             sphere.center = center;
             sphere.radius = 0.2;
+            sphere.index = current;
             UniformMaterial material{};
             material.type = MATERIAL_DIFFUSE;
             material.attenuation = albedo;
@@ -219,6 +257,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
             UniformSphere sphere{};
             sphere.center = center;
             sphere.radius = 0.2;
+            sphere.index = current;
             UniformMaterial material{};
             material.type = MATERIAL_METAL;
             material.attenuation = albedo;
@@ -233,6 +272,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
             UniformSphere sphere{};
             sphere.center = center;
             sphere.radius = 0.2;
+            sphere.index = current;
             UniformMaterial material{};
             material.type = MATERIAL_DIELECTRIC;
             material.attenuation = glm::vec3(1.f, 1.f, 1.f);
@@ -245,7 +285,6 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
       }
     }
   }
-  */
   {
     UniformSphere sphere{};
     sphere.center = glm::vec3(0, 1, 0);
@@ -285,11 +324,14 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     sphere.material = material;
     spheres.spheres[current++] = sphere;
   }
+
   spheres.number = current;
 
   UniformHitBox hitboxes;
-  calculateHitbox(std::vector<UniformSphere>(spheres.spheres, spheres.spheres + spheres.number), hitboxes, -1);
-  calculateThreadedBVH(hitboxes);
+  std::vector<HitBoxTemp> hitboxTemp;
+  calculateHitbox(std::vector<UniformSphere>(spheres.spheres, spheres.spheres + spheres.number), hitboxTemp, -1);
+  hitboxes.number = hitboxTemp.size();
+  calculateThreadedBVH(hitboxTemp, hitboxes);
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBufferSpheres->getBuffer()[i]->getMemory(), 0, sizeof(spheres), 0,
@@ -306,8 +348,13 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferHitboxes->getBuffer()[i]->getMemory());
   }
 
-  _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes);
+  _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes,
+                                _uniformBufferSettings);
+
+  _checkboxes["use_bvh"] = new bool();
 }
+
+std::map<std::string, bool*> ComputePart::getCheckboxes() { return _checkboxes; }
 
 glm::vec3 from = glm::vec3(0, 2, 3);
 glm::vec3 up = glm::vec3(0, 1, 0);
@@ -328,16 +375,27 @@ void ComputePart::draw(int currentFrame) {
     from += deltaTime * up;
   }
 
-  UniformCamera ubo{};
-  ubo.fov = glm::tan(glm::radians(fov) / 2.f);
-  ubo.camera = glm::transpose(glm::lookAt(from, from + Input::direction, up));
-  ubo.origin = from;
+  {
+    void* data;
+    UniformSettings uboSettings{};
+    uboSettings.useBVH = *(_checkboxes["use_bvh"]);
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferSettings->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(uboSettings), 0, &data);
+    memcpy(data, &uboSettings, sizeof(uboSettings));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferSettings->getBuffer()[currentFrame]->getMemory());
+  }
 
-  void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+  {
+    UniformCamera ubo{};
+    ubo.fov = glm::tan(glm::radians(fov) / 2.f);
+    ubo.camera = glm::transpose(glm::lookAt(from, from + Input::direction, up));
+    ubo.origin = from;
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
+                &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+  }
 
   vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,

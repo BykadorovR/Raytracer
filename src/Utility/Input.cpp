@@ -7,6 +7,7 @@ bool Input::keyW = false;
 bool Input::keyS = false;
 bool Input::keyA = false;
 bool Input::keyD = false;
+bool Input::keyH = true;
 bool Input::keySpace = false;
 glm::vec3 Input::direction = glm::vec3(0, 0, 0);
 bool firstMouse = true;
@@ -42,35 +43,48 @@ void Input::keyCallback(GLFWwindow* window, int key, int scancode, int action, i
   if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) keyA = false;
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) keyD = false;
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) keySpace = false;
+
+  if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+    if (keyH == false) {
+      keyH = true;
+      firstMouse = true;
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    } else {
+      keyH = false;
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+  }
 }
 
 void Input::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
   mousePos = {xpos, ypos};
-  if (firstMouse) {
+  if (keyH == true) {
+    if (firstMouse) {
+      lastX = xpos;
+      lastY = ypos;
+      firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
     lastX = xpos;
     lastY = ypos;
-    firstMouse = false;
+
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f) pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction.y = sin(glm::radians(pitch));
+    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction = glm::normalize(direction);
   }
-
-  float xoffset = xpos - lastX;
-  float yoffset = lastY - ypos;
-  lastX = xpos;
-  lastY = ypos;
-
-  float sensitivity = 0.1f;
-  xoffset *= sensitivity;
-  yoffset *= sensitivity;
-
-  yaw += xoffset;
-  pitch += yoffset;
-
-  if (pitch > 89.0f) pitch = 89.0f;
-  if (pitch < -89.0f) pitch = -89.0f;
-
-  direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-  direction.y = sin(glm::radians(pitch));
-  direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-  direction = glm::normalize(direction);
 }
 
 void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {

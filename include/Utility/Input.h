@@ -9,7 +9,7 @@ class Input {
   static glm::vec3 direction;
   static bool mouseDownLeft;
   static bool mouseDownRight;
-  static bool keyW, keyS, keyA, keyD, keySpace;
+  static bool keyW, keyS, keyA, keyD, keySpace, keyH;
 
   static void initialize(std::shared_ptr<Window> window);
   static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);

@@ -21,10 +21,11 @@ class ComputePart {
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<UniformBuffer> _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes;
+  std::shared_ptr<UniformBuffer> _uniformBuffer, _uniformBufferSpheres, _uniformBufferHitboxes, _uniformBufferSettings;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
 
   std::vector<std::shared_ptr<Texture>> _resultTextures;
+  std::map<std::string, bool*> _checkboxes;
 
  public:
   ComputePart(std::shared_ptr<Device> device,
@@ -33,6 +34,8 @@ class ComputePart {
               std::shared_ptr<CommandPool> commandPool,
               std::shared_ptr<Settings> settings);
   void draw(int currentFrame);
+
+  std::map<std::string, bool*> getCheckboxes();
 
   std::vector<std::shared_ptr<Texture>> getResultTextures();
   std::shared_ptr<Pipeline> getPipeline();
