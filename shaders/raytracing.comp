@@ -270,6 +270,8 @@ bool hitWorldBVH(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
             tMax = t;
             hit = true;
           }
+        } else if (current.primitive == PRIMITIVE_RECTANGLE) {
+          hit = true;
         }
       }
     }

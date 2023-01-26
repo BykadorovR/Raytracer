@@ -80,6 +80,7 @@ class Rectangle : public Primitive {
   float _z;
 
  public:
+  Rectangle(glm::vec2 min, glm::vec2 max, float z) : _min(min), _max(max), _z(z) {}
   BoundingBox getBB() {
     return BoundingBox{.min = glm::vec3(_min.x, _min.y, _z - 0.0001), .max = glm::vec3(_min.x, _min.y, _z + 0.0001)};
   }
@@ -390,6 +391,16 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     material.refraction = 1.f;
     sphere->setMaterial(material);
     primitives.push_back(sphere);
+  }
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec2{-1, 5}, glm::vec2{1, 3}, 0.f);
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.7f, 0.6f, 0.5f);
+    material.fuzz = 0;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
   }
 
   UniformHitBox hitboxes;
