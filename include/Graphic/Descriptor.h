@@ -42,6 +42,7 @@ class DescriptorSet {
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,
                      std::shared_ptr<UniformBuffer> uniformSpheres,
+                     std::shared_ptr<UniformBuffer> uniformRectangles,
                      std::shared_ptr<UniformBuffer> uniformHitboxes,
                      std::shared_ptr<UniformBuffer> uniformSettings);
   void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
