@@ -45,9 +45,9 @@ layout (binding = 2) uniform Spheres {
 };
 
 struct Rectangle {
-  vec2 min;
-  vec2 max;
-  float z;
+  vec3 min;
+  vec3 max;
+  int fixedAxis;
   Material material;
 };
 
@@ -206,7 +206,9 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
 }
 
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
-float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax) {
+float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax, inout HitRecord hitRecord) {
+  float t = -1;
+  bool found = false;
   vec3 oc = ray.origin - sphere.center;
   float a = dot(ray.direction, ray.direction);
   float b = 2 * dot(ray.direction, oc);
@@ -216,14 +218,65 @@ float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax) {
     return -1;
   float sqrtd = sqrt(disc);
   float root1 = (-b - sqrtd ) / (2.0*a);
-  if (root1 >= tMin && root1 <= tMax)
-    return root1;
+  if (root1 >= tMin && root1 <= tMax) {
+    t = root1;
+    found = true;
+  } else {
+    float root2 = (-b + sqrtd ) / (2.0*a);
+    if (root2 >= tMin && root2 <= tMax) {
+      t = root2;
+      found = true;
+    }
+  }
+  
+  if (found == false)
+    return -1;
 
-  float root2 = (-b + sqrtd ) / (2.0*a);
-  if (root2 >= tMin && root2 <= tMax)
-    return root2;
+  //fill hit record
+  hitRecord.material = sphere.material;
+  hitRecord.point = ray.origin + ray.direction * t;
+  //normal = point on ray that intersect shpere - sphere center
+  hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
+  //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
+  hitRecord.frontFace = true;
+  if (dot(ray.direction, hitRecord.normal) > 0) {
+    //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
+    hitRecord.normal = -hitRecord.normal;
+    hitRecord.frontFace = false;
+  }
 
-  return -1;
+  return t;
+}
+
+float hitRectangle(Ray ray, Rectangle rectangle, float tMin, float tMax, inout HitRecord hitRecord) {
+  int axis = rectangle.fixedAxis;
+  //find t for X axis
+  float t = (rectangle.min[axis] - ray.origin[axis]) / ray.direction[axis];
+  if (t < tMin || t > tMax)
+    return -1;
+  
+  for (int i = 0; i < 3; i++) {
+    if (i == axis)
+      continue;
+
+    float v = ray.origin[i] + t * ray.direction[i];
+    if (v < rectangle.min[i] || v > rectangle.max[i])
+      return -1;
+  }
+
+  //fill hit record
+  hitRecord.material = rectangle.material;
+  hitRecord.point = ray.origin + ray.direction * t;
+  hitRecord.normal = vec3(0, 0, 0);
+  hitRecord.normal[rectangle.fixedAxis] = 1;
+  hitRecord.frontFace = true;
+  if (dot(ray.direction, hitRecord.normal) > 0) {
+    //change normal direction so there is no difference in calculation for ray from front or behind (because normal is fixed in direction)
+    hitRecord.normal = -hitRecord.normal;
+    hitRecord.frontFace = false;
+  }
+
+  return t;
 }
 
 bool hitBoundingBox(Ray ray, Hitbox bb, float tMin, float tMax) {
@@ -253,25 +306,18 @@ bool hitWorldBVH(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
         if (current.primitive == PRIMITIVE_SPHERE) {
           //hit
           Sphere sphere = spheres[current.index];
-          float t = hitSphere(ray, sphere, tMin, tMax);
+          float t = hitSphere(ray, sphere, tMin, tMax, hitRecord);
           if (t > 0.0) {
-            hitRecord.material = sphere.material;
-            hitRecord.point = ray.origin + ray.direction * t;
-            //normal = point on ray that intersect shpere - sphere center
-            hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-            //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
-            hitRecord.frontFace = true;
-            if (dot(ray.direction, hitRecord.normal) > 0) {
-              //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
-              hitRecord.normal = -hitRecord.normal;
-              hitRecord.frontFace = false;
-            }
-
             tMax = t;
             hit = true;
           }
         } else if (current.primitive == PRIMITIVE_RECTANGLE) {
-          hit = true;
+          Rectangle rectangle = rectangles[current.index];
+          float t = hitRectangle(ray, rectangle, tMin, tMax, hitRecord);
+          if (t > 0.0) {
+            tMax = t;
+            hit = true;
+          }
         }
       }
     }
@@ -286,20 +332,17 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   for (int i = 0; i < spheresNumber; i++) {
     Sphere sphere = spheres[i];
     //first check bounding box
-    float t = hitSphere(ray, sphere, tMin, tMax);
+    float t = hitSphere(ray, sphere, tMin, tMax, hitRecord);
     if (t > 0.0) {
-      hitRecord.material = sphere.material;
-      hitRecord.point = ray.origin + ray.direction * t;
-      //normal = point on ray that intersect shpere - sphere center
-      hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-      //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
-      hitRecord.frontFace = true;
-      if (dot(ray.direction, hitRecord.normal) > 0) {
-        //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
-        hitRecord.normal = -hitRecord.normal;
-        hitRecord.frontFace = false;
-      }
+      tMax = t;
+      hit = true;
+    }
+  }
 
+  for (int i = 0; i < rectanglesNumber; i++) {
+    Rectangle rectangle = rectangles[i];
+    float t = hitRectangle(ray, rectangle, tMin, tMax, hitRecord);
+    if (t > 0.0) {
       tMax = t;
       hit = true;
     }
@@ -360,18 +403,6 @@ void main() {
   float focalLength = 1.0;
   vec3 cameraOrigin = vec3(0.0, 0.0, 0.0);
 
-  /*spheres[0] = Sphere(vec3(0.0, -1000, 0.0), 1000, Material(MATERIAL_DIFFUSE, vec3(0.5, 0.5, 0.5), 0.0, 1.0));  
-  spheres[1] = Sphere(vec3(0.0, 1.0, 0.0), 1.0, Material(MATERIAL_DIELECTRIC, vec3(1.0, 1.0, 1.0), 0.0, 1.0 / 1.5));
-  spheres[2] = Sphere(vec3(-4, 1, 0), 1.0, Material(MATERIAL_METAL, vec3(1.0, 1.0, 1.0), 0.0, 1.0));
-  spheres[3] = Sphere(vec3(4.0, 1.0, 0.0), 1.0, Material(MATERIAL_METAL, vec3(0.7, 0.6, 0.5), 0.0, 1.0));
-
-  spheres[4] = Sphere(vec3(-2.0, 1, 1.0), -0.3, Material(MATERIAL_DIELECTRIC, vec3(0.5, 0.1, 0.5), 0.0, 1.0 / 1.5));  
-  spheres[5] = Sphere(vec3(2.0, 0.5, 1.0), 0.3, Material(MATERIAL_DIELECTRIC, vec3(0.0, 1.0, 1.0), 0.0, 1.0 / 1.2));
-  spheres[6] = Sphere(vec3(-1.5, 1.5, 1.5), 0.3, Material(MATERIAL_DIFFUSE, vec3(0.8, 0.2, 0.8), 0.0, 1.0));
-  spheres[7] = Sphere(vec3(0.8, 1.8, 1.5), 0.3, Material(MATERIAL_METAL, vec3(0.7, 0.6, 0.5), 1.0, 1.0));
-
-  spheresNumber = 8;*/
-  
   //TODO: generate once outside shader
   vec2 aa[AA_SAMPLES];
   int number = 0;

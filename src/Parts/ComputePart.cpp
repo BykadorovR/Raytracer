@@ -32,9 +32,9 @@ struct UniformSpheres {
 };
 
 struct UniformRectangle {
-  alignas(16) glm::vec2 min;
-  alignas(16) glm::vec2 max;
-  float z;
+  alignas(16) glm::vec3 min;
+  alignas(16) glm::vec3 max;
+  int fixed;
   UniformMaterial material;
 };
 
@@ -75,18 +75,21 @@ class Sphere : public Primitive {
 
 class Rectangle : public Primitive {
  private:
-  glm::vec2 _min;
-  glm::vec2 _max;
-  float _z;
+  glm::vec3 _min;
+  glm::vec3 _max;
+  int _fixed;
 
  public:
-  Rectangle(glm::vec2 min, glm::vec2 max, float z) : _min(min), _max(max), _z(z) {}
+  Rectangle(glm::vec3 min, glm::vec3 max, int fixed) : _min(min), _max(max), _fixed(fixed) {}
   BoundingBox getBB() {
-    return BoundingBox{.min = glm::vec3(_min.x, _min.y, _z - 0.0001), .max = glm::vec3(_min.x, _min.y, _z + 0.0001)};
+    auto bb = BoundingBox{.min = glm::vec3(_min.x, _min.y, _min.z), .max = glm::vec3(_max.x, _max.y, _max.z)};
+    bb.min[_fixed] -= 0.0001f;
+    bb.max[_fixed] += 0.0001f;
+    return bb;
   }
-  glm::vec2 getMin() { return _min; }
-  glm::vec2 getMax() { return _max; }
-  float getZ() { return _z; }
+  glm::vec3 getMin() { return _min; }
+  glm::vec3 getMax() { return _max; }
+  int getFixed() { return _fixed; }
 };
 
 struct HitBoxTemp {
@@ -152,7 +155,7 @@ void calculateThreadedBVH(std::vector<HitBoxTemp> hitBox,
       auto current = std::dynamic_pointer_cast<Rectangle>(hitBox[index].primitive);
       rectangles.rectangles[rectangles.number] = UniformRectangle{.min = current->getMin(),
                                                                   .max = current->getMax(),
-                                                                  .z = current->getZ(),
+                                                                  .fixed = current->getFixed(),
                                                                   .material = current->getMaterial()};
       hitBoxResult.hitbox[index].primitive = PRIMITIVE_RECTANGLE;
       hitBoxResult.hitbox[index].index = rectangles.number;
@@ -393,11 +396,33 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     primitives.push_back(sphere);
   }
   {
-    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec2{-1, 5}, glm::vec2{1, 3}, 0.f);
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1, 1, -3.f}, glm::vec3{1, 3, -3.f},
+                                                                       2);
     UniformMaterial material{};
     material.type = MATERIAL_DIFFUSE;
-    material.attenuation = glm::vec3(0.7f, 0.6f, 0.5f);
+    material.attenuation = glm::vec3(1.0f, 0.0f, 0.0f);
     material.fuzz = 0;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1, 4, -0.5}, glm::vec3{1, 4, 0.5}, 1);
+    UniformMaterial material{};
+    material.type = MATERIAL_METAL;
+    material.attenuation = glm::vec3(1.0f, 1.0f, 1.0f);
+    material.fuzz = 0;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{7, 1, -1.0}, glm::vec3{7, 3, 1.0}, 0);
+    UniformMaterial material{};
+    material.type = MATERIAL_METAL;
+    material.attenuation = glm::vec3(0.0f, 1.0f, 1.0f);
+    material.fuzz = 0.5f;
     material.refraction = 1.f;
     rectangle->setMaterial(material);
     primitives.push_back(rectangle);
