@@ -515,8 +515,8 @@ void ComputePart::draw(int currentFrame) {
   vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
                           0);
-  vkCmdDispatch(_commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(_settings->getResolution()) / 16,
-                std::get<1>(_settings->getResolution()) / 16, 1);
+  vkCmdDispatch(_commandBuffer->getCommandBuffer()[currentFrame], std::get<0>(_settings->getResolution()) / 8,
+                std::get<1>(_settings->getResolution()) / 8, 1);
 }
 
 std::vector<std::shared_ptr<Texture>> ComputePart::getResultTextures() { return _resultTextures; }
