@@ -20,6 +20,7 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 #define MATERIAL_DIFFUSE 0
 #define MATERIAL_METAL 1
 #define MATERIAL_DIELECTRIC 2
+#define MATERIAL_EMISSIVE 3
 
 #define PRIMITIVE_SPHERE 0
 #define PRIMITIVE_RECTANGLE 1
@@ -88,6 +89,8 @@ struct HitRecord {
 layout (binding = 5) uniform Settings {
   int useBVH;
 } settings;
+
+vec3 backgroundColor = vec3(1.0, 1.0, 1.0);
 
 //https://github.com/GPSnoopy/RayTracingInVulkan/blob/master/assets/shaders/Random.glsl
 uint InitRandomSeed(uint val0, uint val1)
@@ -373,8 +376,9 @@ vec3 rayColor(Ray ray) {
       if (hitRecord.material.type == MATERIAL_DIELECTRIC) {
         success = dielectricMaterial(hitRecord, ray, resultColor);
       }
-
-
+      if (hitRecord.material.type == MATERIAL_EMISSIVE) {
+        return resultColor * hitRecord.material.attenuation;
+      }
       //if some error (mirrored ray goes exactly with the same direction back, i.e. input direction = output direction, so infinite bounces)
       //we break calculations
       if (success == false) {
@@ -391,8 +395,7 @@ vec3 rayColor(Ray ray) {
   if (depth <= 0)
     return vec3(0.0, 0.0, 0.0);
 
-  float t = 0.5 * (ray.direction.y + 1);
-  return resultColor * ((1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0));
+  return resultColor * backgroundColor;
 }
 
 void main() {

@@ -8,7 +8,7 @@ struct UniformCamera {
   alignas(16) glm::mat4 camera;
 };
 
-enum MaterialType { MATERIAL_DIFFUSE = 0, MATERIAL_METAL = 1, MATERIAL_DIELECTRIC = 2 };
+enum MaterialType { MATERIAL_DIFFUSE = 0, MATERIAL_METAL = 1, MATERIAL_DIELECTRIC = 2, MATERIAL_EMISSIVE = 3 };
 enum PrimitiveType { PRIMITIVE_SPHERE = 0, PRIMITIVE_RECTANGLE = 1 };
 
 struct UniformMaterial {
