@@ -2,6 +2,13 @@
 #include "Input.h"
 #include <random>
 
+glm::vec3 from = glm::vec3(0, 2, 3);
+glm::vec3 up = glm::vec3(0, 1, 0);
+float cameraSpeed = 0.05f;
+float deltaTime = 0.f;
+float lastFrame = 0.f;
+float fov;
+
 struct UniformCamera {
   float fov;
   alignas(16) glm::vec3 origin;
@@ -166,7 +173,8 @@ void calculateThreadedBVH(std::vector<HitBoxTemp> hitBox,
     }
   };
 
-  hitBoxResult.hitbox[0].next = hitBox[1].index;
+  hitBoxResult.hitbox[0].next = -1;
+  if (hitBox.size() > 1) hitBoxResult.hitbox[0].next = hitBox[1].index;
   hitBoxResult.hitbox[0].exit = -1;
   hitBoxResult.hitbox[0].min = hitBox[0].bb.min;
   hitBoxResult.hitbox[0].max = hitBox[0].bb.max;
@@ -204,11 +212,13 @@ void calculateThreadedBVH(std::vector<HitBoxTemp> hitBox,
     }
   }
 
-  hitBoxResult.hitbox[hitBox.size() - 1].next = -1;
-  hitBoxResult.hitbox[hitBox.size() - 1].exit = -1;
-  hitBoxResult.hitbox[hitBox.size() - 1].min = hitBox[hitBox.size() - 1].bb.min;
-  hitBoxResult.hitbox[hitBox.size() - 1].max = hitBox[hitBox.size() - 1].bb.max;
-  addPrimitive(hitBox.size() - 1);
+  if (hitBox.size() > 1) {
+    hitBoxResult.hitbox[hitBox.size() - 1].next = -1;
+    hitBoxResult.hitbox[hitBox.size() - 1].exit = -1;
+    hitBoxResult.hitbox[hitBox.size() - 1].min = hitBox[hitBox.size() - 1].bb.min;
+    hitBoxResult.hitbox[hitBox.size() - 1].max = hitBox[hitBox.size() - 1].bb.max;
+    addPrimitive(hitBox.size() - 1);
+  }
 }
 
 int calculateHitbox(std::vector<std::shared_ptr<Primitive>> primitives, std::vector<HitBoxTemp>& hitBox, int parent) {
@@ -259,57 +269,13 @@ int calculateHitbox(std::vector<std::shared_ptr<Primitive>> primitives, std::vec
   return index;
 }
 
-ComputePart::ComputePart(std::shared_ptr<Device> device,
-                         std::shared_ptr<Queue> queue,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         std::shared_ptr<CommandPool> commandPool,
-                         std::shared_ptr<Settings> settings) {
-  _device = device;
-  _queue = queue;
-  _commandBuffer = commandBuffer;
-  _commandPool = commandPool;
-  _settings = settings;
-
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    // Image will be sampled in the fragment shader and used as storage target in the compute shader
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
-    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
-    _resultTextures.push_back(texture);
-  }
-
-  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  _descriptorSetLayout->createCompute();
-
-  _shader = std::make_shared<Shader>(device);
-  _shader->add("../shaders/raytracing.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-  _pipeline = std::make_shared<Pipeline>(_shader, _descriptorSetLayout, device);
-  _pipeline->createCompute();
-
-  _descriptorPool = std::make_shared<DescriptorPool>(100, device);
-  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _descriptorSetLayout,
-                                                   _descriptorPool, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformCamera), commandPool,
-                                                   queue, device);
-  _uniformBufferSpheres = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSpheres),
-                                                          commandPool, queue, device);
-  _uniformBufferRectangles = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
-                                                             sizeof(UniformRectangles), commandPool, queue, device);
-  _uniformBufferHitboxes = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformHitBox),
-                                                           commandPool, queue, device);
-  _uniformBufferSettings = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSettings),
-                                                           commandPool, queue, device);
+void sceneSpheres(std::vector<std::shared_ptr<Primitive>>& primitives) {
+  fov = 90;
   std::random_device rd;
   std::mt19937 e2(rd());
   std::uniform_real_distribution<> dist(0, 1);
   std::uniform_real_distribution<> dist2(0, 0.5);
   std::uniform_real_distribution<> dist3(0.5, 1);
-
-  std::vector<std::shared_ptr<Primitive>> primitives;
-  int current = 0;
   {
     std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>(glm::vec3(0.f, -1000.f, 0.f), 1000.f);
     UniformMaterial material{};
@@ -324,7 +290,6 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     for (int b = -4; b < 4; b++) {
       float chooseMat = dist(e2);
       glm::vec3 center(a + 0.9 * dist(e2), 0.2, b + 0.9 * dist(e2));
-
       if ((center - glm::vec3(4, 0.2, 0)).length() > 0.9) {
         std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>(center, 0.2f);
         primitives.push_back(sphere);
@@ -378,7 +343,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   {
     std::shared_ptr<Sphere> sphere = std::make_shared<Sphere>(glm::vec3(-4, 1, 0), 1.0f);
     UniformMaterial material{};
-    material.type = MATERIAL_DIFFUSE;
+    material.type = MATERIAL_EMISSIVE;
     material.attenuation = glm::vec3(0.4f, 0.2f, 0.1f);
     material.fuzz = 0;
     material.refraction = 1.f;
@@ -399,7 +364,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
     std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1, 1, -3.f}, glm::vec3{1, 3, -3.f},
                                                                        2);
     UniformMaterial material{};
-    material.type = MATERIAL_DIFFUSE;
+    material.type = MATERIAL_EMISSIVE;
     material.attenuation = glm::vec3(1.0f, 0.0f, 0.0f);
     material.fuzz = 0;
     material.refraction = 1.f;
@@ -409,25 +374,232 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   {
     std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1, 4, -0.5}, glm::vec3{1, 4, 0.5}, 1);
     UniformMaterial material{};
-    material.type = MATERIAL_METAL;
+    material.type = MATERIAL_EMISSIVE;
     material.attenuation = glm::vec3(1.0f, 1.0f, 1.0f);
     material.fuzz = 0;
     material.refraction = 1.f;
     rectangle->setMaterial(material);
     primitives.push_back(rectangle);
   }
+}
 
+void sceneCornell(std::vector<std::shared_ptr<Primitive>>& primitives) {
+  fov = 40;
+  // right
   {
-    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{7, 1, -1.0}, glm::vec3{7, 3, 1.0}, 0);
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{1.f, 1, -1.}, glm::vec3{1.f, 3, 1.0},
+                                                                       0);
     UniformMaterial material{};
-    material.type = MATERIAL_METAL;
-    material.attenuation = glm::vec3(0.0f, 1.0f, 1.0f);
-    material.fuzz = 0.5f;
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.65f, 0.05f, 0.05f);
+    material.fuzz = 0.f;
     material.refraction = 1.f;
     rectangle->setMaterial(material);
     primitives.push_back(rectangle);
   }
+  // left
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1.f, 1, -1.}, glm::vec3{-1.f, 3, 1.0},
+                                                                       0);
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.12f, 0.45f, 0.15f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  // middle
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1.f, 1, -1.}, glm::vec3{1.f, 3, -1.0},
+                                                                       2);
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.73f, 0.73f, 0.73f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  // top
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1.f, 3, -1.}, glm::vec3{1.f, 3, 1.0},
+                                                                       1);
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.73f, 0.73f, 0.73f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  // bottom
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-1.f, 1, -1.}, glm::vec3{1.f, 1, 1.0},
+                                                                       1);
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(0.73f, 0.73f, 0.73f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  // light
+  {
+    std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{-0.2f, 3, -0.4}, glm::vec3{0.2f, 3, 0},
+                                                                       1);
+    UniformMaterial material{};
+    material.type = MATERIAL_EMISSIVE;
+    material.attenuation = glm::vec3(15.f, 15.f, 15.f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+    rectangle->setMaterial(material);
+    primitives.push_back(rectangle);
+  }
+  // box tall
+  {
+    glm::vec3 min = {-0.6f, 1.f, -0.8f};
+    glm::vec3 max = {0.f, 2.2f, -0.4f};
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(1.f, 0.73f, 0.73f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
 
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, max.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 2);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{max.x, max.y, min.z}, 2);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{max.x, min.y, max.z}, 1);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, max.y, min.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 1);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{min.x, max.y, max.z}, 0);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{max.x, min.y, min.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 0);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+  }
+
+  // box short
+  {
+    glm::vec3 min = {-0.1f, 1.f, -0.3f};
+    glm::vec3 max = {0.55f, 1.65f, 0.1f};
+    UniformMaterial material{};
+    material.type = MATERIAL_DIFFUSE;
+    material.attenuation = glm::vec3(1.f, 0.73f, 0.73f);
+    material.fuzz = 0.f;
+    material.refraction = 1.f;
+
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, max.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 2);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{max.x, max.y, min.z}, 2);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{max.x, min.y, max.z}, 1);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, max.y, min.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 1);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{min.x, min.y, min.z},
+                                                                         glm::vec3{min.x, max.y, max.z}, 0);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+    {
+      std::shared_ptr<Rectangle> rectangle = std::make_shared<Rectangle>(glm::vec3{max.x, min.y, min.z},
+                                                                         glm::vec3{max.x, max.y, max.z}, 0);
+      rectangle->setMaterial(material);
+      primitives.push_back(rectangle);
+    }
+  }
+}
+
+ComputePart::ComputePart(std::shared_ptr<Device> device,
+                         std::shared_ptr<Queue> queue,
+                         std::shared_ptr<CommandBuffer> commandBuffer,
+                         std::shared_ptr<CommandPool> commandPool,
+                         std::shared_ptr<Settings> settings) {
+  _device = device;
+  _queue = queue;
+  _commandBuffer = commandBuffer;
+  _commandPool = commandPool;
+  _settings = settings;
+
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    // Image will be sampled in the fragment shader and used as storage target in the compute shader
+    std::shared_ptr<Image> image = std::make_shared<Image>(
+        settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
+    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
+    _resultTextures.push_back(texture);
+  }
+
+  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
+  _descriptorSetLayout->createCompute();
+
+  _shader = std::make_shared<Shader>(device);
+  _shader->add("../shaders/raytracing.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  _pipeline = std::make_shared<Pipeline>(_shader, _descriptorSetLayout, device);
+  _pipeline->createCompute();
+
+  _descriptorPool = std::make_shared<DescriptorPool>(100, device);
+  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _descriptorSetLayout,
+                                                   _descriptorPool, device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformCamera), commandPool,
+                                                   queue, device);
+  _uniformBufferSpheres = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSpheres),
+                                                          commandPool, queue, device);
+  _uniformBufferRectangles = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
+                                                             sizeof(UniformRectangles), commandPool, queue, device);
+  _uniformBufferHitboxes = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformHitBox),
+                                                           commandPool, queue, device);
+  _uniformBufferSettings = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformSettings),
+                                                           commandPool, queue, device);
+
+  std::vector<std::shared_ptr<Primitive>> primitives;
+  sceneCornell(primitives);
   UniformHitBox hitboxes;
   std::vector<HitBoxTemp> hitboxTemp;
   calculateHitbox(primitives, hitboxTemp, -1);
@@ -471,12 +643,6 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
 
 std::map<std::string, bool*> ComputePart::getCheckboxes() { return _checkboxes; }
 
-glm::vec3 from = glm::vec3(0, 2, 3);
-glm::vec3 up = glm::vec3(0, 1, 0);
-float cameraSpeed = 0.05f;
-float deltaTime = 0.f;
-float lastFrame = 0.f;
-float fov = 90;
 void ComputePart::draw(int currentFrame) {
   float currentTime = static_cast<float>(glfwGetTime());
   deltaTime = currentTime - lastFrame;
