@@ -11,7 +11,7 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 //gl_GlobalInvocationID.x, gl_GlobalInvocationID.y
 //ivec2 dim = imageSize(resultImage);
 
-#define AA_SAMPLES 100
+#define AA_SAMPLES 9
 #define MAX_SPHERES 300
 #define MAX_RECTANGLES 100
 #define MAX_HITBOXES 300
@@ -24,6 +24,7 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 
 #define PRIMITIVE_SPHERE 0
 #define PRIMITIVE_RECTANGLE 1
+#define PI 3.1415926538
 
 struct Material {
   int type;
@@ -57,6 +58,8 @@ layout (binding = 3) uniform Rectangles {
   Rectangle rectangles[MAX_RECTANGLES];
 };
 
+Rectangle lightRectangle;
+
 struct Hitbox {
   vec3 min;
   vec3 max;
@@ -86,6 +89,10 @@ struct HitRecord {
   bool frontFace;
 };
 
+struct ONB {
+  vec3 axes[3];
+};
+
 layout (binding = 5) uniform Settings {
   int useBVH;
 } settings;
@@ -107,32 +114,42 @@ uint InitRandomSeed(uint val0, uint val1)
   return v0;
 }
 
-uint RandomInt(inout uint seed)
-{
+uint RandomInt() {
   // LCG values from Numerical Recipes
     return (seed = 1664525 * seed + 1013904223);
 }
 
-float RandomFloat(inout uint seed)
-{
+float RandomFloat() {
   //// Float version using bitmask from Numerical Recipes
   //const uint one = 0x3f800000;
   //const uint msk = 0x007fffff;
-  //return uintBitsToFloat(one | (msk & (RandomInt(seed) >> 9))) - 1;
+  //return uintBitsToFloat(one | (msk & (RandomInt() >> 9))) - 1;
 
   // Faster version from NVIDIA examples; quality good enough for our use case.
-  return (float(RandomInt(seed) & 0x00FFFFFF) / float(0x01000000));
+  return (float(RandomInt() & 0x00FFFFFF) / float(0x01000000));
 }
 
-vec3 RandomInUnitSphere(inout uint seed) {
+float RandomFloat(float min, float max) {
+  return min + (max - min) * RandomFloat();
+}
+
+vec3 RandomInUnitSphere() {
   for (;;)
   {
-    const vec3 p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
+    const vec3 p = 2 * vec3(RandomFloat(), RandomFloat(), RandomFloat()) - 1;
     if (dot(p, p) < 1)
     {
       return p;
     }
   }
+}
+
+vec3 RandomInHemiSphere(vec3 normal) {
+  vec3 inUnitSphere = RandomInUnitSphere();
+  if (dot(inUnitSphere, normal) > 0.0) // In the same hemisphere as the normal
+    return inUnitSphere;
+  else
+    return -inUnitSphere;
 }
 
 // Use Schlick's approximation for reflectance.
@@ -172,7 +189,7 @@ bool dielectricMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
   bool cannotRefract = refraction * angleSin > 1.0;
   vec3 direction;
   //Frenels equation says how many rays should reflect, value is [0, 1], so we treat reflectance as probability
-  if (cannotRefract || reflectance(angleCos, refraction) > RandomFloat(seed))
+  if (cannotRefract || reflectance(angleCos, refraction) > RandomFloat())
     direction = reflectRay(ray.direction, normal);
   else
     direction = refractRay(ray.direction, normal, refraction);
@@ -191,21 +208,46 @@ bool nearZero(vec3 v) {
 
 bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
   vec3 direction = reflectRay(ray.direction, hitRecord.normal);
-  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere(seed)));
+  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere()));
   color *= hitRecord.material.attenuation;
   return (dot(direction, hitRecord.normal) > 0);
 }
 
-bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
-  vec3 direction = hitRecord.normal + RandomInUnitSphere(seed);
-  //if direction == 0 we will have issues with such direction (nan, undefined behavior)
-  if (nearZero(direction)) {
-    direction = hitRecord.normal;
-  }
-  ray = Ray(hitRecord.point, normalize(direction));
-  //half of color is absorbing and half reflecting
-  color *= hitRecord.material.attenuation;
-  return true;
+vec3 randomCosineDirection() {
+  float r1 = RandomFloat();
+  float r2 = RandomFloat();
+  float z = sqrt(1 - r2);
+
+  float phi = 2 * PI * r1;
+  float x = cos(phi) * sqrt(r2);
+  float y = sin(phi) * sqrt(r2);
+
+  return vec3(x, y, z);
+}
+
+ONB buildONB(vec3 normal) {
+  ONB onb;
+  onb.axes[2] = normalize(normal);
+  vec3 a = vec3(1,0,0);
+  if (abs(onb.axes[2].x) > 0.9) a = vec3(0,1,0);
+  onb.axes[1] = normalize(cross(onb.axes[2], a));
+  onb.axes[0] = cross(onb.axes[2], onb.axes[1]);
+  return onb;
+}
+
+float cosinePDF(HitRecord hitRecord, inout vec3 direction) {
+  ONB onb = buildONB(hitRecord.normal);
+  vec3 tmp = randomCosineDirection();
+  direction = onb.axes[0] * tmp.x + onb.axes[1] * tmp.y + onb.axes[2] * tmp.z;
+  direction = normalize(direction);
+  //bdrf
+  //1
+  //float pdf = dot(hitRecord.normal, ray.direction) / PI;
+  //2
+  //float pdf = 0.5 / PI;
+  //3
+  float pdf = dot(onb.axes[2], direction) / PI;
+  return pdf;
 }
 
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
@@ -354,8 +396,72 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   return hit;
 }
 
+vec3 randomRectangleDirection(Rectangle rectangle, vec3 origin) {
+  vec3 randomPoint = vec3(RandomFloat(rectangle.min.x, rectangle.max.x), rectangle.min.y, RandomFloat(rectangle.min.z, rectangle.max.z));
+  return randomPoint - origin;
+}
+
+
+float lightRectanglePDF(Rectangle lightRectangle, vec3 origin, vec3 direction) {
+  HitRecord hitRecord;
+  float tMin = 0.001;
+  float tMax = 100000;
+  Ray ray = Ray(origin, direction);
+  float t = hitRectangle(ray, lightRectangle, tMin, tMax, hitRecord);
+  if (t < 0)
+    return 0;
+
+  float area = (lightRectangle.max.x - lightRectangle.min.x) * (lightRectangle.max.z - lightRectangle.min.x);
+  float distanceSquared = t * t * dot(direction, direction);
+  float cosine = abs(dot(direction, hitRecord.normal) / length(direction));
+
+  return distanceSquared / (cosine * area);
+}
+
+float diffuseScatteringPdf(HitRecord hitRecord, Ray scattered) {
+  float cosine = dot(hitRecord.normal, normalize(scattered.direction));
+  float pdf = 0;
+  if (cosine >= 0)
+    pdf = cosine / PI;
+  return pdf;
+}
+
+bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout float pdfCoeff) {
+  //half of color is absorbing and half reflecting
+  color *= hitRecord.material.attenuation;
+  //1
+  //vec3 direction = hitRecord.normal + RandomInUnitSphere();
+  //if direction == 0 we will have issues with such direction (nan, undefined behavior)
+  //if (nearZero(direction)) {
+  //  direction = hitRecord.normal;
+  //}
+  //2
+  //vec3 direction = RandomInHemiSphere(hitRecord.normal);
+  //3
+  vec3 direction;
+
+
+  //bdrf
+  //1
+  //float pdf = dot(hitRecord.normal, ray.direction) / PI;
+  //2
+  //float pdf = 0.5 / PI;
+  //3
+  //float pdf = cosinePDF(hitRecord, direction);
+  //4 directly to light
+  direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
+
+  ray = Ray(hitRecord.point, direction);
+  float coeff = pdfCoeff * diffuseScatteringPdf(hitRecord, ray) / pdf;
+  pdfCoeff = coeff; 
+  return true;
+}
+
 vec3 rayColor(Ray ray) {
   vec3 resultColor = vec3(1.0, 1.0, 1.0);
+  vec3 emissive = vec3(0.0, 0.0, 0.0);
+  float pdfCoeff = 1.0;
   int depth = MAX_DEPTH;
   while (depth > 0) {
     HitRecord hitRecord;
@@ -368,7 +474,7 @@ vec3 rayColor(Ray ray) {
     if (hit) {
       bool success;
       if (hitRecord.material.type == MATERIAL_DIFFUSE) {
-        success = diffuseMaterial(hitRecord, ray, resultColor);
+        success = diffuseMaterial(hitRecord, ray, resultColor, pdfCoeff);
       }
       if (hitRecord.material.type == MATERIAL_METAL) {
         success = metalMaterial(hitRecord, ray, resultColor);
@@ -377,7 +483,13 @@ vec3 rayColor(Ray ray) {
         success = dielectricMaterial(hitRecord, ray, resultColor);
       }
       if (hitRecord.material.type == MATERIAL_EMISSIVE) {
-        return resultColor * hitRecord.material.attenuation;
+        //Actually we have to check front face == true to disable emmisive in both directions, but works with front face == false
+        if (hitRecord.frontFace == false) {
+          return resultColor * hitRecord.material.attenuation;
+          break;
+        }
+        else
+          return vec3(0, 0, 0);
       }
       //if some error (mirrored ray goes exactly with the same direction back, i.e. input direction = output direction, so infinite bounces)
       //we break calculations
@@ -395,7 +507,7 @@ vec3 rayColor(Ray ray) {
   if (depth <= 0)
     return vec3(0.0, 0.0, 0.0);
 
-  return resultColor * backgroundColor;
+  return resultColor * pdfCoeff * backgroundColor;
 }
 
 void main() {
@@ -415,6 +527,13 @@ void main() {
       number += 1;
     }
   }
+
+  //find light to generate additional rays
+  for (int i = 0; i < rectanglesNumber; i++) {
+    if (rectangles[i].material.type == MATERIAL_EMISSIVE)
+      lightRectangle = rectangles[i];
+  }
+
   vec3 result = vec3(0.0, 0.0, 0.0);
   for (int i = 0; i < AA_SAMPLES; i++) {
     //range is [0, 1]

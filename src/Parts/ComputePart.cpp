@@ -451,7 +451,7 @@ void sceneCornell(std::vector<std::shared_ptr<Primitive>>& primitives) {
                                                                        1);
     UniformMaterial material{};
     material.type = MATERIAL_EMISSIVE;
-    material.attenuation = glm::vec3(15.f, 15.f, 15.f);
+    material.attenuation = glm::vec3(10.f, 10.f, 10.f);
     material.fuzz = 0.f;
     material.refraction = 1.f;
     rectangle->setMaterial(material);
