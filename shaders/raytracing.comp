@@ -453,8 +453,7 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout
   float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
 
   ray = Ray(hitRecord.point, direction);
-  float coeff = pdfCoeff * diffuseScatteringPdf(hitRecord, ray) / pdf;
-  pdfCoeff = coeff; 
+  pdfCoeff *= diffuseScatteringPdf(hitRecord, ray) / pdf;
   return true;
 }
 
@@ -485,8 +484,7 @@ vec3 rayColor(Ray ray) {
       if (hitRecord.material.type == MATERIAL_EMISSIVE) {
         //Actually we have to check front face == true to disable emmisive in both directions, but works with front face == false
         if (hitRecord.frontFace == false) {
-          return resultColor * hitRecord.material.attenuation;
-          break;
+          return resultColor * pdfCoeff * hitRecord.material.attenuation;
         }
         else
           return vec3(0, 0, 0);
