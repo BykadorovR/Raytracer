@@ -11,7 +11,7 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 //gl_GlobalInvocationID.x, gl_GlobalInvocationID.y
 //ivec2 dim = imageSize(resultImage);
 
-#define AA_SAMPLES 9
+#define AA_SAMPLES 100
 #define MAX_SPHERES 300
 #define MAX_RECTANGLES 100
 #define MAX_HITBOXES 300
@@ -213,43 +213,6 @@ bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
   return (dot(direction, hitRecord.normal) > 0);
 }
 
-vec3 randomCosineDirection() {
-  float r1 = RandomFloat();
-  float r2 = RandomFloat();
-  float z = sqrt(1 - r2);
-
-  float phi = 2 * PI * r1;
-  float x = cos(phi) * sqrt(r2);
-  float y = sin(phi) * sqrt(r2);
-
-  return vec3(x, y, z);
-}
-
-ONB buildONB(vec3 normal) {
-  ONB onb;
-  onb.axes[2] = normalize(normal);
-  vec3 a = vec3(1,0,0);
-  if (abs(onb.axes[2].x) > 0.9) a = vec3(0,1,0);
-  onb.axes[1] = normalize(cross(onb.axes[2], a));
-  onb.axes[0] = cross(onb.axes[2], onb.axes[1]);
-  return onb;
-}
-
-float cosinePDF(HitRecord hitRecord, inout vec3 direction) {
-  ONB onb = buildONB(hitRecord.normal);
-  vec3 tmp = randomCosineDirection();
-  direction = onb.axes[0] * tmp.x + onb.axes[1] * tmp.y + onb.axes[2] * tmp.z;
-  direction = normalize(direction);
-  //bdrf
-  //1
-  //float pdf = dot(hitRecord.normal, ray.direction) / PI;
-  //2
-  //float pdf = 0.5 / PI;
-  //3
-  float pdf = dot(onb.axes[2], direction) / PI;
-  return pdf;
-}
-
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
 float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax, inout HitRecord hitRecord) {
   float t = -1;
@@ -396,6 +359,36 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   return hit;
 }
 
+vec3 randomCosineDirection() {
+  float r1 = RandomFloat();
+  float r2 = RandomFloat();
+  float z = sqrt(1 - r2);
+
+  float phi = 2 * PI * r1;
+  float x = cos(phi) * sqrt(r2);
+  float y = sin(phi) * sqrt(r2);
+
+  return vec3(x, y, z);
+}
+
+ONB buildONB(vec3 normal) {
+  ONB onb;
+  onb.axes[2] = normalize(normal);
+  vec3 a = vec3(1,0,0);
+  if (abs(onb.axes[2].x) > 0.9) a = vec3(0,1,0);
+  onb.axes[1] = normalize(cross(onb.axes[2], a));
+  onb.axes[0] = cross(onb.axes[2], onb.axes[1]);
+  return onb;
+}
+
+vec3 cosineDirection(HitRecord hitRecord, inout ONB onb) {
+  onb = buildONB(hitRecord.normal);
+  vec3 tmp = randomCosineDirection();
+  vec3 direction = onb.axes[0] * tmp.x + onb.axes[1] * tmp.y + onb.axes[2] * tmp.z;
+  direction = normalize(direction);
+  return direction;
+}
+
 vec3 randomRectangleDirection(Rectangle rectangle, vec3 origin) {
   vec3 randomPoint = vec3(RandomFloat(rectangle.min.x, rectangle.max.x), rectangle.min.y, RandomFloat(rectangle.min.z, rectangle.max.z));
   return randomPoint - origin;
@@ -429,28 +422,37 @@ float diffuseScatteringPdf(HitRecord hitRecord, Ray scattered) {
 bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout float pdfCoeff) {
   //half of color is absorbing and half reflecting
   color *= hitRecord.material.attenuation;
+  vec3 direction;
   //1
-  //vec3 direction = hitRecord.normal + RandomInUnitSphere();
+  //direction = hitRecord.normal + RandomInUnitSphere();
   //if direction == 0 we will have issues with such direction (nan, undefined behavior)
   //if (nearZero(direction)) {
-  //  direction = hitRecord.normal;
+    //direction = hitRecord.normal;
   //}
   //2
-  //vec3 direction = RandomInHemiSphere(hitRecord.normal);
+  //direction = RandomInHemiSphere(hitRecord.normal);  
   //3
-  vec3 direction;
-
+  //ONB onb;
+  //direction = cosineDirection(hitRecord, onb);
 
   //bdrf
   //1
-  //float pdf = dot(hitRecord.normal, ray.direction) / PI;
+  //float pdf = dot(hitRecord.normal, direction) / PI;
   //2
   //float pdf = 0.5 / PI;
   //3
-  //float pdf = cosinePDF(hitRecord, direction);
+  //float pdf = dot(onb.axes[2], direction) / PI;
   //4 directly to light
-  direction = randomRectangleDirection(lightRectangle, hitRecord.point);
-  float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
+  //direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  //float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
+  //5 mix light + cos
+  ONB onb;
+  if (RandomFloat() < 0.5) {
+    direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  } else {
+    direction = cosineDirection(hitRecord, onb);
+  }
+  float pdf = 0.5 * lightRectanglePDF(lightRectangle, hitRecord.point, direction) + 0.5 * dot(onb.axes[2], direction) / PI;
 
   ray = Ray(hitRecord.point, direction);
   pdfCoeff *= diffuseScatteringPdf(hitRecord, ray) / pdf;
