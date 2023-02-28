@@ -434,6 +434,15 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout
   //3
   //ONB onb;
   //direction = cosineDirection(hitRecord, onb);
+  //4
+  //direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  //5
+  ONB onb;
+  if (RandomFloat() < 0.5) {
+    direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  } else {
+    direction = cosineDirection(hitRecord, onb);
+  }
 
   //bdrf
   //1
@@ -443,15 +452,8 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout
   //3
   //float pdf = dot(onb.axes[2], direction) / PI;
   //4 directly to light
-  //direction = randomRectangleDirection(lightRectangle, hitRecord.point);
   //float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
-  //5 mix light + cos
-  ONB onb;
-  if (RandomFloat() < 0.5) {
-    direction = randomRectangleDirection(lightRectangle, hitRecord.point);
-  } else {
-    direction = cosineDirection(hitRecord, onb);
-  }
+  //5 mix light + cos  
   float pdf = 0.5 * lightRectanglePDF(lightRectangle, hitRecord.point, direction) + 0.5 * dot(onb.axes[2], direction) / PI;
 
   ray = Ray(hitRecord.point, direction);
@@ -548,8 +550,14 @@ void main() {
     vec4 rayECamera = (camera.camera * vec4(rayE, 1));
 
     Ray ray = Ray(camera.origin, normalize(rayECamera.xyz - rayOCamera.xyz));
-    result += rayColor(ray);
+    vec3 color = rayColor(ray);
+    //if NAN just ignore this color
+    if (color.r != color.r) color.r = 0;
+    if (color.g != color.g) color.g = 0;
+    if (color.b != color.b) color.b = 0;
+    result += color;
   }
   result /= AA_SAMPLES;
+
   imageStore(resultImage, ivec2(gl_GlobalInvocationID.x, dim.y - gl_GlobalInvocationID.y), vec4(result, 1.0));
 }
