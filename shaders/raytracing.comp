@@ -206,13 +206,6 @@ bool nearZero(vec3 v) {
   return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
 }
 
-bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
-  vec3 direction = reflectRay(ray.direction, hitRecord.normal);
-  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere()));
-  color *= hitRecord.material.attenuation;
-  return (dot(direction, hitRecord.normal) > 0);
-}
-
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
 float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax, inout HitRecord hitRecord) {
   float t = -1;
@@ -381,8 +374,8 @@ ONB buildONB(vec3 normal) {
   return onb;
 }
 
-vec3 cosineDirection(HitRecord hitRecord, inout ONB onb) {
-  onb = buildONB(hitRecord.normal);
+vec3 cosineDirection(vec3 normal, inout ONB onb) {
+  onb = buildONB(normal);
   vec3 tmp = randomCosineDirection();
   vec3 direction = onb.axes[0] * tmp.x + onb.axes[1] * tmp.y + onb.axes[2] * tmp.z;
   direction = normalize(direction);
@@ -404,8 +397,9 @@ float lightRectanglePDF(Rectangle lightRectangle, vec3 origin, vec3 direction) {
   if (t < 0)
     return 0;
 
-  float area = (lightRectangle.max.x - lightRectangle.min.x) * (lightRectangle.max.z - lightRectangle.min.x);
-  float distanceSquared = t * t * dot(direction, direction);
+  float area = (lightRectangle.max.x - lightRectangle.min.x) * (lightRectangle.max.z - lightRectangle.min.z);
+  float directionSquared = dot(direction, direction);
+  float distanceSquared = t * t * directionSquared;
   float cosine = abs(dot(direction, hitRecord.normal) / length(direction));
 
   return distanceSquared / (cosine * area);
@@ -417,6 +411,13 @@ float diffuseScatteringPdf(HitRecord hitRecord, Ray scattered) {
   if (cosine >= 0)
     pdf = cosine / PI;
   return pdf;
+}
+
+bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
+  vec3 direction = reflectRay(ray.direction, hitRecord.normal);
+  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere()));
+  color *= hitRecord.material.attenuation;
+  return (dot(direction, hitRecord.normal) > 0);
 }
 
 bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout float pdfCoeff) {
@@ -433,7 +434,7 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout
   //direction = RandomInHemiSphere(hitRecord.normal);  
   //3
   //ONB onb;
-  //direction = cosineDirection(hitRecord, onb);
+  //direction = cosineDirection(hitRecord.normal, onb);
   //4
   //direction = randomRectangleDirection(lightRectangle, hitRecord.point);
   //5
@@ -441,7 +442,7 @@ bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout
   if (RandomFloat() < 0.5) {
     direction = randomRectangleDirection(lightRectangle, hitRecord.point);
   } else {
-    direction = cosineDirection(hitRecord, onb);
+    direction = cosineDirection(hitRecord.normal, onb);
   }
 
   //bdrf
