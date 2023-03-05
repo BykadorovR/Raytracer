@@ -63,7 +63,7 @@ ExternalProject_Add(
 include_directories("include/Graphic")
 include_directories("include/Primitive")
 include_directories("include/Utility")
-include_directories("include/Parts")
+include_directories("include/Engine")
 include_directories("dependencies")
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
@@ -78,10 +78,10 @@ file(GLOB_RECURSE app_source_utility "src/Utility/*.c*")
 source_group("Utility\\src" FILES ${app_source_utility})
 file(GLOB_RECURSE app_header_utility "include/Utility/*.h*")
 source_group("Utility\\include" FILES ${app_header_utility})
-file(GLOB_RECURSE app_source_parts "src/Parts/*.c*")
-source_group("Parts\\src" FILES ${app_source_parts})
-file(GLOB_RECURSE app_header_parts "include/Parts/*.h*")
-source_group("Parts\\include" FILES ${app_header_parts})
+file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
+source_group("Engine\\src" FILES ${app_source_engine})
+file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
+source_group("Engine\\include" FILES ${app_header_engine})
 file(GLOB_RECURSE app_source_entry "src/Entry/*.c*")
 source_group("Entry\\src" FILES ${app_source_entry})
 
@@ -92,7 +92,7 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 add_executable(${PROJECT_NAME} ${app_header_graphic} ${app_source_graphic}
                                ${app_header_primitive} ${app_source_primitive}
                                ${app_header_utility} ${app_source_utility}
-                               ${app_header_parts} ${app_source_parts}
+                               ${app_header_engine} ${app_source_engine}
                                ${app_source_entry})
 ###############################
 

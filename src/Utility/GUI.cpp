@@ -215,10 +215,29 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
       vertexOffset += cmd_list->VtxBuffer.Size;
     }
   }
-
-  io.MousePos = ImVec2(std::get<0>(Input::mousePos), std::get<1>(Input::mousePos));
-  io.MouseDown[0] = Input::mouseDownLeft;
-  io.MouseDown[1] = Input::mouseDownRight;
 }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
+
+void GUI::cursorNotify(float xPos, float yPos) {
+  ImGuiIO& io = ImGui::GetIO();
+  io.MousePos = ImVec2(xPos, yPos);
+}
+
+void GUI::mouseNotify(int button, int action, int mods) {
+  ImGuiIO& io = ImGui::GetIO();
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    io.MouseDown[0] = true;
+  }
+  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+    io.MouseDown[1] = true;
+  }
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
+    io.MouseDown[0] = false;
+  }
+  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
+    io.MouseDown[1] = false;
+  }
+}
+
+void GUI::keyNotify(int key, int action, int mods) {}

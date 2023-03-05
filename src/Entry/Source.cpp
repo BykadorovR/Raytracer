@@ -21,10 +21,7 @@
 #include "ModelManager.h"
 #include "GUI.h"
 #include "Input.h"
-
-#include "OffscreenPart.h"
-#include "ComputePart.h"
-#include "ScreenPart.h"
+#include "Camera.h"
 
 float fps = 0;
 uint64_t currentFrame = 0;
@@ -46,19 +43,14 @@ std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<Model3D> model3D;
-
+std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
-std::shared_ptr<ComputePart> computePart;
-std::shared_ptr<ScreenPart> screenPart;
+std::shared_ptr<Swapchain> swapchain;
+std::shared_ptr<RenderPass> renderPass;
+std::shared_ptr<Framebuffer> frameBuffer;
+std::shared_ptr<CameraFly> camera;
 
-void initializeCompute() {
-  computePart = std::make_shared<ComputePart>(device, queue, commandBuffer, commandPool, settings);
-}
-
-void initializeScreen() {
-  screenPart = std::make_shared<ScreenPart>(computePart->getResultTextures(), window, surface, device, queue,
-                                            commandPool, commandBuffer, settings);
-}
+std::shared_ptr<Sprite> sprite;
 
 PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
 PFN_vkCmdEndDebugUtilsLabelEXT CmdEndDebugUtilsLabelEXT;
@@ -70,7 +62,8 @@ void initialize() {
 
   settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
-  Input::initialize(window);
+  input = std::make_shared<Input>(window);
+
   instance = std::make_shared<Instance>("Vulkan", true, window);
   CmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance->getInstance(),
                                                                                        "vkCmdBeginDebugUtilsLabelEXT");
@@ -90,11 +83,25 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  initializeCompute();
-  initializeScreen();
+  swapchain = std::make_shared<Swapchain>(window, surface, device);
+  renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
+  renderPass->initialize();
+  frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
+                                              swapchain->getDepthImageView(), renderPass, device);
+  auto shader = std::make_shared<Shader>(device);
+  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
-  gui->initialize(screenPart->getRenderPass(), queue, commandPool);
+  gui->initialize(renderPass, queue, commandPool);
+
+  auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
+  camera = std::make_shared<CameraFly>(settings);
+  input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
+  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
+  sprite = spriteManager->createSprite(texture);
+  spriteManager->registerSprite(sprite);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -121,7 +128,7 @@ void drawFrame() {
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
-  result = vkAcquireNextImageKHR(device->getLogicalDevice(), screenPart->getSwapchain()->getSwapchain(), UINT64_MAX,
+  result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
                                  imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -138,7 +145,6 @@ void drawFrame() {
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   gui->addText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
-  gui->addCheckbox("Compute", {20, 80}, {100, 60}, computePart->getCheckboxes());
   gui->updateBuffers(currentFrame);
 
   // record command buffer
@@ -149,7 +155,6 @@ void drawFrame() {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
 
-  // Set a name for the command buffer
   VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
       .pNext = NULL,
@@ -161,60 +166,19 @@ void drawFrame() {
 
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  markerInfo.pLabelName = "Raytraycing compute";
-  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
-
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // compute
-  /////////////////////////////////////////////////////////////////////////////////////////
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                    computePart->getPipeline()->getPipeline());
-  computePart->draw(currentFrame);
-
-  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
-
-  markerInfo = {};
-  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  markerInfo.pLabelName = "Compute-Render sync";
-  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
-
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // compute to graphic barrier
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // Image memory barrier to make sure that compute shader writes are finished before sampling from the texture
-  VkImageMemoryBarrier imageMemoryBarrier = {};
-  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  // We won't be changing the layout of the image
-  imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-  imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-  imageMemoryBarrier.image = computePart->getResultTextures()[currentFrame]->getImageView()->getImage()->getImage();
-  imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-  imageMemoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-  imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
-
-  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
-
-  markerInfo = {};
-  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = "Render to screen";
   CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    auto renderPassInfo = render(imageIndex, screenPart->getRenderPass(), screenPart->getFramebuffer(),
-                                 screenPart->getSwapchain());
+    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer, swapchain);
 
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    for (auto sprite : screenPart->getSprites()) {
-      screenPart->getSpriteManager()->unregisterSprite(sprite);
-    }
-    screenPart->getSpriteManager()->registerSprite(screenPart->getSprites()[currentFrame]);
-    screenPart->getSpriteManager()->draw(currentFrame);
+    // draw scene here
+    sprite->setProjection(camera->getProjection());
+    sprite->setView(camera->getView());
+    spriteManager->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -254,7 +218,7 @@ void drawFrame() {
   presentInfo.waitSemaphoreCount = 1;
   presentInfo.pWaitSemaphores = signalSemaphores;
 
-  VkSwapchainKHR swapChains[] = {screenPart->getSwapchain()->getSwapchain()};
+  VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = swapChains;
 
