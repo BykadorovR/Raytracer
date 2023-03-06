@@ -1,6 +1,6 @@
 #version 450
 
-layout (local_size_x = 16, local_size_y = 16) in;
+layout (local_size_x = 8, local_size_y = 8) in;
 layout(binding = 0) uniform UniformCamera {
   float fov;
   vec3 origin;
@@ -13,12 +13,18 @@ layout (binding = 1, rgba8) uniform writeonly image2D resultImage;
 
 #define AA_SAMPLES 100
 #define MAX_SPHERES 300
+#define MAX_RECTANGLES 100
 #define MAX_HITBOXES 300
 #define MAX_DEPTH 50
 
 #define MATERIAL_DIFFUSE 0
 #define MATERIAL_METAL 1
 #define MATERIAL_DIELECTRIC 2
+#define MATERIAL_EMISSIVE 3
+
+#define PRIMITIVE_SPHERE 0
+#define PRIMITIVE_RECTANGLE 1
+#define PI 3.1415926538
 
 struct Material {
   int type;
@@ -32,7 +38,6 @@ struct Material {
 struct Sphere {
   vec3 center;
   float radius;
-  int index;
   Material material;
 };
 
@@ -41,15 +46,30 @@ layout (binding = 2) uniform Spheres {
   Sphere spheres[MAX_SPHERES];
 };
 
+struct Rectangle {
+  vec3 min;
+  vec3 max;
+  int fixedAxis;
+  Material material;
+};
+
+layout (binding = 3) uniform Rectangles {
+  int rectanglesNumber;
+  Rectangle rectangles[MAX_RECTANGLES];
+};
+
+Rectangle lightRectangle;
+
 struct Hitbox {
   vec3 min;
   vec3 max;
   int next;
   int exit;
-  int sphere;
+  int primitive;
+  int index;
 };
 
-layout (binding = 3) uniform Hitboxes {
+layout (binding = 4) uniform Hitboxes {
   int hitboxNumber;
   Hitbox hitboxes[MAX_HITBOXES];
 };
@@ -69,9 +89,15 @@ struct HitRecord {
   bool frontFace;
 };
 
-layout (binding = 4) uniform Settings {
+struct ONB {
+  vec3 axes[3];
+};
+
+layout (binding = 5) uniform Settings {
   int useBVH;
 } settings;
+
+vec3 backgroundColor = vec3(0.0, 0.0, 0.0);
 
 //https://github.com/GPSnoopy/RayTracingInVulkan/blob/master/assets/shaders/Random.glsl
 uint InitRandomSeed(uint val0, uint val1)
@@ -88,32 +114,42 @@ uint InitRandomSeed(uint val0, uint val1)
   return v0;
 }
 
-uint RandomInt(inout uint seed)
-{
+uint RandomInt() {
   // LCG values from Numerical Recipes
     return (seed = 1664525 * seed + 1013904223);
 }
 
-float RandomFloat(inout uint seed)
-{
+float RandomFloat() {
   //// Float version using bitmask from Numerical Recipes
   //const uint one = 0x3f800000;
   //const uint msk = 0x007fffff;
-  //return uintBitsToFloat(one | (msk & (RandomInt(seed) >> 9))) - 1;
+  //return uintBitsToFloat(one | (msk & (RandomInt() >> 9))) - 1;
 
   // Faster version from NVIDIA examples; quality good enough for our use case.
-  return (float(RandomInt(seed) & 0x00FFFFFF) / float(0x01000000));
+  return (float(RandomInt() & 0x00FFFFFF) / float(0x01000000));
 }
 
-vec3 RandomInUnitSphere(inout uint seed) {
+float RandomFloat(float min, float max) {
+  return min + (max - min) * RandomFloat();
+}
+
+vec3 RandomInUnitSphere() {
   for (;;)
   {
-    const vec3 p = 2 * vec3(RandomFloat(seed), RandomFloat(seed), RandomFloat(seed)) - 1;
+    const vec3 p = 2 * vec3(RandomFloat(), RandomFloat(), RandomFloat()) - 1;
     if (dot(p, p) < 1)
     {
       return p;
     }
   }
+}
+
+vec3 RandomInHemiSphere(vec3 normal) {
+  vec3 inUnitSphere = RandomInUnitSphere();
+  if (dot(inUnitSphere, normal) > 0.0) // In the same hemisphere as the normal
+    return inUnitSphere;
+  else
+    return -inUnitSphere;
 }
 
 // Use Schlick's approximation for reflectance.
@@ -153,7 +189,7 @@ bool dielectricMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
   bool cannotRefract = refraction * angleSin > 1.0;
   vec3 direction;
   //Frenels equation says how many rays should reflect, value is [0, 1], so we treat reflectance as probability
-  if (cannotRefract || reflectance(angleCos, refraction) > RandomFloat(seed))
+  if (cannotRefract || reflectance(angleCos, refraction) > RandomFloat())
     direction = reflectRay(ray.direction, normal);
   else
     direction = refractRay(ray.direction, normal, refraction);
@@ -170,27 +206,10 @@ bool nearZero(vec3 v) {
   return (abs(v.x) < s) && (abs(v.y) < s) && (abs(v.z) < s);
 }
 
-bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
-  vec3 direction = reflectRay(ray.direction, hitRecord.normal);
-  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere(seed)));
-  color *= hitRecord.material.attenuation;
-  return (dot(direction, hitRecord.normal) > 0);
-}
-
-bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
-  vec3 direction = hitRecord.normal + RandomInUnitSphere(seed);
-  //if direction == 0 we will have issues with such direction (nan, undefined behavior)
-  if (nearZero(direction)) {
-    direction = hitRecord.normal;
-  }
-  ray = Ray(hitRecord.point, normalize(direction));
-  //half of color is absorbing and half reflecting
-  color *= hitRecord.material.attenuation;
-  return true;
-}
-
 //t2b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r2=0
-float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax) {
+float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax, inout HitRecord hitRecord) {
+  float t = -1;
+  bool found = false;
   vec3 oc = ray.origin - sphere.center;
   float a = dot(ray.direction, ray.direction);
   float b = 2 * dot(ray.direction, oc);
@@ -200,14 +219,65 @@ float hitSphere(Ray ray, Sphere sphere, float tMin, float tMax) {
     return -1;
   float sqrtd = sqrt(disc);
   float root1 = (-b - sqrtd ) / (2.0*a);
-  if (root1 >= tMin && root1 <= tMax)
-    return root1;
+  if (root1 >= tMin && root1 <= tMax) {
+    t = root1;
+    found = true;
+  } else {
+    float root2 = (-b + sqrtd ) / (2.0*a);
+    if (root2 >= tMin && root2 <= tMax) {
+      t = root2;
+      found = true;
+    }
+  }
+  
+  if (found == false)
+    return -1;
 
-  float root2 = (-b + sqrtd ) / (2.0*a);
-  if (root2 >= tMin && root2 <= tMax)
-    return root2;
+  //fill hit record
+  hitRecord.material = sphere.material;
+  hitRecord.point = ray.origin + ray.direction * t;
+  //normal = point on ray that intersect shpere - sphere center
+  hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
+  //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
+  hitRecord.frontFace = true;
+  if (dot(ray.direction, hitRecord.normal) > 0) {
+    //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
+    hitRecord.normal = -hitRecord.normal;
+    hitRecord.frontFace = false;
+  }
 
-  return -1;
+  return t;
+}
+
+float hitRectangle(Ray ray, Rectangle rectangle, float tMin, float tMax, inout HitRecord hitRecord) {
+  int axis = rectangle.fixedAxis;
+  //find t for X axis
+  float t = (rectangle.min[axis] - ray.origin[axis]) / ray.direction[axis];
+  if (t < tMin || t > tMax)
+    return -1;
+  
+  for (int i = 0; i < 3; i++) {
+    if (i == axis)
+      continue;
+
+    float v = ray.origin[i] + t * ray.direction[i];
+    if (v < rectangle.min[i] || v > rectangle.max[i])
+      return -1;
+  }
+
+  //fill hit record
+  hitRecord.material = rectangle.material;
+  hitRecord.point = ray.origin + ray.direction * t;
+  hitRecord.normal = vec3(0, 0, 0);
+  hitRecord.normal[rectangle.fixedAxis] = 1;
+  hitRecord.frontFace = true;
+  if (dot(ray.direction, hitRecord.normal) > 0) {
+    //change normal direction so there is no difference in calculation for ray from front or behind (because normal is fixed in direction)
+    hitRecord.normal = -hitRecord.normal;
+    hitRecord.frontFace = false;
+  }
+
+  return t;
 }
 
 bool hitBoundingBox(Ray ray, Hitbox bb, float tMin, float tMax) {
@@ -233,25 +303,22 @@ bool hitWorldBVH(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
     boxIndex = current.exit;
     if (hitBoundingBox(ray, current, tMin, tMax)) {
       boxIndex = current.next;
-      if (current.sphere != -1) {
-        //hit
-        Sphere sphere = spheres[current.sphere];
-        float t = hitSphere(ray, sphere, tMin, tMax);
-        if (t > 0.0) {
-          hitRecord.material = sphere.material;
-          hitRecord.point = ray.origin + ray.direction * t;
-          //normal = point on ray that intersect shpere - sphere center
-          hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-          //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
-          hitRecord.frontFace = true;
-          if (dot(ray.direction, hitRecord.normal) > 0) {
-            //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
-            hitRecord.normal = -hitRecord.normal;
-            hitRecord.frontFace = false;
+      if (current.primitive != -1) {
+        if (current.primitive == PRIMITIVE_SPHERE) {
+          //hit
+          Sphere sphere = spheres[current.index];
+          float t = hitSphere(ray, sphere, tMin, tMax, hitRecord);
+          if (t > 0.0) {
+            tMax = t;
+            hit = true;
           }
-
-          tMax = t;
-          hit = true;
+        } else if (current.primitive == PRIMITIVE_RECTANGLE) {
+          Rectangle rectangle = rectangles[current.index];
+          float t = hitRectangle(ray, rectangle, tMin, tMax, hitRecord);
+          if (t > 0.0) {
+            tMax = t;
+            hit = true;
+          }
         }
       }
     }
@@ -266,20 +333,17 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   for (int i = 0; i < spheresNumber; i++) {
     Sphere sphere = spheres[i];
     //first check bounding box
-    float t = hitSphere(ray, sphere, tMin, tMax);
+    float t = hitSphere(ray, sphere, tMin, tMax, hitRecord);
     if (t > 0.0) {
-      hitRecord.material = sphere.material;
-      hitRecord.point = ray.origin + ray.direction * t;
-      //normal = point on ray that intersect shpere - sphere center
-      hitRecord.normal = (hitRecord.point - sphere.center) / sphere.radius;
-      //need remember frontFace because if we change normal sign we can't determine whether ray came from outside or inside
-      hitRecord.frontFace = true;
-      if (dot(ray.direction, hitRecord.normal) > 0) {
-        //change normal direction so there is no difference in calculation for ray outside and inside because normal is always against ray
-        hitRecord.normal = -hitRecord.normal;
-        hitRecord.frontFace = false;
-      }
+      tMax = t;
+      hit = true;
+    }
+  }
 
+  for (int i = 0; i < rectanglesNumber; i++) {
+    Rectangle rectangle = rectangles[i];
+    float t = hitRectangle(ray, rectangle, tMin, tMax, hitRecord);
+    if (t > 0.0) {
       tMax = t;
       hit = true;
     }
@@ -288,8 +352,120 @@ bool hitWorld(Ray ray, float tMin, float tMax, inout HitRecord hitRecord) {
   return hit;
 }
 
+vec3 randomCosineDirection() {
+  float r1 = RandomFloat();
+  float r2 = RandomFloat();
+  float z = sqrt(1 - r2);
+
+  float phi = 2 * PI * r1;
+  float x = cos(phi) * sqrt(r2);
+  float y = sin(phi) * sqrt(r2);
+
+  return vec3(x, y, z);
+}
+
+ONB buildONB(vec3 normal) {
+  ONB onb;
+  onb.axes[2] = normalize(normal);
+  vec3 a = vec3(1,0,0);
+  if (abs(onb.axes[2].x) > 0.9) a = vec3(0,1,0);
+  onb.axes[1] = normalize(cross(onb.axes[2], a));
+  onb.axes[0] = cross(onb.axes[2], onb.axes[1]);
+  return onb;
+}
+
+vec3 cosineDirection(vec3 normal, inout ONB onb) {
+  onb = buildONB(normal);
+  vec3 tmp = randomCosineDirection();
+  vec3 direction = onb.axes[0] * tmp.x + onb.axes[1] * tmp.y + onb.axes[2] * tmp.z;
+  direction = normalize(direction);
+  return direction;
+}
+
+vec3 randomRectangleDirection(Rectangle rectangle, vec3 origin) {
+  vec3 randomPoint = vec3(RandomFloat(rectangle.min.x, rectangle.max.x), rectangle.min.y, RandomFloat(rectangle.min.z, rectangle.max.z));
+  return randomPoint - origin;
+}
+
+
+float lightRectanglePDF(Rectangle lightRectangle, vec3 origin, vec3 direction) {
+  HitRecord hitRecord;
+  float tMin = 0.001;
+  float tMax = 100000;
+  Ray ray = Ray(origin, direction);
+  float t = hitRectangle(ray, lightRectangle, tMin, tMax, hitRecord);
+  if (t < 0)
+    return 0;
+
+  float area = (lightRectangle.max.x - lightRectangle.min.x) * (lightRectangle.max.z - lightRectangle.min.z);
+  float directionSquared = dot(direction, direction);
+  float distanceSquared = t * t * directionSquared;
+  float cosine = abs(dot(direction, hitRecord.normal) / length(direction));
+
+  return distanceSquared / (cosine * area);
+}
+
+float diffuseScatteringPdf(HitRecord hitRecord, Ray scattered) {
+  float cosine = dot(hitRecord.normal, normalize(scattered.direction));
+  float pdf = 0;
+  if (cosine >= 0)
+    pdf = cosine / PI;
+  return pdf;
+}
+
+bool metalMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color) {
+  vec3 direction = reflectRay(ray.direction, hitRecord.normal);
+  ray = Ray(hitRecord.point, normalize(direction + hitRecord.material.fuzz * RandomInUnitSphere()));
+  color *= hitRecord.material.attenuation;
+  return (dot(direction, hitRecord.normal) > 0);
+}
+
+bool diffuseMaterial(HitRecord hitRecord, inout Ray ray, inout vec3 color, inout float pdfCoeff) {
+  //half of color is absorbing and half reflecting
+  color *= hitRecord.material.attenuation;
+  vec3 direction;
+  //1
+  //direction = hitRecord.normal + RandomInUnitSphere();
+  //if direction == 0 we will have issues with such direction (nan, undefined behavior)
+  //if (nearZero(direction)) {
+    //direction = hitRecord.normal;
+  //}
+  //2
+  //direction = RandomInHemiSphere(hitRecord.normal);  
+  //3
+  //ONB onb;
+  //direction = cosineDirection(hitRecord.normal, onb);
+  //4
+  //direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  //5
+  ONB onb;
+  if (RandomFloat() < 0.5) {
+    direction = randomRectangleDirection(lightRectangle, hitRecord.point);
+  } else {
+    direction = cosineDirection(hitRecord.normal, onb);
+  }
+
+  //bdrf
+  //1
+  //float pdf = dot(hitRecord.normal, direction) / PI;
+  //2
+  //float pdf = 0.5 / PI;
+  //3
+  //float pdf = dot(onb.axes[2], direction) / PI;
+  //4 directly to light
+  //float pdf = lightRectanglePDF(lightRectangle, hitRecord.point, direction);
+  //5 mix light + cos  
+  float pdf = 0.5 * lightRectanglePDF(lightRectangle, hitRecord.point, direction) + 0.5 * dot(onb.axes[2], direction) / PI;
+
+  ray = Ray(hitRecord.point, direction);
+  pdfCoeff *= diffuseScatteringPdf(hitRecord, ray) / pdf;
+  return true;
+}
+
 vec3 rayColor(Ray ray) {
   vec3 resultColor = vec3(1.0, 1.0, 1.0);
+  vec3 emissive = vec3(0.0, 0.0, 0.0);
+  float pdfCoeff = 1.0;
   int depth = MAX_DEPTH;
   while (depth > 0) {
     HitRecord hitRecord;
@@ -302,7 +478,7 @@ vec3 rayColor(Ray ray) {
     if (hit) {
       bool success;
       if (hitRecord.material.type == MATERIAL_DIFFUSE) {
-        success = diffuseMaterial(hitRecord, ray, resultColor);
+        success = diffuseMaterial(hitRecord, ray, resultColor, pdfCoeff);
       }
       if (hitRecord.material.type == MATERIAL_METAL) {
         success = metalMaterial(hitRecord, ray, resultColor);
@@ -310,8 +486,14 @@ vec3 rayColor(Ray ray) {
       if (hitRecord.material.type == MATERIAL_DIELECTRIC) {
         success = dielectricMaterial(hitRecord, ray, resultColor);
       }
-
-
+      if (hitRecord.material.type == MATERIAL_EMISSIVE) {
+        //Actually we have to check front face == true to disable emmisive in both directions, but works with front face == false
+        if (hitRecord.frontFace == false) {
+          return resultColor * pdfCoeff * hitRecord.material.attenuation;
+        }
+        else
+          return vec3(0, 0, 0);
+      }
       //if some error (mirrored ray goes exactly with the same direction back, i.e. input direction = output direction, so infinite bounces)
       //we break calculations
       if (success == false) {
@@ -328,8 +510,7 @@ vec3 rayColor(Ray ray) {
   if (depth <= 0)
     return vec3(0.0, 0.0, 0.0);
 
-  float t = 0.5 * (ray.direction.y + 1);
-  return resultColor * ((1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0));
+  return resultColor * pdfCoeff * backgroundColor;
 }
 
 void main() {
@@ -340,18 +521,6 @@ void main() {
   float focalLength = 1.0;
   vec3 cameraOrigin = vec3(0.0, 0.0, 0.0);
 
-  /*spheres[0] = Sphere(vec3(0.0, -1000, 0.0), 1000, Material(MATERIAL_DIFFUSE, vec3(0.5, 0.5, 0.5), 0.0, 1.0));  
-  spheres[1] = Sphere(vec3(0.0, 1.0, 0.0), 1.0, Material(MATERIAL_DIELECTRIC, vec3(1.0, 1.0, 1.0), 0.0, 1.0 / 1.5));
-  spheres[2] = Sphere(vec3(-4, 1, 0), 1.0, Material(MATERIAL_METAL, vec3(1.0, 1.0, 1.0), 0.0, 1.0));
-  spheres[3] = Sphere(vec3(4.0, 1.0, 0.0), 1.0, Material(MATERIAL_METAL, vec3(0.7, 0.6, 0.5), 0.0, 1.0));
-
-  spheres[4] = Sphere(vec3(-2.0, 1, 1.0), -0.3, Material(MATERIAL_DIELECTRIC, vec3(0.5, 0.1, 0.5), 0.0, 1.0 / 1.5));  
-  spheres[5] = Sphere(vec3(2.0, 0.5, 1.0), 0.3, Material(MATERIAL_DIELECTRIC, vec3(0.0, 1.0, 1.0), 0.0, 1.0 / 1.2));
-  spheres[6] = Sphere(vec3(-1.5, 1.5, 1.5), 0.3, Material(MATERIAL_DIFFUSE, vec3(0.8, 0.2, 0.8), 0.0, 1.0));
-  spheres[7] = Sphere(vec3(0.8, 1.8, 1.5), 0.3, Material(MATERIAL_METAL, vec3(0.7, 0.6, 0.5), 1.0, 1.0));
-
-  spheresNumber = 8;*/
-  
   //TODO: generate once outside shader
   vec2 aa[AA_SAMPLES];
   int number = 0;
@@ -361,6 +530,13 @@ void main() {
       number += 1;
     }
   }
+
+  //find light to generate additional rays
+  for (int i = 0; i < rectanglesNumber; i++) {
+    if (rectangles[i].material.type == MATERIAL_EMISSIVE)
+      lightRectangle = rectangles[i];
+  }
+
   vec3 result = vec3(0.0, 0.0, 0.0);
   for (int i = 0; i < AA_SAMPLES; i++) {
     //range is [0, 1]
@@ -375,8 +551,14 @@ void main() {
     vec4 rayECamera = (camera.camera * vec4(rayE, 1));
 
     Ray ray = Ray(camera.origin, normalize(rayECamera.xyz - rayOCamera.xyz));
-    result += rayColor(ray);
+    vec3 color = rayColor(ray);
+    //if NAN just ignore this color
+    if (color.r != color.r) color.r = 0;
+    if (color.g != color.g) color.g = 0;
+    if (color.b != color.b) color.b = 0;
+    result += color;
   }
   result /= AA_SAMPLES;
+
   imageStore(resultImage, ivec2(gl_GlobalInvocationID.x, dim.y - gl_GlobalInvocationID.y), vec4(result, 1.0));
 }
