@@ -41,15 +41,16 @@ void SpriteManager::draw(int currentFrame) {
 
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  std::tie(viewport.width, viewport.height) = _settings->getResolution();
+  viewport.y = std::get<1>(_settings->getResolution());
+  viewport.width = std::get<0>(_settings->getResolution());
+  viewport.height = -std::get<1>(_settings->getResolution());
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(viewport.width, viewport.height);
+  scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   for (auto sprite : _sprites) {

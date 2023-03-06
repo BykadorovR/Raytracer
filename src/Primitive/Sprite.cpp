@@ -28,6 +28,10 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
   _descriptorSet->createGraphic(texture, _uniformBuffer);
+
+  _model = glm::mat4(1.f);
+  _view = glm::mat4(1.f);
+  _projection = glm::mat4(1.f);
 }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }

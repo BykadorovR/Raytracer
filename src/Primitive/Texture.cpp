@@ -1,5 +1,4 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include "Texture.h"
 #include "Buffer.h"
 
@@ -10,6 +9,7 @@ Texture::Texture(std::string path,
   _device = device;
   // load texture
   int texWidth, texHeight, texChannels;
+  stbi_set_flip_vertically_on_load(true);
   stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   VkDeviceSize imageSize = texWidth * texHeight * 4;
 

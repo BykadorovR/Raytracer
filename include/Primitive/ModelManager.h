@@ -15,18 +15,19 @@ class Model3DManager {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
 
-  std::vector<std::shared_ptr<Model3D>> _models;
+  std::vector<std::shared_ptr<Model>> _models;
 
  public:
-  Model3DManager(std::shared_ptr<CommandPool> commandPool,
+  Model3DManager(std::shared_ptr<Shader> shader,
+                 std::shared_ptr<CommandPool> commandPool,
                  std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Queue> queue,
                  std::shared_ptr<RenderPass> render,
                  std::shared_ptr<Device> device,
                  std::shared_ptr<Settings> settings);
 
-  std::shared_ptr<Model3D> createModel(std::string path, std::shared_ptr<Texture> texture);
-  void registerModel(std::shared_ptr<Model3D> model);
-  void unregisterModel(std::shared_ptr<Model3D> model);
+  std::shared_ptr<ModelOBJ> createModel(std::string path);
+  void registerModel(std::shared_ptr<Model> model);
+  void unregisterModel(std::shared_ptr<Model> model);
   void draw(int currentFrame);
 };

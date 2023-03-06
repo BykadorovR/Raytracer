@@ -1,6 +1,7 @@
-#include "Model.h"
 #define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define TINYGLTF_IMPLEMENTATION
+#include "Model.h"
 #include <unordered_map>
 
 struct UniformObject {
@@ -9,7 +10,7 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
-void Model3D::_loadModel() {
+void ModelOBJ::_loadModel() {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
   std::vector<tinyobj::material_t> materials;
@@ -27,7 +28,7 @@ void Model3D::_loadModel() {
                     attrib.vertices[3 * index.vertex_index + 2]};
 
       vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                         1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+                         attrib.texcoords[2 * index.texcoord_index + 1]};
 
       vertex.color = {1.0f, 1.0f, 1.0f};
 
@@ -40,16 +41,16 @@ void Model3D::_loadModel() {
   }
 }
 
-Model3D::Model3D(std::string path,
-                 std::shared_ptr<Texture> texture,
-                 std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
-                 std::shared_ptr<Pipeline> pipeline,
-                 std::shared_ptr<DescriptorPool> descriptorPool,
-                 std::shared_ptr<CommandPool> commandPool,
-                 std::shared_ptr<CommandBuffer> commandBuffer,
-                 std::shared_ptr<Queue> queue,
-                 std::shared_ptr<Device> device,
-                 std::shared_ptr<Settings> settings) {
+ModelOBJ::ModelOBJ(std::string path,
+                   std::shared_ptr<Texture> texture,
+                   std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+                   std::shared_ptr<Pipeline> pipeline,
+                   std::shared_ptr<DescriptorPool> descriptorPool,
+                   std::shared_ptr<CommandPool> commandPool,
+                   std::shared_ptr<CommandBuffer> commandBuffer,
+                   std::shared_ptr<Queue> queue,
+                   std::shared_ptr<Device> device,
+                   std::shared_ptr<Settings> settings) {
   _path = path;
   _pipeline = pipeline;
   _commandBuffer = commandBuffer;
@@ -65,15 +66,19 @@ Model3D::Model3D(std::string path,
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
   _descriptorSet->createGraphic(texture, _uniformBuffer);
+
+  _model = glm::mat4(1.f);
+  _view = glm::mat4(1.f);
+  _projection = glm::mat4(1.f);
 }
 
-void Model3D::setModel(glm::mat4 model) { _model = model; }
+void ModelOBJ::setModel(glm::mat4 model) { _model = model; }
 
-void Model3D::setView(glm::mat4 view) { _view = view; }
+void ModelOBJ::setView(glm::mat4 view) { _view = view; }
 
-void Model3D::setProjection(glm::mat4 projection) { _projection = projection; }
+void ModelOBJ::setProjection(glm::mat4 projection) { _projection = projection; }
 
-void Model3D::draw(int currentFrame) {
+void ModelOBJ::draw(int currentFrame) {
   UniformObject ubo{};
   ubo.model = _model;
   ubo.view = _view;
@@ -98,3 +103,24 @@ void Model3D::draw(int currentFrame) {
   vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
                    0);
 }
+
+ModelGLTF::ModelGLTF(std::string path) {
+  tinygltf::Model model;
+  tinygltf::TinyGLTF loader;
+  std::string err;
+  std::string warn;
+  bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path);
+  if (!warn.empty()) {
+    printf("Warn: %s\n", warn.c_str());
+  }
+
+  if (!err.empty()) {
+    printf("Err: %s\n", err.c_str());
+  }
+
+  if (!ret) {
+    printf("Failed to parse glTF\n");
+  }
+}
+
+void ModelGLTF::draw(int currentFrame) {}

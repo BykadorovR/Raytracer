@@ -46,7 +46,7 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "No Engine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
+  appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 1, 0);
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -86,6 +86,8 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
 
   if (_validation) {
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    createInfo.pNext = nullptr;
+    createInfo.flags = 0;
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                                  VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |

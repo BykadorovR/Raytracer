@@ -3,6 +3,7 @@
 #include "Image.h"
 #include "Sampler.h"
 #include <string>
+#include "stb_image.h"
 
 class Texture {
  private:

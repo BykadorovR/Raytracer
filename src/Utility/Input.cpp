@@ -1,103 +1,42 @@
 #include "Input.h"
+#include <memory>
 
-std::tuple<float, float> Input::mousePos = {0, 0};
-bool Input::mouseDownLeft = false;
-bool Input::mouseDownRight = false;
-bool Input::keyW = false;
-bool Input::keyS = false;
-bool Input::keyA = false;
-bool Input::keyD = false;
-bool Input::keyH = true;
-bool Input::keySpace = false;
-glm::vec3 Input::direction = glm::vec3(0, 0, 0);
-bool firstMouse = true;
-float lastX, lastY;
-float yaw = -90.f;
-float pitch = 0;
+static void cursorCallback(GLFWwindow* window, double xpos, double ypos) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(xpos, ypos);
+}
 
-void Input::initialize(std::shared_ptr<Window> window) {
-  static bool initialized = false;
-  if (initialized == false) {
-    glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window->getWindow(), Input::cursorPositionCallback);
-    glfwSetMouseButtonCallback(window->getWindow(), Input::mouseButtonCallback);
-    glfwSetKeyCallback(window->getWindow(), Input::keyCallback);
-    initialized = true;
+static void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(button, action, mods);
+}
 
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction = glm::normalize(direction);
+static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(key, action, mods);
+}
+
+Input::Input(std::shared_ptr<Window> window) {
+  glfwSetWindowUserPointer(window->getWindow(), this);
+  glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetCursorPosCallback(window->getWindow(), cursorCallback);
+  glfwSetMouseButtonCallback(window->getWindow(), mouseCallback);
+  glfwSetKeyCallback(window->getWindow(), keyCallback);
+}
+
+void Input::keyHandler(int key, int action, int mods) {
+  for (auto& sub : _subscribers) {
+    sub->keyNotify(key, action, mods);
   }
 }
 
-void Input::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) keyW = true;
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) keyS = true;
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) keyA = true;
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) keyD = true;
-  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) keySpace = true;
-
-  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE) keyW = false;
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE) keyS = false;
-  if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE) keyA = false;
-  if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE) keyD = false;
-  if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE) keySpace = false;
-
-  if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
-    if (keyH == false) {
-      keyH = true;
-      firstMouse = true;
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    } else {
-      keyH = false;
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
+void Input::cursorHandler(double xpos, double ypos) {
+  for (auto& sub : _subscribers) {
+    sub->cursorNotify(xpos, ypos);
   }
 }
 
-void Input::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
-  mousePos = {xpos, ypos};
-  if (keyH == true) {
-    if (firstMouse) {
-      lastX = xpos;
-      lastY = ypos;
-      firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
-
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction = glm::normalize(direction);
+void Input::mouseHandler(int button, int action, int mods) {
+  for (auto& sub : _subscribers) {
+    sub->mouseNotify(button, action, mods);
   }
 }
 
-void Input::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    mouseDownLeft = true;
-  }
-  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
-    mouseDownRight = true;
-  }
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-    mouseDownLeft = false;
-  }
-  if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
-    mouseDownRight = false;
-  }
-}
+void Input::subscribe(std::shared_ptr<InputSubscriber> sub) { _subscribers.push_back(sub); }

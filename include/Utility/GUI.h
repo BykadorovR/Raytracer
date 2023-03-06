@@ -4,6 +4,7 @@
 #include "Image.h"
 #include "Pipeline.h"
 #include <chrono>
+#include "Input.h"
 
 struct UniformData {
   glm::vec2 scale;
@@ -42,10 +43,7 @@ struct VertexGUI {
   }
 };
 
-void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-
-class GUI {
+class GUI : public InputSubscriber {
  private:
   float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
@@ -84,5 +82,10 @@ class GUI {
                    std::map<std::string, bool*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, VkCommandBuffer commandBuffer);
+
+  void cursorNotify(float xPos, float yPos);
+  void mouseNotify(int button, int action, int mods);
+  void keyNotify(int key, int action, int mods);
+
   ~GUI();
 };

@@ -1,18 +1,29 @@
+#pragma once
 #include <tuple>
 #include "glfw/glfw3.h"
 #include "glm/glm.hpp"
 #include "Window.h"
 
-class Input {
+class InputSubscriber {
  public:
-  static std::tuple<float, float> mousePos;
-  static glm::vec3 direction;
-  static bool mouseDownLeft;
-  static bool mouseDownRight;
-  static bool keyW, keyS, keyA, keyD, keySpace, keyH;
+  virtual void cursorNotify(float xPos, float yPos) = 0;
+  virtual void mouseNotify(int button, int action, int mods) = 0;
+  virtual void keyNotify(int key, int action, int mods) = 0;
+};
 
-  static void initialize(std::shared_ptr<Window> window);
-  static void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
-  static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-  static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+static void cursorCallback(GLFWwindow* window, double xpos, double ypos);
+static void mouseCallback(GLFWwindow* window, int button, int action, int mods);
+static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+class Input {
+ private:
+  std::shared_ptr<Window> _window;
+  std::vector<std::shared_ptr<InputSubscriber>> _subscribers;
+
+ public:
+  Input(std::shared_ptr<Window> window);
+  void cursorHandler(double xpos, double ypos);
+  void mouseHandler(int button, int action, int mods);
+  void keyHandler(int key, int action, int mods);
+  void subscribe(std::shared_ptr<InputSubscriber> sub);
 };
