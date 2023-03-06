@@ -42,7 +42,8 @@ std::vector<std::shared_ptr<Fence>> inFlightFences;
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
 std::shared_ptr<Model3DManager> modelManager;
-std::shared_ptr<Model3D> model3D;
+std::shared_ptr<ModelOBJ> model3D;
+std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -104,6 +105,7 @@ void initialize() {
                                                   settings);
   sprite = spriteManager->createSprite(texture);
   model3D = modelManager->createModel("../data/viking_room.obj");
+  modelGLTF = std::make_shared<ModelGLTF>("../data/Avocado/Avocado.gltf");
   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
   model3D->setModel(model);
