@@ -100,8 +100,16 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
+  modelManager = std::make_shared<Model3DManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
   sprite = spriteManager->createSprite(texture);
+  model3D = modelManager->createModel("../data/viking_room.obj");
+  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
+  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+  model3D->setModel(model);
+
   spriteManager->registerSprite(sprite);
+  modelManager->registerModel(model3D);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -179,6 +187,10 @@ void drawFrame() {
     sprite->setProjection(camera->getProjection());
     sprite->setView(camera->getView());
     spriteManager->draw(currentFrame);
+
+    model3D->setProjection(camera->getProjection());
+    model3D->setView(camera->getView());
+    modelManager->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);

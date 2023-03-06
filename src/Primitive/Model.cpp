@@ -27,7 +27,7 @@ void Model3D::_loadModel() {
                     attrib.vertices[3 * index.vertex_index + 2]};
 
       vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                         1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+                         attrib.texcoords[2 * index.texcoord_index + 1]};
 
       vertex.color = {1.0f, 1.0f, 1.0f};
 
@@ -65,6 +65,10 @@ Model3D::Model3D(std::string path,
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
   _descriptorSet->createGraphic(texture, _uniformBuffer);
+
+  _model = glm::mat4(1.f);
+  _view = glm::mat4(1.f);
+  _projection = glm::mat4(1.f);
 }
 
 void Model3D::setModel(glm::mat4 model) { _model = model; }

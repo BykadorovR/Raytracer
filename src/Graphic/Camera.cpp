@@ -28,7 +28,6 @@ glm::mat4 Camera::getProjection() {
       glm::radians(_projectionParams->fov),
       (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution()),
       _projectionParams->near, _projectionParams->far);
-  projection[1][1] *= -1;
   return projection;
 }
 
