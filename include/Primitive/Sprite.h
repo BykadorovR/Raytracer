@@ -18,15 +18,16 @@ class Sprite {
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<Texture> _texture;
 
-  std::shared_ptr<VertexBuffer> _vertexBuffer;
+  std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
 
   glm::mat4 _model, _view, _projection;
-  const std::vector<Vertex> _vertices = {{{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
-                                         {{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                                         {{-0.5f, -0.5f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-                                         {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+  const std::vector<Vertex2D> _vertices = {{{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},
+                                           {{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                                           {{-0.5f, -0.5f, 0.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+                                           {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+
   const std::vector<uint32_t> _indices = {2, 1, 0, 0, 3, 2};
 
  public:

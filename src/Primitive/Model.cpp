@@ -20,10 +20,10 @@ void ModelOBJ::_loadModel() {
     throw std::runtime_error(warn + err);
   }
 
-  std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+  std::unordered_map<Vertex3D, uint32_t> uniqueVertices{};
   for (const auto& shape : shapes) {
     for (const auto& index : shape.mesh.indices) {
-      Vertex vertex{};
+      Vertex3D vertex{};
       vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]};
 
@@ -31,6 +31,8 @@ void ModelOBJ::_loadModel() {
                          attrib.texcoords[2 * index.texcoord_index + 1]};
 
       vertex.color = {1.0f, 1.0f, 1.0f};
+      vertex.normal = {attrib.normals[3 * index.normal_index + 0], attrib.normals[3 * index.normal_index + 1],
+                       attrib.normals[3 * index.normal_index + 2]};
 
       if (uniqueVertices.count(vertex) == 0) {
         uniqueVertices[vertex] = static_cast<uint32_t>(_vertices.size());
@@ -59,7 +61,7 @@ ModelOBJ::ModelOBJ(std::string path,
   _texture = texture;
 
   _loadModel();
-  _vertexBuffer = std::make_shared<VertexBuffer>(_vertices, commandPool, queue, device);
+  _vertexBuffer = std::make_shared<VertexBuffer3D>(_vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
@@ -109,18 +111,30 @@ ModelGLTF::ModelGLTF(std::string path) {
   tinygltf::TinyGLTF loader;
   std::string err;
   std::string warn;
-  bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path);
-  if (!warn.empty()) {
-    printf("Warn: %s\n", warn.c_str());
-  }
-
-  if (!err.empty()) {
-    printf("Err: %s\n", err.c_str());
-  }
-
-  if (!ret) {
-    printf("Failed to parse glTF\n");
+  std::vector<uint32_t> indexBuffer;
+  std::vector<Vertex3D> vertexBuffer;
+  bool loaded = loader.LoadASCIIFromFile(&model, &err, &warn, path);
+  if (loaded) {
+    _loadImages(model);
+    _loadMaterials(model);
+    _loadTextures(model);
+    const tinygltf::Scene& scene = model.scenes[0];
+    for (size_t i = 0; i < scene.nodes.size(); i++) {
+      tinygltf::Node& node = model.nodes[scene.nodes[i]];
+      _loadNode(node, model, indexBuffer, vertexBuffer);
+    }
   }
 }
+
+void ModelGLTF::_loadImages(tinygltf::Model& model) {}
+
+void ModelGLTF::_loadMaterials(tinygltf::Model& model) {}
+
+void ModelGLTF::_loadTextures(tinygltf::Model& model) {}
+
+void ModelGLTF::_loadNode(tinygltf::Node& node,
+                          tinygltf::Model& model,
+                          std::vector<uint32_t>& indexBuffer,
+                          std::vector<Vertex3D>& vertexBuffer) {}
 
 void ModelGLTF::draw(int currentFrame) {}

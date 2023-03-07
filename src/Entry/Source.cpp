@@ -89,9 +89,12 @@ void initialize() {
   renderPass->initialize();
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
-  auto shader = std::make_shared<Shader>(device);
-  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto shader3D = std::make_shared<Shader>(device);
+  shader3D->add("../shaders/simple3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader3D->add("../shaders/simple3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto shader2D = std::make_shared<Shader>(device);
+  shader2D->add("../shaders/simple2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader2D->add("../shaders/simple2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -99,9 +102,10 @@ void initialize() {
   auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
-  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+  input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
+  spriteManager = std::make_shared<SpriteManager>(shader2D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
-  modelManager = std::make_shared<Model3DManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+  modelManager = std::make_shared<Model3DManager>(shader3D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
   sprite = spriteManager->createSprite(texture);
   model3D = modelManager->createModel("../data/viking_room.obj");

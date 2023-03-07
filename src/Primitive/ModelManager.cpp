@@ -17,7 +17,7 @@ Model3DManager::Model3DManager(std::shared_ptr<Shader> shader,
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayout->createGraphic();
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
-  _pipeline->createGraphic(Vertex::getBindingDescription(), Vertex::getAttributeDescriptions(), render);
+  _pipeline->createGraphic3D(Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), render);
 }
 
 std::shared_ptr<ModelOBJ> Model3DManager::createModel(std::string path) {
