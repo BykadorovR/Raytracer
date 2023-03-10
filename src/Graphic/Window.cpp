@@ -1,14 +1,25 @@
 #include "Window.h"
 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+  auto pWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+  pWindow->isResolutionChanged() = true;
+}
+
 Window::Window(std::tuple<int, int> resolution) {
   _resolution = resolution;
+  _resolutionChanged = false;
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
   _window = glfwCreateWindow(std::get<0>(resolution), std::get<1>(resolution), "Vulkan", nullptr, nullptr);
   glfwSetWindowUserPointer(_window, this);
-  // glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
+  glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
+}
+
+bool& Window::isResolutionChanged() 
+{ 
+	return _resolutionChanged;
 }
 
 std::vector<const char*> Window::getExtensions() {

@@ -115,9 +115,11 @@ VkRenderPassBeginInfo render(int index,
 }
 
 void drawFrame() {
-  auto result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
-                                UINT64_MAX);
+  VkResult result;
+  result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
+                           UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
+
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
@@ -125,7 +127,8 @@ void drawFrame() {
                                  imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    // TODO: recreate swapchain
+    screenPart->recreateSwapChain(window, surface, device, settings);
+    computePart->recreateResultTextures();
     return;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
@@ -262,9 +265,10 @@ void drawFrame() {
 
   result = vkQueuePresentKHR(queue->getPresentQueue(), &presentInfo);
 
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    // TODO: recreate swapchain
-    // TODO: support window resize
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->isResolutionChanged()) {
+    window->isResolutionChanged() = false;
+    screenPart->recreateSwapChain(window, surface, device, settings);
+    computePart->recreateResultTextures();
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }

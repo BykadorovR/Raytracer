@@ -8,6 +8,6 @@ struct Settings {
 
  public:
   Settings(std::tuple<int, int> resolution, int maxFramesInFlight);
-  const std::tuple<int, int>& getResolution();
+  std::tuple<int, int>& getResolution();
   int getMaxFramesInFlight();
 };

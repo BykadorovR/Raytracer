@@ -10,11 +10,12 @@ class Window {
  private:
   GLFWwindow* _window;
   std::tuple<int, int> _resolution;
-
+  bool _resolutionChanged;
  public:
   Window(std::tuple<int, int> resolution);
   GLFWwindow* getWindow();
   std::vector<const char*> getExtensions();
+  bool& isResolutionChanged();
 
   ~Window();
 };

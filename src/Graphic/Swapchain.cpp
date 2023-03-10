@@ -26,8 +26,8 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
   // it's almost always exactly equal to the resolution of the window
   auto surfaceCapabilities = device->getSupportedSurfaceCapabilities();
   VkExtent2D extent = surfaceCapabilities.currentExtent;
-  if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-    int width, height;
+  /* if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+    int width = 0, height = 0;
     glfwGetFramebufferSize(window->getWindow(), &width, &height);
 
     VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
@@ -37,8 +37,11 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
     actualExtent.height = std::clamp(actualExtent.height, surfaceCapabilities.minImageExtent.height,
                                      surfaceCapabilities.maxImageExtent.height);
     extent = actualExtent;
-  }
-
+  }*/
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window->getWindow(), &width, &height);
+  VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+  extent = actualExtent;
   // pick how many images we will have in swap chaing
   uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
   if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount) {
@@ -72,7 +75,7 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
-
+  
   if (vkCreateSwapchainKHR(device->getLogicalDevice(), &createInfo, nullptr, &_swapchain) != VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain!");
   }

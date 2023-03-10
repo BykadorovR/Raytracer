@@ -25,6 +25,24 @@ ScreenPart::ScreenPart(std::vector<std::shared_ptr<Texture>> resultTexture,
   }
 }
 
+void ScreenPart::recreateSwapChain(std::shared_ptr<Window> window,
+                       std::shared_ptr<Surface> surface,
+                       std::shared_ptr<Device> device,
+                       std::shared_ptr<Settings> settings) 
+{
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window->getWindow(), &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window->getWindow(), &width, &height);
+    glfwWaitEvents();
+  }
+  settings->getResolution() = std::tuple<int, int>(width, height);
+  vkDeviceWaitIdle(device->getLogicalDevice()); 
+  _swapchain = std::make_shared<Swapchain>(window, surface, device);
+  _frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), _swapchain->getImageViews(),
+                                              _swapchain->getDepthImageView(), _renderPass, device);
+}
+
 std::shared_ptr<RenderPass> ScreenPart::getRenderPass() { return _renderPass; }
 std::shared_ptr<Framebuffer> ScreenPart::getFramebuffer() { return _frameBuffer; }
 std::vector<std::shared_ptr<Sprite>> ScreenPart::getSprites() { return _sprites; }

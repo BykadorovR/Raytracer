@@ -42,6 +42,7 @@ void Pipeline::createGUI(VkVertexInputBindingDescription bindingDescription,
   viewportState.viewportCount = 1;
   viewportState.scissorCount = 1;
 
+
   VkPipelineRasterizationStateCreateInfo rasterizer{};
   rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizer.depthClampEnable = VK_FALSE;

@@ -35,6 +35,7 @@ class ComputePart {
               std::shared_ptr<CommandPool> commandPool,
               std::shared_ptr<Settings> settings);
   void draw(int currentFrame);
+  void recreateResultTextures();
 
   std::map<std::string, bool*> getCheckboxes();
 

@@ -29,6 +29,11 @@ class ScreenPart {
              std::shared_ptr<CommandPool> commandPool,
              std::shared_ptr<CommandBuffer> commandBuffer,
              std::shared_ptr<Settings> settings);
+
+  void recreateSwapChain(std::shared_ptr<Window> window,
+                         std::shared_ptr<Surface> surface,
+                         std::shared_ptr<Device> device,
+                         std::shared_ptr<Settings> settings);
   std::shared_ptr<Framebuffer> getFramebuffer();
   std::shared_ptr<RenderPass> getRenderPass();
   std::shared_ptr<Swapchain> getSwapchain();
