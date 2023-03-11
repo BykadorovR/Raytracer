@@ -20,6 +20,15 @@ Model3DManager::Model3DManager(std::shared_ptr<Shader> shader,
   _pipeline->createGraphic3D(Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), render);
 }
 
+std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
+  if ((_modelsCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
+    _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
+  }
+  _modelsCreated++;
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool,
+                                     _commandBuffer, _queue, _device, _settings);
+}
+
 std::shared_ptr<ModelOBJ> Model3DManager::createModel(std::string path) {
   if ((_modelsCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));

@@ -27,6 +27,7 @@ class Model3DManager {
                  std::shared_ptr<Settings> settings);
 
   std::shared_ptr<ModelOBJ> createModel(std::string path);
+  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
   void registerModel(std::shared_ptr<Model> model);
   void unregisterModel(std::shared_ptr<Model> model);
   void draw(int currentFrame);

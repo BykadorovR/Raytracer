@@ -9,7 +9,6 @@ Texture::Texture(std::string path,
   _device = device;
   // load texture
   int texWidth, texHeight, texChannels;
-  stbi_set_flip_vertically_on_load(true);
   stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   VkDeviceSize imageSize = texWidth * texHeight * 4;
 
@@ -41,6 +40,7 @@ Texture::Texture(std::string path,
 }
 
 Texture::Texture(std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
+  _device = device;
   _imageView = imageView;
   _sampler = std::make_shared<Sampler>(device);
 }

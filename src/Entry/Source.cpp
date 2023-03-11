@@ -109,13 +109,20 @@ void initialize() {
                                                   settings);
   sprite = spriteManager->createSprite(texture);
   model3D = modelManager->createModel("../data/viking_room.obj");
-  modelGLTF = std::make_shared<ModelGLTF>("../data/Avocado/Avocado.gltf");
-  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
-  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-  model3D->setModel(model);
-
+  modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
+    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    model3D->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, 0.f));
+    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    modelGLTF->setModel(model);
+  }
   spriteManager->registerSprite(sprite);
   modelManager->registerModel(model3D);
+  modelManager->registerModel(modelGLTF);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -196,6 +203,8 @@ void drawFrame() {
 
     model3D->setProjection(camera->getProjection());
     model3D->setView(camera->getView());
+    modelGLTF->setProjection(camera->getProjection());
+    modelGLTF->setView(camera->getView());
     modelManager->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 
