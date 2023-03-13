@@ -50,6 +50,7 @@ std::shared_ptr<Model3D> model3D;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<ComputePart> computePart;
 std::shared_ptr<ScreenPart> screenPart;
+bool remakeTextures;
 
 void initializeCompute() {
   computePart = std::make_shared<ComputePart>(device, queue, commandBuffer, commandPool, settings);
@@ -67,6 +68,7 @@ PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
 void initialize() {
   clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
   clearValues[1].depthStencil = {1.0f, 0};
+  bool remakeTextures = false;
 
   settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
   window = std::make_shared<Window>(settings->getResolution());
@@ -120,6 +122,10 @@ void drawFrame() {
                            UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
+  if (remakeTextures) {
+    remakeTextures = false;
+    computePart->recreateResultTextures();
+  }
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
@@ -128,7 +134,6 @@ void drawFrame() {
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     screenPart->recreateSwapChain(window, surface, device, settings);
-    computePart->recreateResultTextures();
     return;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
@@ -268,7 +273,7 @@ void drawFrame() {
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->isResolutionChanged()) {
     window->isResolutionChanged() = false;
     screenPart->recreateSwapChain(window, surface, device, settings);
-    computePart->recreateResultTextures();
+    remakeTextures = true;
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }

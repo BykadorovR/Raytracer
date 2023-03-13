@@ -565,14 +565,16 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   _commandPool = commandPool;
   _settings = settings;
 
+  _images.resize(settings->getMaxFramesInFlight());
+  _imageViews.resize(settings->getMaxFramesInFlight());
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // Image will be sampled in the fragment shader and used as storage target in the compute shader
-    std::shared_ptr<Image> image = std::make_shared<Image>(
+    _images[i] = std::make_shared<Image>(
         settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
-    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, device);
+    _images[i]->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
+    _imageViews[i] = std::make_shared<ImageView>(_images[i], VK_IMAGE_ASPECT_COLOR_BIT, device);
+    std::shared_ptr<Texture> texture = std::make_shared<Texture>(_imageViews[i], device);
     _resultTextures.push_back(texture);
   }
 
@@ -643,18 +645,17 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
 
 void ComputePart::recreateResultTextures() 
 {
-  _resultTextures.clear();
   for (int i = 0; i < _settings->getMaxFramesInFlight(); i++) {
     // Image will be sampled in the fragment shader and used as storage target in the compute shader
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        _settings->getResolution(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+    _images[i] = std::make_shared<Image>(
+        std::tuple<int,int>(1920,1080), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
-    std::shared_ptr<ImageView> imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, _device);
-    std::shared_ptr<Texture> texture = std::make_shared<Texture>(imageView, _device);
-    _resultTextures.push_back(texture);
+    _images[i]->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
+    _imageViews[i] = std::make_shared<ImageView>(_images[i], VK_IMAGE_ASPECT_COLOR_BIT, _device);
+    _resultTextures[i] = std::make_shared<Texture>(_imageViews[i], _device);
   }
 
+  _descriptorSet->updateTextures(_resultTextures);
   /* _descriptorSet = std::make_shared<DescriptorSet>(_settings->getMaxFramesInFlight(), _descriptorSetLayout,
                                                    _descriptorPool, _device);
   _descriptorSet->createCompute(_resultTextures, _uniformBuffer, _uniformBufferSpheres, _uniformBufferRectangles,

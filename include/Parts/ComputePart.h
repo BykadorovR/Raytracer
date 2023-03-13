@@ -25,6 +25,8 @@ class ComputePart {
       _uniformBufferHitboxes, _uniformBufferSettings;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
 
+  std::vector<std::shared_ptr<Image>> _images;
+  std::vector<std::shared_ptr<ImageView>> _imageViews;
   std::vector<std::shared_ptr<Texture>> _resultTextures;
   std::map<std::string, bool*> _checkboxes;
 

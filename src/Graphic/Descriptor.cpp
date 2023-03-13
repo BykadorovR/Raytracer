@@ -233,6 +233,27 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
   }
 }
 
+void DescriptorSet::updateTextures(std::vector<std::shared_ptr<Texture>> textureOut) {
+
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorImageInfo imageInfoOut{};
+    imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
+    imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
+
+    VkWriteDescriptorSet descriptorWrite{};
+    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrite.dstSet = _descriptorSets[i];
+    descriptorWrite.dstBinding = 1;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfoOut;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrite, 0, nullptr);
+  }
+}
+
+
 void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                                   std::shared_ptr<UniformBuffer> uniformBuffer,
                                   std::shared_ptr<UniformBuffer> uniformSpheres,
