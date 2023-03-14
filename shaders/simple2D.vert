@@ -4,6 +4,7 @@ layout(binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
+    vec3 pos;
 } mvp;
 
 layout(location = 0) in vec3 inPosition;

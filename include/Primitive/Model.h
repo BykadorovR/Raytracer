@@ -32,6 +32,7 @@ class ModelOBJ : public Model {
   std::shared_ptr<UniformBuffer> _uniformBufferLights;
 
   glm::mat4 _model, _view, _projection;
+  glm::vec3 _position;
   std::string _path;
 
   std::vector<Vertex3D> _vertices;
@@ -54,6 +55,7 @@ class ModelOBJ : public Model {
   void setModel(glm::mat4 model);
   void setView(glm::mat4 view);
   void setProjection(glm::mat4 projection);
+  void setPosition(glm::vec3 position);
 
   void draw(int currentFrame);
 };
@@ -110,6 +112,7 @@ class ModelGLTF : public Model {
   glm::mat4 _model;
   glm::mat4 _view;
   glm::mat4 _projection;
+  glm::vec3 _position;
 
   std::shared_ptr<UniformBuffer> _uniformBufferLih;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
@@ -147,6 +150,7 @@ class ModelGLTF : public Model {
   void setModel(glm::mat4 model);
   void setView(glm::mat4 view);
   void setProjection(glm::mat4 projection);
+  void setPosition(glm::vec3 position);
 
   void draw(int currentFrame);
 };

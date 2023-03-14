@@ -129,7 +129,7 @@ void initialize() {
   modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
-    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    //model = glm::rotate(model, -glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     model3D->setModel(model);
   }
   {
@@ -216,12 +216,15 @@ void drawFrame() {
     // draw scene here
     sprite->setProjection(camera->getProjection());
     sprite->setView(camera->getView());
+    sprite->setPosition(camera->getPosition());
     spriteManager->draw(currentFrame);
 
     model3D->setProjection(camera->getProjection());
     model3D->setView(camera->getView());
+    model3D->setPosition(camera->getPosition());
     modelGLTF->setProjection(camera->getProjection());
     modelGLTF->setView(camera->getView());
+    modelGLTF->setPosition(camera->getPosition());
     modelManager->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 

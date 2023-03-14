@@ -19,14 +19,16 @@ void ModelOBJ::_loadModel() {
   for (const auto& shape : shapes) {
     for (const auto& index : shape.mesh.indices) {
       Vertex3D vertex{};
-      vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
+      vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], 
+                    attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]};
 
       vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
                          1.f - attrib.texcoords[2 * index.texcoord_index + 1]};
 
       vertex.color = {1.0f, 1.0f, 1.0f};
-      vertex.normal = {attrib.normals[3 * index.normal_index + 0], attrib.normals[3 * index.normal_index + 1],
+      vertex.normal = {attrib.normals[3 * index.normal_index + 0], 
+                       attrib.normals[3 * index.normal_index + 1],
                        attrib.normals[3 * index.normal_index + 2]};
 
       if (uniqueVertices.count(vertex) == 0) {
@@ -77,12 +79,15 @@ void ModelOBJ::setView(glm::mat4 view) { _view = view; }
 
 void ModelOBJ::setProjection(glm::mat4 projection) { _projection = projection; }
 
+void ModelOBJ::setPosition(glm::vec3 position) { _position = position; }
+
 void ModelOBJ::draw(int currentFrame) {
   {
     UniformObjectCamera ubo{};
     ubo.model = _model;
     ubo.view = _view;
     ubo.projection = _projection;
+    ubo.position = _position;
 
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
@@ -95,10 +100,10 @@ void ModelOBJ::draw(int currentFrame) {
     lights[0].position = glm::vec3(1, 1, 1);
     lights[0].color = glm::vec3(1., 0.8f, 0.5f);
     lights[0].radius = 1.6f;
-    lights[1].position = glm::vec3(-1, 1, 1);
-    lights[1].color = glm::vec3(0, 0.1f, 0.1f);
-    lights[1].radius = 0;
-    lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+    lights[1].position = glm::vec3(0, -1, 0.5f);
+    lights[1].color = glm::vec3(0.2f, 1, 1);
+    lights[1].radius = 1;
+    lights[2].position = glm::vec3(0.15f, 0.97f, 0.2f);
     lights[2].color = glm::vec3(2, 0.5f, 0);
     lights[2].radius = 0.8f;
 
@@ -399,6 +404,8 @@ void ModelGLTF::setView(glm::mat4 view) { _view = view; }
 
 void ModelGLTF::setProjection(glm::mat4 projection) { _projection = projection; }
 
+void ModelGLTF::setPosition(glm::vec3 position) { _position = position; }
+
 void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
     // Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
@@ -414,6 +421,7 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
       ubo.model = _model;
       ubo.view = _view;
       ubo.projection = _projection;
+      ubo.position = _position;
 
       void* data;
       vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0,
@@ -426,10 +434,10 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
       lights[0].position = glm::vec3(1, 1, 1);
       lights[0].color = glm::vec3(1., 0.8f, 0.5f);
       lights[0].radius = 1.6f;
-      lights[1].position = glm::vec3(-1, 1, 1);
-      lights[1].color = glm::vec3(0, 0.1f, 0.1f);
-      lights[1].radius = 0;
-      lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+      lights[1].position = glm::vec3(0, -1, 0.5f);
+      lights[1].color = glm::vec3(0.2f, 1, 1);
+      lights[1].radius = 1;
+      lights[2].position = glm::vec3(0.15f, 0.97f, 0.2f);
       lights[2].color = glm::vec3(2, 0.5f, 0);
       lights[2].radius = 0.8f;
 

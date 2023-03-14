@@ -25,6 +25,7 @@ class Sprite {
   std::shared_ptr<UniformBuffer> _uniformBufferLights;
 
   glm::mat4 _model, _view, _projection;
+  glm::vec3 _position;
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
   const std::vector<Vertex2D> _vertices = {{{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
                                            {{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
@@ -47,6 +48,7 @@ class Sprite {
   void setModel(glm::mat4 model);
   void setView(glm::mat4 view);
   void setProjection(glm::mat4 projection);
+  void setPosition(glm::vec3 position);
 
   void draw(int currentFrame);
 };

@@ -28,6 +28,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);
   _projection = glm::mat4(1.f);
+  _position = glm::vec3(0, 0, 0);
 }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }
@@ -36,12 +37,15 @@ void Sprite::setView(glm::mat4 view) { _view = view; }
 
 void Sprite::setProjection(glm::mat4 projection) { _projection = projection; }
 
+void Sprite::setPosition(glm::vec3 position) { _position = position; }
+
 void Sprite::draw(int currentFrame) {
   {
     UniformObjectCamera ubo{};
     ubo.model = _model;
     ubo.view = _view;
     ubo.projection = _projection;
+    ubo.position = _position;
 
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0,
@@ -54,12 +58,13 @@ void Sprite::draw(int currentFrame) {
     lights[0].position = glm::vec3(1, 1, 1);
     lights[0].color = glm::vec3(1., 0.8f, 0.5f);
     lights[0].radius = 1.6f;
-    lights[1].position = glm::vec3(0.15f, 0.97f, 0);
-    lights[1].color = glm::vec3(5, 2, 0);
-    lights[1].radius = 0.0f;
-    lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+    lights[1].position = glm::vec3(0, -1, 0.5f);
+    lights[1].color = glm::vec3(0.2f, 1, 1);
+    lights[1].radius = 1;
+    lights[2].position = glm::vec3(0.15f, 0.97f, 0.2f);
     lights[2].color = glm::vec3(2, 0.5f, 0);
     lights[2].radius = 0.8f;
+
 
     UniformObjectLights ubo{};
     ubo.number = 3;
