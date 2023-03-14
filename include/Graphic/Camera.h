@@ -27,6 +27,7 @@ class Camera {
   Camera(std::shared_ptr<Settings> settings);
   void setViewParameters(std::shared_ptr<ViewParameters> viewParams);
   void setProjectionParameters(std::shared_ptr<ProjectionParameters> projectionParams);
+  glm::vec3 getPosition();
   glm::mat4 getView();
   glm::mat4 getProjection();
 };

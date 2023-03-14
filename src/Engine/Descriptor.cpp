@@ -59,21 +59,31 @@ void DescriptorSetLayout::createCompute() {
 }
 
 void DescriptorSetLayout::createGraphic() {
+  //camera
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
   uboLayoutBinding.descriptorCount = 1;
   uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   uboLayoutBinding.pImmutableSamplers = nullptr;
   uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
+  //texture
   VkDescriptorSetLayoutBinding samplerLayoutBinding{};
   samplerLayoutBinding.binding = 1;
   samplerLayoutBinding.descriptorCount = 1;
   samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   samplerLayoutBinding.pImmutableSamplers = nullptr;
   samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  //point light
+  VkDescriptorSetLayoutBinding uboLayoutBindingPointLight{};
+  uboLayoutBindingPointLight.binding = 2;
+  uboLayoutBindingPointLight.descriptorCount = 1;
+  uboLayoutBindingPointLight.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBindingPointLight.pImmutableSamplers = nullptr;
+  uboLayoutBindingPointLight.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+
+  std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboLayoutBinding, samplerLayoutBinding,
+                                                          uboLayoutBindingPointLight};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -163,7 +173,9 @@ DescriptorSet::DescriptorSet(int number,
   }
 }
 
-void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture,
+                                  std::shared_ptr<UniformBuffer> uniformBuffer,
+                                  std::shared_ptr<UniformBuffer> uniformBufferPointLight) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
@@ -172,11 +184,16 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
     imageInfo.imageView = texture->getImageView()->getImageView();
     imageInfo.sampler = texture->getSampler()->getSampler();
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    VkDescriptorBufferInfo pointLightInfo{};
+    pointLightInfo.buffer = uniformBufferPointLight->getBuffer()[i]->getData();
+    pointLightInfo.offset = 0;
+    pointLightInfo.range = uniformBufferPointLight->getBuffer()[i]->getSize();
+
+    std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+    //camera
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = _descriptorSets[i];
     descriptorWrites[0].dstBinding = 0;
@@ -184,7 +201,7 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_
     descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     descriptorWrites[0].descriptorCount = 1;
     descriptorWrites[0].pBufferInfo = &bufferInfo;
-
+    //texture
     descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[1].dstSet = _descriptorSets[i];
     descriptorWrites[1].dstBinding = 1;
@@ -192,6 +209,14 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pImageInfo = &imageInfo;
+    //point light
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = _descriptorSets[i];
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pBufferInfo = &pointLightInfo;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);

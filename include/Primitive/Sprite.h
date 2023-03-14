@@ -7,6 +7,7 @@
 #include "Command.h"
 #include "Queue.h"
 #include "Settings.h"
+#include "UniformStructs.h"
 
 class Sprite {
  private:
@@ -20,7 +21,8 @@ class Sprite {
 
   std::shared_ptr<VertexBuffer> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
+  std::shared_ptr<UniformBuffer> _uniformBufferPointLight;
 
   glm::mat4 _model, _view, _projection;
   const std::vector<Vertex> _vertices = {{{0.5f, 0.5f, 0.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},

@@ -7,6 +7,7 @@
 #include "Command.h"
 #include "Queue.h"
 #include "Settings.h"
+#include "UniformStructs.h"
 
 class Model3D {
  private:
@@ -20,7 +21,8 @@ class Model3D {
 
   std::shared_ptr<VertexBuffer> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
+  std::shared_ptr<UniformBuffer> _uniformBufferPointLight;
 
   glm::mat4 _model, _view, _projection;
   std::string _path;

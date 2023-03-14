@@ -38,7 +38,9 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
-  void createGraphic(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createGraphic(std::shared_ptr<Texture> texture,
+                     std::shared_ptr<UniformBuffer> uniformBuffer,
+                     std::shared_ptr<UniformBuffer> uniformBufferPointLight);
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,
                      std::shared_ptr<UniformBuffer> uniformSpheres,

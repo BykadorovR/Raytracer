@@ -3,12 +3,6 @@
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 
-struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
-};
-
 void Model3D::_loadModel() {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -23,7 +17,8 @@ void Model3D::_loadModel() {
   for (const auto& shape : shapes) {
     for (const auto& index : shape.mesh.indices) {
       Vertex vertex{};
-      vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
+      vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], 
+                    attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]};
 
       vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
@@ -60,11 +55,13 @@ Model3D::Model3D(std::string path,
   _loadModel();
   _vertexBuffer = std::make_shared<VertexBuffer>(_vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
-                                                   queue, device);
+  _uniformBufferCamera = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectCamera),
+                                                         commandPool, queue, device);
+  _uniformBufferPointLight = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectPointLights), commandPool, queue,
+                                                             device);
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
-  _descriptorSet->createGraphic(texture, _uniformBuffer);
+  _descriptorSet->createGraphic(texture, _uniformBufferCamera, _uniformBufferPointLight);
 
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);
@@ -78,16 +75,42 @@ void Model3D::setView(glm::mat4 view) { _view = view; }
 void Model3D::setProjection(glm::mat4 projection) { _projection = projection; }
 
 void Model3D::draw(int currentFrame) {
-  UniformObject ubo{};
-  ubo.model = _model;
-  ubo.view = _view;
-  ubo.projection = _projection;
+  {
+    UniformObjectCamera ubo{};
+    ubo.model = _model;
+    ubo.view = _view;
+    ubo.projection = _projection;
 
-  void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(ubo), 0, &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory());
+  }
+  {
+    std::array<UniformObjectPointLight, 3> lights{};
+    lights[0].position = glm::vec3(1, 1, 1);
+    lights[0].color = glm::vec3(1., 0.8f, 0.5f);
+    lights[0].radius = 1.6f;
+    lights[1].position = glm::vec3(-1, 1, 1);
+    lights[1].color = glm::vec3(0, 0.1f, 0.1f);
+    lights[1].radius = 0;
+    lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+    lights[2].color = glm::vec3(2, 0.5f, 0);
+    lights[2].radius = 0.8f;
+
+    UniformObjectPointLights ubo{};
+    ubo.number = 3;
+    for (int i = 0; i < ubo.number; i++) {
+      ubo.pLights[i] = lights[i];
+    }
+
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferPointLight->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(ubo), 0, &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferPointLight->getBuffer()[currentFrame]->getMemory());
+  }
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

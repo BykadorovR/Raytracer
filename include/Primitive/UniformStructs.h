@@ -1,0 +1,19 @@
+#pragma once
+#include "glm/glm.hpp"
+
+struct UniformObjectCamera {
+  alignas(16) glm::mat4 model;
+  alignas(16) glm::mat4 view;
+  alignas(16) glm::mat4 projection;
+};
+
+struct UniformObjectPointLight {
+  alignas(16) glm::vec3 position;
+  alignas(16) glm::vec3 color;
+  float radius;
+};
+
+struct UniformObjectPointLights {
+  int number;
+  UniformObjectPointLight pLights[16];
+};

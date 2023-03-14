@@ -19,6 +19,8 @@ void Camera::setProjectionParameters(std::shared_ptr<ProjectionParameters> proje
   _projectionParams = projectionParams;
 }
 
+glm::vec3 Camera::getPosition() { return _viewParams->eye; }
+
 glm::mat4 Camera::getView() {
   return glm::lookAt(_viewParams->eye, _viewParams->eye + _viewParams->direction, _viewParams->up);
 }

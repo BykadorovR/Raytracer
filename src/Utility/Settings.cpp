@@ -5,6 +5,6 @@ Settings::Settings(std::tuple<int, int> resolution, int maxFramesInFlight) {
   _maxFramesInFlight = maxFramesInFlight;
 }
 
-const std::tuple<int, int>& Settings::getResolution() { return _resolution; }
+std::tuple<int, int>& Settings::getResolution() { return _resolution; }
 
 int Settings::getMaxFramesInFlight() { return _maxFramesInFlight; }

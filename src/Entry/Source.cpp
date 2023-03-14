@@ -56,6 +56,23 @@ PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
 PFN_vkCmdEndDebugUtilsLabelEXT CmdEndDebugUtilsLabelEXT;
 PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
 
+void recreateSwapChain(std::shared_ptr<Window> window,
+                                   std::shared_ptr<Surface> surface,
+                                   std::shared_ptr<Device> device,
+                                   std::shared_ptr<Settings> settings) {
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window->getWindow(), &width, &height);
+  while (width == 0 || height == 0) {
+    glfwGetFramebufferSize(window->getWindow(), &width, &height);
+    glfwWaitEvents();
+  }
+  settings->getResolution() = std::tuple<int, int>(width, height);
+  vkDeviceWaitIdle(device->getLogicalDevice());
+  swapchain = std::make_shared<Swapchain>(window, surface, device);
+  frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
+                                               swapchain->getDepthImageView(), renderPass, device);
+}
+
 void initialize() {
   clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
   clearValues[1].depthStencil = {1.0f, 0};
@@ -140,7 +157,7 @@ void drawFrame() {
                                  imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    // TODO: recreate swapchain
+    recreateSwapChain(window, surface, device, settings);
     return;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
@@ -171,7 +188,7 @@ void drawFrame() {
       .pObjectName = "Raytracing command buffer",
   };
   SetDebugUtilsObjectNameEXT(device->getLogicalDevice(), &cmdBufInfo);
-
+  
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = "Render to screen";
@@ -238,9 +255,9 @@ void drawFrame() {
 
   result = vkQueuePresentKHR(queue->getPresentQueue(), &presentInfo);
 
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    // TODO: recreate swapchain
-    // TODO: support window resize
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || window->isResolutionChanged()) {
+    window->setResolutionChanged(false);
+    recreateSwapChain(window, surface, device, settings);
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }
@@ -262,7 +279,13 @@ void mainLoop() {
       startTime = end;
       frame = 0;
     }
+
+    glm::vec3 camPos = camera->getPosition();
+    std::string camPositionStr = std::to_string(camPos.x) + " " + std::to_string(camPos.y) + " " +
+                                 std::to_string(camPos.z);
+    glfwSetWindowTitle(window->getWindow(), camPositionStr.data());
   }
+
 
   vkDeviceWaitIdle(device->getLogicalDevice());
 }

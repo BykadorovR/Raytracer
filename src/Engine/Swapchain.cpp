@@ -26,18 +26,10 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
   // it's almost always exactly equal to the resolution of the window
   auto surfaceCapabilities = device->getSupportedSurfaceCapabilities();
   VkExtent2D extent = surfaceCapabilities.currentExtent;
-  if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-    int width, height;
-    glfwGetFramebufferSize(window->getWindow(), &width, &height);
-
-    VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
-
-    actualExtent.width = std::clamp(actualExtent.width, surfaceCapabilities.minImageExtent.width,
-                                    surfaceCapabilities.maxImageExtent.width);
-    actualExtent.height = std::clamp(actualExtent.height, surfaceCapabilities.minImageExtent.height,
-                                     surfaceCapabilities.maxImageExtent.height);
-    extent = actualExtent;
-  }
+  int width = 0, height = 0;
+  glfwGetFramebufferSize(window->getWindow(), &width, &height);
+  VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
+  extent = actualExtent;
 
   // pick how many images we will have in swap chaing
   uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
