@@ -19,11 +19,11 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBufferCamera = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectCamera),
                                                    commandPool, queue, device);
-  _uniformBufferPointLight = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectPointLights), commandPool, queue,
+  _uniformBufferLights = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectLights), commandPool, queue,
                                                              device);
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
-  _descriptorSet->createGraphic(texture, _uniformBufferCamera, _uniformBufferPointLight);
+  _descriptorSet->createGraphic(texture, _uniformBufferCamera, _uniformBufferLights);
 
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);
@@ -61,16 +61,16 @@ void Sprite::draw(int currentFrame) {
     lights[2].color = glm::vec3(2, 0.5f, 0);
     lights[2].radius = 0.8f;
 
-    UniformObjectPointLights ubo{};
+    UniformObjectLights ubo{};
     ubo.number = 3;
     for (int i = 0; i < ubo.number; i++) {
       ubo.pLights[i] = lights[i];
     }
     void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformBufferPointLight->getBuffer()[currentFrame]->getMemory(), 0,
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory(), 0,
                 sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferPointLight->getBuffer()[currentFrame]->getMemory());
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory());
   }
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};

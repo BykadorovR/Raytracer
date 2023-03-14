@@ -13,7 +13,7 @@ struct UniformObjectPointLight {
   float radius;
 };
 
-struct UniformObjectPointLights {
+struct UniformObjectLights {
   int number;
   UniformObjectPointLight pLights[16];
 };

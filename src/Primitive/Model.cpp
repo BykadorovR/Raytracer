@@ -5,12 +5,6 @@
 #include <unordered_map>
 #include "glm/gtc/type_ptr.hpp"
 
-struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
-};
-
 void ModelOBJ::_loadModel() {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -64,11 +58,13 @@ ModelOBJ::ModelOBJ(std::string path,
   _loadModel();
   _vertexBuffer = std::make_shared<VertexBuffer3D>(_vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
+  _uniformBufferCamera = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectCamera), commandPool,
                                                    queue, device);
+  _uniformBufferLights = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectLights),
+                                                   commandPool, queue, device);
   _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                    descriptorPool, device);
-  _descriptorSet->createGraphic(texture, _uniformBuffer);
+  _descriptorSet->createGraphic(texture, _uniformBufferCamera, _uniformBufferLights);
 
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);
@@ -82,16 +78,41 @@ void ModelOBJ::setView(glm::mat4 view) { _view = view; }
 void ModelOBJ::setProjection(glm::mat4 projection) { _projection = projection; }
 
 void ModelOBJ::draw(int currentFrame) {
-  UniformObject ubo{};
-  ubo.model = _model;
-  ubo.view = _view;
-  ubo.projection = _projection;
+  {
+    UniformObjectCamera ubo{};
+    ubo.model = _model;
+    ubo.view = _view;
+    ubo.projection = _projection;
 
-  void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
+                &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory());
+  }
+  {
+    std::array<UniformObjectPointLight, 3> lights{};
+    lights[0].position = glm::vec3(1, 1, 1);
+    lights[0].color = glm::vec3(1., 0.8f, 0.5f);
+    lights[0].radius = 1.6f;
+    lights[1].position = glm::vec3(-1, 1, 1);
+    lights[1].color = glm::vec3(0, 0.1f, 0.1f);
+    lights[1].radius = 0;
+    lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+    lights[2].color = glm::vec3(2, 0.5f, 0);
+    lights[2].radius = 0.8f;
+
+    UniformObjectLights ubo{};
+    ubo.number = 3;
+    for (int i = 0; i < ubo.number; i++) {
+      ubo.pLights[i] = lights[i];
+    }
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(ubo), 0, &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory());
+  }
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -120,7 +141,6 @@ ModelGLTF::ModelGLTF(std::string path,
   _queue = queue;
   _commandPool = commandPool;
   _pipeline = pipeline;
-  _descriptorSetLayout = descriptorSetLayout;
   _descriptorPool = descriptorPool;
   _commandBuffer = commandBuffer;
 
@@ -144,12 +164,14 @@ ModelGLTF::ModelGLTF(std::string path,
 
   _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandPool, queue, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
-                                                   queue, device);
+  _uniformBufferCamera = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectCamera),
+                                                         commandPool, queue, device);
+  _uniformBufferLights = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectLights),
+                                                         commandPool, queue, device);
   for (auto& image : _images) {
-    image.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _descriptorSetLayout,
+    image.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
                                                           _descriptorPool, _device);
-    image.descriptorSet->createGraphic(image.texture, _uniformBuffer);
+    image.descriptorSet->createGraphic(image.texture, _uniformBufferCamera, _uniformBufferLights);
   }
 }
 
@@ -387,16 +409,42 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
       currentParent = currentParent->parent;
     }
     // pass this matrix to uniforms
-    UniformObject ubo{};
-    ubo.model = _model * nodeMatrix;
-    ubo.view = _view;
-    ubo.projection = _projection;
+    {
+      UniformObjectCamera ubo{};
+      ubo.model = _model;
+      ubo.view = _view;
+      ubo.projection = _projection;
 
-    void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-                &data);
-    memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+      void* data;
+      vkMapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(), 0,
+                  sizeof(ubo), 0, &data);
+      memcpy(data, &ubo, sizeof(ubo));
+      vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory());
+    }
+    {
+      std::array<UniformObjectPointLight, 3> lights{};
+      lights[0].position = glm::vec3(1, 1, 1);
+      lights[0].color = glm::vec3(1., 0.8f, 0.5f);
+      lights[0].radius = 1.6f;
+      lights[1].position = glm::vec3(-1, 1, 1);
+      lights[1].color = glm::vec3(0, 0.1f, 0.1f);
+      lights[1].radius = 0;
+      lights[2].position = glm::vec3(0.15f, 0.97f, 0);
+      lights[2].color = glm::vec3(2, 0.5f, 0);
+      lights[2].radius = 0.8f;
+
+      UniformObjectLights ubo{};
+      ubo.number = 3;
+      for (int i = 0; i < ubo.number; i++) {
+        ubo.pLights[i] = lights[i];
+      }
+      void* data;
+      vkMapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory(), 0,
+                  sizeof(ubo), 0, &data);
+      memcpy(data, &ubo, sizeof(ubo));
+      vkUnmapMemory(_device->getLogicalDevice(), _uniformBufferLights->getBuffer()[currentFrame]->getMemory());
+    }
+
 
     for (PrimitiveGLTF& primitive : node->mesh.primitives) {
       if (primitive.indexCount > 0) {

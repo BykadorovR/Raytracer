@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "tiny_obj_loader.h"
 #include "tiny_gltf.h"
+#include "UniformStructs.h"
 
 class Model {
  public:
@@ -27,7 +28,8 @@ class ModelOBJ : public Model {
 
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
+  std::shared_ptr<UniformBuffer> _uniformBufferLights;
 
   glm::mat4 _model, _view, _projection;
   std::string _path;
@@ -109,12 +111,13 @@ class ModelGLTF : public Model {
   glm::mat4 _view;
   glm::mat4 _projection;
 
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::shared_ptr<UniformBuffer> _uniformBufferLih;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
+  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
+  std::shared_ptr<UniformBuffer> _uniformBufferLights;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Queue> _queue;

@@ -22,7 +22,7 @@ class Sprite {
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<UniformBuffer> _uniformBufferCamera;
-  std::shared_ptr<UniformBuffer> _uniformBufferPointLight;
+  std::shared_ptr<UniformBuffer> _uniformBufferLights;
 
   glm::mat4 _model, _view, _projection;
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
