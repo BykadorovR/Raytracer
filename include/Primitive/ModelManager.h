@@ -15,7 +15,7 @@ class Model3DManager {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
 
-  std::vector<std::shared_ptr<Model3D>> _models;
+  std::vector<std::shared_ptr<Model>> _models;
 
  public:
   Model3DManager(std::shared_ptr<Shader> shader,
@@ -26,8 +26,9 @@ class Model3DManager {
                  std::shared_ptr<Device> device,
                  std::shared_ptr<Settings> settings);
 
-  std::shared_ptr<Model3D> createModel(std::string path);
-  void registerModel(std::shared_ptr<Model3D> model);
-  void unregisterModel(std::shared_ptr<Model3D> model);
+  std::shared_ptr<ModelOBJ> createModel(std::string path);
+  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
+  void registerModel(std::shared_ptr<Model> model);
+  void unregisterModel(std::shared_ptr<Model> model);
   void draw(int currentFrame);
 };

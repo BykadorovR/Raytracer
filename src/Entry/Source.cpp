@@ -42,7 +42,8 @@ std::vector<std::shared_ptr<Fence>> inFlightFences;
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Sprite> sprite1, sprite2;
 std::shared_ptr<Model3DManager> modelManager;
-std::shared_ptr<Model3D> model3D;
+std::shared_ptr<ModelOBJ> model3D;
+std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -105,9 +106,12 @@ void initialize() {
   renderPass->initialize();
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
-  auto shader = std::make_shared<Shader>(device);
-  shader->add("../shaders/simple_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/simple_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto shader3D = std::make_shared<Shader>(device);
+  shader3D->add("../shaders/simple3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader3D->add("../shaders/simple3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto shader2D = std::make_shared<Shader>(device);
+  shader2D->add("../shaders/simple2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader2D->add("../shaders/simple2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -115,18 +119,27 @@ void initialize() {
   auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
-  spriteManager = std::make_shared<SpriteManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+  input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
+  spriteManager = std::make_shared<SpriteManager>(shader2D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
-  modelManager = std::make_shared<Model3DManager>(shader, commandPool, commandBuffer, queue, renderPass, device,
+  modelManager = std::make_shared<Model3DManager>(shader3D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
   sprite = spriteManager->createSprite(texture);
   model3D = modelManager->createModel("../data/viking_room.obj");
-  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
-  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-  model3D->setModel(model);
-
+  modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
+    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    model3D->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, 0.f));
+    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    modelGLTF->setModel(model);
+  }
   spriteManager->registerSprite(sprite);
   modelManager->registerModel(model3D);
+  modelManager->registerModel(modelGLTF);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -207,6 +220,8 @@ void drawFrame() {
 
     model3D->setProjection(camera->getProjection());
     model3D->setView(camera->getView());
+    modelGLTF->setProjection(camera->getProjection());
+    modelGLTF->setView(camera->getView());
     modelManager->draw(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 

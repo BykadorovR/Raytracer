@@ -15,7 +15,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _settings = settings;
   _texture = texture;
 
-  _vertexBuffer = std::make_shared<VertexBuffer>(_vertices, commandPool, queue, device);
+  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBufferCamera = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObjectCamera),
                                                    commandPool, queue, device);

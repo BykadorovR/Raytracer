@@ -17,10 +17,19 @@ Model3DManager::Model3DManager(std::shared_ptr<Shader> shader,
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayout->createGraphic();
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
-  _pipeline->createGraphic(Vertex::getBindingDescription(), Vertex::getAttributeDescriptions(), render);
+  _pipeline->createGraphic3D(Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), render);
 }
 
-std::shared_ptr<Model3D> Model3DManager::createModel(std::string path) {
+std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
+  if ((_modelsCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
+    _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
+  }
+  _modelsCreated++;
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool,
+                                     _commandBuffer, _queue, _device, _settings);
+}
+
+std::shared_ptr<ModelOBJ> Model3DManager::createModel(std::string path) {
   if ((_modelsCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
   }
@@ -32,13 +41,13 @@ std::shared_ptr<Model3D> Model3DManager::createModel(std::string path) {
     texturePath = texturePath.substr(0, lastPointPos + 1) + "png";
   }
   auto texture = std::make_shared<Texture>(texturePath, _commandPool, _queue, _device);
-  return std::make_shared<Model3D>(path, texture, _descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool,
-                                   _commandBuffer, _queue, _device, _settings);
+  return std::make_shared<ModelOBJ>(path, texture, _descriptorSetLayout, _pipeline, _descriptorPool.back(),
+                                    _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 
-void Model3DManager::registerModel(std::shared_ptr<Model3D> model) { _models.push_back(model); }
+void Model3DManager::registerModel(std::shared_ptr<Model> model) { _models.push_back(model); }
 
-void Model3DManager::unregisterModel(std::shared_ptr<Model3D> model) {
+void Model3DManager::unregisterModel(std::shared_ptr<Model> model) {
   _models.erase(std::remove(_models.begin(), _models.end(), model), _models.end());
 }
 

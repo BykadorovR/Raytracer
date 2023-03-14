@@ -36,6 +36,26 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+ExternalProject_Add(
+  tinygltf
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinygltf
+  GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
+  GIT_TAG 84a83d39f55dcd12d722b77c5181349f4c840f5b
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
+
+ExternalProject_Add(
+  tinyobjloader
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinyobjloader
+  GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
+  GIT_TAG 54684096e4ab1fcff9e7571888489e48d018c7fb
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
+
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
@@ -64,7 +84,6 @@ include_directories("include/Graphic")
 include_directories("include/Primitive")
 include_directories("include/Utility")
 include_directories("include/Engine")
-include_directories("dependencies")
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -100,10 +119,12 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} glfw glm imgui)
+add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinygltf/src/tinygltf)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinyobjloader/src/tinyobjloader)
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)

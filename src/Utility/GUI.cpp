@@ -85,7 +85,7 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, _device);
-  _pipeline->createGUI(VertexGUI::getBindingDescription(), VertexGUI::getAttributeDescriptions(), renderPass);
+  _pipeline->createHUD(VertexGUI::getBindingDescription(), VertexGUI::getAttributeDescriptions(), renderPass);
 }
 
 void GUI::addCheckbox(std::string name,

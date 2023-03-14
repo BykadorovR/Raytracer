@@ -92,10 +92,10 @@ Buffer::~Buffer() {
   vkFreeMemory(_device->getLogicalDevice(), _memory, nullptr);
 }
 
-VertexBuffer::VertexBuffer(std::vector<Vertex> vertices,
-                           std::shared_ptr<CommandPool> commandPool,
-                           std::shared_ptr<Queue> queue,
-                           std::shared_ptr<Device> device) {
+VertexBuffer2D::VertexBuffer2D(std::vector<Vertex2D> vertices,
+                               std::shared_ptr<CommandPool> commandPool,
+                               std::shared_ptr<Queue> queue,
+                               std::shared_ptr<Device> device) {
   VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
   auto stagingBuffer = std::make_shared<Buffer>(
@@ -113,7 +113,30 @@ VertexBuffer::VertexBuffer(std::vector<Vertex> vertices,
   _buffer->copyFrom(stagingBuffer, commandPool, queue);
 }
 
-std::shared_ptr<Buffer> VertexBuffer::getBuffer() { return _buffer; }
+std::shared_ptr<Buffer> VertexBuffer2D::getBuffer() { return _buffer; }
+
+VertexBuffer3D::VertexBuffer3D(std::vector<Vertex3D> vertices,
+                               std::shared_ptr<CommandPool> commandPool,
+                               std::shared_ptr<Queue> queue,
+                               std::shared_ptr<Device> device) {
+  VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+  auto stagingBuffer = std::make_shared<Buffer>(
+      bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, device);
+
+  void* data;
+  vkMapMemory(device->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+  memcpy(data, vertices.data(), (size_t)bufferSize);
+  vkUnmapMemory(device->getLogicalDevice(), stagingBuffer->getMemory());
+
+  _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+
+  _buffer->copyFrom(stagingBuffer, commandPool, queue);
+}
+
+std::shared_ptr<Buffer> VertexBuffer3D::getBuffer() { return _buffer; }
 
 IndexBuffer::IndexBuffer(std::vector<uint32_t> indices,
                          std::shared_ptr<CommandPool> commandPool,
