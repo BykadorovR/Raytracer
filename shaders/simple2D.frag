@@ -65,7 +65,7 @@ void main() {
     vec3 lightPortion = vec3(0.0,0.0,0.0);
     for (int i = 0; i < pLights.number; i++)
     {
-        float lightDistRatio = min(1,pow(length(fragPos-pLights.light[i].pos)/pLights.light[i].radius,2));
+        float attenuation = 1.0 - min(1,pow(length(fragPos-pLights.light[i].pos)/pLights.light[i].radius,2));
 
         vec3 lightDir = normalize(pLights.light[i].pos - fragPos);
         vec3 halfwayDir = normalize(lightDir + viewDir);
@@ -78,9 +78,16 @@ void main() {
         vec3 f0 = mix(vec3(0.04), texColor, metalness); 
         vec3 f = calculateF(cosNV, f0);
 
+        vec3 BRDF = ndf*f*g/( 4.0 * cosNV * cosNL  + 0.0001); // ndf*f*g/( 4.0 * cosNV * cosNL  + 0.0001);
+
         float Kspec = (f.x+f.y+f.z)/3;
-        float Kdiff = 1.0 - Kspec;
-        lightPortion = lightPortion + pLights.light[i].color*(Kdiff*texColor/PI + ndf*f*g)*cosNL*(1.0-lightDistRatio);
+        vec3 Kdiff = (1.0 - f)*(1 - metalness);
+        lightPortion = lightPortion + pLights.light[i].color*(Kdiff*texColor/PI + BRDF)*cosNL*attenuation;
     }
-    outColor = vec4(lightPortion, 1.0); //vec4(texColor*lightPortion/distanceMultiplier, 1.);
+    vec3 ambient = vec3(0.03) * texColor;
+    vec3 color = lightPortion + ambient;
+
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0/1.1)); 
+    outColor = vec4(color, 1.0); //vec4(texColor*lightPortion/distanceMultiplier, 1.);
 }
