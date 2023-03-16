@@ -81,7 +81,7 @@ void ModelOBJ::setView(glm::mat4 view) { _view = view; }
 
 void ModelOBJ::setProjection(glm::mat4 projection) { _projection = projection; }
 
-void ModelOBJ::draw(int currentFrame) {
+void ModelOBJ::draw(float frameTimer, int currentFrame) {
   UniformObject ubo{};
   ubo.model = _model;
   ubo.view = _view;
@@ -109,6 +109,7 @@ void ModelOBJ::draw(int currentFrame) {
 
 ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+                     std::shared_ptr<DescriptorSetLayout> descriptorSetLayoutJoints,
                      std::shared_ptr<Pipeline> pipeline,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandPool> commandPool,
@@ -121,6 +122,7 @@ ModelGLTF::ModelGLTF(std::string path,
   _commandPool = commandPool;
   _pipeline = pipeline;
   _descriptorSetLayout = descriptorSetLayout;
+  _descriptorSetLayoutJoints = descriptorSetLayoutJoints;
   _descriptorPool = descriptorPool;
   _commandBuffer = commandBuffer;
 
@@ -138,7 +140,14 @@ ModelGLTF::ModelGLTF(std::string path,
     const tinygltf::Scene& scene = model.scenes[0];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
       tinygltf::Node& node = model.nodes[scene.nodes[i]];
-      _loadNode(node, model, nullptr, indexBuffer, vertexBuffer);
+      _loadNode(node, model, nullptr, scene.nodes[i], indexBuffer, vertexBuffer);
+    }
+
+    _loadSkins(model);
+    _loadAnimations(model);
+    // Calculate initial pose
+    for (auto node : _nodes) {
+      _updateJoints(node);
     }
   }
 
@@ -150,6 +159,13 @@ ModelGLTF::ModelGLTF(std::string path,
     image.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _descriptorSetLayout,
                                                           _descriptorPool, _device);
     image.descriptorSet->createGraphic(image.texture, _uniformBuffer);
+  }
+
+  // TODO: create descriptor set layout and set for skin->descriptorSet
+  for (auto& skin : _skins) {
+    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayoutJoints,
+                                                         _descriptorPool, _device);
+    skin.descriptorSet->createJoints(skin.ssbo);
   }
 }
 
@@ -230,14 +246,154 @@ void ModelGLTF::_loadTextures(tinygltf::Model& model) {
   }
 }
 
+void ModelGLTF::_loadSkins(tinygltf::Model& model) {
+  _skins.resize(model.skins.size());
+  for (size_t i = 0; i < model.skins.size(); i++) {
+    tinygltf::Skin glTFSkin = model.skins[i];
+    _skins[i].name = glTFSkin.name;
+    // Find the root node of the skeleton
+    _skins[i].skeletonRoot = _nodeFromIndex(glTFSkin.skeleton);
+    // Find joint nodes
+    for (int jointIndex : glTFSkin.joints) {
+      NodeGLTF* node = _nodeFromIndex(jointIndex);
+      if (node) {
+        _skins[i].joints.push_back(node);
+      }
+    }
+
+    // Get the inverse bind matrices from the buffer associated to this skin
+    if (glTFSkin.inverseBindMatrices > -1) {
+      const tinygltf::Accessor& accessor = model.accessors[glTFSkin.inverseBindMatrices];
+      const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+      const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+      _skins[i].inverseBindMatrices.resize(accessor.count);
+      memcpy(_skins[i].inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
+             accessor.count * sizeof(glm::mat4));
+
+      _skins[i].ssbo = std::make_shared<Buffer>(
+          sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
+      _skins[i].ssbo->map();
+      // we pass inverse bind matrices to shader via SSBO, if joint data exists we will multiple joint * inverse bind
+      // matrices otherwise we just pass inverse bind matrices
+      memcpy(_skins[i].ssbo->getMappedMemory(), _skins[i].inverseBindMatrices.data(),
+             sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size());
+    }
+  }
+}
+
+void ModelGLTF::_loadAnimations(tinygltf::Model& model) {
+  _animations.resize(model.animations.size());
+  for (size_t i = 0; i < model.animations.size(); i++) {
+    tinygltf::Animation glTFAnimation = model.animations[i];
+    _animations[i].name = glTFAnimation.name;
+
+    // Samplers
+    _animations[i].samplers.resize(glTFAnimation.samplers.size());
+    for (size_t j = 0; j < glTFAnimation.samplers.size(); j++) {
+      tinygltf::AnimationSampler glTFSampler = glTFAnimation.samplers[j];
+      AnimationSamplerGLTF& dstSampler = _animations[i].samplers[j];
+      dstSampler.interpolation = glTFSampler.interpolation;
+
+      // Read sampler keyframe input time values
+      {
+        const tinygltf::Accessor& accessor = model.accessors[glTFSampler.input];
+        const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+        const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+        const float* buf = static_cast<const float*>(dataPtr);
+        for (size_t index = 0; index < accessor.count; index++) {
+          dstSampler.inputs.push_back(buf[index]);
+        }
+        // Adjust animation's start and end times
+        for (auto input : _animations[i].samplers[j].inputs) {
+          if (input < _animations[i].start) {
+            _animations[i].start = input;
+          };
+          if (input > _animations[i].end) {
+            _animations[i].end = input;
+          }
+        }
+      }
+
+      // Read sampler keyframe output translate/rotate/scale values
+      {
+        const tinygltf::Accessor& accessor = model.accessors[glTFSampler.output];
+        const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+        const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
+        switch (accessor.type) {
+          case TINYGLTF_TYPE_VEC3: {
+            const glm::vec3* buf = static_cast<const glm::vec3*>(dataPtr);
+            for (size_t index = 0; index < accessor.count; index++) {
+              dstSampler.outputsVec4.push_back(glm::vec4(buf[index], 0.0f));
+            }
+            break;
+          }
+          case TINYGLTF_TYPE_VEC4: {
+            const glm::vec4* buf = static_cast<const glm::vec4*>(dataPtr);
+            for (size_t index = 0; index < accessor.count; index++) {
+              dstSampler.outputsVec4.push_back(buf[index]);
+            }
+            break;
+          }
+          default: {
+            std::cout << "unknown type" << std::endl;
+            break;
+          }
+        }
+      }
+    }
+
+    // Channels
+    _animations[i].channels.resize(glTFAnimation.channels.size());
+    for (size_t j = 0; j < glTFAnimation.channels.size(); j++) {
+      tinygltf::AnimationChannel glTFChannel = glTFAnimation.channels[j];
+      AnimationChannelGLTF& dstChannel = _animations[i].channels[j];
+      dstChannel.path = glTFChannel.target_path;
+      dstChannel.samplerIndex = glTFChannel.sampler;
+      dstChannel.node = _nodeFromIndex(glTFChannel.target_node);
+    }
+  }
+}
+
+// Helper functions for locating glTF nodes
+ModelGLTF::NodeGLTF* ModelGLTF::_findNode(NodeGLTF* parent, uint32_t index) {
+  NodeGLTF* nodeFound = nullptr;
+  if (parent->index == index) {
+    return parent;
+  }
+  for (auto& child : parent->children) {
+    nodeFound = _findNode(child, index);
+    if (nodeFound) {
+      break;
+    }
+  }
+  return nodeFound;
+}
+
+ModelGLTF::NodeGLTF* ModelGLTF::_nodeFromIndex(uint32_t index) {
+  NodeGLTF* nodeFound = nullptr;
+  for (auto& node : _nodes) {
+    nodeFound = _findNode(node, index);
+    if (nodeFound) {
+      break;
+    }
+  }
+  return nodeFound;
+}
+
 void ModelGLTF::_loadNode(tinygltf::Node& input,
                           tinygltf::Model& model,
                           NodeGLTF* parent,
+                          uint32_t nodeIndex,
                           std::vector<uint32_t>& indexBuffer,
                           std::vector<Vertex3D>& vertexBuffer) {
   NodeGLTF* node = new NodeGLTF();
   node->parent = parent;
   node->matrix = glm::mat4(1.f);
+  node->index = nodeIndex;
+  node->skin = input.skin;
 
   // Get the local node matrix
   // It's either made up from translation, rotation, scale or a 4x4 matrix
@@ -261,7 +417,7 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
   // Load node's children
   if (input.children.size() > 0) {
     for (size_t i = 0; i < input.children.size(); i++) {
-      _loadNode(model.nodes[input.children[i]], model, node, indexBuffer, vertexBuffer);
+      _loadNode(model.nodes[input.children[i]], model, node, input.children[i], indexBuffer, vertexBuffer);
     }
   }
 
@@ -275,11 +431,14 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
       uint32_t firstIndex = static_cast<uint32_t>(indexBuffer.size());
       uint32_t vertexStart = static_cast<uint32_t>(vertexBuffer.size());
       uint32_t indexCount = 0;
+      bool hasSkin = false;
       // Vertices
       {
         const float* positionBuffer = nullptr;
         const float* normalsBuffer = nullptr;
         const float* texCoordsBuffer = nullptr;
+        const uint16_t* jointIndicesBuffer = nullptr;
+        const float* jointWeightsBuffer = nullptr;
         size_t vertexCount = 0;
 
         // Get buffer data for vertex positions
@@ -306,6 +465,24 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
               &(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
         }
 
+        // POI: Get buffer data required for vertex skinning
+        // Get vertex joint indices
+        if (glTFPrimitive.attributes.find("JOINTS_0") != glTFPrimitive.attributes.end()) {
+          const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("JOINTS_0")->second];
+          const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+          jointIndicesBuffer = reinterpret_cast<const uint16_t*>(
+              &(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+        }
+        // Get vertex joint weights
+        if (glTFPrimitive.attributes.find("WEIGHTS_0") != glTFPrimitive.attributes.end()) {
+          const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("WEIGHTS_0")->second];
+          const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+          jointWeightsBuffer = reinterpret_cast<const float*>(
+              &(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+        }
+
+        hasSkin = (jointIndicesBuffer && jointWeightsBuffer);
+
         // Append data to model's vertex buffer
         for (size_t v = 0; v < vertexCount; v++) {
           Vertex3D vert{};
@@ -314,6 +491,8 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
               glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
           vert.texCoord = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * 2]) : glm::vec3(0.0f);
           vert.color = glm::vec3(1.0f);
+          vert.jointIndices = hasSkin ? glm::vec4(glm::make_vec4(&jointIndicesBuffer[v * 4])) : glm::vec4(0.0f);
+          vert.jointWeights = hasSkin ? glm::make_vec4(&jointWeightsBuffer[v * 4]) : glm::vec4(0.0f);
           vertexBuffer.push_back(vert);
         }
       }
@@ -371,6 +550,91 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
   }
 }
 
+// Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
+glm::mat4 ModelGLTF::_getNodeMatrix(NodeGLTF* node) {
+  glm::mat4 nodeMatrix = node->getLocalMatrix();
+  NodeGLTF* currentParent = node->parent;
+  while (currentParent) {
+    nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
+    currentParent = currentParent->parent;
+  }
+  return nodeMatrix;
+}
+
+// POI: Update the joint matrices from the current animation frame and pass them to the GPU
+void ModelGLTF::_updateJoints(NodeGLTF* node) {
+  if (node->skin > -1) {
+    // Update the joint matrices
+    glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
+    SkinGLTF skin = _skins[node->skin];
+    size_t numJoints = (uint32_t)skin.joints.size();
+    std::vector<glm::mat4> jointMatrices(numJoints);
+    for (size_t i = 0; i < numJoints; i++) {
+      jointMatrices[i] = _getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i];
+      jointMatrices[i] = inverseTransform * jointMatrices[i];
+    }
+
+    // TODO: pass to shader
+    memcpy(skin.ssbo->getMappedMemory(), jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
+  }
+
+  for (auto& child : node->children) {
+    _updateJoints(child);
+  }
+}
+
+// Update the current animation
+void ModelGLTF::_updateAnimation(float deltaTime) {
+  if (_activeAnimation > static_cast<uint32_t>(_animations.size()) - 1) {
+    std::cout << "No animation with index " << _activeAnimation << std::endl;
+    return;
+  }
+  AnimationGLTF& animation = _animations[_activeAnimation];
+  animation.currentTime += deltaTime;
+  if (animation.currentTime > animation.end) {
+    animation.currentTime -= animation.end;
+  }
+
+  for (auto& channel : animation.channels) {
+    AnimationSamplerGLTF& sampler = animation.samplers[channel.samplerIndex];
+    for (size_t i = 0; i < sampler.inputs.size() - 1; i++) {
+      if (sampler.interpolation != "LINEAR") {
+        std::cout << "This sample only supports linear interpolations\n";
+        continue;
+      }
+
+      // Get the input keyframe values for the current time stamp
+      if ((animation.currentTime >= sampler.inputs[i]) && (animation.currentTime <= sampler.inputs[i + 1])) {
+        float a = (animation.currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+        if (channel.path == "translation") {
+          channel.node->translation = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+        }
+        if (channel.path == "rotation") {
+          glm::quat q1;
+          q1.x = sampler.outputsVec4[i].x;
+          q1.y = sampler.outputsVec4[i].y;
+          q1.z = sampler.outputsVec4[i].z;
+          q1.w = sampler.outputsVec4[i].w;
+
+          glm::quat q2;
+          q2.x = sampler.outputsVec4[i + 1].x;
+          q2.y = sampler.outputsVec4[i + 1].y;
+          q2.z = sampler.outputsVec4[i + 1].z;
+          q2.w = sampler.outputsVec4[i + 1].w;
+
+          channel.node->rotation = glm::normalize(glm::slerp(q1, q2, a));
+        }
+        if (channel.path == "scale") {
+          channel.node->scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+        }
+      }
+    }
+  }
+  for (auto& node : _nodes) {
+    _updateJoints(node);
+  }
+}
+
 void ModelGLTF::setModel(glm::mat4 model) { _model = model; }
 
 void ModelGLTF::setView(glm::mat4 view) { _view = view; }
@@ -379,16 +643,9 @@ void ModelGLTF::setProjection(glm::mat4 projection) { _projection = projection; 
 
 void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
-    // Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
-    glm::mat4 nodeMatrix = node->matrix;
-    NodeGLTF* currentParent = node->parent;
-    while (currentParent) {
-      nodeMatrix = currentParent->matrix * nodeMatrix;
-      currentParent = currentParent->parent;
-    }
     // pass this matrix to uniforms
     UniformObject ubo{};
-    ubo.model = _model * nodeMatrix;
+    ubo.model = _model * _getNodeMatrix(node);
     ubo.view = _view;
     ubo.projection = _projection;
 
@@ -397,6 +654,10 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
                 &data);
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline->getPipelineLayout(), 1, 1,
+                            &_skins[node->skin].descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
 
     for (PrimitiveGLTF& primitive : node->mesh.primitives) {
       if (primitive.indexCount > 0) {
@@ -412,9 +673,13 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
       }
     }
   }
+
+  for (auto& child : node->children) {
+    _drawNode(currentFrame, child);
+  }
 }
 
-void ModelGLTF::draw(int currentFrame) {
+void ModelGLTF::draw(float frameTimer, int currentFrame) {
   // All vertices and indices are stored in single buffers, so we only need to bind once
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -425,4 +690,6 @@ void ModelGLTF::draw(int currentFrame) {
   for (auto& node : _nodes) {
     _drawNode(currentFrame, node);
   }
+
+  _updateAnimation(frameTimer);
 }

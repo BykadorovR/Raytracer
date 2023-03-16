@@ -24,6 +24,7 @@
 #include "Camera.h"
 
 float fps = 0;
+float frameTimer = 0.f;
 uint64_t currentFrame = 0;
 
 std::shared_ptr<Window> window;
@@ -105,11 +106,11 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   spriteManager = std::make_shared<SpriteManager>(shader2D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
-  modelManager = std::make_shared<Model3DManager>(shader3D, commandPool, commandBuffer, queue, renderPass, device,
-                                                  settings);
+  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
   sprite = spriteManager->createSprite(texture);
   model3D = modelManager->createModel("../data/viking_room.obj");
-  modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
@@ -122,7 +123,7 @@ void initialize() {
   }
   spriteManager->registerSprite(sprite);
   modelManager->registerModel(model3D);
-  modelManager->registerModel(modelGLTF);
+  modelManager->registerModelGLTF(modelGLTF);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -205,7 +206,8 @@ void drawFrame() {
     model3D->setView(camera->getView());
     modelGLTF->setProjection(camera->getProjection());
     modelGLTF->setView(camera->getView());
-    modelManager->draw(currentFrame);
+    modelManager->draw(frameTimer, currentFrame);
+    modelManager->drawGLTF(frameTimer, currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
 
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -267,10 +269,13 @@ void mainLoop() {
   auto startTime = std::chrono::high_resolution_clock::now();
   int frame = 0;
   while (!glfwWindowShouldClose(window->getWindow())) {
+    auto startTimeCurrent = std::chrono::high_resolution_clock::now();
     glfwPollEvents();
     drawFrame();
     frame++;
     auto end = std::chrono::high_resolution_clock::now();
+    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
+    frameTimer = (float)elapsedCurrent / 1000.f;
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
     if (elapsed > 1000.f) {
       fps = (float)frame * (1000.f / elapsed);

@@ -84,7 +84,7 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, _device);
+  _pipeline = std::make_shared<Pipeline>(shader, std::vector{_descriptorSetLayout}, _device);
   _pipeline->createHUD(VertexGUI::getBindingDescription(), VertexGUI::getAttributeDescriptions(), renderPass);
 }
 

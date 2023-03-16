@@ -4,7 +4,9 @@
 class Model3DManager {
  private:
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   std::shared_ptr<Pipeline> _pipeline;
+  std::shared_ptr<Pipeline> _pipelineGLTF;
 
   int _descriptorPoolSize = 100;
   int _modelsCreated = 0;
@@ -16,10 +18,10 @@ class Model3DManager {
   std::shared_ptr<Settings> _settings;
 
   std::vector<std::shared_ptr<Model>> _models;
+  std::vector<std::shared_ptr<Model>> _modelsGLTF;
 
  public:
-  Model3DManager(std::shared_ptr<Shader> shader,
-                 std::shared_ptr<CommandPool> commandPool,
+  Model3DManager(std::shared_ptr<CommandPool> commandPool,
                  std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Queue> queue,
                  std::shared_ptr<RenderPass> render,
@@ -29,6 +31,8 @@ class Model3DManager {
   std::shared_ptr<ModelOBJ> createModel(std::string path);
   std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
   void registerModel(std::shared_ptr<Model> model);
+  void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModel(std::shared_ptr<Model> model);
-  void draw(int currentFrame);
+  void draw(float frameTimer, int currentFrame);
+  void drawGLTF(float frameTimer, int currentFrame);
 };

@@ -85,6 +85,26 @@ void DescriptorSetLayout::createGraphic() {
   }
 }
 
+void DescriptorSetLayout::createJoints() {
+  VkDescriptorSetLayoutBinding ssboLayoutBinding{};
+  ssboLayoutBinding.binding = 0;
+  ssboLayoutBinding.descriptorCount = 1;
+  ssboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding.pImmutableSamplers = nullptr;
+  ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutBinding bindings = ssboLayoutBinding;
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &bindings;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
 void DescriptorSetLayout::createGUI() {
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
@@ -121,13 +141,15 @@ DescriptorSetLayout::~DescriptorSetLayout() {
 DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
   _device = device;
 
-  std::array<VkDescriptorPoolSize, 3> poolSizes{};
+  std::array<VkDescriptorPoolSize, 4> poolSizes{};
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   poolSizes[0].descriptorCount = static_cast<uint32_t>(number);
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   poolSizes[1].descriptorCount = static_cast<uint32_t>(number);
   poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   poolSizes[2].descriptorCount = static_cast<uint32_t>(number);
+  poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  poolSizes[3].descriptorCount = static_cast<uint32_t>(number);
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -195,6 +217,26 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);
+  }
+}
+
+void DescriptorSet::createJoints(std::shared_ptr<Buffer> buffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = buffer->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = buffer->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
   }
 }
 

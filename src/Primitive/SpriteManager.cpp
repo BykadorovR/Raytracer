@@ -16,7 +16,7 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayout->createGraphic();
-  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, device);
+  _pipeline = std::make_shared<Pipeline>(shader, std::vector{_descriptorSetLayout}, device);
   _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
 }
 

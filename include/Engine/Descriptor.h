@@ -11,6 +11,7 @@ class DescriptorSetLayout {
  public:
   DescriptorSetLayout(std::shared_ptr<Device> device);
   void createGraphic();
+  void createJoints();
   void createCompute();
   void createGUI();
   VkDescriptorSetLayout& getDescriptorSetLayout();
@@ -38,6 +39,7 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
+  void createJoints(std::shared_ptr<Buffer> buffer);
   void createGraphic(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,

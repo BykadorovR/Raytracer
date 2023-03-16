@@ -12,7 +12,7 @@
 
 class Model {
  public:
-  virtual void draw(int currentFrame) = 0;
+  virtual void draw(float frameTimer, int currentFrame) = 0;
 };
 
 class ModelOBJ : public Model {
@@ -53,7 +53,7 @@ class ModelOBJ : public Model {
   void setView(glm::mat4 view);
   void setProjection(glm::mat4 projection);
 
-  void draw(int currentFrame);
+  void draw(float frameTimer, int currentFrame);
 };
 
 class ModelGLTF : public Model {
@@ -73,9 +73,25 @@ class ModelGLTF : public Model {
   // A node represents an object in the glTF scene graph
   struct NodeGLTF {
     NodeGLTF* parent;
+    // node index
+    uint32_t index;
     std::vector<NodeGLTF*> children;
     MeshGLTF mesh;
+
+    glm::vec3 translation{};
+    glm::vec3 scale{1.0f};
+    glm::quat rotation{};
     glm::mat4 matrix;
+
+    int32_t skin = -1;
+
+    /* Get a node's local matrix from the current translation, rotation and scale values
+       These are calculated from the current animation and need to be calculated dynamically*/
+    glm::mat4 getLocalMatrix() {
+      return glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0f), scale) *
+             matrix;
+    }
+
     ~NodeGLTF() {
       for (auto& child : children) {
         delete child;
@@ -101,9 +117,43 @@ class ModelGLTF : public Model {
     int32_t imageIndex;
   };
 
+  struct SkinGLTF {
+    std::string name;
+    NodeGLTF* skeletonRoot = nullptr;
+    std::vector<glm::mat4> inverseBindMatrices;
+    std::vector<NodeGLTF*> joints;
+    std::shared_ptr<Buffer> ssbo;
+    std::shared_ptr<DescriptorSet> descriptorSet;
+  };
+
+  struct AnimationSamplerGLTF {
+    std::string interpolation;
+    std::vector<float> inputs;
+    std::vector<glm::vec4> outputsVec4;
+  };
+
+  struct AnimationChannelGLTF {
+    std::string path;
+    NodeGLTF* node;
+    uint32_t samplerIndex;
+  };
+
+  struct AnimationGLTF {
+    std::string name;
+    std::vector<AnimationSamplerGLTF> samplers;
+    std::vector<AnimationChannelGLTF> channels;
+    float start = std::numeric_limits<float>::max();
+    float end = std::numeric_limits<float>::min();
+    float currentTime = 0.0f;
+  };
+
   std::vector<ImageGLTF> _images;
   std::vector<TextureGLTF> _textures;
   std::vector<MaterialGLTF> _materials;
+  std::vector<SkinGLTF> _skins;
+  std::vector<AnimationGLTF> _animations;
+  uint32_t _activeAnimation = 0;
+
   std::vector<NodeGLTF*> _nodes;
   glm::mat4 _model;
   glm::mat4 _view;
@@ -115,17 +165,27 @@ class ModelGLTF : public Model {
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
 
+  void _updateAnimation(float deltaTime);
+  void _updateJoints(NodeGLTF* node);
+  glm::mat4 _getNodeMatrix(NodeGLTF* node);
+  void _loadAnimations(tinygltf::Model& model);
+  void _loadSkins(tinygltf::Model& model);
   void _loadImages(tinygltf::Model& model);
   void _loadMaterials(tinygltf::Model& model);
   void _loadTextures(tinygltf::Model& model);
+
+  NodeGLTF* _findNode(NodeGLTF* parent, uint32_t index);
+  ModelGLTF::NodeGLTF* _nodeFromIndex(uint32_t index);
   void _loadNode(tinygltf::Node& input,
                  tinygltf::Model& model,
                  NodeGLTF* parent,
+                 uint32_t nodeIndex,
                  std::vector<uint32_t>& indexBuffer,
                  std::vector<Vertex3D>& vertexBuffer);
   void _drawNode(int currentFrame, NodeGLTF* node);
@@ -133,6 +193,7 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+            std::shared_ptr<DescriptorSetLayout> descriptorSetLayoutJoints,
             std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandPool> commandPool,
@@ -145,5 +206,5 @@ class ModelGLTF : public Model {
   void setView(glm::mat4 view);
   void setProjection(glm::mat4 projection);
 
-  void draw(int currentFrame);
+  void draw(float frameTimer, int currentFrame);
 };

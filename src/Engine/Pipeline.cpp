@@ -2,7 +2,7 @@
 #include "Buffer.h"
 
 Pipeline::Pipeline(std::shared_ptr<Shader> shader,
-                   std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+                   std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                    std::shared_ptr<Device> device) {
   _device = device;
   _shader = shader;
@@ -13,10 +13,14 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
                          std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
                          std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayout;
+  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
+    descriptorSetLayout.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -123,13 +127,17 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
 }
 
 void Pipeline::createGraphic3D(VkVertexInputBindingDescription bindingDescription,
-                               std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions,
+                               std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayout;
+  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
+    descriptorSetLayout.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
+  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -234,10 +242,14 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
                                std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayout;
+  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
+    descriptorSetLayout.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -346,10 +358,14 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
 
 void Pipeline::createCompute() {
   // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayout;
+  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
+    descriptorSetLayout.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pSetLayouts = &_descriptorSetLayout->getDescriptorSetLayout();
+  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
