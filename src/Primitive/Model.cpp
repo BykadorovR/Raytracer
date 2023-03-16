@@ -398,16 +398,14 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
   // Get the local node matrix
   // It's either made up from translation, rotation, scale or a 4x4 matrix
   if (input.translation.size() == 3) {
-    node->matrix = glm::translate(node->matrix, glm::vec3(glm::make_vec3(input.translation.data())));
+    node->translation = glm::make_vec3(input.translation.data());
   }
-
   if (input.rotation.size() == 4) {
     glm::quat q = glm::make_quat(input.rotation.data());
-    node->matrix *= glm::mat4(q);
+    node->rotation = glm::mat4(q);
   }
-
   if (input.scale.size() == 3) {
-    node->matrix = glm::scale(node->matrix, glm::vec3(glm::make_vec3(input.scale.data())));
+    node->scale = glm::make_vec3(input.scale.data());
   }
 
   if (input.matrix.size() == 16) {
@@ -574,7 +572,6 @@ void ModelGLTF::_updateJoints(NodeGLTF* node) {
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
 
-    // TODO: pass to shader
     memcpy(skin.ssbo->getMappedMemory(), jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
   }
 
@@ -643,9 +640,15 @@ void ModelGLTF::setProjection(glm::mat4 projection) { _projection = projection; 
 
 void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
+    glm::mat4 nodeMatrix = node->matrix;
+    NodeGLTF* currentParent = node->parent;
+    while (currentParent) {
+      nodeMatrix = currentParent->matrix * nodeMatrix;
+      currentParent = currentParent->parent;
+    }
     // pass this matrix to uniforms
     UniformObject ubo{};
-    ubo.model = _model * _getNodeMatrix(node);
+    ubo.model = _model * nodeMatrix;
     ubo.view = _view;
     ubo.projection = _projection;
 

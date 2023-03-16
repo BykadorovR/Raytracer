@@ -165,6 +165,7 @@ class ModelGLTF : public Model {
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Pipeline> _pipeline;

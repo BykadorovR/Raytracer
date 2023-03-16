@@ -117,8 +117,8 @@ void initialize() {
     model3D->setModel(model);
   }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, 0.f));
-    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f));
+    // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
     modelGLTF->setModel(model);
   }
   spriteManager->registerSprite(sprite);
@@ -274,7 +274,7 @@ void mainLoop() {
     drawFrame();
     frame++;
     auto end = std::chrono::high_resolution_clock::now();
-    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
+    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTimeCurrent).count();
     frameTimer = (float)elapsedCurrent / 1000.f;
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
     if (elapsed > 1000.f) {
