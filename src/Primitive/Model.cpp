@@ -739,9 +739,9 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
     for (PrimitiveGLTF& primitive : node->mesh.primitives) {
       if (primitive.indexCount > 0) {
         // Get the texture index for this primitive
-        if (primitive.materialIndex >= 0) {
+        if (_materials.size() > 0 && primitive.materialIndex >= 0) {
           auto material = _materials[primitive.materialIndex];
-          if (material.baseColorTextureIndex >= 0) {
+          if (_textures.size() > 0 && material.baseColorTextureIndex >= 0) {
             TextureGLTF texture = _textures[material.baseColorTextureIndex];
             // Bind the descriptor for the current primitive's texture
             vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
