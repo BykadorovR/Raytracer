@@ -14,9 +14,14 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _settings = settings;
 
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
-  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-  _descriptorSetLayout->createGraphic();
-  _pipeline = std::make_shared<Pipeline>(shader, std::vector{_descriptorSetLayout}, device);
+  _descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(device);
+  _descriptorSetLayoutGraphic->createGraphic();
+
+  _descriptorSetLayoutCamera = std::make_shared<DescriptorSetLayout>(device);
+  _descriptorSetLayoutCamera->createCamera();
+
+  _pipeline = std::make_shared<Pipeline>(shader, std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic},
+                                         device);
   _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
 }
 
@@ -25,8 +30,8 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> tex
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
   }
   _spritesCreated++;
-  return std::make_shared<Sprite>(texture, _descriptorSetLayout, _pipeline, _descriptorPool.back(), _commandPool,
-                                  _commandBuffer, _queue, _device, _settings);
+  return std::make_shared<Sprite>(texture, _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _pipeline,
+                                  _descriptorPool.back(), _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 
 void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) { _sprites.push_back(sprite); }

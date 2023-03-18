@@ -111,13 +111,15 @@ void initialize() {
   model3D = modelManager->createModel("../data/viking_room.obj");
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 1.f, 0.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     model3D->setModel(model);
   }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
     // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
     modelGLTF->setModel(model);
   }
@@ -274,11 +276,11 @@ void mainLoop() {
     drawFrame();
     frame++;
     auto end = std::chrono::high_resolution_clock::now();
-    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTimeCurrent).count();
-    frameTimer = (float)elapsedCurrent / 1000.f;
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - startTime).count();
-    if (elapsed > 1000.f) {
-      fps = (float)frame * (1000.f / elapsed);
+    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::microseconds>(end - startTimeCurrent).count();
+    frameTimer = (float)elapsedCurrent / 1000000.f;
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - startTime).count();
+    if (elapsed > 1000000.f) {
+      fps = (float)frame * (1000000.f / elapsed);
       startTime = end;
       frame = 0;
     }

@@ -21,7 +21,7 @@ class ModelOBJ : public Model {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<DescriptorSet> _descriptorSet;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetGraphic;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<Texture> _texture;
 
@@ -40,7 +40,8 @@ class ModelOBJ : public Model {
  public:
   ModelOBJ(std::string path,
            std::shared_ptr<Texture> texture,
-           std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+           std::shared_ptr<DescriptorSetLayout> layoutCamera,
+           std::shared_ptr<DescriptorSetLayout> layoutGraphic,
            std::shared_ptr<Pipeline> pipeline,
            std::shared_ptr<DescriptorPool> descriptorPool,
            std::shared_ptr<CommandPool> commandPool,
@@ -164,13 +165,14 @@ class ModelGLTF : public Model {
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
-  std::shared_ptr<DescriptorSet> _descriptorSet;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
+
+  std::shared_ptr<Buffer> _defaultSSBO;
+  int _jointsNum;
 
   void _updateAnimation(float deltaTime);
   void _updateJoints(NodeGLTF* node);
@@ -193,8 +195,9 @@ class ModelGLTF : public Model {
 
  public:
   ModelGLTF(std::string path,
-            std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
-            std::shared_ptr<DescriptorSetLayout> descriptorSetLayoutJoints,
+            std::shared_ptr<DescriptorSetLayout> layoutCamera,
+            std::shared_ptr<DescriptorSetLayout> layoutGraphic,
+            std::shared_ptr<DescriptorSetLayout> layoutJoints,
             std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandPool> commandPool,

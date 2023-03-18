@@ -19,7 +19,7 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
@@ -128,6 +128,7 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
 
 void Pipeline::createGraphic3D(VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions,
+                               VkPushConstantRange pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayout;
@@ -138,6 +139,8 @@ void Pipeline::createGraphic3D(VkVertexInputBindingDescription bindingDescriptio
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -248,7 +251,7 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
@@ -364,7 +367,7 @@ void Pipeline::createCompute() {
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = 1;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=

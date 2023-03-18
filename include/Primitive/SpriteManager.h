@@ -4,7 +4,7 @@
 
 class SpriteManager {
  private:
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic;
   std::shared_ptr<Pipeline> _pipeline;
 
   int _descriptorPoolSize = 100;

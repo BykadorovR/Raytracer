@@ -46,6 +46,20 @@ struct Vertex2D {
   }
 };
 
+struct PushConstants {
+  int jointNum;
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant;
+    // this push constant range starts at the beginning
+    pushConstant.offset = 0;
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.size = sizeof(PushConstants);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    return pushConstant;
+  }
+};
+
 struct Vertex3D {
   glm::vec3 pos;
   glm::vec3 normal;

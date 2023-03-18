@@ -14,7 +14,7 @@ class Sprite {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<DescriptorSet> _descriptorSet;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetGraphic;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<Texture> _texture;
 
@@ -33,7 +33,8 @@ class Sprite {
 
  public:
   Sprite(std::shared_ptr<Texture> texture,
-         std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+         std::shared_ptr<DescriptorSetLayout> layoutCamera,
+         std::shared_ptr<DescriptorSetLayout> layoutGraphic,
          std::shared_ptr<Pipeline> pipeline,
          std::shared_ptr<DescriptorPool> descriptorPool,
          std::shared_ptr<CommandPool> commandPool,

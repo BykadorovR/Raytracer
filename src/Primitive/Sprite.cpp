@@ -7,7 +7,8 @@ struct UniformObject {
 };
 
 Sprite::Sprite(std::shared_ptr<Texture> texture,
-               std::shared_ptr<DescriptorSetLayout> descriptorSetLayout,
+               std::shared_ptr<DescriptorSetLayout> layoutCamera,
+               std::shared_ptr<DescriptorSetLayout> layoutGraphic,
                std::shared_ptr<Pipeline> pipeline,
                std::shared_ptr<DescriptorPool> descriptorPool,
                std::shared_ptr<CommandPool> commandPool,
@@ -25,9 +26,14 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
-  _descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout,
-                                                   descriptorPool, device);
-  _descriptorSet->createGraphic(texture, _uniformBuffer);
+
+  _descriptorSetCamera = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutCamera, descriptorPool,
+                                                         device);
+  _descriptorSetCamera->createCamera(_uniformBuffer);
+
+  _descriptorSetGraphic = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
+                                                          descriptorPool, device);
+  _descriptorSetGraphic->createGraphic(texture);
 
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);
@@ -58,9 +64,13 @@ void Sprite::draw(int currentFrame) {
 
   vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
+
   vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
-                          nullptr);
+                          _pipeline->getPipelineLayout(), 0, 1,
+                          &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          _pipeline->getPipelineLayout(), 1, 1,
+                          &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
 
   vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
                    0);

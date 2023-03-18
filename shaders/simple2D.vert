@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
