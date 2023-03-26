@@ -143,8 +143,8 @@ ModelGLTF::ModelGLTF(std::string path,
   bool loaded = loader.LoadASCIIFromFile(&model, &err, &warn, path);
   if (loaded) {
     _loadImages(model);
-    _loadMaterials(model);
     _loadTextures(model);
+    _loadMaterials(model);
 
     const tinygltf::Scene& scene = model.scenes[0];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
@@ -555,6 +555,11 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
 
           vert.jointWeights = hasSkin ? glm::make_vec4(&jointWeightsBuffer[v * weightByteStride]) : glm::vec4(0.0f);
 
+          if (_materials.size() > 0)
+            vert.color = _materials[glTFPrimitive.material].baseColorFactor;
+          else
+            vert.color = glm::vec3(1.f, 1.f, 1.f);
+
           vertexBuffer.push_back(vert);
         }
       }
@@ -623,7 +628,6 @@ glm::mat4 ModelGLTF::_getNodeMatrix(NodeGLTF* node) {
   return nodeMatrix;
 }
 
-// POI: Update the joint matrices from the current animation frame and pass them to the GPU
 void ModelGLTF::_updateJoints(NodeGLTF* node) {
   if (node->skin > -1) {
     // Update the joint matrices
