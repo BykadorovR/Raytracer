@@ -8,7 +8,7 @@ class Model3DManager {
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Pipeline> _pipelineGLTF;
 
-  int _descriptorPoolSize = 100;
+  int _descriptorPoolSize = 300;
   int _modelsCreated = 0;
   std::vector<std::shared_ptr<DescriptorPool>> _descriptorPool;
   std::shared_ptr<CommandPool> _commandPool;
@@ -19,6 +19,7 @@ class Model3DManager {
 
   std::vector<std::shared_ptr<Model>> _models;
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
+  std::shared_ptr<RenderPass> _renderPass;
 
  public:
   Model3DManager(std::shared_ptr<CommandPool> commandPool,

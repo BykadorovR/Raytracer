@@ -119,8 +119,7 @@ void ModelOBJ::draw(float frameTimer, int currentFrame) {
 ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<DescriptorSetLayout> layoutCamera,
                      std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-                     std::shared_ptr<DescriptorSetLayout> layoutJoints,
-                     std::shared_ptr<Pipeline> pipeline,
+                     std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandPool> commandPool,
                      std::shared_ptr<CommandBuffer> commandBuffer,
@@ -130,9 +129,19 @@ ModelGLTF::ModelGLTF(std::string path,
   _device = device;
   _queue = queue;
   _commandPool = commandPool;
-  _pipeline = pipeline;
   _descriptorPool = descriptorPool;
   _commandBuffer = commandBuffer;
+
+  auto shaderGLTF = std::make_shared<Shader>(device);
+  shaderGLTF->add("../shaders/GLTF3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderGLTF->add("../shaders/GLTF3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(device);
+  descriptorSetLayoutJoints->createJoints();
+
+  _defaultPipeline = std::make_shared<Pipeline>(
+      shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints}, device);
+  _defaultPipeline->createGraphic3D(VK_CULL_MODE_BACK_BIT, Vertex3D::getBindingDescription(),
+                                    Vertex3D::getAttributeDescriptions(), PushConstants::getPushConstant(), renderPass);
 
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;
@@ -141,23 +150,30 @@ ModelGLTF::ModelGLTF(std::string path,
   std::vector<uint32_t> indexBuffer;
   std::vector<Vertex3D> vertexBuffer;
   bool loaded = loader.LoadASCIIFromFile(&model, &err, &warn, path);
-  if (loaded) {
-    _loadImages(model);
-    _loadTextures(model);
-    _loadMaterials(model);
+  _loadImages(model);
+  _loadTextures(model);
+  _loadMaterials(model);
 
-    const tinygltf::Scene& scene = model.scenes[0];
-    for (size_t i = 0; i < scene.nodes.size(); i++) {
-      tinygltf::Node& node = model.nodes[scene.nodes[i]];
-      _loadNode(node, model, nullptr, scene.nodes[i], indexBuffer, vertexBuffer);
-    }
+  for (auto& material : _materials) {
+    material.pipeline = std::make_shared<Pipeline>(
+        shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints}, device);
 
-    _loadSkins(model);
-    _loadAnimations(model);
-    // Calculate initial pose
-    for (auto node : _nodes) {
-      _updateJoints(node);
-    }
+    material.pipeline->createGraphic3D(material.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
+                                       Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
+                                       PushConstants::getPushConstant(), renderPass);
+  }
+
+  const tinygltf::Scene& scene = model.scenes[0];
+  for (size_t i = 0; i < scene.nodes.size(); i++) {
+    tinygltf::Node& node = model.nodes[scene.nodes[i]];
+    _loadNode(node, model, nullptr, scene.nodes[i], indexBuffer, vertexBuffer);
+  }
+
+  _loadSkins(model);
+  _loadAnimations(model);
+  // Calculate initial pose
+  for (auto node : _nodes) {
+    _updateJoints(node);
   }
 
   _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
@@ -175,8 +191,8 @@ ModelGLTF::ModelGLTF(std::string path,
     image.descriptorSet->createGraphic(image.texture);
   }
 
-  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutJoints,
-                                                                _descriptorPool, _device);
+  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
+                                                                descriptorSetLayoutJoints, _descriptorPool, _device);
   _defaultSSBO = std::make_shared<Buffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                           _device);
@@ -190,7 +206,7 @@ ModelGLTF::ModelGLTF(std::string path,
 
   // TODO: create descriptor set layout and set for skin->descriptorSet
   for (auto& skin : _skins) {
-    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutJoints,
+    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayoutJoints,
                                                          _descriptorPool, _device);
     skin.descriptorSet->createJoints(skin.ssbo);
   }
@@ -263,6 +279,8 @@ void ModelGLTF::_loadMaterials(tinygltf::Model& model) {
     if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end()) {
       _materials[i].baseColorTextureIndex = glTFMaterial.values["baseColorTexture"].TextureIndex();
     }
+
+    _materials[i].doubleSided = glTFMaterial.doubleSided;
   }
 }
 
@@ -727,16 +745,16 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
     vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
 
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1,
+                            _defaultPipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
 
     if (node->skin >= 0) {
       vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 2, 1,
+                              _defaultPipeline->getPipelineLayout(), 2, 1,
                               &_skins[node->skin].descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
     } else {
       vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 2, 1,
+                              _defaultPipeline->getPipelineLayout(), 2, 1,
                               &_descriptorSetJointsDefault->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
@@ -745,14 +763,20 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
         // Get the texture index for this primitive
         if (_materials.size() > 0 && primitive.materialIndex >= 0) {
           auto material = _materials[primitive.materialIndex];
+          vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            material.pipeline->getPipeline());
+
           if (_textures.size() > 0 && material.baseColorTextureIndex >= 0) {
             TextureGLTF texture = _textures[material.baseColorTextureIndex];
             // Bind the descriptor for the current primitive's texture
             vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    _pipeline->getPipelineLayout(), 1, 1,
+                                    material.pipeline->getPipelineLayout(), 1, 1,
                                     &_images[texture.imageIndex].descriptorSet->getDescriptorSets()[currentFrame], 0,
                                     nullptr);
           }
+        } else {
+          vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _defaultPipeline->getPipeline());
         }
         vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], primitive.indexCount, 1,
                          primitive.firstIndex, 0, 0);
@@ -768,7 +792,7 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
 void ModelGLTF::draw(float frameTimer, int currentFrame) {
   PushConstants pushConstants;
   pushConstants.jointNum = _jointsNum;
-  vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+  vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _defaultPipeline->getPipelineLayout(),
                      VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pushConstants);
 
   // All vertices and indices are stored in single buffers, so we only need to bind once

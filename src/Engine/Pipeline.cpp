@@ -126,7 +126,8 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
   }
 }
 
-void Pipeline::createGraphic3D(VkVertexInputBindingDescription bindingDescription,
+void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
+                               VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions,
                                VkPushConstantRange pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
@@ -173,7 +174,7 @@ void Pipeline::createGraphic3D(VkVertexInputBindingDescription bindingDescriptio
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   rasterizer.lineWidth = 1.0f;
   // switch cull mode because we invert Y
-  rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizer.cullMode = cullMode;
   rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -285,7 +286,7 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   rasterizer.lineWidth = 1.0f;
   // switch cull mode because we invert Y
-  rasterizer.cullMode = rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
   rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;
 

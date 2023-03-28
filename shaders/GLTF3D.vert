@@ -20,8 +20,7 @@ layout(location = 5) in vec4 jointWeights;
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
-layout( push_constant ) uniform constants
-{
+layout( push_constant ) uniform constants {
     int jointNum;
 } PushConstants;
 

@@ -111,8 +111,10 @@ void initialize() {
   model3D = modelManager->createModel("../data/viking_room.obj");
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));

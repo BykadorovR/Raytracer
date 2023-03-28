@@ -104,6 +104,8 @@ class ModelGLTF : public Model {
   struct MaterialGLTF {
     glm::vec4 baseColorFactor = glm::vec4(1.0f);
     uint32_t baseColorTextureIndex;
+    bool doubleSided;
+    std::shared_ptr<Pipeline> pipeline;
   };
 
   // Images may be reused by texture objects and are as such separated
@@ -167,10 +169,10 @@ class ModelGLTF : public Model {
   std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
-
+  // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
+  std::shared_ptr<Pipeline> _defaultPipeline;
   std::shared_ptr<Buffer> _defaultSSBO;
   int _jointsNum;
 
@@ -197,8 +199,7 @@ class ModelGLTF : public Model {
   ModelGLTF(std::string path,
             std::shared_ptr<DescriptorSetLayout> layoutCamera,
             std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-            std::shared_ptr<DescriptorSetLayout> layoutJoints,
-            std::shared_ptr<Pipeline> pipeline,
+            std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandPool> commandPool,
             std::shared_ptr<CommandBuffer> commandBuffer,

@@ -11,35 +11,23 @@ Model3DManager::Model3DManager(std::shared_ptr<CommandPool> commandPool,
   _queue = queue;
   _device = device;
   _settings = settings;
+  _renderPass = render;
 
   auto shader3D = std::make_shared<Shader>(device);
   shader3D->add("../shaders/simple3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader3D->add("../shaders/simple3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  auto shaderGLTF = std::make_shared<Shader>(device);
-  shaderGLTF->add("../shaders/GLTF3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shaderGLTF->add("../shaders/GLTF3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayoutGraphic->createGraphic();
-
-  _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(device);
-  _descriptorSetLayoutJoints->createJoints();
 
   _descriptorSetLayoutCamera = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayoutCamera->createCamera();
 
   _pipeline = std::make_shared<Pipeline>(shader3D, std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic},
                                          device);
-  _pipeline->createGraphic3D(Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
-                             PushConstants::getPushConstant(), render);
-
-  _pipelineGLTF = std::make_shared<Pipeline>(
-      shaderGLTF, std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _descriptorSetLayoutJoints},
-      device);
-  _pipelineGLTF->createGraphic3D(Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
-                                 PushConstants::getPushConstant(), render);
+  _pipeline->createGraphic3D(VK_CULL_MODE_BACK_BIT, Vertex3D::getBindingDescription(),
+                             Vertex3D::getAttributeDescriptions(), PushConstants::getPushConstant(), render);
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
@@ -47,9 +35,8 @@ std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
   }
   _modelsCreated++;
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic,
-                                     _descriptorSetLayoutJoints, _pipelineGLTF, _descriptorPool.back(), _commandPool,
-                                     _commandBuffer, _queue, _device, _settings);
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _renderPass,
+                                     _descriptorPool.back(), _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 
 std::shared_ptr<ModelOBJ> Model3DManager::createModel(std::string path) {
@@ -100,9 +87,6 @@ void Model3DManager::draw(float frameTimer, int currentFrame) {
 }
 
 void Model3DManager::drawGLTF(float frameTimer, int currentFrame) {
-  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipelineGLTF->getPipeline());
-
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(_settings->getResolution());

@@ -20,7 +20,8 @@ class Pipeline {
   void createGraphic2D(VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
-  void createGraphic3D(VkVertexInputBindingDescription bindingDescription,
+  void createGraphic3D(VkCullModeFlags cullMode,
+                       VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions,
                        VkPushConstantRange pushConstants,
                        std::shared_ptr<RenderPass> renderPass);
