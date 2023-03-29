@@ -11,6 +11,11 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
+struct ModelAuxilary {
+  VkBool32 alphaMask;
+  float alphaMaskCutoff;
+};
+
 void ModelOBJ::_loadModel() {
   tinyobj::attrib_t attrib;
   std::vector<tinyobj::shape_t> shapes;
@@ -138,8 +143,12 @@ ModelGLTF::ModelGLTF(std::string path,
   auto descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(device);
   descriptorSetLayoutJoints->createJoints();
 
+  auto descriptorSetLayoutModelAuxilary = std::make_shared<DescriptorSetLayout>(device);
+  descriptorSetLayoutModelAuxilary->createModelAuxilary();
+
   _defaultPipeline = std::make_shared<Pipeline>(
-      shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints}, device);
+      shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary},
+      device);
   _defaultPipeline->createGraphic3D(VK_CULL_MODE_BACK_BIT, Vertex3D::getBindingDescription(),
                                     Vertex3D::getAttributeDescriptions(), PushConstants::getPushConstant(), renderPass);
 
@@ -156,11 +165,18 @@ ModelGLTF::ModelGLTF(std::string path,
 
   for (auto& material : _materials) {
     material.pipeline = std::make_shared<Pipeline>(
-        shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints}, device);
+        shaderGLTF,
+        std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary}, device);
 
     material.pipeline->createGraphic3D(material.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
                                        Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
                                        PushConstants::getPushConstant(), renderPass);
+
+    material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
+                                                                   sizeof(ModelAuxilary), commandPool, queue, device);
+    material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
+        settings->getMaxFramesInFlight(), descriptorSetLayoutModelAuxilary, descriptorPool, device);
+    material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
   }
 
   const tinygltf::Scene& scene = model.scenes[0];
@@ -281,6 +297,8 @@ void ModelGLTF::_loadMaterials(tinygltf::Model& model) {
     }
 
     _materials[i].doubleSided = glTFMaterial.doubleSided;
+    _materials[i].alphaMask = (glTFMaterial.alphaMode == "MASK");
+    _materials[i].alphaMaskCutoff = glTFMaterial.alphaCutoff;
   }
 }
 
@@ -763,9 +781,25 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
         // Get the texture index for this primitive
         if (_materials.size() > 0 && primitive.materialIndex >= 0) {
           auto material = _materials[primitive.materialIndex];
+
+          // pass this matrix to uniforms
+          ModelAuxilary aux{};
+          aux.alphaMask = material.alphaMask;
+          aux.alphaMaskCutoff = material.alphaMaskCutoff;
+
+          void* data;
+          vkMapMemory(_device->getLogicalDevice(), material.bufferModelAuxilary->getBuffer()[currentFrame]->getMemory(),
+                      0, sizeof(aux), 0, &data);
+          memcpy(data, &aux, sizeof(aux));
+          vkUnmapMemory(_device->getLogicalDevice(),
+                        material.bufferModelAuxilary->getBuffer()[currentFrame]->getMemory());
+
+          vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  _defaultPipeline->getPipelineLayout(), 3, 1,
+                                  &material.descriptorSetModelAuxilary->getDescriptorSets()[currentFrame], 0, nullptr);
+
           vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             material.pipeline->getPipeline());
-
           if (_textures.size() > 0 && material.baseColorTextureIndex >= 0) {
             TextureGLTF texture = _textures[material.baseColorTextureIndex];
             // Bind the descriptor for the current primitive's texture

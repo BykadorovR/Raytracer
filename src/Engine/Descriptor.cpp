@@ -96,6 +96,25 @@ void DescriptorSetLayout::createGraphic() {
   }
 }
 
+void DescriptorSetLayout::createModelAuxilary() {
+  VkDescriptorSetLayoutBinding modelAuxilary{};
+  modelAuxilary.binding = 0;
+  modelAuxilary.descriptorCount = 1;
+  modelAuxilary.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  modelAuxilary.pImmutableSamplers = nullptr;
+  modelAuxilary.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &modelAuxilary;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
 void DescriptorSetLayout::createJoints() {
   VkDescriptorSetLayoutBinding ssboLayoutBinding{};
   ssboLayoutBinding.binding = 0;
@@ -212,6 +231,26 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture) {
     descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites.descriptorCount = 1;
     descriptorWrites.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
   }

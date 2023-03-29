@@ -105,7 +105,11 @@ class ModelGLTF : public Model {
     glm::vec4 baseColorFactor = glm::vec4(1.0f);
     uint32_t baseColorTextureIndex;
     bool doubleSided;
+    int alphaMask;
+    float alphaMaskCutoff = 0.f;
     std::shared_ptr<Pipeline> pipeline;
+    std::shared_ptr<UniformBuffer> bufferModelAuxilary;
+    std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
   };
 
   // Images may be reused by texture objects and are as such separated
