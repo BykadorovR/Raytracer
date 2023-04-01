@@ -15,6 +15,7 @@ layout(set = 3, binding = 0) uniform AlphaMask {
 
 void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
+    texture(normalSampler, fragTexCoord);
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
             discard;

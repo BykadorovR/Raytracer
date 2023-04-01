@@ -182,8 +182,8 @@ ModelGLTF::ModelGLTF(std::string path,
 
     material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
                                                              _descriptorPool, _device);
-    material.descriptorSet->createGraphicModel(_images[material.baseColorTextureIndex].texture,
-                                               _images[material.normalTextureIndex].texture);
+    material.descriptorSet->createGraphicModel(_images[_textures[material.baseColorTextureIndex].imageIndex].texture,
+                                               _images[_textures[material.normalTextureIndex].imageIndex].texture);
   }
 
   const tinygltf::Scene& scene = model.scenes[0];
