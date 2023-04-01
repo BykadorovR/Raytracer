@@ -128,7 +128,7 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
 
 void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
                                VkVertexInputBindingDescription bindingDescription,
-                               std::array<VkVertexInputAttributeDescription, 6> attributeDescriptions,
+                               std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
                                VkPushConstantRange pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout

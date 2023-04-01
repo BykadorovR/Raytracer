@@ -104,18 +104,19 @@ class ModelGLTF : public Model {
   struct MaterialGLTF {
     glm::vec4 baseColorFactor = glm::vec4(1.0f);
     uint32_t baseColorTextureIndex;
+    uint32_t normalTextureIndex;
     bool doubleSided;
     int alphaMask;
     float alphaMaskCutoff = 0.f;
     std::shared_ptr<Pipeline> pipeline;
     std::shared_ptr<UniformBuffer> bufferModelAuxilary;
     std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
+    std::shared_ptr<DescriptorSet> descriptorSet;
   };
 
   // Images may be reused by texture objects and are as such separated
   struct ImageGLTF {
     std::shared_ptr<Texture> texture;
-    std::shared_ptr<DescriptorSet> descriptorSet;
   };
 
   // A glTF texture stores a reference to the image and a sampler
@@ -202,7 +203,6 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::shared_ptr<DescriptorSetLayout> layoutCamera,
-            std::shared_ptr<DescriptorSetLayout> layoutGraphic,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandPool> commandPool,

@@ -123,7 +123,6 @@ void ModelOBJ::draw(float frameTimer, int currentFrame) {
 
 ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<DescriptorSetLayout> layoutCamera,
-                     std::shared_ptr<DescriptorSetLayout> layoutGraphic,
                      std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandPool> commandPool,
@@ -145,6 +144,9 @@ ModelGLTF::ModelGLTF(std::string path,
 
   auto descriptorSetLayoutModelAuxilary = std::make_shared<DescriptorSetLayout>(device);
   descriptorSetLayoutModelAuxilary->createModelAuxilary();
+
+  auto layoutGraphic = std::make_shared<DescriptorSetLayout>(device);
+  layoutGraphic->createGraphicModel();
 
   _defaultPipeline = std::make_shared<Pipeline>(
       shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary},
@@ -177,6 +179,11 @@ ModelGLTF::ModelGLTF(std::string path,
     material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
         settings->getMaxFramesInFlight(), descriptorSetLayoutModelAuxilary, descriptorPool, device);
     material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
+
+    material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
+                                                             _descriptorPool, _device);
+    material.descriptorSet->createGraphicModel(_images[material.baseColorTextureIndex].texture,
+                                               _images[material.normalTextureIndex].texture);
   }
 
   const tinygltf::Scene& scene = model.scenes[0];
@@ -200,12 +207,6 @@ ModelGLTF::ModelGLTF(std::string path,
   _descriptorSetCamera = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutCamera, descriptorPool,
                                                          device);
   _descriptorSetCamera->createCamera(_uniformBuffer);
-
-  for (auto& image : _images) {
-    image.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
-                                                          _descriptorPool, _device);
-    image.descriptorSet->createGraphic(image.texture);
-  }
 
   _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
                                                                 descriptorSetLayoutJoints, _descriptorPool, _device);
@@ -232,52 +233,57 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
   _images.resize(model.images.size());
   for (int i = 0; i < model.images.size(); i++) {
     tinygltf::Image& glTFImage = model.images[i];
-    // Get the image data from the glTF loader
-    unsigned char* buffer = nullptr;
-    int bufferSize = 0;
-    bool deleteBuffer = false;
-    // We convert RGB-only images to RGBA, as most devices don't support RGB-formats in Vulkan
-    if (glTFImage.component == 3) {
-      bufferSize = glTFImage.width * glTFImage.height * 4;
-      buffer = new unsigned char[bufferSize];
-      unsigned char* rgba = buffer;
-      unsigned char* rgb = &glTFImage.image[0];
-      for (size_t i = 0; i < glTFImage.width * glTFImage.height; ++i) {
-        memcpy(rgba, rgb, sizeof(unsigned char) * 3);
-        rgba += 4;
-        rgb += 3;
-      }
-      deleteBuffer = true;
+    // TODO: check if such file exists and load it from disk
+    if (std::filesystem::exists(glTFImage.uri)) {
+      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, _commandPool, _queue, _device);
     } else {
-      buffer = &glTFImage.image[0];
-      bufferSize = glTFImage.image.size();
-    }
+      // Get the image data from the glTF loader
+      unsigned char* buffer = nullptr;
+      int bufferSize = 0;
+      bool deleteBuffer = false;
+      // We convert RGB-only images to RGBA, as most devices don't support RGB-formats in Vulkan
+      if (glTFImage.component == 3) {
+        bufferSize = glTFImage.width * glTFImage.height * 4;
+        buffer = new unsigned char[bufferSize];
+        unsigned char* rgba = buffer;
+        unsigned char* rgb = &glTFImage.image[0];
+        for (size_t i = 0; i < glTFImage.width * glTFImage.height; ++i) {
+          memcpy(rgba, rgb, sizeof(unsigned char) * 3);
+          rgba += 4;
+          rgb += 3;
+        }
+        deleteBuffer = true;
+      } else {
+        buffer = &glTFImage.image[0];
+        bufferSize = glTFImage.image.size();
+      }
 
-    // copy buffer to Texture
-    auto stagingBuffer = std::make_shared<Buffer>(
-        bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
+      // copy buffer to Texture
+      auto stagingBuffer = std::make_shared<Buffer>(
+          bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
 
-    void* data;
-    vkMapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-    memcpy(data, buffer, bufferSize);
-    vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
+      void* data;
+      vkMapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+      memcpy(data, buffer, bufferSize);
+      vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
-    auto image = std::make_shared<Image>(
-        std::tuple{glTFImage.width, glTFImage.height}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
+      auto image = std::make_shared<Image>(
+          std::tuple{glTFImage.width, glTFImage.height}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
 
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _commandPool, _queue);
-    image->copyFrom(stagingBuffer, _commandPool, _queue);
-    image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
+      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _commandPool, _queue);
+      image->copyFrom(stagingBuffer, _commandPool, _queue);
+      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
 
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, _device);
-    auto texture = std::make_shared<Texture>(imageView, _device);
+      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, _device);
+      auto texture = std::make_shared<Texture>(imageView, _device);
 
-    _images[i].texture = texture;
+      _images[i].texture = texture;
 
-    if (deleteBuffer) {
-      delete[] buffer;
+      if (deleteBuffer) {
+        delete[] buffer;
+      }
     }
   }
 }
@@ -294,6 +300,10 @@ void ModelGLTF::_loadMaterials(tinygltf::Model& model) {
     // Get base color texture index
     if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end()) {
       _materials[i].baseColorTextureIndex = glTFMaterial.values["baseColorTexture"].TextureIndex();
+    }
+    // Get normal texture
+    if (glTFMaterial.additionalValues.find("normalTexture") != glTFMaterial.additionalValues.end()) {
+      _materials[i].normalTextureIndex = glTFMaterial.additionalValues["normalTexture"].TextureIndex();
     }
 
     _materials[i].doubleSided = glTFMaterial.doubleSided;
@@ -499,6 +509,7 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
         const float* texCoordsBuffer = nullptr;
         const void* jointIndicesBuffer = nullptr;
         const float* jointWeightsBuffer = nullptr;
+        const float* tangentsBuffer = nullptr;
         size_t vertexCount = 0;
 
         int jointByteStride;
@@ -507,6 +518,7 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
         int normalByteStride;
         int uv0ByteStride;
         int weightByteStride;
+        int tangentByteStride;
         // Get buffer data for vertex positions
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
           const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("POSITION")->second];
@@ -535,6 +547,15 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
               &(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           uv0ByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                     : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC2);
+        }
+
+        if (glTFPrimitive.attributes.find("TANGENT") != glTFPrimitive.attributes.end()) {
+          const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("TANGENT")->second];
+          const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
+          tangentsBuffer = reinterpret_cast<const float*>(
+              &(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+          tangentByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
+                                                        : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC4);
         }
 
         // POI: Get buffer data required for vertex skinning
@@ -595,6 +616,8 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
             vert.color = _materials[glTFPrimitive.material].baseColorFactor;
           else
             vert.color = glm::vec3(1.f, 1.f, 1.f);
+
+          vert.tangent = tangentsBuffer ? glm::make_vec4(&tangentsBuffer[v * tangentByteStride]) : glm::vec4(0.0f);
 
           vertexBuffer.push_back(vert);
         }
@@ -801,12 +824,9 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
           vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             material.pipeline->getPipeline());
           if (_textures.size() > 0 && material.baseColorTextureIndex >= 0) {
-            TextureGLTF texture = _textures[material.baseColorTextureIndex];
-            // Bind the descriptor for the current primitive's texture
             vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     material.pipeline->getPipelineLayout(), 1, 1,
-                                    &_images[texture.imageIndex].descriptorSet->getDescriptorSets()[currentFrame], 0,
-                                    nullptr);
+                                    &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
           }
         } else {
           vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

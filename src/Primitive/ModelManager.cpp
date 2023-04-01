@@ -35,8 +35,8 @@ std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
     _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
   }
   _modelsCreated++;
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _renderPass,
-                                     _descriptorPool.back(), _commandPool, _commandBuffer, _queue, _device, _settings);
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayoutCamera, _renderPass, _descriptorPool.back(),
+                                     _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 
 std::shared_ptr<ModelOBJ> Model3DManager::createModel(std::string path) {

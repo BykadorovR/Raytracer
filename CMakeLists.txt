@@ -56,7 +56,6 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
-
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
   "cmake_minimum_required(VERSION 3.16)\n"

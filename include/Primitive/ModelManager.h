@@ -3,7 +3,8 @@
 
 class Model3DManager {
  private:
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGraphic, _descriptorSetLayoutCamera;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGraphic, _descriptorSetLayoutCamera,
+      _descriptorSetLayoutGraphicModel;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Pipeline> _pipelineGLTF;
