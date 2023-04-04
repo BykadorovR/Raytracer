@@ -7,6 +7,7 @@ struct UniformObject {
 };
 
 Sprite::Sprite(std::shared_ptr<Texture> texture,
+               std::shared_ptr<Texture> normalMap,
                std::shared_ptr<DescriptorSetLayout> layoutCamera,
                std::shared_ptr<DescriptorSetLayout> layoutGraphic,
                std::shared_ptr<Pipeline> pipeline,
@@ -21,6 +22,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _device = device;
   _settings = settings;
   _texture = texture;
+  _normalMap = normalMap;
 
   _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
@@ -33,7 +35,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
 
   _descriptorSetGraphic = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
                                                           descriptorPool, device);
-  _descriptorSetGraphic->createGraphic(texture);
+  _descriptorSetGraphic->createGraphicModel(texture, normalMap);
 
   _model = glm::mat4(1.f);
   _view = glm::mat4(1.f);

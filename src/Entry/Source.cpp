@@ -100,14 +100,15 @@ void initialize() {
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
 
-  auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", commandPool, queue, device);
+  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   spriteManager = std::make_shared<SpriteManager>(shader2D, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
   modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
-  sprite = spriteManager->createSprite(texture);
+  sprite = spriteManager->createSprite(texture, normalMap);
   model3D = modelManager->createModel("../data/viking_room.obj");
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");

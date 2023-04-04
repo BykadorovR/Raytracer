@@ -8,11 +8,12 @@
 
 struct Vertex2D {
   glm::vec3 pos;
+  glm::vec3 normal;
   glm::vec3 color;
   glm::vec2 texCoord;
 
   bool operator==(const Vertex2D& other) const {
-    return pos == other.pos && texCoord == other.texCoord && color == other.color;
+    return pos == other.pos && texCoord == other.texCoord && color == other.color && normal == other.normal;
   }
 
   static VkVertexInputBindingDescription getBindingDescription() {
@@ -24,8 +25,8 @@ struct Vertex2D {
     return bindingDescription;
   }
 
-  static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+  static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -35,12 +36,17 @@ struct Vertex2D {
     attributeDescriptions[1].binding = 0;
     attributeDescriptions[1].location = 1;
     attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Vertex2D, color);
+    attributeDescriptions[1].offset = offsetof(Vertex2D, normal);
 
     attributeDescriptions[2].binding = 0;
     attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(Vertex2D, texCoord);
+    attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(Vertex2D, color);
+
+    attributeDescriptions[3].binding = 0;
+    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[3].offset = offsetof(Vertex2D, texCoord);
 
     return attributeDescriptions;
   }
