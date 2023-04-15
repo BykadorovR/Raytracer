@@ -22,6 +22,7 @@
 #include "GUI.h"
 #include "Input.h"
 #include "Camera.h"
+#include "LightManager.h"
 
 float fps = 0;
 float frameTimer = 0.f;
@@ -41,7 +42,7 @@ std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinished
 std::vector<std::shared_ptr<Fence>> inFlightFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
-std::shared_ptr<Sprite> sprite1, sprite2;
+std::shared_ptr<ModelGLTF> lightModel;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ModelOBJ> model3D;
 std::shared_ptr<ModelGLTF> modelGLTF;
@@ -51,8 +52,8 @@ std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass;
 std::shared_ptr<Framebuffer> frameBuffer;
 std::shared_ptr<CameraFly> camera;
-
-std::shared_ptr<Sprite> sprite;
+std::shared_ptr<LightManager> lightManager;
+std::shared_ptr<PhongLight> phongLight;
 
 PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
 PFN_vkCmdEndDebugUtilsLabelEXT CmdEndDebugUtilsLabelEXT;
@@ -100,35 +101,77 @@ void initialize() {
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", commandPool, queue, device);
+  auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
-  spriteManager = std::make_shared<SpriteManager>(shader2D, commandPool, commandBuffer, queue, renderPass, device,
-                                                  settings);
+  lightManager = std::make_shared<LightManager>(settings, device);
+  phongLight = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.2f, 1.f);
+
+  spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
+                                                  device, settings);
   modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
-  sprite = spriteManager->createSprite(texture, normalMap);
-  model3D = modelManager->createModel("../data/viking_room.obj");
+
+  auto sprite = spriteManager->createSprite(texture, normalMap);
+  auto sprite2 = spriteManager->createSprite(texture, normalMap);
+  auto sprite3 = spriteManager->createSprite(texture, normalMap);
+  auto sprite4 = spriteManager->createSprite(texture, normalMap);
+  auto sprite5 = spriteManager->createSprite(texture, normalMap);
+  auto sprite6 = spriteManager->createSprite(texture, normalMap);
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
+    model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
+    sprite6->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
+    model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+    sprite2->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
+    sprite3->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
+    model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    sprite4->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
+    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+    sprite5->setModel(model);
+  }
+
+  lightModel = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
+  // model3D = modelManager->createModel("../data/viking_room.obj");
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
-    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    model3D->setModel(model);
-  }
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
-    // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-    modelGLTF->setModel(model);
-  }
+  //{
+  //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
+  //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+  //  model3D->setModel(model);
+  //}
+  //{
+  //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
+  //  // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+  //  modelGLTF->setModel(model);
+  //}
   spriteManager->registerSprite(sprite);
-  modelManager->registerModel(model3D);
-  modelManager->registerModelGLTF(modelGLTF);
+  spriteManager->registerSprite(sprite2);
+  spriteManager->registerSprite(sprite3);
+  spriteManager->registerSprite(sprite4);
+  spriteManager->registerSprite(sprite5);
+  spriteManager->registerSprite(sprite6);
+  modelManager->registerModelGLTF(lightModel);
+  /*modelManager->registerModel(model3D);
+  modelManager->registerModelGLTF(modelGLTF);*/
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -202,15 +245,30 @@ void drawFrame() {
     auto renderPassInfo = render(imageIndex, renderPass, frameBuffer, swapchain);
 
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    static float angle = 90.f;
+    glm::vec3 lightPosition = glm::vec3(3.f * cos(glm::radians(angle)), 0.f, 3.f * sin(glm::radians(angle)));
+    /*static float angle = 0.f;
+    glm::vec3 lightPosition = glm::vec3(0.f, 3.f * sin(glm::radians(angle)),
+                                        3.f * cos(glm::radians(angle)));*/
+
+    phongLight->setPosition(lightPosition);
+    angle += 0.01f;
+
+    lightManager->draw(currentFrame);
+
+    glm::mat4 model = glm::translate(glm::mat4(1.f), lightPosition);
+    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
+    lightModel->setModel(model);
+    lightModel->setProjection(camera->getProjection());
+    lightModel->setView(camera->getView());
     // draw scene here
-    sprite->setProjection(camera->getProjection());
-    sprite->setView(camera->getView());
+    spriteManager->setCamera(camera);
     spriteManager->draw(currentFrame);
 
-    model3D->setProjection(camera->getProjection());
+    /*model3D->setProjection(camera->getProjection());
     model3D->setView(camera->getView());
     modelGLTF->setProjection(camera->getProjection());
-    modelGLTF->setView(camera->getView());
+    modelGLTF->setView(camera->getView());*/
     modelManager->draw(frameTimer, currentFrame);
     modelManager->drawGLTF(frameTimer, currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);

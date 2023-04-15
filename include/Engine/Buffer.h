@@ -66,6 +66,21 @@ struct PushConstants {
   }
 };
 
+struct SpritePush {
+  int lightNum;
+  alignas(16) glm::vec3 cameraPosition;
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant;
+    // this push constant range starts at the beginning
+    pushConstant.offset = 0;
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.size = sizeof(SpritePush);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    return pushConstant;
+  }
+};
+
 struct Vertex3D {
   glm::vec3 pos;
   glm::vec3 normal;

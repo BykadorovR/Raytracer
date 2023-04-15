@@ -31,6 +31,8 @@ glm::mat4 Camera::getProjection() {
   return projection;
 }
 
+std::shared_ptr<ViewParameters> Camera::getViewParameters() { return _viewParams; }
+
 CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera(settings) {
   _once = false;
   _xLast = 0.f;

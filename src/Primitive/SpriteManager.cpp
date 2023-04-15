@@ -1,6 +1,7 @@
 #include "SpriteManager.h"
 
 SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
+                             std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandPool> commandPool,
                              std::shared_ptr<CommandBuffer> commandBuffer,
                              std::shared_ptr<Queue> queue,
@@ -12,6 +13,7 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _queue = queue;
   _device = device;
   _settings = settings;
+  _lightManager = lightManager;
 
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(device);
@@ -20,9 +22,12 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _descriptorSetLayoutCamera = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayoutCamera->createCamera();
 
-  _pipeline = std::make_shared<Pipeline>(shader, std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic},
-                                         device);
-  _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
+  _pipeline = std::make_shared<Pipeline>(
+      shader,
+      std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _lightManager->getDescriptorSetLayout()},
+      device);
+  _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(),
+                             SpritePush::getPushConstant(), render);
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
@@ -35,6 +40,8 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> tex
                                   _pipeline, _descriptorPool.back(), _commandPool, _commandBuffer, _queue, _device,
                                   _settings);
 }
+
+void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) { _sprites.push_back(sprite); }
 
@@ -60,7 +67,18 @@ void SpriteManager::draw(int currentFrame) {
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  SpritePush pushConstants;
+  pushConstants.cameraPosition = _camera->getViewParameters()->eye;
+  pushConstants.lightNum = _lightManager->getLights().size();
+  vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SpritePush), &pushConstants);
+
+  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          _pipeline->getPipelineLayout(), 2, 1,
+                          &_lightManager->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, nullptr);
+
   for (auto sprite : _sprites) {
+    sprite->setCamera(_camera);
     sprite->draw(currentFrame);
   }
 }

@@ -7,6 +7,8 @@
 #include "Command.h"
 #include "Queue.h"
 #include "Settings.h"
+#include "Camera.h"
+#include "LightManager.h"
 
 class Sprite {
  private:
@@ -18,19 +20,20 @@ class Sprite {
   std::shared_ptr<CommandBuffer> _commandBuffer;
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
+  std::shared_ptr<Camera> _camera;
 
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
 
-  glm::mat4 _model, _view, _projection;
+  glm::mat4 _model;
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
-  const std::vector<Vertex2D> _vertices = {{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                                           {{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
-                                           {{-0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                                           {{-0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}}};
+  std::vector<Vertex2D> _vertices = {{{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                                     {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},
+                                     {{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                                     {{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}}};
 
-  const std::vector<uint32_t> _indices = {2, 1, 0, 0, 3, 2};
+  const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
 
  public:
   Sprite(std::shared_ptr<Texture> texture,
@@ -46,8 +49,7 @@ class Sprite {
          std::shared_ptr<Settings> settings);
 
   void setModel(glm::mat4 model);
-  void setView(glm::mat4 view);
-  void setProjection(glm::mat4 projection);
-
+  void setCamera(std::shared_ptr<Camera> camera);
+  void setNormal(glm::vec3 normal);
   void draw(int currentFrame);
 };

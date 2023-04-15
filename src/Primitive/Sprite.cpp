@@ -38,21 +38,23 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _descriptorSetGraphic->createGraphicModel(texture, normalMap);
 
   _model = glm::mat4(1.f);
-  _view = glm::mat4(1.f);
-  _projection = glm::mat4(1.f);
 }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }
 
-void Sprite::setView(glm::mat4 view) { _view = view; }
+void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Sprite::setProjection(glm::mat4 projection) { _projection = projection; }
+void Sprite::setNormal(glm::vec3 normal) {
+  for (auto& vertex : _vertices) {
+    vertex.normal = normal;
+  }
+}
 
 void Sprite::draw(int currentFrame) {
   UniformObject ubo{};
   ubo.model = _model;
-  ubo.view = _view;
-  ubo.projection = _projection;
+  ubo.view = _camera->getView();
+  ubo.projection = _camera->getProjection();
 
   void* data;
   vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,

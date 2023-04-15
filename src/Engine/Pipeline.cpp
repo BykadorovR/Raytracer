@@ -244,6 +244,7 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
 
 void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions,
+                               VkPushConstantRange pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayout;
@@ -254,6 +255,8 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -287,6 +290,7 @@ void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescriptio
   rasterizer.lineWidth = 1.0f;
   // switch cull mode because we invert Y
   rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+  // rasterizer.cullMode = VK_CULL_MODE_NONE;
   rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;
 
