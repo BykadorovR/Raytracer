@@ -63,6 +63,10 @@ void Model3DManager::unregisterModel(std::shared_ptr<Model> model) {
   _models.erase(std::remove(_models.begin(), _models.end(), model), _models.end());
 }
 
+void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
+  _modelsGLTF.erase(std::remove(_modelsGLTF.begin(), _modelsGLTF.end(), model), _modelsGLTF.end());
+}
+
 void Model3DManager::draw(float frameTimer, int currentFrame) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());

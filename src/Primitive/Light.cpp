@@ -2,18 +2,22 @@
 
 void Light::draw() {}
 
-PhongLight::PhongLight() { _phongFields = std::make_shared<PhongLightFields>(); }
+void Light::setPosition(glm::vec3 position) { _lightFields.position = position; }
 
-void PhongLight::setAmbient(float ambient) { _phongFields->ambient = ambient; }
+void Light::setColor(glm::vec3 color) { _lightFields.color = color; }
 
-void PhongLight::setSpecular(float specular) { _phongFields->specular = specular; }
+glm::vec3 Light::getColor() { return _lightFields.color; }
 
-void PhongLight::setPosition(glm::vec3 position) { _phongFields->position = position; }
+glm::vec3 Light::getPosition() { return _lightFields.position; }
 
-void PhongLight::setColor(glm::vec3 color) { _phongFields->color = color; }
+void PhongLight::setAmbient(float ambient) { _phongFields.ambient = ambient; }
 
-glm::vec3 PhongLight::getPosition() { return _phongFields->position; }
+void PhongLight::setSpecular(float specular) { _phongFields.specular = specular; }
 
 int PhongLight::getSize() { return sizeof(PhongLightFields); }
 
-void* PhongLight::getData() { return _phongFields.get(); }
+void* PhongLight::getData() {
+  _phongFields.position = _lightFields.position;
+  _phongFields.color = _lightFields.color;
+  return &_phongFields;
+}

@@ -35,6 +35,7 @@ class Model3DManager {
   void registerModel(std::shared_ptr<Model> model);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModel(std::shared_ptr<Model> model);
+  void unregisterModelGLTF(std::shared_ptr<Model> model);
   void draw(float frameTimer, int currentFrame);
   void drawGLTF(float frameTimer, int currentFrame);
 };

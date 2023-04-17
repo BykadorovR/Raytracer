@@ -27,12 +27,15 @@ layout( push_constant ) uniform constants {
 void main() {
     outColor = texture(texSampler, fragTexCoord);
     vec4 stub = texture(normalSampler, fragTexCoord);
-    float ambientFactor = lights[push.lightNum - 1].ambient;
-    //dot product between normal and light ray
-    float diffuseFactor = max(dot(normalize(lights[push.lightNum - 1].lightPosition - fragPosition), normalize(fragNormal)), 0);
-    //dot product between reflected ray and light ray
-    float specularFactor = lights[push.lightNum - 1].specular * 
-                           pow(max(dot(normalize(reflect(fragPosition - lights[push.lightNum - 1].lightPosition, normalize(fragNormal))), normalize(push.cameraPosition - fragPosition)), 0), 32);
-
-    outColor *= vec4((ambientFactor + diffuseFactor) * lights[push.lightNum - 1].lightColor, 1.f);
+    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+    for (int i = 0; i < push.lightNum; i++) {
+        float ambientFactor = lights[i].ambient;
+        //dot product between normal and light ray
+        float diffuseFactor = max(dot(normalize(lights[i].lightPosition - fragPosition), normalize(fragNormal)), 0);
+        //dot product between reflected ray and light ray
+        float specularFactor = lights[i].specular * 
+                               pow(max(dot(normalize(reflect(fragPosition - lights[i].lightPosition, normalize(fragNormal))), normalize(push.cameraPosition - fragPosition)), 0), 32);
+        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * lights[i].lightColor; 
+    }
+    outColor *= vec4(lightFactor, 1.f);
 }

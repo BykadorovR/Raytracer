@@ -20,7 +20,7 @@ void main() {
     gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
     fragColor = inColor;
     fragTexCoord = inTexCoord;
-    //fragNormal = (mat3(transpose(inverse(mvp.model))) * inNormal).xyz;
-    fragNormal = (mat3(mvp.model) * inNormal).xyz;
+    fragNormal = (mat3(transpose(inverse(mvp.model))) * inNormal).xyz;
+    //fragNormal = (mat3(mvp.model) * inNormal).xyz;
     fragPosition = (mvp.model * vec4(inPosition, 1.0)).xyz;
 }

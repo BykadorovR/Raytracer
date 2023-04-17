@@ -1,12 +1,26 @@
 #pragma once
 #include "glm/glm.hpp"
 #include <memory>
+#include "Model.h"
+#include "ModelManager.h"
+
+struct LightFields {
+  alignas(16) glm::vec3 color;
+  alignas(16) glm::vec3 position;
+};
 
 class Light {
+ protected:
+  LightFields _lightFields;
+
  public:
   virtual void draw();
   virtual int getSize() = 0;
   virtual void* getData() = 0;
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+  void setColor(glm::vec3 color);
+  glm::vec3 getColor();
   virtual ~Light() = default;
 };
 
@@ -19,16 +33,11 @@ struct PhongLightFields {
 
 class PhongLight : public Light {
  private:
-  std::shared_ptr<PhongLightFields> _phongFields;
+  PhongLightFields _phongFields;
 
  public:
-  PhongLight();
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
-  void setColor(glm::vec3 color);
   void setAmbient(float ambient);
   void setSpecular(float specular);
-
   virtual int getSize() override;
   virtual void* getData() override;
 };
