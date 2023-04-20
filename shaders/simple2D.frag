@@ -25,7 +25,7 @@ layout( push_constant ) uniform constants {
 } push;
 
 void main() {
-    outColor = texture(texSampler, fragTexCoord);
+    outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     vec4 stub = texture(normalSampler, fragTexCoord);
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < push.lightNum; i++) {

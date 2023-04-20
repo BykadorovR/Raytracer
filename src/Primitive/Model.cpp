@@ -161,10 +161,12 @@ ModelGLTF::ModelGLTF(std::string path,
   std::vector<uint32_t> indexBuffer;
   std::vector<Vertex3D> vertexBuffer;
   bool loaded = loader.LoadASCIIFromFile(&model, &err, &warn, path);
+  if (loaded == false) throw std::runtime_error("Can't load model");
   _loadImages(model);
   _loadTextures(model);
   _loadMaterials(model);
 
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", commandPool, queue, device);
   for (auto& material : _materials) {
     material.pipeline = std::make_shared<Pipeline>(
         shaderGLTF,
@@ -182,8 +184,14 @@ ModelGLTF::ModelGLTF(std::string path,
 
     material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
                                                              _descriptorPool, _device);
-    material.descriptorSet->createGraphicModel(_images[_textures[material.baseColorTextureIndex].imageIndex].texture,
-                                               _images[_textures[material.normalTextureIndex].imageIndex].texture);
+    auto diffuseTexture = _stubTexture;
+    auto normalTexture = _stubTexture;
+    if (material.baseColorTextureIndex < _textures.size()) {
+      diffuseTexture = _images[_textures[material.baseColorTextureIndex].imageIndex].texture;
+      normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
+    }
+
+    material.descriptorSet->createGraphicModel(diffuseTexture, normalTexture);
   }
 
   const tinygltf::Scene& scene = model.scenes[0];
@@ -823,11 +831,9 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
 
           vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             material.pipeline->getPipeline());
-          if (_textures.size() > 0 && material.baseColorTextureIndex >= 0) {
-            vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    material.pipeline->getPipelineLayout(), 1, 1,
-                                    &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
-          }
+          vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  material.pipeline->getPipelineLayout(), 1, 1,
+                                  &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
         } else {
           vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _defaultPipeline->getPipeline());

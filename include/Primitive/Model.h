@@ -178,6 +178,7 @@ class ModelGLTF : public Model {
   std::shared_ptr<Device> _device;
   // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
   std::shared_ptr<Pipeline> _defaultPipeline;
+  std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Buffer> _defaultSSBO;
   int _jointsNum;
 

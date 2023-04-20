@@ -46,7 +46,12 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera(settings) {
   _viewParams->direction = glm::normalize(_viewParams->direction);
 }
 
-void CameraFly::cursorNotify(float xPos, float yPos) {
+void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
+  if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+    _once = false;
+    return;
+  }
+
   if (_once == false) {
     _xLast = xPos;
     _yLast = yPos;
@@ -73,9 +78,9 @@ void CameraFly::cursorNotify(float xPos, float yPos) {
   _viewParams->direction = glm::normalize(_viewParams->direction);
 }
 
-void CameraFly::mouseNotify(int button, int action, int mods) {}
+void CameraFly::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
 
-void CameraFly::keyNotify(int key, int action, int mods) {
+void CameraFly::keyNotify(GLFWwindow* window, int key, int action, int mods) {
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {

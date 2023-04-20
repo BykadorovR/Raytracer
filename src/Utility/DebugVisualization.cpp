@@ -2,10 +2,8 @@
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Model3DManager> modelManager,
                                        std::shared_ptr<Camera> camera,
-                                       std::shared_ptr<GUI> gui,
-                                       std::shared_ptr<Window> window) {
+                                       std::shared_ptr<GUI> gui) {
   _camera = camera;
-  _window = window;
   _modelManager = modelManager;
   _gui = gui;
 }
@@ -13,7 +11,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Model3DManager> modelMana
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
   for (auto light : lightManager->getLights()) {
-    auto model = _modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
+    auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     _modelManager->registerModelGLTF(model);
     _lightModels.push_back(model);
   }
@@ -28,6 +26,7 @@ void DebugVisualization::draw() {
       for (int i = 0; i < _lightManager->getLights().size(); i++) {
         if (_registerLights) _modelManager->registerModelGLTF(_lightModels[i]);
         auto model = glm::translate(glm::mat4(1.f), _lightManager->getLights()[i]->getPosition());
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _lightModels[i]->setModel(model);
         _lightModels[i]->setProjection(_camera->getProjection());
         _lightModels[i]->setView(_camera->getView());
@@ -44,17 +43,17 @@ void DebugVisualization::draw() {
   }
 }
 
-void DebugVisualization::cursorNotify(float xPos, float yPos) {}
+void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
-void DebugVisualization::mouseNotify(int button, int action, int mods) {}
+void DebugVisualization::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
 
-void DebugVisualization::keyNotify(int key, int action, int mods) {
+void DebugVisualization::keyNotify(GLFWwindow* window, int key, int action, int mods) {
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(_window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(_window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       _cursorEnabled = true;
     }
   }

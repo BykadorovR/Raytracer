@@ -1,6 +1,7 @@
 #pragma once
 #include "glm/glm.hpp"
 #include "Settings.h"
+#include "Window.h"
 #include "Input.h"
 #include <memory>
 #include <map>
@@ -46,7 +47,7 @@ class CameraFly : public Camera, public InputSubscriber {
 
  public:
   CameraFly(std::shared_ptr<Settings> settings);
-  void cursorNotify(float xPos, float yPos);
-  void mouseNotify(int button, int action, int mods);
-  void keyNotify(int key, int action, int mods);
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
+  void keyNotify(GLFWwindow* window, int key, int action, int mods);
 };

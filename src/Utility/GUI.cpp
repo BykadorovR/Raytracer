@@ -219,12 +219,12 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(float xPos, float yPos) {
+void GUI::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
 }
 
-void GUI::mouseNotify(int button, int action, int mods) {
+void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     io.MouseDown[0] = true;
@@ -240,4 +240,4 @@ void GUI::mouseNotify(int button, int action, int mods) {
   }
 }
 
-void GUI::keyNotify(int key, int action, int mods) {}
+void GUI::keyNotify(GLFWwindow* window, int key, int action, int mods) {}

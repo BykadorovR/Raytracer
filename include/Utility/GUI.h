@@ -84,9 +84,9 @@ class GUI : public InputSubscriber {
   void updateBuffers(int current);
   void drawFrame(int current, VkCommandBuffer commandBuffer);
 
-  void cursorNotify(float xPos, float yPos);
-  void mouseNotify(int button, int action, int mods);
-  void keyNotify(int key, int action, int mods);
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
+  void keyNotify(GLFWwindow* window, int key, int action, int mods);
 
   ~GUI();
 };

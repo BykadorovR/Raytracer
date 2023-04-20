@@ -108,13 +108,13 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  phongLightHorizontal = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
-  phongLightVertical = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
+  phongLightHorizontal = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.1f, 1.f);
+  phongLightVertical = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.1f, 1.f);
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);
   modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
-  debugVisualization = std::make_shared<DebugVisualization>(modelManager, camera, gui, window);
+  debugVisualization = std::make_shared<DebugVisualization>(modelManager, camera, gui);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
 
