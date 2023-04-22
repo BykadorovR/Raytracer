@@ -18,7 +18,7 @@ class Pipeline {
            std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
            std::shared_ptr<Device> device);
   void createGraphic2D(VkVertexInputBindingDescription bindingDescription,
-                       std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions,
+                       std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions,
                        VkPushConstantRange pushConstants,
                        std::shared_ptr<RenderPass> renderPass);
   void createGraphic3D(VkCullModeFlags cullMode,

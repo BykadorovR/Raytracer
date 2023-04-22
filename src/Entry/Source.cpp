@@ -102,14 +102,14 @@ void initialize() {
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
 
-  auto texture = std::make_shared<Texture>("../data/statue.jpg", commandPool, queue, device);
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", commandPool, queue, device);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  phongLightHorizontal = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.1f, 1.f);
-  phongLightVertical = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.1f, 1.f);
+  phongLightHorizontal = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
+  phongLightVertical = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);

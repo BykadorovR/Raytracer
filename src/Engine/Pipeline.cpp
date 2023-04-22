@@ -243,7 +243,7 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
 }
 
 void Pipeline::createGraphic2D(VkVertexInputBindingDescription bindingDescription,
-                               std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions,
+                               std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions,
                                VkPushConstantRange pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
