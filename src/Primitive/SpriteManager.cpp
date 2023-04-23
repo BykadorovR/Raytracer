@@ -27,7 +27,7 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
       std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _lightManager->getDescriptorSetLayout()},
       device);
   _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(),
-                             SpritePush::getPushConstant(), render);
+                             LightPush::getPushConstant(), render);
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
@@ -67,11 +67,11 @@ void SpriteManager::draw(int currentFrame) {
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  SpritePush pushConstants;
+  LightPush pushConstants;
   pushConstants.cameraPosition = _camera->getViewParameters()->eye;
   pushConstants.lightNum = _lightManager->getLights().size();
   vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
-                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SpritePush), &pushConstants);
+                     VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
 
   vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 2, 1,

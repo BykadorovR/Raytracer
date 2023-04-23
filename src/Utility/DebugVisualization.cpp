@@ -28,8 +28,6 @@ void DebugVisualization::draw() {
         auto model = glm::translate(glm::mat4(1.f), _lightManager->getLights()[i]->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _lightModels[i]->setModel(model);
-        _lightModels[i]->setProjection(_camera->getProjection());
-        _lightModels[i]->setView(_camera->getView());
       }
       _registerLights = false;
     } else {

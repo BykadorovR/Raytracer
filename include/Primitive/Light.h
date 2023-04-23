@@ -1,8 +1,6 @@
 #pragma once
 #include "glm/glm.hpp"
 #include <memory>
-#include "Model.h"
-#include "ModelManager.h"
 
 struct LightFields {
   alignas(16) glm::vec3 color;

@@ -59,12 +59,27 @@ struct Vertex2D {
   }
 };
 
-struct PushConstants {
-  int jointNum;
+struct LightPush {
+  alignas(4) int lightNum;
+  alignas(16) glm::vec3 cameraPosition;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
     // this push constant range starts at the beginning
     pushConstant.offset = 0;
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.size = sizeof(LightPush);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    return pushConstant;
+  }
+};
+
+struct PushConstants {
+  int jointNum = 0;
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant;
+    // this push constant range starts at the beginning
+    pushConstant.offset = sizeof(LightPush);
     // this push constant range takes up the size of a MeshPushConstants struct
     pushConstant.size = sizeof(PushConstants);
     // this push constant range is accessible only in the vertex shader
@@ -73,29 +88,14 @@ struct PushConstants {
   }
 };
 
-struct SpritePush {
-  int lightNum;
-  alignas(16) glm::vec3 cameraPosition;
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant;
-    // this push constant range starts at the beginning
-    pushConstant.offset = 0;
-    // this push constant range takes up the size of a MeshPushConstants struct
-    pushConstant.size = sizeof(SpritePush);
-    // this push constant range is accessible only in the vertex shader
-    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    return pushConstant;
-  }
-};
-
 struct Vertex3D {
   glm::vec3 pos;
   glm::vec3 normal;
   glm::vec3 color;
-  glm::vec4 tangent;
   glm::vec2 texCoord;
   glm::vec4 jointIndices;
   glm::vec4 jointWeights;
+  glm::vec4 tangent;
 
   bool operator==(const Vertex3D& other) const {
     return pos == other.pos && normal == other.normal && color == other.color && texCoord == other.texCoord &&

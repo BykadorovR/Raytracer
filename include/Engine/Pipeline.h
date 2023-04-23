@@ -24,7 +24,7 @@ class Pipeline {
   void createGraphic3D(VkCullModeFlags cullMode,
                        VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
-                       VkPushConstantRange pushConstants,
+                       std::vector<VkPushConstantRange> pushConstants,
                        std::shared_ptr<RenderPass> renderPass);
   void createHUD(VkVertexInputBindingDescription bindingDescription,
                  std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,

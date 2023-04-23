@@ -11,118 +11,17 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
+void Model::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+void Model::setModel(glm::mat4 model) { _model = model; }
+
 struct ModelAuxilary {
   VkBool32 alphaMask;
   float alphaMaskCutoff;
 };
 
-void ModelOBJ::_loadModel() {
-  tinyobj::attrib_t attrib;
-  std::vector<tinyobj::shape_t> shapes;
-  std::vector<tinyobj::material_t> materials;
-  std::string warn, err;
-
-  if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, _path.c_str())) {
-    throw std::runtime_error(warn + err);
-  }
-
-  std::unordered_map<Vertex3D, uint32_t> uniqueVertices{};
-  for (const auto& shape : shapes) {
-    for (const auto& index : shape.mesh.indices) {
-      Vertex3D vertex{};
-      vertex.pos = {attrib.vertices[3 * index.vertex_index + 0], attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]};
-
-      vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                         1.f - attrib.texcoords[2 * index.texcoord_index + 1]};
-
-      vertex.color = {1.0f, 1.0f, 1.0f};
-      vertex.normal = {attrib.normals[3 * index.normal_index + 0], attrib.normals[3 * index.normal_index + 1],
-                       attrib.normals[3 * index.normal_index + 2]};
-
-      if (uniqueVertices.count(vertex) == 0) {
-        uniqueVertices[vertex] = static_cast<uint32_t>(_vertices.size());
-        _vertices.push_back(vertex);
-      }
-      _indices.push_back(uniqueVertices[vertex]);
-    }
-  }
-}
-
-ModelOBJ::ModelOBJ(std::string path,
-                   std::shared_ptr<Texture> texture,
-                   std::shared_ptr<DescriptorSetLayout> layoutCamera,
-                   std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-                   std::shared_ptr<Pipeline> pipeline,
-                   std::shared_ptr<DescriptorPool> descriptorPool,
-                   std::shared_ptr<CommandPool> commandPool,
-                   std::shared_ptr<CommandBuffer> commandBuffer,
-                   std::shared_ptr<Queue> queue,
-                   std::shared_ptr<Device> device,
-                   std::shared_ptr<Settings> settings) {
-  _path = path;
-  _pipeline = pipeline;
-  _commandBuffer = commandBuffer;
-  _device = device;
-  _settings = settings;
-  _texture = texture;
-
-  _loadModel();
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(_vertices, commandPool, queue, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
-                                                   queue, device);
-  _descriptorSetGraphic = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
-                                                          descriptorPool, device);
-  _descriptorSetGraphic->createGraphic(texture);
-
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutCamera, descriptorPool,
-                                                         device);
-  _descriptorSetCamera->createCamera(_uniformBuffer);
-
-  _model = glm::mat4(1.f);
-  _view = glm::mat4(1.f);
-  _projection = glm::mat4(1.f);
-}
-
-void ModelOBJ::setModel(glm::mat4 model) { _model = model; }
-
-void ModelOBJ::setView(glm::mat4 view) { _view = view; }
-
-void ModelOBJ::setProjection(glm::mat4 projection) { _projection = projection; }
-
-void ModelOBJ::draw(float frameTimer, int currentFrame) {
-  UniformObject ubo{};
-  ubo.model = _model;
-  ubo.view = _view;
-  ubo.projection = _projection;
-
-  void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
-  vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
-
-  VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
-  VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
-
-  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
-                       VK_INDEX_TYPE_UINT32);
-
-  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 0, 1,
-                          &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
-  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 1, 1,
-                          &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
-
-  vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
-                   0);
-}
-
 ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<DescriptorSetLayout> layoutCamera,
+                     std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandPool> commandPool,
@@ -135,10 +34,12 @@ ModelGLTF::ModelGLTF(std::string path,
   _commandPool = commandPool;
   _descriptorPool = descriptorPool;
   _commandBuffer = commandBuffer;
+  _lightManager = lightManager;
 
   auto shaderGLTF = std::make_shared<Shader>(device);
   shaderGLTF->add("../shaders/GLTF3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shaderGLTF->add("../shaders/GLTF3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
   auto descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(device);
   descriptorSetLayoutJoints->createJoints();
 
@@ -149,10 +50,13 @@ ModelGLTF::ModelGLTF(std::string path,
   layoutGraphic->createGraphicModel();
 
   _defaultPipeline = std::make_shared<Pipeline>(
-      shaderGLTF, std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary},
+      shaderGLTF,
+      std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary,
+                  _lightManager->getDescriptorSetLayout()},
       device);
   _defaultPipeline->createGraphic3D(VK_CULL_MODE_BACK_BIT, Vertex3D::getBindingDescription(),
-                                    Vertex3D::getAttributeDescriptions(), PushConstants::getPushConstant(), renderPass);
+                                    Vertex3D::getAttributeDescriptions(),
+                                    {PushConstants::getPushConstant(), LightPush::getPushConstant()}, renderPass);
 
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;
@@ -170,11 +74,13 @@ ModelGLTF::ModelGLTF(std::string path,
   for (auto& material : _materials) {
     material.pipeline = std::make_shared<Pipeline>(
         shaderGLTF,
-        std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary}, device);
+        std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary,
+                    _lightManager->getDescriptorSetLayout()},
+        device);
 
     material.pipeline->createGraphic3D(material.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
                                        Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
-                                       PushConstants::getPushConstant(), renderPass);
+                                       {PushConstants::getPushConstant(), LightPush::getPushConstant()}, renderPass);
 
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);
@@ -767,12 +673,6 @@ void ModelGLTF::_updateAnimation(float deltaTime) {
   }
 }
 
-void ModelGLTF::setModel(glm::mat4 model) { _model = model; }
-
-void ModelGLTF::setView(glm::mat4 view) { _view = view; }
-
-void ModelGLTF::setProjection(glm::mat4 projection) { _projection = projection; }
-
 void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
     glm::mat4 nodeMatrix = node->getLocalMatrix();
@@ -784,8 +684,8 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
     // pass this matrix to uniforms
     UniformObject ubo{};
     ubo.model = _model * nodeMatrix;
-    ubo.view = _view;
-    ubo.projection = _projection;
+    ubo.view = _camera->getView();
+    ubo.projection = _camera->getProjection();
 
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
@@ -850,10 +750,24 @@ void ModelGLTF::_drawNode(int currentFrame, NodeGLTF* node) {
 }
 
 void ModelGLTF::draw(float frameTimer, int currentFrame) {
-  PushConstants pushConstants;
-  pushConstants.jointNum = _jointsNum;
-  vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _defaultPipeline->getPipelineLayout(),
-                     VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pushConstants);
+  {
+    LightPush pushConstants;
+    pushConstants.cameraPosition = _camera->getViewParameters()->eye;
+    pushConstants.lightNum = _lightManager->getLights().size();
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _defaultPipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+  }
+
+  {
+    PushConstants pushConstants;
+    pushConstants.jointNum = _jointsNum;
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _defaultPipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT, sizeof(LightPush), sizeof(PushConstants), &pushConstants);
+  }
+
+  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          _defaultPipeline->getPipelineLayout(), 4, 1,
+                          &_lightManager->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, nullptr);
 
   // All vertices and indices are stored in single buffers, so we only need to bind once
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};

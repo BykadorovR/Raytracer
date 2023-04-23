@@ -44,7 +44,6 @@ std::vector<std::shared_ptr<Fence>> inFlightFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
-std::shared_ptr<ModelOBJ> model3D;
 std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
@@ -113,7 +112,8 @@ void initialize() {
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);
-  modelManager = std::make_shared<Model3DManager>(commandPool, commandBuffer, queue, renderPass, device, settings);
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
   debugVisualization = std::make_shared<DebugVisualization>(modelManager, camera, gui);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -150,7 +150,6 @@ void initialize() {
     sprite5->setModel(model);
   }
 
-  // model3D = modelManager->createModel("../data/viking_room.obj");
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
@@ -162,19 +161,18 @@ void initialize() {
   //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
   //  model3D->setModel(model);
   //}
-  //{
-  //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
-  //  // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-  //  modelGLTF->setModel(model);
-  //}
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
+    // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    // modelGLTF->setModel(model);
+  }
   spriteManager->registerSprite(sprite);
   spriteManager->registerSprite(sprite2);
   spriteManager->registerSprite(sprite3);
   spriteManager->registerSprite(sprite4);
   spriteManager->registerSprite(sprite5);
   spriteManager->registerSprite(sprite6);
-  /*modelManager->registerModel(model3D);
-  modelManager->registerModelGLTF(modelGLTF);*/
+  // modelManager->registerModelGLTF(modelGLTF);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -262,12 +260,7 @@ void drawFrame() {
     // draw scene here
     spriteManager->setCamera(camera);
     spriteManager->draw(currentFrame);
-
-    /*model3D->setProjection(camera->getProjection());
-    model3D->setView(camera->getView());
-    modelGLTF->setProjection(camera->getProjection());
-    modelGLTF->setView(camera->getView());*/
-    modelManager->draw(frameTimer, currentFrame);
+    modelManager->setCamera(camera);
     modelManager->drawGLTF(frameTimer, currentFrame);
 
     debugVisualization->draw();

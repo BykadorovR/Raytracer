@@ -1,9 +1,9 @@
 #pragma once
 #include "Light.h"
-#include "Camera.h"
 #include "Command.h"
 #include "Pipeline.h"
 #include "Descriptor.h"
+#include "Settings.h"
 #include <vector>
 #include <memory>
 

@@ -129,7 +129,7 @@ void Pipeline::createHUD(VkVertexInputBindingDescription bindingDescription,
 void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
                                VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
-                               VkPushConstantRange pushConstants,
+                               std::vector<VkPushConstantRange> pushConstants,
                                std::shared_ptr<RenderPass> renderPass) {
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayout;
@@ -140,8 +140,8 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
-  pipelineLayoutInfo.pPushConstantRanges = &pushConstants;
-  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &pushConstants[0];
+  pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {

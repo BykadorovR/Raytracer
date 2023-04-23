@@ -5,6 +5,8 @@
 #include "Input.h"
 #include <memory>
 #include <map>
+#undef near
+#undef far
 
 struct ViewParameters {
   glm::vec3 eye;

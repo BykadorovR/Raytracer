@@ -9,52 +9,18 @@
 #include "Settings.h"
 #include "tiny_obj_loader.h"
 #include "tiny_gltf.h"
+#include "Camera.h"
+#include "LightManager.h"
 
 class Model {
- public:
-  virtual void draw(float frameTimer, int currentFrame) = 0;
-};
-
-class ModelOBJ : public Model {
- private:
-  std::shared_ptr<Settings> _settings;
-  std::shared_ptr<Device> _device;
-  std::shared_ptr<Pipeline> _pipeline;
-  std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetGraphic;
-  std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<Texture> _texture;
-
-  std::shared_ptr<VertexBuffer3D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
-
-  glm::mat4 _model, _view, _projection;
-  std::string _path;
-
-  std::vector<Vertex3D> _vertices;
-  std::vector<uint32_t> _indices;
-
-  void _loadModel();
+ protected:
+  std::shared_ptr<Camera> _camera;
+  glm::mat4 _model;
 
  public:
-  ModelOBJ(std::string path,
-           std::shared_ptr<Texture> texture,
-           std::shared_ptr<DescriptorSetLayout> layoutCamera,
-           std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-           std::shared_ptr<Pipeline> pipeline,
-           std::shared_ptr<DescriptorPool> descriptorPool,
-           std::shared_ptr<CommandPool> commandPool,
-           std::shared_ptr<CommandBuffer> commandBuffer,
-           std::shared_ptr<Queue> queue,
-           std::shared_ptr<Device> device,
-           std::shared_ptr<Settings> settings);
-
+  void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
-  void setView(glm::mat4 view);
-  void setProjection(glm::mat4 projection);
-
-  void draw(float frameTimer, int currentFrame);
+  virtual void draw(float frameTimer, int currentFrame) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -163,10 +129,6 @@ class ModelGLTF : public Model {
   uint32_t _activeAnimation = 0;
 
   std::vector<NodeGLTF*> _nodes;
-  glm::mat4 _model;
-  glm::mat4 _view;
-  glm::mat4 _projection;
-
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
@@ -180,7 +142,8 @@ class ModelGLTF : public Model {
   std::shared_ptr<Pipeline> _defaultPipeline;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Buffer> _defaultSSBO;
-  int _jointsNum;
+  int _jointsNum = 0;
+  std::shared_ptr<LightManager> _lightManager;
 
   void _updateAnimation(float deltaTime);
   void _updateJoints(NodeGLTF* node);
@@ -204,6 +167,7 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::shared_ptr<DescriptorSetLayout> layoutCamera,
+            std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandPool> commandPool,
@@ -211,10 +175,6 @@ class ModelGLTF : public Model {
             std::shared_ptr<Queue> queue,
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
-
-  void setModel(glm::mat4 model);
-  void setView(glm::mat4 view);
-  void setProjection(glm::mat4 projection);
 
   void draw(float frameTimer, int currentFrame);
 };
