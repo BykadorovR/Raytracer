@@ -27,9 +27,8 @@ void main() {
     vec3 tangent = normalize(normalMatrix * inTangent);
     // re-orthogonalize T with respect to N
     tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
-    vec3 bitangent = cross(fragNormal, tangent);
+    vec3 bitangent = normalize(cross(fragNormal, tangent));
     
     fragTBN = mat3(tangent, bitangent, fragNormal);
-    //fragNormal = (mat3(mvp.model) * inNormal).xyz;
     fragPosition = (mvp.model * vec4(inPosition, 1.0)).xyz;
 }

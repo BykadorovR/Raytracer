@@ -47,7 +47,7 @@ void main() {
     vec3 tangent = normalize(normalMatrix * inTangent.xyz);
     tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
     //w stores handness of tbn
-    vec3 bitangent = cross(tangent, fragNormal) * inTangent.w;
+    vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
     fragTBN = mat3(tangent, bitangent, fragNormal);
     fragTexCoord = inTexCoord;
     fragPosition = (model * vec4(inPosition, 1.0)).xyz;

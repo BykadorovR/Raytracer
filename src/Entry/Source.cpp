@@ -63,7 +63,7 @@ void initialize() {
   clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
   clearValues[1].depthStencil = {1.0f, 0};
 
-  settings = std::make_shared<Settings>(std::tuple{800, 592}, 2);
+  settings = std::make_shared<Settings>(std::tuple{1600, 900}, 2);
   window = std::make_shared<Window>(settings->getResolution());
   input = std::make_shared<Input>(window);
 
@@ -86,7 +86,7 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  swapchain = std::make_shared<Swapchain>(window, surface, device);
+  swapchain = std::make_shared<Swapchain>(VK_FORMAT_B8G8R8A8_UNORM, window, surface, device);
   renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
   renderPass->initialize();
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
@@ -154,7 +154,7 @@ void initialize() {
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
   //{
   //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
@@ -164,7 +164,7 @@ void initialize() {
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
     // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-    // modelGLTF->setModel(model);
+    modelGLTF->setModel(model);
   }
   spriteManager->registerSprite(sprite);
   spriteManager->registerSprite(sprite2);

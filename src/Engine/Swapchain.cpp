@@ -1,15 +1,17 @@
 #include "Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> surface, std::shared_ptr<Device> device) {
+Swapchain::Swapchain(VkFormat format,
+                     std::shared_ptr<Window> window,
+                     std::shared_ptr<Surface> surface,
+                     std::shared_ptr<Device> device) {
   _device = device;
 
   auto physicalDevice = device->getPhysicalDevice();
   // pick surface format
   VkSurfaceFormatKHR surfaceFormat = device->getSupportedSurfaceFormats()[0];
   for (const auto& availableFormat : device->getSupportedSurfaceFormats()) {
-    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-        availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+    if (availableFormat.format == format && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       surfaceFormat = availableFormat;
     }
   }
