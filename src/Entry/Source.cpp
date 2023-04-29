@@ -108,19 +108,19 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  // pointLightHorizontal = lightManager->createPointLight();
-  // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
 
-  // pointLightVertical = lightManager->createPointLight();
-  // pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
 
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(0.f, 0.f, 1.f));
   directionalLight->setDirection(glm::vec3(0.f, -1.f, 0.f));
 
-  directionalLight2 = lightManager->createDirectionalLight();
-  directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
-  directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
+  // directionalLight2 = lightManager->createDirectionalLight();
+  // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
+  // directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);
