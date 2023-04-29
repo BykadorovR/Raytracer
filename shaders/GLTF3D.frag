@@ -29,12 +29,12 @@ struct LightPoint {
     vec3 position;
 };
 
-layout(std430, set = 4, binding = 0) readonly buffer LightBufferDirectional {
+layout(set = 4, binding = 0) readonly buffer LightBufferDirectional {
     int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std430, set = 4, binding = 1) readonly buffer LightBufferPoint {
+layout(set = 4, binding = 1) readonly buffer LightBufferPoint {
     int lightPointNumber;
     LightPoint lightPoint[];
 };
@@ -52,7 +52,7 @@ vec3 directionalLight(vec3 normal) {
         //dot product between reflected ray and light ray
         float specularFactor = lightDirectional[i].specular * 
                                pow(max(dot(normalize(reflect(lightDirectional[i].direction, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor = (ambientFactor + diffuseFactor + specularFactor) * lightDirectional[i].color; 
+        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * lightDirectional[i].color; 
     }
     return lightFactor;
 }

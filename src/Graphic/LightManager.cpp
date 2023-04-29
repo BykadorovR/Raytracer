@@ -35,7 +35,7 @@ std::shared_ptr<DescriptorSet> LightManager::getDescriptorSet() { return _descri
 void LightManager::draw(int frame) {
   if (_changed) {
     int size = 0;
-    size += sizeof(int);
+    size += sizeof(glm::vec4);
     for (int i = 0; i < _directionalLights.size(); i++) {
       size += _directionalLights[i]->getSize();
     }
@@ -44,7 +44,7 @@ void LightManager::draw(int frame) {
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
 
     size = 0;
-    size += sizeof(int);
+    size += sizeof(glm::vec4);
     for (int i = 0; i < _pointLights.size(); i++) {
       size += _pointLights[i]->getSize();
     }
@@ -63,7 +63,7 @@ void LightManager::draw(int frame) {
   int directionalLightsNum = _directionalLights.size();
   memcpy((uint8_t*)(_lightDirectionalSSBO->getMappedMemory()) + offset, &directionalLightsNum, sizeof(int));
   // align is 16 bytes, so even for int
-  offset += 16;
+  offset += sizeof(glm::vec4);
   for (int i = 0; i < _directionalLights.size(); i++) {
     // we pass inverse bind matrices to shader via SSBO
     memcpy((uint8_t*)(_lightDirectionalSSBO->getMappedMemory()) + offset, _directionalLights[i]->getData(),
@@ -77,7 +77,7 @@ void LightManager::draw(int frame) {
   offset = 0;
   int pointLightsNum = _pointLights.size();
   memcpy((uint8_t*)(_lightPointSSBO->getMappedMemory()) + offset, &pointLightsNum, sizeof(int));
-  offset += 16;
+  offset += sizeof(glm::vec4);
   for (int i = 0; i < _pointLights.size(); i++) {
     // we pass inverse bind matrices to shader via SSBO
     memcpy((uint8_t*)(_lightPointSSBO->getMappedMemory()) + offset, _pointLights[i]->getData(),

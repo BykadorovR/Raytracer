@@ -7,6 +7,7 @@ class PointLight {
   struct PhongLightFields {
     float ambient;
     float specular;
+    // if alignment changed need to change implementation, sizeof(glm::vec4) is used in LightManager
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;
   };

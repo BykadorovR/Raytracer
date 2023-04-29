@@ -53,7 +53,7 @@ std::shared_ptr<Framebuffer> frameBuffer;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
-std::shared_ptr<DirectionalLight> directionalLight;
+std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
 
 PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
@@ -108,14 +108,19 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  pointLightHorizontal = lightManager->createPointLight();
-  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightHorizontal = lightManager->createPointLight();
+  // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
 
-  pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightVertical = lightManager->createPointLight();
+  // pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
 
-  // directionalLight = lightManager->createDirectionalLight();
-  // directionalLight->createPhong(0.f, 0.f, glm::vec3(0.f, 0.f, 0.f));
+  directionalLight = lightManager->createDirectionalLight();
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(0.f, 0.f, 1.f));
+  directionalLight->setDirection(glm::vec3(0.f, -1.f, 0.f));
+
+  directionalLight2 = lightManager->createDirectionalLight();
+  directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
+  directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);
@@ -258,8 +263,8 @@ void drawFrame() {
     glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
                                                 3.f * cos(glm::radians(angleVertical)));
 
-    pointLightHorizontal->setPosition(lightPositionHorizontal);
-    pointLightVertical->setPosition(lightPositionVertical);
+    if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
+    if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
     angleVertical += 0.01f;
     angleHorizontal += 0.01f;
 

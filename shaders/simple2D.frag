@@ -46,7 +46,7 @@ vec3 directionalLight(vec3 normal) {
         //dot product between reflected ray and light ray
         float specularFactor = lightDirectional[i].specular * 
                                pow(max(dot(normalize(reflect(lightDirectional[i].direction, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor = (ambientFactor + diffuseFactor + specularFactor) * lightDirectional[i].color; 
+        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * lightDirectional[i].color; 
     }
     return lightFactor;
 }

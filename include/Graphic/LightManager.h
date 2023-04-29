@@ -19,7 +19,7 @@ class LightManager {
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<Buffer> _lightDirectionalSSBO = nullptr, _lightPointSSBO = nullptr;
   std::shared_ptr<DescriptorSet> _descriptorSet;
-  bool _changed = false;
+  bool _changed = true;
 
  public:
   LightManager(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
