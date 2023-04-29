@@ -69,7 +69,6 @@ void SpriteManager::draw(int currentFrame) {
 
   LightPush pushConstants;
   pushConstants.cameraPosition = _camera->getViewParameters()->eye;
-  pushConstants.lightNum = _lightManager->getLights().size();
   vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                      VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
 

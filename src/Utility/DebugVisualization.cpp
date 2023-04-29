@@ -10,7 +10,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Model3DManager> modelMana
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
-  for (auto light : lightManager->getLights()) {
+  for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     _modelManager->registerModelGLTF(model);
     _lightModels.push_back(model);
@@ -23,9 +23,9 @@ void DebugVisualization::draw() {
     toggle["Lights"] = &_showLights;
     _gui->addCheckbox("Debug", {20, 100}, {100, 60}, toggle);
     if (_showLights) {
-      for (int i = 0; i < _lightManager->getLights().size(); i++) {
+      for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
         if (_registerLights) _modelManager->registerModelGLTF(_lightModels[i]);
-        auto model = glm::translate(glm::mat4(1.f), _lightManager->getLights()[i]->getPosition());
+        auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _lightModels[i]->setModel(model);
       }
@@ -33,7 +33,7 @@ void DebugVisualization::draw() {
     } else {
       if (_registerLights == false) {
         _registerLights = true;
-        for (int i = 0; i < _lightManager->getLights().size(); i++) {
+        for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
           _modelManager->unregisterModelGLTF(_lightModels[i]);
         }
       }

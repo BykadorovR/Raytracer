@@ -25,7 +25,7 @@ layout(location = 3) out vec2 fragTexCoord;
 layout(location = 4) out mat3 fragTBN;
 
 layout( push_constant ) uniform constants {
-    layout(offset = 32) int jointNum;
+    layout(offset = 16) int jointNum;
 } PushConstants;
 
 void main() {

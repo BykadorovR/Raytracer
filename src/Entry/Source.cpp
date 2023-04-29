@@ -52,7 +52,8 @@ std::shared_ptr<RenderPass> renderPass;
 std::shared_ptr<Framebuffer> frameBuffer;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
-std::shared_ptr<PhongLight> phongLightHorizontal, phongLightVertical;
+std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
+std::shared_ptr<DirectionalLight> directionalLight;
 std::shared_ptr<DebugVisualization> debugVisualization;
 
 PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
@@ -107,8 +108,14 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  phongLightHorizontal = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
-  phongLightVertical = lightManager->createPhongLight(glm::vec3(0.f, 0.f, 3.f), glm::vec3(1.f, 1.f, 1.f), 0.f, 1.f);
+  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
+
+  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+
+  // directionalLight = lightManager->createDirectionalLight();
+  // directionalLight->createPhong(0.f, 0.f, glm::vec3(0.f, 0.f, 0.f));
 
   spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
                                                   device, settings);
@@ -172,7 +179,7 @@ void initialize() {
   spriteManager->registerSprite(sprite4);
   spriteManager->registerSprite(sprite5);
   spriteManager->registerSprite(sprite6);
-  // modelManager->registerModelGLTF(modelGLTF);
+  modelManager->registerModelGLTF(modelGLTF);
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -251,8 +258,8 @@ void drawFrame() {
     glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
                                                 3.f * cos(glm::radians(angleVertical)));
 
-    phongLightHorizontal->setPosition(lightPositionHorizontal);
-    phongLightVertical->setPosition(lightPositionVertical);
+    pointLightHorizontal->setPosition(lightPositionHorizontal);
+    pointLightVertical->setPosition(lightPositionVertical);
     angleVertical += 0.01f;
     angleHorizontal += 0.01f;
 

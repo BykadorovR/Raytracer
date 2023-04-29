@@ -141,18 +141,23 @@ void DescriptorSetLayout::createModelAuxilary() {
 }
 
 void DescriptorSetLayout::createLight() {
-  VkDescriptorSetLayoutBinding ssboLayoutBinding{};
-  ssboLayoutBinding.binding = 0;
-  ssboLayoutBinding.descriptorCount = 1;
-  ssboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  ssboLayoutBinding.pImmutableSamplers = nullptr;
-  ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  std::array<VkDescriptorSetLayoutBinding, 2> ssboLayoutBinding{};
+  ssboLayoutBinding[0].binding = 0;
+  ssboLayoutBinding[0].descriptorCount = 1;
+  ssboLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[0].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  VkDescriptorSetLayoutBinding bindings = ssboLayoutBinding;
+  ssboLayoutBinding[1].binding = 1;
+  ssboLayoutBinding[1].descriptorCount = 1;
+  ssboLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[1].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = 1;
-  layoutInfo.pBindings = &bindings;
+  layoutInfo.bindingCount = ssboLayoutBinding.size();
+  layoutInfo.pBindings = ssboLayoutBinding.data();
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -357,23 +362,36 @@ void DescriptorSet::createCamera(std::shared_ptr<UniformBuffer> uniformBuffer) {
   }
 }
 
-void DescriptorSet::createLight(std::shared_ptr<Buffer> buffer) {
+void DescriptorSet::createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = buffer->getData();
-    bufferInfo.offset = 0;
-    bufferInfo.range = buffer->getSize();
+    VkDescriptorBufferInfo bufferDirectionalInfo{};
+    bufferDirectionalInfo.buffer = bufferDirectional->getData();
+    bufferDirectionalInfo.offset = 0;
+    bufferDirectionalInfo.range = bufferDirectional->getSize();
 
-    VkWriteDescriptorSet descriptorWrites{};
-    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites.dstSet = _descriptorSets[i];
-    descriptorWrites.dstBinding = 0;
-    descriptorWrites.dstArrayElement = 0;
-    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites.descriptorCount = 1;
-    descriptorWrites.pBufferInfo = &bufferInfo;
+    VkDescriptorBufferInfo bufferPointInfo{};
+    bufferPointInfo.buffer = bufferPoint->getData();
+    bufferPointInfo.offset = 0;
+    bufferPointInfo.range = bufferPoint->getSize();
 
-    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferDirectionalInfo;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &bufferPointInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
   }
 }
 

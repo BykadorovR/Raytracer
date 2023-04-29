@@ -60,7 +60,6 @@ struct Vertex2D {
 };
 
 struct LightPush {
-  alignas(4) int lightNum;
   alignas(16) glm::vec3 cameraPosition;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
