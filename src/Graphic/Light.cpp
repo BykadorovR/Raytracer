@@ -16,6 +16,12 @@ void PointLight::setPosition(glm::vec3 position) { _phong->position = position; 
 
 glm::vec3 PointLight::getPosition() { return _phong->position; }
 
+void PointLight::setAttenuation(float constant, float linear, float quadratic) {
+  _phong->constant = constant;
+  _phong->linear = linear;
+  _phong->quadratic = quadratic;
+}
+
 DirectionalLight::DirectionalLight() { _phong = std::make_shared<PhongLightFields>(); }
 
 int DirectionalLight::getSize() { return sizeof(PhongLightFields); }

@@ -7,6 +7,10 @@ class PointLight {
   struct PhongLightFields {
     float ambient;
     float specular;
+    // attenuation
+    float constant = 1.f;
+    float linear = 0.f;
+    float quadratic = 0.f;
     // if alignment changed need to change implementation, sizeof(glm::vec4) is used in LightManager
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;
@@ -18,6 +22,7 @@ class PointLight {
   void createPhong(float ambient, float specular, glm::vec3 color);
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
+  void setAttenuation(float constant, float linear, float quadratic);
   int getSize();
   void* getData();
 };

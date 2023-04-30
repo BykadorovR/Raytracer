@@ -19,6 +19,11 @@ struct LightDirectional {
 struct LightPoint {
     float ambient;
     float specular;
+    //attenuation
+    float constant;
+    float linear;
+    float quadratic;
+    //
     vec3 color;
     vec3 position;
 };
@@ -54,13 +59,15 @@ vec3 directionalLight(vec3 normal) {
 vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
+        float distance = length(lightPoint[i].position - fragPosition);
+        float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(normalize(lightPoint[i].position - fragPosition), normal), 0);
         //dot product between reflected ray and light ray
         float specularFactor = lightPoint[i].specular * 
                                pow(max(dot(normalize(reflect(fragPosition - lightPoint[i].position, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * lightPoint[i].color; 
+        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * attenuation * lightPoint[i].color; 
     }
 
     return lightFactor;
