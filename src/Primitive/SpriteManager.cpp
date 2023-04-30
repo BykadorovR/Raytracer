@@ -22,12 +22,11 @@ SpriteManager::SpriteManager(std::shared_ptr<Shader> shader,
   _descriptorSetLayoutCamera = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayoutCamera->createCamera();
 
-  _pipeline = std::make_shared<Pipeline>(
-      shader,
+  _pipeline = std::make_shared<Pipeline>(shader, device);
+  _pipeline->createGraphic2D(
       std::vector{_descriptorSetLayoutCamera, _descriptorSetLayoutGraphic, _lightManager->getDescriptorSetLayout()},
-      device);
-  _pipeline->createGraphic2D(Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(),
-                             LightPush::getPushConstant(), render);
+      std::vector{LightPush::getPushConstant()}, Vertex2D::getBindingDescription(),
+      Vertex2D::getAttributeDescriptions(), render);
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,

@@ -59,6 +59,42 @@ void RenderPass::initialize() {
   }
 }
 
+void RenderPass::initializeDepthPass() {
+  VkAttachmentDescription depthAttachment{};
+  depthAttachment.format = _device->findDepthBufferSupportedFormat(
+      {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
+      VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+  depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkAttachmentReference depthAttachmentRef{};
+  depthAttachmentRef.attachment = 1;
+  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+  VkSubpassDescription subpass{};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+  VkRenderPassCreateInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = 1;
+  renderPassInfo.pAttachments = &depthAttachment;
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+  renderPassInfo.dependencyCount = 0;
+  renderPassInfo.pDependencies = nullptr;
+
+  if (vkCreateRenderPass(_device->getLogicalDevice(), &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create render pass!");
+  }
+}
+
 void RenderPass::initializeOffscreen() {
   VkAttachmentDescription colorAttachment{};
   colorAttachment.format = _format;
@@ -115,6 +151,29 @@ void RenderPass::initializeOffscreen() {
 VkRenderPass& RenderPass::getRenderPass() { return _renderPass; }
 
 RenderPass::~RenderPass() { vkDestroyRenderPass(_device->getLogicalDevice(), _renderPass, nullptr); }
+
+Framebuffer::Framebuffer(std::tuple<int, int> resolution,
+                         std::vector<std::shared_ptr<ImageView>> depthImageViews,
+                         std::shared_ptr<RenderPass> renderPass,
+                         std::shared_ptr<Device> device) {
+  _device = device;
+  _buffer.resize(depthImageViews.size());
+
+  for (int i = 0; i < _buffer.size(); i++) {
+    VkFramebufferCreateInfo framebufferInfo{};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = renderPass->getRenderPass();
+    framebufferInfo.attachmentCount = 1;
+    framebufferInfo.pAttachments = &depthImageViews[i]->getImageView();
+    framebufferInfo.width = std::get<0>(resolution);
+    framebufferInfo.height = std::get<1>(resolution);
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(device->getLogicalDevice(), &framebufferInfo, nullptr, &_buffer[i]) != VK_SUCCESS) {
+      throw std::runtime_error("failed to create framebuffer!");
+    }
+  }
+}
 
 Framebuffer::Framebuffer(std::tuple<int, int> resolution,
                          std::vector<std::shared_ptr<ImageView>> imageViews,

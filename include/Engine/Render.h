@@ -11,6 +11,7 @@ class RenderPass {
   RenderPass(VkFormat format, std::shared_ptr<Device> device);
   void initialize();
   void initializeOffscreen();
+  void initializeDepthPass();
   VkRenderPass& getRenderPass();
   ~RenderPass();
 };
@@ -24,6 +25,12 @@ class Framebuffer {
   Framebuffer(std::tuple<int, int> resolution,
               std::vector<std::shared_ptr<ImageView>> imageViews,
               std::shared_ptr<ImageView> depthImageView,
+              std::shared_ptr<RenderPass> renderPass,
+              std::shared_ptr<Device> device);
+
+  // for depth buffer generation pass
+  Framebuffer(std::tuple<int, int> resolution,
+              std::vector<std::shared_ptr<ImageView>> depthImageViews,
               std::shared_ptr<RenderPass> renderPass,
               std::shared_ptr<Device> device);
 

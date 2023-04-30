@@ -48,8 +48,8 @@ std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
-std::shared_ptr<RenderPass> renderPass;
-std::shared_ptr<Framebuffer> frameBuffer;
+std::shared_ptr<RenderPass> renderPass, renderPassDepth;
+std::shared_ptr<Framebuffer> frameBuffer, frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
@@ -92,12 +92,13 @@ void initialize() {
   renderPass->initialize();
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
+
   auto shader3D = std::make_shared<Shader>(device);
-  shader3D->add("../shaders/simple3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader3D->add("../shaders/simple3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader3D->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader3D->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   auto shader2D = std::make_shared<Shader>(device);
-  shader2D->add("../shaders/simple2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader2D->add("../shaders/simple2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader2D->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader2D->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -108,17 +109,17 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(settings, device);
-  pointLightHorizontal = lightManager->createPointLight();
-  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  // pointLightHorizontal = lightManager->createPointLight();
+  // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
 
-  pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setAttenuation(1.f, 0.045f, 0.0075f);
+  // pointLightVertical = lightManager->createPointLight();
+  // pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightVertical->setAttenuation(1.f, 0.045f, 0.0075f);
 
-  // directionalLight = lightManager->createDirectionalLight();
-  // directionalLight->createPhong(0.f, 1.f, glm::vec3(0.f, 0.f, 1.f));
-  // directionalLight->setDirection(glm::vec3(0.f, -1.f, 0.f));
+  directionalLight = lightManager->createDirectionalLight();
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->setDirection(glm::vec3(-0.2f, -1.f, -0.3f));
 
   // directionalLight2 = lightManager->createDirectionalLight();
   // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));

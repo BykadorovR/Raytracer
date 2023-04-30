@@ -15,10 +15,6 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   _settings = settings;
   _renderPass = render;
 
-  auto shader3D = std::make_shared<Shader>(device);
-  shader3D->add("../shaders/simple3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader3D->add("../shaders/simple3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
   _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
   _descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(device);
   _descriptorSetLayoutGraphic->createGraphic();

@@ -37,8 +37,8 @@ ModelGLTF::ModelGLTF(std::string path,
   _lightManager = lightManager;
 
   auto shaderGLTF = std::make_shared<Shader>(device);
-  shaderGLTF->add("../shaders/GLTF3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shaderGLTF->add("../shaders/GLTF3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shaderGLTF->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderGLTF->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   auto descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(device);
   descriptorSetLayoutJoints->createJoints();
@@ -49,14 +49,13 @@ ModelGLTF::ModelGLTF(std::string path,
   auto layoutGraphic = std::make_shared<DescriptorSetLayout>(device);
   layoutGraphic->createGraphicModel();
 
-  _defaultPipeline = std::make_shared<Pipeline>(
-      shaderGLTF,
+  _defaultPipeline = std::make_shared<Pipeline>(shaderGLTF, device);
+  _defaultPipeline->createGraphic3D(
+      VK_CULL_MODE_BACK_BIT,
       std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary,
                   _lightManager->getDescriptorSetLayout()},
-      device);
-  _defaultPipeline->createGraphic3D(VK_CULL_MODE_BACK_BIT, Vertex3D::getBindingDescription(),
-                                    Vertex3D::getAttributeDescriptions(),
-                                    {PushConstants::getPushConstant(), LightPush::getPushConstant()}, renderPass);
+      std::vector{PushConstants::getPushConstant(), LightPush::getPushConstant()}, Vertex3D::getBindingDescription(),
+      Vertex3D::getAttributeDescriptions(), renderPass);
 
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;
@@ -72,15 +71,14 @@ ModelGLTF::ModelGLTF(std::string path,
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", commandPool, queue, device);
   for (auto& material : _materials) {
-    material.pipeline = std::make_shared<Pipeline>(
-        shaderGLTF,
+    material.pipeline = std::make_shared<Pipeline>(shaderGLTF, device);
+
+    material.pipeline->createGraphic3D(
+        material.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
         std::vector{layoutCamera, layoutGraphic, descriptorSetLayoutJoints, descriptorSetLayoutModelAuxilary,
                     _lightManager->getDescriptorSetLayout()},
-        device);
-
-    material.pipeline->createGraphic3D(material.doubleSided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
-                                       Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(),
-                                       {PushConstants::getPushConstant(), LightPush::getPushConstant()}, renderPass);
+        std::vector{PushConstants::getPushConstant(), LightPush::getPushConstant()}, Vertex3D::getBindingDescription(),
+        Vertex3D::getAttributeDescriptions(), renderPass);
 
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);
