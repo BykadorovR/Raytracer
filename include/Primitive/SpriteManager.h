@@ -2,10 +2,13 @@
 
 #include "Sprite.h"
 
+enum class SpriteRenderMode { DEPTH, FULL };
+
 class SpriteManager {
  private:
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCamera, _descriptorSetLayoutGraphic;
-  std::shared_ptr<Pipeline> _pipeline;
+  // position in vector is set number
+  std::vector<std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayout;
+  std::map<SpriteRenderMode, std::shared_ptr<Pipeline>> _pipeline;
 
   int _descriptorPoolSize = 100;
   int _spritesCreated = 0;
@@ -21,8 +24,7 @@ class SpriteManager {
   std::vector<std::shared_ptr<Sprite>> _sprites;
 
  public:
-  SpriteManager(std::shared_ptr<Shader> shader,
-                std::shared_ptr<LightManager> lightManager,
+  SpriteManager(std::shared_ptr<LightManager> lightManager,
                 std::shared_ptr<CommandPool> commandPool,
                 std::shared_ptr<CommandBuffer> commandBuffer,
                 std::shared_ptr<Queue> queue,
@@ -33,5 +35,5 @@ class SpriteManager {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame);
+  void draw(SpriteRenderMode mode, int currentFrame);
 };

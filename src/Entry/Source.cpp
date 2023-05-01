@@ -96,9 +96,6 @@ void initialize() {
   auto shader3D = std::make_shared<Shader>(device);
   shader3D->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader3D->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  auto shader2D = std::make_shared<Shader>(device);
-  shader2D->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader2D->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -125,8 +122,8 @@ void initialize() {
   // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
   // directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
 
-  spriteManager = std::make_shared<SpriteManager>(shader2D, lightManager, commandPool, commandBuffer, queue, renderPass,
-                                                  device, settings);
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, renderPass, device,
+                                                  settings);
   modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, renderPass, device,
                                                   settings);
   debugVisualization = std::make_shared<DebugVisualization>(modelManager, camera, gui);
@@ -274,9 +271,9 @@ void drawFrame() {
     lightManager->draw(currentFrame);
     // draw scene here
     spriteManager->setCamera(camera);
-    spriteManager->draw(currentFrame);
+    spriteManager->draw(SpriteRenderMode::FULL, currentFrame);
     modelManager->setCamera(camera);
-    modelManager->drawGLTF(frameTimer, currentFrame);
+    modelManager->draw(ModelRenderMode::FULL, currentFrame, frameTimer);
 
     debugVisualization->draw();
 

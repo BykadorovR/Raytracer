@@ -8,16 +8,13 @@ struct UniformObject {
 
 Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Texture> normalMap,
-               std::shared_ptr<DescriptorSetLayout> layoutCamera,
-               std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-               std::shared_ptr<Pipeline> pipeline,
+               std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                std::shared_ptr<DescriptorPool> descriptorPool,
                std::shared_ptr<CommandPool> commandPool,
                std::shared_ptr<CommandBuffer> commandBuffer,
                std::shared_ptr<Queue> queue,
                std::shared_ptr<Device> device,
                std::shared_ptr<Settings> settings) {
-  _pipeline = pipeline;
   _commandBuffer = commandBuffer;
   _device = device;
   _settings = settings;
@@ -29,15 +26,18 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
                                                    queue, device);
 
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutCamera, descriptorPool,
-                                                         device);
-  _descriptorSetCamera->createCamera(_uniformBuffer);
-
-  _descriptorSetGraphic = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), layoutGraphic,
-                                                          descriptorPool, device);
-  _descriptorSetGraphic->createGraphicModel(texture, normalMap);
-
-  _model = glm::mat4(1.f);
+  {
+    auto cameraSet = std::make_shared<DescriptorSet>(
+        settings->getMaxFramesInFlight(), descriptorSetLayout[_descriptorSet.size()], descriptorPool, device);
+    cameraSet->createCamera(_uniformBuffer);
+    _descriptorSet.push_back(cameraSet);
+  }
+  {
+    auto textureSet = std::make_shared<DescriptorSet>(
+        settings->getMaxFramesInFlight(), descriptorSetLayout[_descriptorSet.size()], descriptorPool, device);
+    textureSet->createGraphicModel(texture, normalMap);
+    _descriptorSet.push_back(textureSet);
+  }
 }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }
@@ -50,16 +50,16 @@ void Sprite::setNormal(glm::vec3 normal) {
   }
 }
 
-void Sprite::draw(int currentFrame) {
-  UniformObject ubo{};
-  ubo.model = _model;
-  ubo.view = _camera->getView();
-  ubo.projection = _camera->getProjection();
+void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
+  UniformObject cameraUBO{};
+  cameraUBO.model = _model;
+  cameraUBO.view = _camera->getView();
+  cameraUBO.projection = _camera->getProjection();
 
   void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-              &data);
-  memcpy(data, &ubo, sizeof(ubo));
+  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(cameraUBO),
+              0, &data);
+  memcpy(data, &cameraUBO, sizeof(cameraUBO));
   vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
@@ -69,12 +69,17 @@ void Sprite::draw(int currentFrame) {
   vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
 
-  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 0, 1,
-                          &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
-  vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 1, 1,
-                          &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
+  if (pipeline->getDescriptorSetLayout().size() > 0) {
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 0, 1, &_descriptorSet[0]->getDescriptorSets()[currentFrame],
+                            0, nullptr);
+  }
+
+  if (pipeline->getDescriptorSetLayout().size() > 1) {
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 1, 1, &_descriptorSet[1]->getDescriptorSets()[currentFrame],
+                            0, nullptr);
+  }
 
   vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
                    0);

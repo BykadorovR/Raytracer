@@ -14,9 +14,8 @@ class Sprite {
  private:
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Device> _device;
-  std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetGraphic;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSet;
   std::shared_ptr<CommandBuffer> _commandBuffer;
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
@@ -26,7 +25,7 @@ class Sprite {
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
 
-  glm::mat4 _model;
+  glm::mat4 _model = glm::mat4(1.f);
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
@@ -39,9 +38,7 @@ class Sprite {
  public:
   Sprite(std::shared_ptr<Texture> texture,
          std::shared_ptr<Texture> normalMap,
-         std::shared_ptr<DescriptorSetLayout> layoutCamera,
-         std::shared_ptr<DescriptorSetLayout> layoutGraphic,
-         std::shared_ptr<Pipeline> pipeline,
+         std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
          std::shared_ptr<DescriptorPool> descriptorPool,
          std::shared_ptr<CommandPool> commandPool,
          std::shared_ptr<CommandBuffer> commandBuffer,
@@ -52,5 +49,5 @@ class Sprite {
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);
-  void draw(int currentFrame);
+  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline);
 };

@@ -20,7 +20,10 @@ class Model {
  public:
   void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
-  virtual void draw(float frameTimer, int currentFrame) = 0;
+  virtual void draw(std::shared_ptr<Pipeline> pipeline,
+                    std::shared_ptr<Pipeline> pipelineCullOff,
+                    int currentFrame,
+                    float frameTimer) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -74,7 +77,6 @@ class ModelGLTF : public Model {
     bool doubleSided;
     int alphaMask;
     float alphaMaskCutoff = 0.f;
-    std::shared_ptr<Pipeline> pipeline;
     std::shared_ptr<UniformBuffer> bufferModelAuxilary;
     std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
     std::shared_ptr<DescriptorSet> descriptorSet;
@@ -139,7 +141,6 @@ class ModelGLTF : public Model {
   std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
   // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
-  std::shared_ptr<Pipeline> _defaultPipeline;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Buffer> _defaultSSBO;
   int _jointsNum = 0;
@@ -162,11 +163,14 @@ class ModelGLTF : public Model {
                  uint32_t nodeIndex,
                  std::vector<uint32_t>& indexBuffer,
                  std::vector<Vertex3D>& vertexBuffer);
-  void _drawNode(int currentFrame, NodeGLTF* node);
+  void _drawNode(std::shared_ptr<Pipeline> pipeline,
+                 std::shared_ptr<Pipeline> pipelineCullOff,
+                 int currentFrame,
+                 NodeGLTF* node);
 
  public:
   ModelGLTF(std::string path,
-            std::shared_ptr<DescriptorSetLayout> layoutCamera,
+            std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
             std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
@@ -176,5 +180,8 @@ class ModelGLTF : public Model {
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
 
-  void draw(float frameTimer, int currentFrame);
+  void draw(std::shared_ptr<Pipeline> pipeline,
+            std::shared_ptr<Pipeline> pipelineCullOff,
+            int currentFrame,
+            float frameTimer);
 };

@@ -3,11 +3,14 @@
 #include "LightManager.h"
 #include "Camera.h"
 
+enum class ModelRenderMode { DEPTH, FULL };
+
 class Model3DManager {
  private:
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGraphic, _descriptorSetLayoutCamera,
-      _descriptorSetLayoutGraphicModel;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
+  // position in vector is set number
+  std::vector<std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayout;
+  std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
+  std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
 
   int _descriptorPoolSize = 300;
   int _modelsCreated = 0;
@@ -20,7 +23,6 @@ class Model3DManager {
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
 
-  std::vector<std::shared_ptr<Model>> _models;
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
   std::shared_ptr<RenderPass> _renderPass;
 
@@ -37,5 +39,5 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
-  void drawGLTF(float frameTimer, int currentFrame);
+  void draw(ModelRenderMode mode, int currentFrame, float frameTimer);
 };

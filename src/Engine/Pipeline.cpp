@@ -1,5 +1,6 @@
 #include "Pipeline.h"
 #include "Buffer.h"
+#include <ranges>
 
 Pipeline::Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> device) {
   _device = device;
@@ -11,14 +12,15 @@ void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descr
                          std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
                          std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
-  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
-    descriptorSetLayoutRaw.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
@@ -127,23 +129,28 @@ void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descr
 
 void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
                                std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
-                               std::vector<VkPushConstantRange> pushConstants,
+                               std::map<std::string, VkPushConstantRange> pushConstants,
                                VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
                                std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
-  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
-    descriptorSetLayoutRaw.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
   if (pushConstants.size() > 0) {
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstants[0];
-    pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
   }
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
@@ -246,23 +253,28 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
 }
 
 void Pipeline::createGraphic2D(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
-                               std::vector<VkPushConstantRange> pushConstants,
+                               std::map<std::string, VkPushConstantRange> pushConstants,
                                VkVertexInputBindingDescription bindingDescription,
                                std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions,
                                std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
-  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
-    descriptorSetLayoutRaw.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
   if (pushConstants.size() > 0) {
-    pipelineLayoutInfo.pPushConstantRanges = pushConstants.data();
-    pipelineLayoutInfo.pushConstantRangeCount = pushConstants.size();
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
   }
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
@@ -371,16 +383,17 @@ void Pipeline::createGraphic2D(std::vector<std::shared_ptr<DescriptorSetLayout>>
   }
 }
 
-void Pipeline::createCompute() {
+void Pipeline::createCompute(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout) {
+  _descriptorSetLayout = descriptorSetLayout;
   // create pipeline layout
-  std::vector<VkDescriptorSetLayout> descriptorSetLayout;
-  for (int i = 0; i < _descriptorSetLayout.size(); i++) {
-    descriptorSetLayout.push_back(_descriptorSetLayout[i]->getDescriptorSetLayout());
+  std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -397,6 +410,8 @@ void Pipeline::createCompute() {
 }
 
 std::vector<std::shared_ptr<DescriptorSetLayout>>& Pipeline::getDescriptorSetLayout() { return _descriptorSetLayout; }
+
+std::map<std::string, VkPushConstantRange>& Pipeline::getPushConstants() { return _pushConstants; }
 
 VkPipeline& Pipeline::getPipeline() { return _pipeline; }
 
