@@ -21,7 +21,7 @@ void DebugVisualization::draw() {
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
     toggle["Lights"] = &_showLights;
-    _gui->addCheckbox("Debug", {20, 100}, {100, 60}, toggle);
+    _gui->drawCheckbox("Debug", {20, 100}, {100, 60}, toggle);
     if (_showLights) {
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
         if (_registerLights) _modelManager->registerModelGLTF(_lightModels[i]);

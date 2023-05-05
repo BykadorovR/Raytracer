@@ -65,7 +65,7 @@ class GUI : public InputSubscriber {
   std::shared_ptr<ImageView> _imageView;
   std::array<int32_t, 2> _vertexCount = {0, 0};
   std::array<int32_t, 2> _indexCount = {0, 0};
-
+  std::map<std::string, VkDescriptorSet> _textureSet;
   int _calls = 0;
 
  public:
@@ -73,14 +73,14 @@ class GUI : public InputSubscriber {
   void initialize(std::shared_ptr<RenderPass> renderPass,
                   std::shared_ptr<Queue> queue,
                   std::shared_ptr<CommandPool> commandPool);
-  void addText(std::string name,
-               std::tuple<int, int> position,
-               std::tuple<int, int> size,
-               std::vector<std::string> text);
-  void addCheckbox(std::string name,
-                   std::tuple<int, int> position,
-                   std::tuple<int, int> size,
-                   std::map<std::string, bool*> variable);
+  void drawText(std::string name,
+                std::tuple<int, int> position,
+                std::tuple<int, int> size,
+                std::vector<std::string> text);
+  void drawCheckbox(std::string name,
+                    std::tuple<int, int> position,
+                    std::tuple<int, int> size,
+                    std::map<std::string, bool*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, VkCommandBuffer commandBuffer);
 

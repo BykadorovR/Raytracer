@@ -6,6 +6,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBuffer,
                              std::shared_ptr<Queue> queue,
                              std::shared_ptr<RenderPass> render,
+                             std::shared_ptr<RenderPass> renderDepth,
                              std::shared_ptr<Device> device,
                              std::shared_ptr<Settings> settings) {
   _commandPool = commandPool;
@@ -45,8 +46,9 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline[SpriteRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2D(
-        {_descriptorSetLayout[0]}, {}, Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
+    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2D({_descriptorSetLayout[0]}, {},
+                                                        Vertex2D::getBindingDescription(),
+                                                        Vertex2D::getAttributeDescriptions(), renderDepth);
   }
 }
 

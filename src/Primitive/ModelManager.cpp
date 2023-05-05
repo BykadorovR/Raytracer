@@ -5,6 +5,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBuffer,
                                std::shared_ptr<Queue> queue,
                                std::shared_ptr<RenderPass> render,
+                               std::shared_ptr<RenderPass> renderDepth,
                                std::shared_ptr<Device> device,
                                std::shared_ptr<Settings> settings) {
   _commandPool = commandPool;
@@ -65,12 +66,12 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     _pipeline[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
     _pipeline[ModelRenderMode::DEPTH]->createGraphic3D(VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0]}, {},
                                                        Vertex3D::getBindingDescription(),
-                                                       Vertex3D::getAttributeDescriptions(), render);
+                                                       Vertex3D::getAttributeDescriptions(), renderDepth);
 
     _pipelineCullOff[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
     _pipelineCullOff[ModelRenderMode::DEPTH]->createGraphic3D(VK_CULL_MODE_NONE, {_descriptorSetLayout[0]}, {},
                                                               Vertex3D::getBindingDescription(),
-                                                              Vertex3D::getAttributeDescriptions(), render);
+                                                              Vertex3D::getAttributeDescriptions(), renderDepth);
   }
 }
 

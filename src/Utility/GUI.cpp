@@ -89,10 +89,10 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
                        VertexGUI::getAttributeDescriptions(), renderPass);
 }
 
-void GUI::addCheckbox(std::string name,
-                      std::tuple<int, int> position,
-                      std::tuple<int, int> size,
-                      std::map<std::string, bool*> variable) {
+void GUI::drawCheckbox(std::string name,
+                       std::tuple<int, int> position,
+                       std::tuple<int, int> size,
+                       std::map<std::string, bool*> variable) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
@@ -104,10 +104,10 @@ void GUI::addCheckbox(std::string name,
   _calls++;
 }
 
-void GUI::addText(std::string name,
-                  std::tuple<int, int> position,
-                  std::tuple<int, int> size,
-                  std::vector<std::string> text) {
+void GUI::drawText(std::string name,
+                   std::tuple<int, int> position,
+                   std::tuple<int, int> size,
+                   std::vector<std::string> text) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto value : text) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);

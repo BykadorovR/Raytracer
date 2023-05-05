@@ -28,6 +28,11 @@
 float fps = 0;
 float frameTimer = 0.f;
 uint64_t currentFrame = 0;
+// Depth bias (and slope) are used to avoid shadowing artifacts
+// Constant depth bias factor (always applied)
+float depthBiasConstant = 1.25f;
+// Slope depth bias factor, applied depending on polygon's slope
+float depthBiasSlope = 1.75f;
 
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
@@ -50,20 +55,19 @@ std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass, renderPassDepth;
 std::shared_ptr<Framebuffer> frameBuffer, frameBufferDepth;
+std::vector<std::shared_ptr<ImageView>> resultDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
+std::vector<std::shared_ptr<Texture>> depthTexture;
 
 PFN_vkCmdBeginDebugUtilsLabelEXT CmdBeginDebugUtilsLabelEXT;
 PFN_vkCmdEndDebugUtilsLabelEXT CmdEndDebugUtilsLabelEXT;
 PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT;
 
 void initialize() {
-  clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-  clearValues[1].depthStencil = {1.0f, 0};
-
   settings = std::make_shared<Settings>(std::tuple{1600, 900}, 2);
   window = std::make_shared<Window>(settings->getResolution());
   input = std::make_shared<Input>(window);
@@ -87,15 +91,25 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    std::shared_ptr<Image> image = std::make_shared<Image>(
+        settings->getResolution(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        device);
+    resultDepth.push_back(std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, device));
+    depthTexture.push_back(std::make_shared<Texture>(resultDepth[i], device));
+  }
+
   swapchain = std::make_shared<Swapchain>(VK_FORMAT_B8G8R8A8_UNORM, window, surface, device);
-  renderPass = std::make_shared<RenderPass>(swapchain->getImageFormat(), device);
-  renderPass->initialize();
+  renderPass = std::make_shared<RenderPass>(device);
+  renderPass->initialize(swapchain->getImageFormat());
+  renderPassDepth = std::make_shared<RenderPass>(device);
+  renderPassDepth->initializeDepthPass();
+
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
 
-  auto shader3D = std::make_shared<Shader>(device);
-  shader3D->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader3D->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  frameBufferDepth = std::make_shared<Framebuffer>(settings->getResolution(), resultDepth, renderPassDepth, device);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -122,10 +136,10 @@ void initialize() {
   // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
   // directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, renderPass, device,
-                                                  settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, renderPass, device,
-                                                  settings);
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, renderPass,
+                                                  renderPassDepth, device, settings);
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, renderPass,
+                                                  renderPassDepth, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(modelManager, camera, gui);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -189,17 +203,14 @@ void initialize() {
 
 VkRenderPassBeginInfo render(int index,
                              std::shared_ptr<RenderPass> renderPass,
-                             std::shared_ptr<Framebuffer> framebuffer,
-                             std::shared_ptr<Swapchain> swapchain) {
+                             std::shared_ptr<Framebuffer> framebuffer) {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = renderPass->getRenderPass();
   renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent = swapchain->getSwapchainExtent();
-
-  renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-  renderPassInfo.pClearValues = clearValues.data();
+  renderPassInfo.renderArea.extent.width = std::get<0>(settings->getResolution());
+  renderPassInfo.renderArea.extent.height = std::get<1>(settings->getResolution());
 
   return renderPassInfo;
 }
@@ -227,7 +238,7 @@ void drawFrame() {
   result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
-  gui->addText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
+  gui->drawText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
   // record command buffer
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -241,38 +252,86 @@ void drawFrame() {
       .pNext = NULL,
       .objectType = VK_OBJECT_TYPE_COMMAND_BUFFER,
       .objectHandle = (uint64_t)commandBuffer->getCommandBuffer()[currentFrame],
-      .pObjectName = "Raytracing command buffer",
+      .pObjectName = "Common command buffer",
   };
   SetDebugUtilsObjectNameEXT(device->getLogicalDevice(), &cmdBufInfo);
+  // update positions
+  static float angleHorizontal = 90.f;
+  glm::vec3 lightPositionHorizontal = glm::vec3(3.f * cos(glm::radians(angleHorizontal)), 0.f,
+                                                3.f * sin(glm::radians(angleHorizontal)));
+  static float angleVertical = 0.f;
+  glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
+                                              3.f * cos(glm::radians(angleVertical)));
 
-  VkDebugUtilsLabelEXT markerInfo = {};
-  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  markerInfo.pLabelName = "Render to screen";
-  CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
+  if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
+  if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
+  angleVertical += 0.01f;
+  angleHorizontal += 0.01f;
+  spriteManager->setCamera(camera);
+  modelManager->setCamera(camera);
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // render to depth buffer
+  /////////////////////////////////////////////////////////////////////////////////////////
+  {
+    VkDebugUtilsLabelEXT markerInfo = {};
+    markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    markerInfo.pLabelName = "Render to depth buffer";
+    CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
+
+    auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth);
+    clearValues[0].depthStencil = {1.0f, 0};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = clearValues.data();
+    // TODO: only one depth texture?
+    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    // Set depth bias (aka "Polygon offset")
+    // Required to avoid shadow mapping artifacts
+    vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+    // draw scene here
+    spriteManager->draw(SpriteRenderMode::DEPTH, currentFrame);
+    modelManager->draw(ModelRenderMode::DEPTH, currentFrame, frameTimer);
+    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+
+    CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // depth to screne barrier
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // Image memory barrier to make sure that writes are finished before sampling from the texture
+  VkImageMemoryBarrier imageMemoryBarrier = {};
+  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  // We won't be changing the layout of the image
+  imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  imageMemoryBarrier.image = resultDepth[currentFrame]->getImage()->getImage();
+  imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+  imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+  imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer, swapchain);
+    VkDebugUtilsLabelEXT markerInfo = {};
+    markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    markerInfo.pLabelName = "Render to screen";
+    CmdBeginDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame], &markerInfo);
+
+    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer);
+    clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
+    clearValues[1].depthStencil = {1.0f, 0};
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    static float angleHorizontal = 90.f;
-    glm::vec3 lightPositionHorizontal = glm::vec3(3.f * cos(glm::radians(angleHorizontal)), 0.f,
-                                                  3.f * sin(glm::radians(angleHorizontal)));
-    static float angleVertical = 0.f;
-    glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
-                                                3.f * cos(glm::radians(angleVertical)));
-
-    if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
-    if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
-    angleVertical += 0.01f;
-    angleHorizontal += 0.01f;
-
     lightManager->draw(currentFrame);
     // draw scene here
-    spriteManager->setCamera(camera);
     spriteManager->draw(SpriteRenderMode::FULL, currentFrame);
-    modelManager->setCamera(camera);
     modelManager->draw(ModelRenderMode::FULL, currentFrame, frameTimer);
 
     debugVisualization->draw();
@@ -280,10 +339,10 @@ void drawFrame() {
     gui->updateBuffers(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+
+    CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
   }
   ///////////////////////////////////////////////////////////////////////////////////////////
-
-  CmdEndDebugUtilsLabelEXT(commandBuffer->getCommandBuffer()[currentFrame]);
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
     throw std::runtime_error("failed to record command buffer!");

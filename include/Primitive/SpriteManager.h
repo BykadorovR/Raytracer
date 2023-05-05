@@ -29,6 +29,7 @@ class SpriteManager {
                 std::shared_ptr<CommandBuffer> commandBuffer,
                 std::shared_ptr<Queue> queue,
                 std::shared_ptr<RenderPass> render,
+                std::shared_ptr<RenderPass> renderDepth,
                 std::shared_ptr<Device> device,
                 std::shared_ptr<Settings> settings);
   std::shared_ptr<Sprite> createSprite(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normalMap);

@@ -5,12 +5,11 @@ class RenderPass {
  private:
   std::shared_ptr<Device> _device;
   VkRenderPass _renderPass;
-  VkFormat _format;
 
  public:
-  RenderPass(VkFormat format, std::shared_ptr<Device> device);
-  void initialize();
-  void initializeOffscreen();
+  RenderPass(std::shared_ptr<Device> device);
+  void initialize(VkFormat format);
+  void initializeOffscreen(VkFormat format);
   void initializeDepthPass();
   VkRenderPass& getRenderPass();
   ~RenderPass();

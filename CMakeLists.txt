@@ -73,7 +73,7 @@ ExternalProject_Add(
   imgui
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui
-  GIT_TAG 713e034d95f6cc8a57ca504d52cb4f60da6359d9
+  GIT_TAG 70cca1eac07aa3809bdd3717253c3754a5b7cfcc
   CONFIGURE_COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/
   INSTALL_COMMAND ""
 )
