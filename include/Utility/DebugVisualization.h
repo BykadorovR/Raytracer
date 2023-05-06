@@ -41,6 +41,7 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<Logger> _logger;
+  bool _showDepth = true;
 
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},

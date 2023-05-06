@@ -57,6 +57,10 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
 }
 
 void DebugVisualization::draw(int currentFrame) {
+  std::map<std::string, bool*> toggleDepth;
+  toggleDepth["Depth"] = &_showDepth;
+  _gui->drawCheckbox("Debug", {20, 100}, {100, 80}, toggleDepth);
+
   _logger->beginDebugUtils("Debug visualization", currentFrame);
 
   if (_lightManager) {
@@ -81,7 +85,7 @@ void DebugVisualization::draw(int currentFrame) {
     }
   }
 
-  if (_texture != nullptr) {
+  if (_texture != nullptr && _showDepth) {
     vkCmdBindPipeline(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       _pipeline->getPipeline());
 
@@ -107,6 +111,8 @@ void DebugVisualization::draw(int currentFrame) {
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
 
     glm::mat4 model = glm::mat4(1.f);
+    model = glm::translate(model, glm::vec3(0.75f, -0.75f, 0.f));
+    model = glm::scale(model, glm::vec3(0.5f, 0.5f, 1.f));
 
     void* data;
     vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
