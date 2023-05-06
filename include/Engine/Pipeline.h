@@ -16,10 +16,11 @@ class Pipeline {
 
  public:
   Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> device);
-  void createGraphic2D(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+  void createGraphic2D(VkCullModeFlags cullMode,
+                       std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
-                       std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions,
+                       std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
   void createGraphic3D(VkCullModeFlags cullMode,
                        std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
@@ -28,8 +29,9 @@ class Pipeline {
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
   void createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+                 std::map<std::string, VkPushConstantRange> pushConstants,
                  VkVertexInputBindingDescription bindingDescription,
-                 std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
+                 std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                  std::shared_ptr<RenderPass> renderPass);
   void createCompute(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout);
 

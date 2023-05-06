@@ -33,6 +33,7 @@ class Camera {
   glm::mat4 getView();
   glm::mat4 getProjection();
   std::shared_ptr<ViewParameters> getViewParameters();
+  std::shared_ptr<ProjectionParameters> getProjectionParameters();
 };
 
 class CameraFly : public Camera, public InputSubscriber {

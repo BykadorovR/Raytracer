@@ -8,10 +8,12 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> devic
 }
 
 void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+                         std::map<std::string, VkPushConstantRange> pushConstants,
                          VkVertexInputBindingDescription bindingDescription,
-                         std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions,
+                         std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                          std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
 
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
@@ -22,6 +24,13 @@ void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descr
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
   pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
+  if (pushConstants.size() > 0) {
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
+  }
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
@@ -252,10 +261,11 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
   }
 }
 
-void Pipeline::createGraphic2D(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+void Pipeline::createGraphic2D(VkCullModeFlags cullMode,
+                               std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                                std::map<std::string, VkPushConstantRange> pushConstants,
                                VkVertexInputBindingDescription bindingDescription,
-                               std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions,
+                               std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                                std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
@@ -308,7 +318,7 @@ void Pipeline::createGraphic2D(std::vector<std::shared_ptr<DescriptorSetLayout>>
   rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
   rasterizer.lineWidth = 1.0f;
   // switch cull mode because we invert Y
-  rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+  rasterizer.cullMode = cullMode;
   // rasterizer.cullMode = VK_CULL_MODE_NONE;
   rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
   rasterizer.depthBiasEnable = VK_FALSE;

@@ -27,6 +27,7 @@ class Image {
                     VkImageLayout newLayout,
                     std::shared_ptr<CommandPool> commandPool,
                     std::shared_ptr<Queue> queue);
+  void overrideLayout(VkImageLayout layout);
   VkImage& getImage();
   VkFormat& getFormat();
   VkImageLayout& getImageLayout();

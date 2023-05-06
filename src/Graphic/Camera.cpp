@@ -8,7 +8,7 @@ Camera::Camera(std::shared_ptr<Settings> settings) {
   _viewParams->direction = glm::vec3(0.f, 0.f, -3.f);
   _viewParams->up = glm::vec3(0.f, 1.f, 0.f);
   _projectionParams = std::make_shared<ProjectionParameters>();
-  _projectionParams->far = 1000.f;
+  _projectionParams->far = 100.f;
   _projectionParams->near = 0.1f;
   _projectionParams->fov = 60.f;
 }
@@ -32,6 +32,8 @@ glm::mat4 Camera::getProjection() {
 }
 
 std::shared_ptr<ViewParameters> Camera::getViewParameters() { return _viewParams; }
+
+std::shared_ptr<ProjectionParameters> Camera::getProjectionParameters() { return _projectionParams; }
 
 CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera(settings) {
   _once = false;

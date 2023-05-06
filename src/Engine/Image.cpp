@@ -68,6 +68,8 @@ Image::Image(std::tuple<int, int> resolution,
 
 VkFormat& Image::getFormat() { return _format; }
 
+void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
+
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
                          std::shared_ptr<CommandPool> commandPool,

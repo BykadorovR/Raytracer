@@ -1,14 +1,53 @@
 #include "DebugVisualization.h"
 
-DebugVisualization::DebugVisualization(std::shared_ptr<Model3DManager> modelManager,
-                                       std::shared_ptr<Camera> camera,
-                                       std::shared_ptr<GUI> gui) {
+DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
+                                       std::shared_ptr<GUI> gui,
+                                       std::shared_ptr<State> state,
+                                       std::shared_ptr<Logger> logger) {
   _camera = camera;
-  _modelManager = modelManager;
   _gui = gui;
+  _state = state;
+  _logger = logger;
+
+  _renderPass = std::make_shared<RenderPass>(state->getDevice());
+  _renderPass->initialize(state->getSwapchain()->getImageFormat());
+  auto shader = std::make_shared<Shader>(state->getDevice());
+  shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
+                                                   state->getCommandPool(), state->getQueue(), state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, state->getCommandPool(), state->getQueue(),
+                                                   state->getDevice());
+  _indexBuffer = std::make_shared<IndexBuffer>(_indices, state->getCommandPool(), state->getQueue(),
+                                               state->getDevice());
+
+  auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraLayout->createCamera();
+
+  _cameraSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), cameraLayout,
+                                               state->getDescriptorPool(), state->getDevice());
+  _cameraSet->createCamera(_uniformBuffer);
+
+  _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  _textureSetLayout->createGraphic();
+
+  _pipeline = std::make_shared<Pipeline>(shader, state->getDevice());
+  _pipeline->createHUD(
+      {cameraLayout, _textureSetLayout},
+      std::map<std::string, VkPushConstantRange>{{std::string("fragment"), DepthPush::getPushConstant()}},
+      Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), _renderPass);
 }
 
-void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
+void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
+  _texture = texture;
+  _textureSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _textureSetLayout,
+                                                _state->getDescriptorPool(), _state->getDevice());
+  _textureSet->createGraphic(texture);
+}
+
+void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
+                                   std::shared_ptr<LightManager> lightManager) {
+  _modelManager = modelManager;
   _lightManager = lightManager;
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
@@ -17,7 +56,9 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   }
 }
 
-void DebugVisualization::draw() {
+void DebugVisualization::draw(int currentFrame) {
+  _logger->beginDebugUtils("Debug visualization", currentFrame);
+
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
     toggle["Lights"] = &_showLights;
@@ -39,6 +80,60 @@ void DebugVisualization::draw() {
       }
     }
   }
+
+  if (_texture != nullptr) {
+    vkCmdBindPipeline(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      _pipeline->getPipeline());
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = std::get<1>(_state->getSettings()->getResolution());
+    viewport.width = std::get<0>(_state->getSettings()->getResolution());
+    viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
+                                std::get<1>(_state->getSettings()->getResolution()));
+    vkCmdSetScissor(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+    DepthPush pushConstants;
+    pushConstants.near = _camera->getProjectionParameters()->near;
+    pushConstants.far = _camera->getProjectionParameters()->far;
+    vkCmdPushConstants(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
+
+    glm::mat4 model = glm::mat4(1.f);
+
+    void* data;
+    vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(glm::mat4), 0, &data);
+    memcpy(data, &model, sizeof(glm::mat4));
+    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+
+    VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
+                         _indexBuffer->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
+
+    vkCmdBindDescriptorSets(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
+                            VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipelineLayout(), 0, 1,
+                            &_cameraSet->getDescriptorSets()[currentFrame], 0, nullptr);
+
+    vkCmdBindDescriptorSets(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
+                            VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipelineLayout(), 1, 1,
+                            &_textureSet->getDescriptorSets()[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
+                     static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+  }
+
+  _logger->endDebugUtils(currentFrame);
 }
 
 void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}

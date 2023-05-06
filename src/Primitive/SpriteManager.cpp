@@ -5,6 +5,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandPool> commandPool,
                              std::shared_ptr<CommandBuffer> commandBuffer,
                              std::shared_ptr<Queue> queue,
+                             std::shared_ptr<DescriptorPool> descriptorPool,
                              std::shared_ptr<RenderPass> render,
                              std::shared_ptr<RenderPass> renderDepth,
                              std::shared_ptr<Device> device,
@@ -15,8 +16,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
   _device = device;
   _settings = settings;
   _lightManager = lightManager;
-
-  _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
+  _descriptorPool = descriptorPool;
 
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
@@ -37,7 +37,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
     _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(shader, device);
     _pipeline[SpriteRenderMode::FULL]->createGraphic2D(
-        _descriptorSetLayout,
+        VK_CULL_MODE_BACK_BIT, _descriptorSetLayout,
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
         Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
   }
@@ -46,7 +46,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline[SpriteRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2D({_descriptorSetLayout[0]}, {},
+    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2D(VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0]}, {},
                                                         Vertex2D::getBindingDescription(),
                                                         Vertex2D::getAttributeDescriptions(), renderDepth);
   }
@@ -54,11 +54,8 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
                                                     std::shared_ptr<Texture> normalMap) {
-  if ((_spritesCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
-    _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
-  }
   _spritesCreated++;
-  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool.back(), _commandPool,
+  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandPool,
                                   _commandBuffer, _queue, _device, _settings);
 }
 

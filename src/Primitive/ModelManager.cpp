@@ -4,6 +4,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandPool> commandPool,
                                std::shared_ptr<CommandBuffer> commandBuffer,
                                std::shared_ptr<Queue> queue,
+                               std::shared_ptr<DescriptorPool> descriptorPool,
                                std::shared_ptr<RenderPass> render,
                                std::shared_ptr<RenderPass> renderDepth,
                                std::shared_ptr<Device> device,
@@ -15,8 +16,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   _device = device;
   _settings = settings;
   _renderPass = render;
-
-  _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, device));
+  _descriptorPool = descriptorPool;
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createCamera();
@@ -76,11 +76,8 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  if ((_modelsCreated * _settings->getMaxFramesInFlight()) >= _descriptorPoolSize * _descriptorPool.size()) {
-    _descriptorPool.push_back(std::make_shared<DescriptorPool>(_descriptorPoolSize, _device));
-  }
   _modelsCreated++;
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool.back(),
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
                                      _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
