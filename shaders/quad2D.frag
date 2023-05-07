@@ -20,4 +20,5 @@ float linearizeDepth(float depth)
 void main() {
     float depth = texture(texSampler, fragTexCoord).r;
     outColor = vec4(vec3(1.f - linearizeDepth(depth)), 1.f);
+    //outColor = vec4(vec3(1.0 - depth), 1.f);
 }

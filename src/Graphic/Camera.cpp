@@ -1,3 +1,4 @@
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "Camera.h"
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -28,6 +29,7 @@ glm::mat4 Camera::getProjection() {
       glm::radians(_projectionParams->fov),
       (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution()),
       _projectionParams->near, _projectionParams->far);
+  // auto projection = glm::ortho(-10.f, 10.f, -10.f, 10.f, _projectionParams->near, _projectionParams->far);
   return projection;
 }
 
