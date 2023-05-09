@@ -73,6 +73,8 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                               Vertex3D::getBindingDescription(),
                                                               Vertex3D::getAttributeDescriptions(), renderDepth);
   }
+
+  _cameraOrtho = std::make_shared<CameraOrtho>();
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
@@ -88,7 +90,7 @@ void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
 
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Model3DManager::draw(ModelRenderMode mode, int currentFrame, float frameTimer) {
+void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTimer) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[mode]->getPipeline());
 
@@ -122,13 +124,14 @@ void Model3DManager::draw(ModelRenderMode mode, int currentFrame, float frameTim
   for (auto model : _modelsGLTF) {
     if (mode == ModelRenderMode::DEPTH) {
       auto position = _lightManager->getPointLights()[0]->getPosition();
-      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
+      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+      //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
       _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 100.f);
       model->setCamera(_cameraOrtho);
     }
     if (mode == ModelRenderMode::FULL) {
       model->setCamera(_camera);
     }
-    model->draw(_pipeline[mode], _pipelineCullOff[mode], currentFrame, frameTimer);
+    model->draw(currentFrame, mode, _pipeline[mode], _pipelineCullOff[mode], frameTimer);
   }
 }

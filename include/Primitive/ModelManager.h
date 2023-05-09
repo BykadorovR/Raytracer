@@ -39,5 +39,5 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
-  void draw(ModelRenderMode mode, int currentFrame, float frameTimer);
+  void draw(int currentFrame, ModelRenderMode mode, float frameTimer);
 };

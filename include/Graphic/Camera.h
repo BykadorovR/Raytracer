@@ -25,6 +25,8 @@ class Camera {
   virtual glm::mat4 getProjection() = 0;
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   glm::vec3 getEye();
+  glm::vec3 getDirection();
+  glm::vec3 getUp();
   float getFar();
   float getNear();
 };

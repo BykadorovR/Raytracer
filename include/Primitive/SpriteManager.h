@@ -2,8 +2,6 @@
 
 #include "Sprite.h"
 
-enum class SpriteRenderMode { DEPTH, FULL };
-
 class SpriteManager {
  private:
   // position in vector is set number
@@ -37,5 +35,5 @@ class SpriteManager {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(SpriteRenderMode mode, int currentFrame);
+  void draw(int currentFrame, SpriteRenderMode mode);
 };

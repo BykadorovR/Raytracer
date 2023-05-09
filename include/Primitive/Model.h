@@ -17,14 +17,15 @@ enum class ModelRenderMode { DEPTH, FULL };
 class Model {
  protected:
   std::shared_ptr<Camera> _camera;
-  glm::mat4 _model;
+  glm::mat4 _model = glm::mat4(1.f);
 
  public:
   void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
-  virtual void draw(std::shared_ptr<Pipeline> pipeline,
+  virtual void draw(int currentFrame,
+                    ModelRenderMode mode,
+                    std::shared_ptr<Pipeline> pipeline,
                     std::shared_ptr<Pipeline> pipelineCullOff,
-                    int currentFrame,
                     float frameTimer) = 0;
 };
 
@@ -133,12 +134,13 @@ class ModelGLTF : public Model {
   uint32_t _activeAnimation = 0;
 
   std::vector<NodeGLTF*> _nodes;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::map<ModelRenderMode, std::shared_ptr<UniformBuffer>> _uniformBuffer;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetJointsDefault;
+  std::map<ModelRenderMode, std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
+  std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
@@ -165,9 +167,10 @@ class ModelGLTF : public Model {
                  uint32_t nodeIndex,
                  std::vector<uint32_t>& indexBuffer,
                  std::vector<Vertex3D>& vertexBuffer);
-  void _drawNode(std::shared_ptr<Pipeline> pipeline,
+  void _drawNode(int currentFrame,
+                 ModelRenderMode mode,
+                 std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
-                 int currentFrame,
                  NodeGLTF* node);
 
  public:
@@ -182,8 +185,9 @@ class ModelGLTF : public Model {
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
 
-  void draw(std::shared_ptr<Pipeline> pipeline,
+  void draw(int currentFrame,
+            ModelRenderMode mode,
+            std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<Pipeline> pipelineCullOff,
-            int currentFrame,
             float frameTimer);
 };

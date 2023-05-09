@@ -12,13 +12,17 @@ Camera::Camera() {
 
 void Camera::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
   _eye = eye;
-  _up = up;
   _direction = direction;
+  _up = up;
 }
 
 glm::mat4 Camera::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
 
 glm::vec3 Camera::getEye() { return _eye; }
+
+glm::vec3 Camera::getDirection() { return _direction; }
+
+glm::vec3 Camera::getUp() { return _up; }
 
 float Camera::getFar() { return _far; }
 
@@ -36,12 +40,14 @@ glm::mat4 CameraOrtho::getProjection() {
 }
 
 CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
+  _settings = settings;
   _once = false;
   _xLast = 0.f;
   _yLast = 0.f;
   _yaw = -90.f;
   _pitch = 0.f;
   _roll = 0.f;
+  _fov = 60.f;
   _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));

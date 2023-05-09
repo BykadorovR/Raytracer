@@ -69,7 +69,7 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());
 }
 
-void SpriteManager::draw(SpriteRenderMode mode, int currentFrame) {
+void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[mode]->getPipeline());
 
@@ -103,13 +103,14 @@ void SpriteManager::draw(SpriteRenderMode mode, int currentFrame) {
   for (auto sprite : _sprites) {
     if (mode == SpriteRenderMode::DEPTH) {
       auto position = _lightManager->getPointLights()[0]->getPosition();
-      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
+      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+      /*_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());*/
       _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 100.f);
       sprite->setCamera(_cameraOrtho);
     }
     if (mode == SpriteRenderMode::FULL) {
       sprite->setCamera(_camera);
     }
-    sprite->draw(currentFrame, _pipeline[mode]);
+    sprite->draw(currentFrame, mode, _pipeline[mode]);
   }
 }

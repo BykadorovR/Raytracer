@@ -280,8 +280,8 @@ void drawFrame() {
     // Required to avoid shadow mapping artifacts
     vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
     // draw scene here
-    spriteManager->draw(SpriteRenderMode::DEPTH, currentFrame);
-    modelManager->draw(ModelRenderMode::DEPTH, currentFrame, frameTimer);
+    spriteManager->draw(currentFrame, SpriteRenderMode::DEPTH);
+    modelManager->draw(currentFrame, ModelRenderMode::DEPTH, frameTimer);
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 
     logger->endDebugUtils(currentFrame);
@@ -319,8 +319,8 @@ void drawFrame() {
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     lightManager->draw(currentFrame);
     // draw scene here
-    spriteManager->draw(SpriteRenderMode::FULL, currentFrame);
-    modelManager->draw(ModelRenderMode::FULL, currentFrame, frameTimer);
+    spriteManager->draw(currentFrame, SpriteRenderMode::FULL);
+    modelManager->draw(currentFrame, ModelRenderMode::FULL, frameTimer);
 
     debugVisualization->draw(currentFrame);
 

@@ -63,12 +63,18 @@ ModelGLTF::ModelGLTF(std::string path,
   //********************************************************************
   _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandPool, queue, device);
-  _uniformBuffer = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool,
-                                                   queue, device);
+  _uniformBuffer[ModelRenderMode::DEPTH] = std::make_shared<UniformBuffer>(
+      settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
+  _uniformBuffer[ModelRenderMode::FULL] = std::make_shared<UniformBuffer>(
+      settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
 
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[0],
-                                                         descriptorPool, device);
-  _descriptorSetCamera->createCamera(_uniformBuffer);
+  _descriptorSetCamera[ModelRenderMode::DEPTH] = std::make_shared<DescriptorSet>(
+      settings->getMaxFramesInFlight(), descriptorSetLayout[0], descriptorPool, device);
+  _descriptorSetCamera[ModelRenderMode::DEPTH]->createCamera(_uniformBuffer[ModelRenderMode::DEPTH]);
+
+  _descriptorSetCamera[ModelRenderMode::FULL] = std::make_shared<DescriptorSet>(
+      settings->getMaxFramesInFlight(), descriptorSetLayout[0], descriptorPool, device);
+  _descriptorSetCamera[ModelRenderMode::FULL]->createCamera(_uniformBuffer[ModelRenderMode::FULL]);
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", commandPool, queue, device);
   for (auto& material : _materials) {
@@ -640,9 +646,10 @@ void ModelGLTF::_updateAnimation(float deltaTime) {
   }
 }
 
-void ModelGLTF::_drawNode(std::shared_ptr<Pipeline> pipeline,
+void ModelGLTF::_drawNode(int currentFrame,
+                          ModelRenderMode mode,
+                          std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
-                          int currentFrame,
                           NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
     glm::mat4 nodeMatrix = node->getLocalMatrix();
@@ -658,15 +665,15 @@ void ModelGLTF::_drawNode(std::shared_ptr<Pipeline> pipeline,
     ubo.projection = _camera->getProjection();
 
     void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
-                &data);
+    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(ubo), 0, &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory());
 
     if (pipeline->getDescriptorSetLayout().size() > 0) {
       vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetCamera[mode]->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     if (node->skin >= 0) {
@@ -730,13 +737,14 @@ void ModelGLTF::_drawNode(std::shared_ptr<Pipeline> pipeline,
   }
 
   for (auto& child : node->children) {
-    _drawNode(pipeline, pipelineCullOff, currentFrame, child);
+    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, child);
   }
 }
 
-void ModelGLTF::draw(std::shared_ptr<Pipeline> pipeline,
+void ModelGLTF::draw(int currentFrame,
+                     ModelRenderMode mode,
+                     std::shared_ptr<Pipeline> pipeline,
                      std::shared_ptr<Pipeline> pipelineCullOff,
-                     int currentFrame,
                      float frameTimer) {
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
@@ -753,7 +761,7 @@ void ModelGLTF::draw(std::shared_ptr<Pipeline> pipeline,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(pipeline, pipelineCullOff, currentFrame, node);
+    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);

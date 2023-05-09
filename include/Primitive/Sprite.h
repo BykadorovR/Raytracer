@@ -11,12 +11,17 @@
 #include "LightManager.h"
 #include "Light.h"
 
+enum class SpriteRenderMode { DEPTH, FULL };
+
 class Sprite {
  private:
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Device> _device;
   std::shared_ptr<CommandPool> _commandPool;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSet;
+
+  std::map<SpriteRenderMode, std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
+  std::shared_ptr<DescriptorSet> _descriptorSetTextures;
+
   std::shared_ptr<CommandBuffer> _commandBuffer;
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
@@ -24,7 +29,7 @@ class Sprite {
 
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::map<SpriteRenderMode, std::shared_ptr<UniformBuffer>> _uniformBuffer;
 
   glm::mat4 _model = glm::mat4(1.f);
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
@@ -50,5 +55,5 @@ class Sprite {
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);
-  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline);
+  void draw(int currentFrame, SpriteRenderMode mode, std::shared_ptr<Pipeline> pipeline);
 };
