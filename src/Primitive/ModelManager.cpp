@@ -108,7 +108,7 @@ void Model3DManager::draw(ModelRenderMode mode, int currentFrame, float frameTim
 
   if (_pipeline[mode]->getPushConstants().find("fragment") != _pipeline[mode]->getPushConstants().end()) {
     LightPush pushConstants;
-    pushConstants.cameraPosition = _camera->getViewParameters()->eye;
+    pushConstants.cameraPosition = _camera->getEye();
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline[mode]->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
@@ -120,7 +120,15 @@ void Model3DManager::draw(ModelRenderMode mode, int currentFrame, float frameTim
   }
 
   for (auto model : _modelsGLTF) {
-    model->setCamera(_camera);
+    if (mode == ModelRenderMode::DEPTH) {
+      auto position = _lightManager->getPointLights()[0]->getPosition();
+      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
+      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 100.f);
+      model->setCamera(_cameraOrtho);
+    }
+    if (mode == ModelRenderMode::FULL) {
+      model->setCamera(_camera);
+    }
     model->draw(_pipeline[mode], _pipelineCullOff[mode], currentFrame, frameTimer);
   }
 }

@@ -3,8 +3,6 @@
 #include "LightManager.h"
 #include "Camera.h"
 
-enum class ModelRenderMode { DEPTH, FULL };
-
 class Model3DManager {
  private:
   // position in vector is set number
@@ -21,6 +19,7 @@ class Model3DManager {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
+  std::shared_ptr<CameraOrtho> _cameraOrtho;
 
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
   std::shared_ptr<RenderPass> _renderPass;

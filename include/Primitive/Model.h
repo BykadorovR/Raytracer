@@ -12,6 +12,8 @@
 #include "Camera.h"
 #include "LightManager.h"
 
+enum class ModelRenderMode { DEPTH, FULL };
+
 class Model {
  protected:
   std::shared_ptr<Camera> _camera;

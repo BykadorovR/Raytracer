@@ -105,8 +105,8 @@ void DebugVisualization::draw(int currentFrame) {
     vkCmdSetScissor(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     DepthPush pushConstants;
-    pushConstants.near = _camera->getProjectionParameters()->near;
-    pushConstants.far = _camera->getProjectionParameters()->far;
+    pushConstants.near = _camera->getNear();
+    pushConstants.far = _camera->getFar();
     vkCmdPushConstants(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
 

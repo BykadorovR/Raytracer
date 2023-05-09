@@ -18,6 +18,7 @@ class SpriteManager {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
+  std::shared_ptr<CameraOrtho> _cameraOrtho;
   std::shared_ptr<LightManager> _lightManager;
 
   std::vector<std::shared_ptr<Sprite>> _sprites;

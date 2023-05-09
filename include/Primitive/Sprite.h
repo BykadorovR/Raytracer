@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Light.h"
 
 class Sprite {
  private:

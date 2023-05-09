@@ -50,6 +50,8 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
                                                         Vertex2D::getBindingDescription(),
                                                         Vertex2D::getAttributeDescriptions(), renderDepth);
   }
+
+  _cameraOrtho = std::make_shared<CameraOrtho>();
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
@@ -87,7 +89,7 @@ void SpriteManager::draw(SpriteRenderMode mode, int currentFrame) {
 
   if (_pipeline[mode]->getPushConstants().find("fragment") != _pipeline[mode]->getPushConstants().end()) {
     LightPush pushConstants;
-    pushConstants.cameraPosition = _camera->getViewParameters()->eye;
+    pushConstants.cameraPosition = _camera->getEye();
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline[mode]->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
@@ -99,7 +101,15 @@ void SpriteManager::draw(SpriteRenderMode mode, int currentFrame) {
   }
 
   for (auto sprite : _sprites) {
-    sprite->setCamera(_camera);
+    if (mode == SpriteRenderMode::DEPTH) {
+      auto position = _lightManager->getPointLights()[0]->getPosition();
+      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
+      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 100.f);
+      sprite->setCamera(_cameraOrtho);
+    }
+    if (mode == SpriteRenderMode::FULL) {
+      sprite->setCamera(_camera);
+    }
     sprite->draw(currentFrame, _pipeline[mode]);
   }
 }

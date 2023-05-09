@@ -27,6 +27,9 @@
 #include "State.h"
 #include "Logger.h"
 
+#undef near
+#undef far
+
 float fps = 0;
 float frameTimer = 0.f;
 uint64_t currentFrame = 0;
@@ -122,13 +125,13 @@ void initialize() {
   // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
   // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
 
-  // pointLightVertical = lightManager->createPointLight();
-  // pointLightVertical->createPhong(0.3f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  // pointLightVertical->setAttenuation(1.f, 0.045f, 0.0075f);
+  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->setPosition({3.f, 10.f, 0.f});
 
-  directionalLight = lightManager->createDirectionalLight();
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  directionalLight->setDirection(glm::vec3(-0.2f, -1.f, -0.3f));
+  // directionalLight = lightManager->createDirectionalLight();
+  // directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // directionalLight->setDirection(glm::vec3(-0.2f, -1.f, -0.3f));
 
   // directionalLight2 = lightManager->createDirectionalLight();
   // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
@@ -255,8 +258,8 @@ void drawFrame() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
                                               3.f * cos(glm::radians(angleVertical)));
 
-  if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
-  if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
+  // if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
+  // if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);

@@ -16,6 +16,7 @@ class PointLight {
     alignas(16) glm::vec3 position;
   };
   std::shared_ptr<PhongLightFields> _phong = nullptr;
+  glm::mat4 _projection;
 
  public:
   PointLight();
