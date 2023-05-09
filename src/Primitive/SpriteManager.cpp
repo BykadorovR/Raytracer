@@ -104,8 +104,8 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
     if (mode == SpriteRenderMode::DEPTH) {
       auto position = _lightManager->getPointLights()[0]->getPosition();
       _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
-      /*_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());*/
-      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 100.f);
+      //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
+      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 10.f);
       sprite->setCamera(_cameraOrtho);
     }
     if (mode == SpriteRenderMode::FULL) {
