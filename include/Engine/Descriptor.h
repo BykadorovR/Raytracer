@@ -13,6 +13,7 @@ class DescriptorSetLayout {
   void createGraphic();
   void createGraphicModel();
   void createCamera();
+  void createShadow();
   void createJoints();
   void createLight();
   void createModelAuxilary();
@@ -46,8 +47,11 @@ class DescriptorSet {
   void createJoints(std::shared_ptr<Buffer> buffer);
   void createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint);
   void createCamera(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createShadow(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
-  void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
+  void createGraphicModel(std::shared_ptr<Texture> texture,
+                          std::shared_ptr<Texture> normal,
+                          std::shared_ptr<Texture> shadow);
   void createGraphic(std::shared_ptr<Texture> texture);
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,

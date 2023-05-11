@@ -28,7 +28,14 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     setLayout->createGraphicModel();
     _descriptorSetLayout.push_back(setLayout);
   }
+
   { _descriptorSetLayout.push_back(_lightManager->getDescriptorSetLayout()); }
+
+  {
+    _shadowDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
+    _shadowDescriptorSetLayout->createShadow();
+    _descriptorSetLayout.push_back(_shadowDescriptorSetLayout);
+  }
 
   {
     auto shader = std::make_shared<Shader>(device);
@@ -51,13 +58,22 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
                                                         Vertex2D::getAttributeDescriptions(), renderDepth);
   }
 
+  {
+    _uniformShadow = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(glm::mat4), commandPool,
+                                                     queue, device);
+    _shadowDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _shadowDescriptorSetLayout,
+                                                           descriptorPool, device);
+    _shadowDescriptorSet->createShadow(_uniformShadow);
+  }
+
   _cameraOrtho = std::make_shared<CameraOrtho>();
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
-                                                    std::shared_ptr<Texture> normalMap) {
+                                                    std::shared_ptr<Texture> normalMap,
+                                                    std::shared_ptr<Texture> shadowMap) {
   _spritesCreated++;
-  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandPool,
+  return std::make_shared<Sprite>(texture, normalMap, shadowMap, _descriptorSetLayout, _descriptorPool, _commandPool,
                                   _commandBuffer, _queue, _device, _settings);
 }
 
@@ -94,6 +110,25 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
+  if (mode == SpriteRenderMode::FULL) {
+    auto position = _lightManager->getPointLights()[0]->getPosition();
+    _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+    //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
+    _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 20.f);
+
+    glm::mat4 shadowCamera = _cameraOrtho->getProjection() * _cameraOrtho->getView();
+
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(glm::mat4), 0, &data);
+    memcpy(data, &shadowCamera, sizeof(glm::mat4));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory());
+
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline[mode]->getPipelineLayout(), 3, 1,
+                            &_shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
   if (_pipeline[mode]->getDescriptorSetLayout().size() > 2) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[mode]->getPipelineLayout(), 2, 1,
@@ -102,10 +137,6 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
 
   for (auto sprite : _sprites) {
     if (mode == SpriteRenderMode::DEPTH) {
-      auto position = _lightManager->getPointLights()[0]->getPosition();
-      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
-      //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 10.f);
       sprite->setCamera(_cameraOrtho);
     }
     if (mode == SpriteRenderMode::FULL) {

@@ -146,12 +146,12 @@ void initialize() {
   debugVisualization->setTexture(depthTexture[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
 
-  auto sprite = spriteManager->createSprite(texture, normalMap);
-  auto sprite2 = spriteManager->createSprite(texture, normalMap);
-  auto sprite3 = spriteManager->createSprite(texture, normalMap);
-  auto sprite4 = spriteManager->createSprite(texture, normalMap);
-  auto sprite5 = spriteManager->createSprite(texture, normalMap);
-  auto sprite6 = spriteManager->createSprite(texture, normalMap);
+  auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+  auto sprite2 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+  auto sprite3 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+  auto sprite4 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+  auto sprite5 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+  auto sprite6 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
     model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
@@ -182,7 +182,7 @@ void initialize() {
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
   //{
   //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));

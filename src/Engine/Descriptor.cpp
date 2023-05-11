@@ -58,6 +58,25 @@ void DescriptorSetLayout::createCompute() {
   }
 }
 
+void DescriptorSetLayout::createShadow() {
+  VkDescriptorSetLayoutBinding uboLayoutBinding{};
+  uboLayoutBinding.binding = 0;
+  uboLayoutBinding.descriptorCount = 1;
+  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  uboLayoutBinding.pImmutableSamplers = nullptr;
+  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &uboLayoutBinding;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
 void DescriptorSetLayout::createCamera() {
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
@@ -78,7 +97,7 @@ void DescriptorSetLayout::createCamera() {
 }
 
 void DescriptorSetLayout::createGraphicModel() {
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  std::array<VkDescriptorSetLayoutBinding, 3> bindings;
   bindings[0].binding = 0;
   bindings[0].descriptorCount = 1;
   bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -90,6 +109,12 @@ void DescriptorSetLayout::createGraphicModel() {
   bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   bindings[1].pImmutableSamplers = nullptr;
   bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  bindings[2].binding = 2;
+  bindings[2].descriptorCount = 1;
+  bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[2].pImmutableSamplers = nullptr;
+  bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -265,7 +290,9 @@ DescriptorSet::DescriptorSet(int number,
   }
 }
 
-void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal) {
+void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture,
+                                       std::shared_ptr<Texture> normal,
+                                       std::shared_ptr<Texture> shadow) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
@@ -279,7 +306,13 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
     normalInfo.imageView = normal->getImageView()->getImageView();
     normalInfo.sampler = normal->getSampler()->getSampler();
 
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    VkDescriptorImageInfo shadowInfo{};
+    shadowInfo.imageLayout = shadow->getImageView()->getImage()->getImageLayout();
+    // TODO: make appropriate name
+    shadowInfo.imageView = shadow->getImageView()->getImageView();
+    shadowInfo.sampler = shadow->getSampler()->getSampler();
+
+    std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = _descriptorSets[i];
     descriptorWrites[0].dstBinding = 0;
@@ -295,6 +328,14 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pImageInfo = &normalInfo;
+
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = _descriptorSets[i];
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pImageInfo = &shadowInfo;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);
@@ -343,6 +384,26 @@ void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBu
 }
 
 void DescriptorSet::createCamera(std::shared_ptr<UniformBuffer> uniformBuffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createShadow(std::shared_ptr<UniformBuffer> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();

@@ -18,7 +18,9 @@ class SpriteManager {
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<CameraOrtho> _cameraOrtho;
   std::shared_ptr<LightManager> _lightManager;
-
+  std::shared_ptr<UniformBuffer> _uniformShadow;
+  std::shared_ptr<DescriptorSet> _shadowDescriptorSet;
+  std::shared_ptr<DescriptorSetLayout> _shadowDescriptorSetLayout;
   std::vector<std::shared_ptr<Sprite>> _sprites;
 
  public:
@@ -31,7 +33,9 @@ class SpriteManager {
                 std::shared_ptr<RenderPass> renderDepth,
                 std::shared_ptr<Device> device,
                 std::shared_ptr<Settings> settings);
-  std::shared_ptr<Sprite> createSprite(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normalMap);
+  std::shared_ptr<Sprite> createSprite(std::shared_ptr<Texture> texture,
+                                       std::shared_ptr<Texture> normalMap,
+                                       std::shared_ptr<Texture> shadowMap);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);

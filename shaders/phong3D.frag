@@ -5,10 +5,13 @@ layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec3 fragColor;
 layout(location = 3) in vec2 fragTexCoord;
 layout(location = 4) in mat3 fragTBN;
+//mat3 takes 3 slots
+layout(location = 7) in vec4 fragShadowCoord;
 
 layout(location = 0) out vec4 outColor;
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 layout(set = 1, binding = 1) uniform sampler2D normalSampler;
+layout(set = 1, binding = 2) uniform sampler2D shadowSampler;
 
 layout(set = 3, binding = 0) uniform AlphaMask {
     bool alphaMask;
@@ -62,7 +65,7 @@ vec3 directionalLight(vec3 normal) {
     return lightFactor;
 }
 
-vec3 pointLight(vec3 normal) {
+vec3 pointLight(float shadow, vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         float distance = length(lightPoint[i].position - fragPosition);
@@ -73,13 +76,26 @@ vec3 pointLight(vec3 normal) {
         //dot product between reflected ray and light ray
         float specularFactor = lightPoint[i].specular * 
                                pow(max(dot(normalize(reflect(fragPosition - lightPoint[i].position, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * attenuation * lightPoint[i].color;
+        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * lightPoint[i].color;
     }
 
     return lightFactor;
 }
 
+float calculateShadow() {
+    // perform perspective divide
+    vec3 position = fragShadowCoord.xyz / fragShadowCoord.w;
+    // transform to [0,1] range
+    position.xy = position.xy * 0.5 + 0.5;
+    float bufferDepth = texture(shadowSampler, position.xy).r;
+    float currentDepth = position.z;
+    float shadow = currentDepth > bufferDepth  ? 1.0 : 0.0;
+    return shadow;
+}
+
 void main() {
+    float shadow = calculateShadow();
+
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
@@ -95,7 +111,7 @@ void main() {
         //calculate directional light
         lightFactor += directionalLight(normal);
         //calculate point light
-        lightFactor += pointLight(normal);
+        lightFactor += pointLight(shadow, normal);
         outColor *= vec4(lightFactor, 1.f);
     }
 }

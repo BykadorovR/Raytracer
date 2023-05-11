@@ -8,6 +8,7 @@ struct UniformObject {
 
 Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Texture> normalMap,
+               std::shared_ptr<Texture> shadowMap,
                std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                std::shared_ptr<DescriptorPool> descriptorPool,
                std::shared_ptr<CommandPool> commandPool,
@@ -42,7 +43,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   {
     auto textureSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[1],
                                                       descriptorPool, device);
-    textureSet->createGraphicModel(texture, normalMap);
+    textureSet->createGraphicModel(texture, normalMap, shadowMap);
     _descriptorSetTextures = textureSet;
   }
 }

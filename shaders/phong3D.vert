@@ -10,6 +10,10 @@ layout(std430, set = 2, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
 
+layout(set = 5, binding = 0) uniform UniformDepth {
+    mat4 shadowVP;
+} shadow;
+
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inColor;
@@ -23,6 +27,8 @@ layout(location = 1) out vec3 fragNormal;
 layout(location = 2) out vec3 fragColor;
 layout(location = 3) out vec2 fragTexCoord;
 layout(location = 4) out mat3 fragTBN;
+//mat3 takes 3 slots
+layout(location = 7) out vec4 fragShadowCoord;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int jointNum;
@@ -51,4 +57,5 @@ void main() {
     fragTBN = mat3(tangent, bitangent, fragNormal);
     fragTexCoord = inTexCoord;
     fragPosition = (model * vec4(inPosition, 1.0)).xyz;
+    fragShadowCoord = shadow.shadowVP * model * vec4(inPosition, 1.0);
 }

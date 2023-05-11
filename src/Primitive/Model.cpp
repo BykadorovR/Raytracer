@@ -20,6 +20,7 @@ struct ModelAuxilary {
 };
 
 ModelGLTF::ModelGLTF(std::string path,
+                     std::shared_ptr<Texture> shadowMap,
                      std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
                      std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
@@ -82,11 +83,13 @@ ModelGLTF::ModelGLTF(std::string path,
                                                              _descriptorPool, _device);
     auto diffuseTexture = _stubTexture;
     auto normalTexture = _stubTexture;
+    auto shadowTexture = _stubTexture;
     if (material.baseColorTextureIndex < _textures.size()) {
       diffuseTexture = _images[_textures[material.baseColorTextureIndex].imageIndex].texture;
       normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
     }
-    material.descriptorSet->createGraphicModel(diffuseTexture, normalTexture);
+    if (shadowMap) shadowTexture = shadowMap;
+    material.descriptorSet->createGraphicModel(diffuseTexture, normalTexture, shadowTexture);
 
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);

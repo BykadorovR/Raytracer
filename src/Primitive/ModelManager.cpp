@@ -40,6 +40,12 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   { _descriptorSetLayout.push_back(_lightManager->getDescriptorSetLayout()); }
 
   {
+    _shadowDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
+    _shadowDescriptorSetLayout->createShadow();
+    _descriptorSetLayout.push_back(_shadowDescriptorSetLayout);
+  }
+
+  {
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -74,12 +80,20 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                               Vertex3D::getAttributeDescriptions(), renderDepth);
   }
 
+  {
+    _uniformShadow = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(glm::mat4), commandPool,
+                                                     queue, device);
+    _shadowDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _shadowDescriptorSetLayout,
+                                                           descriptorPool, device);
+    _shadowDescriptorSet->createShadow(_uniformShadow);
+  }
+
   _cameraOrtho = std::make_shared<CameraOrtho>();
 }
 
-std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
+std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path, std::shared_ptr<Texture> shadowMap) {
   _modelsCreated++;
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
+  return std::make_shared<ModelGLTF>(path, shadowMap, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
                                      _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
@@ -115,6 +129,25 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
+  if (mode == ModelRenderMode::FULL) {
+    auto position = _lightManager->getPointLights()[0]->getPosition();
+    _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+    //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
+    _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 20.f);
+
+    glm::mat4 shadowCamera = _cameraOrtho->getProjection() * _cameraOrtho->getView();
+
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory(), 0,
+                sizeof(glm::mat4), 0, &data);
+    memcpy(data, &shadowCamera, sizeof(glm::mat4));
+    vkUnmapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory());
+
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline[mode]->getPipelineLayout(), 5, 1,
+                            &_shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
   if (_pipeline[mode]->getDescriptorSetLayout().size() > 4) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[mode]->getPipelineLayout(), 4, 1,
@@ -126,7 +159,7 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
       auto position = _lightManager->getPointLights()[0]->getPosition();
       _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
       //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 10.f);
+      _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 20.f);
       model->setCamera(_cameraOrtho);
     }
     if (mode == ModelRenderMode::FULL) {
