@@ -99,7 +99,7 @@ void initialize() {
         device);
     image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
     resultDepth.push_back(std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, device));
-    depthTexture.push_back(std::make_shared<Texture>(resultDepth[i], device));
+    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, resultDepth[i], device));
   }
 
   renderPass = std::make_shared<RenderPass>(device);
@@ -115,8 +115,10 @@ void initialize() {
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", commandPool, queue, device);
-  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", commandPool, queue, device);
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
+                                           device);
+  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             commandPool, queue, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
@@ -126,7 +128,7 @@ void initialize() {
   // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
 
   pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->createPhong(0.1f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({3.f, 10.f, 0.f});
 
   // directionalLight = lightManager->createDirectionalLight();
@@ -182,16 +184,17 @@ void initialize() {
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture[0]);
   //{
   //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
   //  model3D->setModel(model);
   //}
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, 0.f));
-    // model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -15.f, 0.f));
+    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
     modelGLTF->setModel(model);
   }
   spriteManager->registerSprite(sprite);

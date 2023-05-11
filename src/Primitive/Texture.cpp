@@ -3,6 +3,7 @@
 #include "Buffer.h"
 
 Texture::Texture(std::string path,
+                 VkSamplerAddressMode mode,
                  std::shared_ptr<CommandPool> commandPool,
                  std::shared_ptr<Queue> queue,
                  std::shared_ptr<Device> device) {
@@ -36,13 +37,13 @@ Texture::Texture(std::string path,
   // image view
   _imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
 
-  _sampler = std::make_shared<Sampler>(device);
+  _sampler = std::make_shared<Sampler>(mode, device);
 }
 
-Texture::Texture(std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
+Texture::Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
   _device = device;
   _imageView = imageView;
-  _sampler = std::make_shared<Sampler>(device);
+  _sampler = std::make_shared<Sampler>(mode, device);
 }
 
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }

@@ -1,15 +1,15 @@
 #include "Sampler.h"
 
-Sampler::Sampler(std::shared_ptr<Device> device) {
+Sampler::Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device) {
   _device = device;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   samplerInfo.magFilter = VK_FILTER_LINEAR;
   samplerInfo.minFilter = VK_FILTER_LINEAR;
-  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.addressModeU = mode;
+  samplerInfo.addressModeV = mode;
+  samplerInfo.addressModeW = mode;
   // TODO: request from device capabilities
   samplerInfo.anisotropyEnable = VK_FALSE;
   samplerInfo.maxAnisotropy = 1.f;

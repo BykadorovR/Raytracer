@@ -77,7 +77,8 @@ ModelGLTF::ModelGLTF(std::string path,
       settings->getMaxFramesInFlight(), descriptorSetLayout[0], descriptorPool, device);
   _descriptorSetCamera[ModelRenderMode::FULL]->createCamera(_uniformBuffer[ModelRenderMode::FULL]);
 
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", commandPool, queue, device);
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
+                                           device);
   for (auto& material : _materials) {
     material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[1],
                                                              _descriptorPool, _device);
@@ -125,7 +126,8 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
     tinygltf::Image& glTFImage = model.images[i];
     // TODO: check if such file exists and load it from disk
     if (std::filesystem::exists(glTFImage.uri)) {
-      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, _commandPool, _queue, _device);
+      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT, _commandPool,
+                                                     _queue, _device);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -167,7 +169,7 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
       image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, _device);
-      auto texture = std::make_shared<Texture>(imageView, _device);
+      auto texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, imageView, _device);
 
       _images[i].texture = texture;
 

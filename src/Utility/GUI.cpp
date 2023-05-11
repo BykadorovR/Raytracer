@@ -70,7 +70,7 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   _fontImage->copyFrom(stagingBuffer, commandPool, queue);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_ASPECT_COLOR_BIT, _device);
-  _fontTexture = std::make_shared<Texture>(_imageView, _device);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _device);
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);

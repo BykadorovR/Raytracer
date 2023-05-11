@@ -83,7 +83,10 @@ float calculateShadow() {
     position.xy = position.xy * 0.5 + 0.5;
     float bufferDepth = texture(shadowSampler, position.xy).r;
     float currentDepth = position.z;
-    float shadow = currentDepth > bufferDepth  ? 1.0 : 0.0;
+    float bias = 0.005;
+    float shadow = currentDepth - bias > bufferDepth  ? 1.0 : 0.0;
+    if(position.z > 1.0)
+        shadow = 0.0;
     return shadow;
 }
 
