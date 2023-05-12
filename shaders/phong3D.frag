@@ -65,40 +65,40 @@ vec3 directionalLight(vec3 normal) {
     return lightFactor;
 }
 
-vec3 pointLight(float shadow, vec3 normal) {
-    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-    for (int i = 0; i < lightPointNumber; i++) {
-        float distance = length(lightPoint[i].position - fragPosition);
-        float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
-        float ambientFactor = lightPoint[i].ambient;
-        //dot product between normal and light ray
-        float diffuseFactor = max(dot(normalize(lightPoint[i].position - fragPosition), normal), 0);
-        //dot product between reflected ray and light ray
-        float specularFactor = lightPoint[i].specular * 
-                               pow(max(dot(normalize(reflect(fragPosition - lightPoint[i].position, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * lightPoint[i].color;
-    }
-
-    return lightFactor;
-}
-
-float calculateShadow() {
+float calculateShadow(vec3 normal, vec3 lightDir) {
     // perform perspective divide
     vec3 position = fragShadowCoord.xyz / fragShadowCoord.w;
     // transform to [0,1] range
     position.xy = position.xy * 0.5 + 0.5;
-    float bufferDepth = texture(shadowSampler, position.xy).r;
+    float bufferDepth = texture(shadowSampler, vec2(position.x, 1.0 - position.y)).r;
     float currentDepth = position.z;
-    float bias = 0.005;
-    float shadow = currentDepth - bias > bufferDepth  ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);  
+    float shadow = (currentDepth - bias) > bufferDepth  ? 1.0 : 0.0;
     if(position.z > 1.0)
         shadow = 0.0;
     return shadow;
 }
 
-void main() {
-    float shadow = calculateShadow();
+vec3 pointLight(vec3 normal) {
+    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+    for (int i = 0; i < lightPointNumber; i++) {
+        vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
+        float shadow = calculateShadow(normal, lightDir); 
+        float distance = length(lightPoint[i].position - fragPosition);
+        float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
+        float ambientFactor = lightPoint[i].ambient;
+        //dot product between normal and light ray
+        float diffuseFactor = max(dot(lightDir, normal), 0);
+        //dot product between reflected ray and light ray
+        float specularFactor = lightPoint[i].specular * 
+                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
+        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * lightPoint[i].color; 
+    }
 
+    return lightFactor;
+}
+
+void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
@@ -114,7 +114,7 @@ void main() {
         //calculate directional light
         lightFactor += directionalLight(normal);
         //calculate point light
-        lightFactor += pointLight(shadow, normal);
+        lightFactor += pointLight(normal);
         outColor *= vec4(lightFactor, 1.f);
     }
 }

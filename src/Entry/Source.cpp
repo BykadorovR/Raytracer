@@ -72,7 +72,8 @@ std::vector<std::shared_ptr<Texture>> depthTexture;
 std::shared_ptr<Logger> logger;
 
 void initialize() {
-  state = std::make_shared<State>(std::make_shared<Settings>("Vulkan", std::tuple{1600, 900}, 2));
+  state = std::make_shared<State>(
+      std::make_shared<Settings>("Vulkan", std::tuple{1600, 900}, VK_FORMAT_B8G8R8A8_UNORM, 2));
   settings = state->getSettings();
   window = state->getWindow();
   input = state->getInput();
@@ -128,8 +129,8 @@ void initialize() {
   // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
 
   pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.1f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setPosition({3.f, 10.f, 0.f});
+  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->setPosition({0.f, 10.f, 0.f});
 
   // directionalLight = lightManager->createDirectionalLight();
   // directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -147,62 +148,77 @@ void initialize() {
   debugVisualization->setLights(modelManager, lightManager);
   debugVisualization->setTexture(depthTexture[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
+  {
+    auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite2 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite3 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite4 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite5 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite6 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
+      model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
+      sprite6->setModel(model);
+    }
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
+      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+      sprite2->setModel(model);
+    }
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
+      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
+      sprite3->setModel(model);
+    }
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
+      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+      sprite4->setModel(model);
+    }
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
+      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+      sprite5->setModel(model);
+    }
 
-  auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  auto sprite2 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  auto sprite3 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  auto sprite4 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  auto sprite5 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  auto sprite6 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
-    model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
-    sprite6->setModel(model);
+    spriteManager->registerSprite(sprite);
+    spriteManager->registerSprite(sprite2);
+    spriteManager->registerSprite(sprite3);
+    spriteManager->registerSprite(sprite4);
+    spriteManager->registerSprite(sprite5);
+    spriteManager->registerSprite(sprite6);
   }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
-    model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-    sprite2->setModel(model);
-  }
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
-    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-    sprite3->setModel(model);
-  }
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
-    model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    sprite4->setModel(model);
-  }
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
-    model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-    sprite5->setModel(model);
-  }
+    auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    {
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -25.f, 0.f));
+      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+      sprite->setModel(model);
+    }
 
-  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+    spriteManager->registerSprite(sprite);
+  }
+  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf", depthTexture[0]);
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
+  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture[0]);
   //{
   //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
   //  model3D->setModel(model);
   //}
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -15.f, 0.f));
-    model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
+
+    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    // model = glm::scale(model, glm::vec3(400.f, 400.f, 400.f));
     modelGLTF->setModel(model);
   }
-  spriteManager->registerSprite(sprite);
-  spriteManager->registerSprite(sprite2);
-  spriteManager->registerSprite(sprite3);
-  spriteManager->registerSprite(sprite4);
-  spriteManager->registerSprite(sprite5);
-  spriteManager->registerSprite(sprite6);
+
   modelManager->registerModelGLTF(modelGLTF);
 }
 

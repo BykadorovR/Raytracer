@@ -111,10 +111,9 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
   }
 
   auto position = _lightManager->getPointLights()[0]->getPosition();
-  _cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-  //_cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+  //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
+  _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
   _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
-
   if (mode == SpriteRenderMode::FULL) {
     glm::mat4 shadowCamera = _cameraOrtho->getProjection() * _cameraOrtho->getView();
 

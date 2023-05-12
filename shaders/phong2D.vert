@@ -25,7 +25,8 @@ layout(location = 4) out mat3 fragTBN;
 layout(location = 7) out vec4 fragShadowCoord;
 
 void main() {
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
+    gl_Position = mvp.proj * mvp.view * afterModel;
     fragColor = inColor;
     fragTexCoord = inTexCoord;
     mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
@@ -36,6 +37,6 @@ void main() {
     vec3 bitangent = normalize(cross(fragNormal, tangent));
     
     fragTBN = mat3(tangent, bitangent, fragNormal);
-    fragPosition = (mvp.model * vec4(inPosition, 1.0)).xyz;
-    fragShadowCoord = shadow.shadowVP * mvp.model * vec4(inPosition, 1.0);
+    fragPosition = afterModel.xyz;
+    fragShadowCoord = shadow.shadowVP * afterModel;
 }

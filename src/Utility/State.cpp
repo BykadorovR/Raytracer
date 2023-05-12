@@ -11,7 +11,7 @@ State::State(std::shared_ptr<Settings> settings) {
   _commandPool = std::make_shared<CommandPool>(_device);
   _queue = std::make_shared<Queue>(_device);
   _commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPool, _device);
-  _swapchain = std::make_shared<Swapchain>(VK_FORMAT_B8G8R8A8_UNORM, _window, _surface, _device);
+  _swapchain = std::make_shared<Swapchain>(settings->getFormat(), _window, _surface, _device);
   _descriptorPool = std::make_shared<DescriptorPool>(200, _device);
 }
 

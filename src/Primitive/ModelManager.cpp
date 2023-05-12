@@ -130,8 +130,8 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
   }
 
   auto position = _lightManager->getPointLights()[0]->getPosition();
-  _cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-  //_cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
+  //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
+  _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
   _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
 
   if (mode == ModelRenderMode::FULL) {
@@ -156,10 +156,6 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
 
   for (auto model : _modelsGLTF) {
     if (mode == ModelRenderMode::DEPTH) {
-      auto position = _lightManager->getPointLights()[0]->getPosition();
-      _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 1.f, 0.f));
-      //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-
       model->setCamera(_cameraOrtho);
     }
     if (mode == ModelRenderMode::FULL) {

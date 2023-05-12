@@ -46,7 +46,8 @@ void main() {
     mat4 model = mvp.model * skinMat;
     mat3 normalMatrix = mat3(transpose(inverse(model)));
 
-    gl_Position = (mvp.proj * mvp.view * model * vec4(inPosition, 1.0));
+    vec4 afterModel = model * vec4(inPosition, 1.0);
+    gl_Position = (mvp.proj * mvp.view * afterModel);
 
     fragColor = inColor;
     fragNormal = normalize(normalMatrix * inNormal);
@@ -56,6 +57,6 @@ void main() {
     vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
     fragTBN = mat3(tangent, bitangent, fragNormal);
     fragTexCoord = inTexCoord;
-    fragPosition = (model * vec4(inPosition, 1.0)).xyz;
-    fragShadowCoord = shadow.shadowVP * model * vec4(inPosition, 1.0);
+    fragPosition = afterModel.xyz;
+    fragShadowCoord = shadow.shadowVP * afterModel;
 }
