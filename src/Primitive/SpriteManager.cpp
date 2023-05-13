@@ -21,20 +21,20 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createCamera();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createGraphicModel();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"texture", setLayout});
   }
 
-  { _descriptorSetLayout.push_back(_lightManager->getDescriptorSetLayout()); }
+  { _descriptorSetLayout.push_back({"light", _lightManager->getDescriptorSetLayout()}); }
 
   {
     _shadowDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
     _shadowDescriptorSetLayout->createShadow();
-    _descriptorSetLayout.push_back(_shadowDescriptorSetLayout);
+    _descriptorSetLayout.push_back({"shadow", _shadowDescriptorSetLayout});
   }
 
   {
@@ -128,7 +128,11 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
                             &_shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  if (_pipeline[mode]->getDescriptorSetLayout().size() > 2) {
+  auto pipelineLayout = _pipeline[mode]->getDescriptorSetLayout();
+  auto lightLayout = std::find_if(
+      pipelineLayout.begin(), pipelineLayout.end(),
+      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "light"; });
+  if (lightLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[mode]->getPipelineLayout(), 2, 1,
                             &_lightManager->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, nullptr);

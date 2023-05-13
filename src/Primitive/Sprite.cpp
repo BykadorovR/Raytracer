@@ -9,7 +9,7 @@ struct UniformObject {
 Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Texture> normalMap,
                std::shared_ptr<Texture> shadowMap,
-               std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+               std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                std::shared_ptr<DescriptorPool> descriptorPool,
                std::shared_ptr<CommandPool> commandPool,
                std::shared_ptr<CommandBuffer> commandBuffer,
@@ -29,19 +29,19 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _uniformBuffer[SpriteRenderMode::FULL] = std::make_shared<UniformBuffer>(
       settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
   {
-    auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[0],
+    auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[0].second,
                                                      descriptorPool, device);
     cameraSet->createCamera(_uniformBuffer[SpriteRenderMode::DEPTH]);
     _descriptorSetCamera[SpriteRenderMode::DEPTH] = cameraSet;
   }
   {
-    auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[0],
+    auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[0].second,
                                                      descriptorPool, device);
     cameraSet->createCamera(_uniformBuffer[SpriteRenderMode::FULL]);
     _descriptorSetCamera[SpriteRenderMode::FULL] = cameraSet;
   }
   {
-    auto textureSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[1],
+    auto textureSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[1].second,
                                                       descriptorPool, device);
     textureSet->createGraphicModel(texture, normalMap, shadowMap);
     _descriptorSetTextures = textureSet;
@@ -77,13 +77,22 @@ void Sprite::draw(int currentFrame, SpriteRenderMode mode, std::shared_ptr<Pipel
   vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
 
-  if (pipeline->getDescriptorSetLayout().size() > 0) {
+  auto pipelineLayout = pipeline->getDescriptorSetLayout();
+  auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                     return info.first == std::string("camera");
+                                   });
+  if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera[mode]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  if (pipeline->getDescriptorSetLayout().size() > 1) {
+  auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("texture");
+                                    });
+  if (textureLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 1, 1,
                             &_descriptorSetTextures->getDescriptorSets()[currentFrame], 0, nullptr);

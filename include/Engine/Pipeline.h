@@ -8,7 +8,7 @@
 class Pipeline {
  private:
   std::shared_ptr<Device> _device;
-  std::vector<std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayout;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::map<std::string, VkPushConstantRange> _pushConstants;
   VkPipeline _pipeline;
   VkPipelineLayout _pipelineLayout;
@@ -17,25 +17,25 @@ class Pipeline {
  public:
   Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> device);
   void createGraphic2D(VkCullModeFlags cullMode,
-                       std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+                       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
                        std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
   void createGraphic3D(VkCullModeFlags cullMode,
-                       std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+                       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
-  void createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+  void createHUD(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                  std::map<std::string, VkPushConstantRange> pushConstants,
                  VkVertexInputBindingDescription bindingDescription,
                  std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                  std::shared_ptr<RenderPass> renderPass);
-  void createCompute(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout);
+  void createCompute(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout);
 
-  std::vector<std::shared_ptr<DescriptorSetLayout>>& getDescriptorSetLayout();
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>& getDescriptorSetLayout();
   std::map<std::string, VkPushConstantRange>& getPushConstants();
   VkPipeline& getPipeline();
   VkPipelineLayout& getPipelineLayout();

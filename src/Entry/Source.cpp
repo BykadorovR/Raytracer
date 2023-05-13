@@ -130,7 +130,7 @@ void initialize() {
 
   pointLightVertical = lightManager->createPointLight();
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setPosition({0.f, 10.f, 0.f});
+  pointLightVertical->setPosition({0.f, 5.f, 0.f});
 
   // directionalLight = lightManager->createDirectionalLight();
   // directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -191,7 +191,7 @@ void initialize() {
   {
     auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
     {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -25.f, 0.f));
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -15.f, 0.f));
       model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
       model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
       sprite->setModel(model);
@@ -200,10 +200,10 @@ void initialize() {
     spriteManager->registerSprite(sprite);
   }
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf", depthTexture[0]);
-  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
+  modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture[0]);
   //{
@@ -212,9 +212,8 @@ void initialize() {
   //  model3D->setModel(model);
   //}
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
-
-    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-5.f, -5.f, 0.f));
+    model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(400.f, 400.f, 400.f));
     modelGLTF->setModel(model);
   }

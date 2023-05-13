@@ -75,10 +75,10 @@ struct LightPush {
 
 struct PushConstants {
   int jointNum = 0;
-  static VkPushConstantRange getPushConstant() {
+  static VkPushConstantRange getPushConstant(int offset) {
     VkPushConstantRange pushConstant;
     // this push constant range starts at the beginning
-    pushConstant.offset = sizeof(LightPush);
+    pushConstant.offset = offset;
     // this push constant range takes up the size of a MeshPushConstants struct
     pushConstant.size = sizeof(PushConstants);
     // this push constant range is accessible only in the vertex shader

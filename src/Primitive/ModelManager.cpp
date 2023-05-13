@@ -20,29 +20,29 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createCamera();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createGraphicModel();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"texture", setLayout});
   }
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createJoints();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"joint", setLayout});
   }
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
     setLayout->createModelAuxilary();
-    _descriptorSetLayout.push_back(setLayout);
+    _descriptorSetLayout.push_back({"alphaMask", setLayout});
   }
-  { _descriptorSetLayout.push_back(_lightManager->getDescriptorSetLayout()); }
+  { _descriptorSetLayout.push_back({"light", _lightManager->getDescriptorSetLayout()}); }
 
   {
     _shadowDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
     _shadowDescriptorSetLayout->createShadow();
-    _descriptorSetLayout.push_back(_shadowDescriptorSetLayout);
+    _descriptorSetLayout.push_back({"shadow", _shadowDescriptorSetLayout});
   }
 
   {
@@ -52,7 +52,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 
     _pipeline[ModelRenderMode::FULL] = std::make_shared<Pipeline>(shader, device);
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["vertex"] = PushConstants::getPushConstant();
+    defaultPushConstants["vertex"] = PushConstants::getPushConstant(sizeof(LightPush));
     defaultPushConstants["fragment"] = LightPush::getPushConstant();
 
     _pipeline[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_BACK_BIT, _descriptorSetLayout, defaultPushConstants,
@@ -70,14 +70,16 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipeline[ModelRenderMode::DEPTH]->createGraphic3D(VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0]}, {},
-                                                       Vertex3D::getBindingDescription(),
-                                                       Vertex3D::getAttributeDescriptions(), renderDepth);
+    std::map<std::string, VkPushConstantRange> defaultPushConstants;
+    defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
+    _pipeline[ModelRenderMode::DEPTH]->createGraphic3D(
+        VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
+        Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), renderDepth);
 
     _pipelineCullOff[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipelineCullOff[ModelRenderMode::DEPTH]->createGraphic3D(VK_CULL_MODE_NONE, {_descriptorSetLayout[0]}, {},
-                                                              Vertex3D::getBindingDescription(),
-                                                              Vertex3D::getAttributeDescriptions(), renderDepth);
+    _pipelineCullOff[ModelRenderMode::DEPTH]->createGraphic3D(
+        VK_CULL_MODE_NONE, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
+        Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), renderDepth);
   }
 
   {
@@ -148,7 +150,12 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
                             &_shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  if (_pipeline[mode]->getDescriptorSetLayout().size() > 4) {
+  auto pipelineLayout = _pipeline[mode]->getDescriptorSetLayout();
+  auto lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                  [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                    return info.first == std::string("light");
+                                  });
+  if (lightLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[mode]->getPipelineLayout(), 4, 1,
                             &_lightManager->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, nullptr);

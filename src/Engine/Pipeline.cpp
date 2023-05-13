@@ -7,7 +7,7 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> devic
   _shader = shader;
 }
 
-void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+void Pipeline::createHUD(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                          std::map<std::string, VkPushConstantRange> pushConstants,
                          VkVertexInputBindingDescription bindingDescription,
                          std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
@@ -18,7 +18,7 @@ void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descr
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
-    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -136,19 +136,20 @@ void Pipeline::createHUD(std::vector<std::shared_ptr<DescriptorSetLayout>> descr
   }
 }
 
-void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
-                               std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
-                               std::map<std::string, VkPushConstantRange> pushConstants,
-                               VkVertexInputBindingDescription bindingDescription,
-                               std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
-                               std::shared_ptr<RenderPass> renderPass) {
+void Pipeline::createGraphic3D(
+    VkCullModeFlags cullMode,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants,
+    VkVertexInputBindingDescription bindingDescription,
+    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
+    std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
-    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -261,19 +262,20 @@ void Pipeline::createGraphic3D(VkCullModeFlags cullMode,
   }
 }
 
-void Pipeline::createGraphic2D(VkCullModeFlags cullMode,
-                               std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
-                               std::map<std::string, VkPushConstantRange> pushConstants,
-                               VkVertexInputBindingDescription bindingDescription,
-                               std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-                               std::shared_ptr<RenderPass> renderPass) {
+void Pipeline::createGraphic2D(
+    VkCullModeFlags cullMode,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants,
+    VkVertexInputBindingDescription bindingDescription,
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
+    std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
-    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -393,12 +395,13 @@ void Pipeline::createGraphic2D(VkCullModeFlags cullMode,
   }
 }
 
-void Pipeline::createCompute(std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout) {
+void Pipeline::createCompute(
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout) {
   _descriptorSetLayout = descriptorSetLayout;
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
-    descriptorSetLayoutRaw.push_back(layout->getDescriptorSetLayout());
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
   }
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -419,7 +422,9 @@ void Pipeline::createCompute(std::vector<std::shared_ptr<DescriptorSetLayout>> d
                            &_pipeline);
 }
 
-std::vector<std::shared_ptr<DescriptorSetLayout>>& Pipeline::getDescriptorSetLayout() { return _descriptorSetLayout; }
+std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>& Pipeline::getDescriptorSetLayout() {
+  return _descriptorSetLayout;
+}
 
 std::map<std::string, VkPushConstantRange>& Pipeline::getPushConstants() { return _pushConstants; }
 

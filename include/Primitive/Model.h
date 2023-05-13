@@ -176,7 +176,7 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::shared_ptr<Texture> shadowMap,
-            std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+            std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
             std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,

@@ -45,7 +45,7 @@ class Sprite {
   Sprite(std::shared_ptr<Texture> texture,
          std::shared_ptr<Texture> normalMap,
          std::shared_ptr<Texture> shadowMap,
-         std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+         std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<DescriptorPool> descriptorPool,
          std::shared_ptr<CommandPool> commandPool,
          std::shared_ptr<CommandBuffer> commandBuffer,

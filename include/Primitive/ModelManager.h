@@ -6,7 +6,7 @@
 class Model3DManager {
  private:
   // position in vector is set number
-  std::vector<std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayout;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
 

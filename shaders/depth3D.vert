@@ -14,6 +14,23 @@ layout(location = 4) in vec4 inJointIndices;
 layout(location = 5) in vec4 inJointWeights;
 layout(location = 6) in vec4 inTangent;
 
+layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
+    mat4 jointMatrices[];
+};
+
+layout( push_constant ) uniform constants {
+    int jointNum;
+} PushConstants;
+
 void main() {
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    mat4 skinMat = mat4(1.0);
+    if (PushConstants.jointNum > 0) {
+        skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
+                  inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
+                  inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
+                  inJointWeights.w * jointMatrices[int(inJointIndices.w)];
+    }
+
+    mat4 model = mvp.model * skinMat;
+    gl_Position = mvp.proj * mvp.view * model * vec4(inPosition, 1.0);
 }

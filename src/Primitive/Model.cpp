@@ -21,7 +21,7 @@ struct ModelAuxilary {
 
 ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<Texture> shadowMap,
-                     std::vector<std::shared_ptr<DescriptorSetLayout>> descriptorSetLayout,
+                     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                      std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
@@ -70,18 +70,18 @@ ModelGLTF::ModelGLTF(std::string path,
       settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
 
   _descriptorSetCamera[ModelRenderMode::DEPTH] = std::make_shared<DescriptorSet>(
-      settings->getMaxFramesInFlight(), descriptorSetLayout[0], descriptorPool, device);
+      settings->getMaxFramesInFlight(), descriptorSetLayout[0].second, descriptorPool, device);
   _descriptorSetCamera[ModelRenderMode::DEPTH]->createCamera(_uniformBuffer[ModelRenderMode::DEPTH]);
 
   _descriptorSetCamera[ModelRenderMode::FULL] = std::make_shared<DescriptorSet>(
-      settings->getMaxFramesInFlight(), descriptorSetLayout[0], descriptorPool, device);
+      settings->getMaxFramesInFlight(), descriptorSetLayout[0].second, descriptorPool, device);
   _descriptorSetCamera[ModelRenderMode::FULL]->createCamera(_uniformBuffer[ModelRenderMode::FULL]);
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
                                            device);
   for (auto& material : _materials) {
-    material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[1],
-                                                             _descriptorPool, _device);
+    material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
+                                                             descriptorSetLayout[1].second, _descriptorPool, _device);
     auto diffuseTexture = _stubTexture;
     auto normalTexture = _stubTexture;
     auto shadowTexture = _stubTexture;
@@ -95,12 +95,12 @@ ModelGLTF::ModelGLTF(std::string path,
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);
     material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
-        settings->getMaxFramesInFlight(), descriptorSetLayout[3], descriptorPool, device);
+        settings->getMaxFramesInFlight(), descriptorSetLayout[3].second, descriptorPool, device);
     material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
   }
 
-  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
-                                                                descriptorSetLayout[2], _descriptorPool, _device);
+  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(
+      settings->getMaxFramesInFlight(), descriptorSetLayout[2].second, _descriptorPool, _device);
   _defaultSSBO = std::make_shared<Buffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                           _device);
@@ -114,8 +114,8 @@ ModelGLTF::ModelGLTF(std::string path,
 
   // TODO: create descriptor set layout and set for skin->descriptorSet
   for (auto& skin : _skins) {
-    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), descriptorSetLayout[2],
-                                                         _descriptorPool, _device);
+    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
+                                                         descriptorSetLayout[2].second, _descriptorPool, _device);
     skin.descriptorSet->createJoints(skin.ssbo);
   }
 }
@@ -675,26 +675,46 @@ void ModelGLTF::_drawNode(int currentFrame,
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory());
 
-    if (pipeline->getDescriptorSetLayout().size() > 0) {
+    auto pipelineLayout = pipeline->getDescriptorSetLayout();
+    auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                     [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                       return info.first == std::string("camera");
+                                     });
+    if (cameraLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetCamera[mode]->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
+    auto jointLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("joint");
+                                    });
+    int jointSet = 2;
+    if (mode == ModelRenderMode::DEPTH) jointSet = 1;
+
     if (node->skin >= 0) {
-      if (pipeline->getDescriptorSetLayout().size() > 2) {
+      if (jointLayout != pipelineLayout.end()) {
         vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->getPipelineLayout(), 2, 1,
+                                pipeline->getPipelineLayout(), jointSet, 1,
                                 &_skins[node->skin].descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
       }
     } else {
-      if (pipeline->getDescriptorSetLayout().size() > 2) {
+      if (jointLayout != pipelineLayout.end()) {
         vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->getPipelineLayout(), 2, 1,
+                                pipeline->getPipelineLayout(), jointSet, 1,
                                 &_descriptorSetJointsDefault->getDescriptorSets()[currentFrame], 0, nullptr);
       }
     }
 
+    auto alphaMaskLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                          return info.first == std::string("alphaMask");
+                                        });
+    auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                        return info.first == std::string("texture");
+                                      });
     for (PrimitiveGLTF& primitive : node->mesh.primitives) {
       if (primitive.indexCount > 0) {
         // Get the texture index for this primitive
@@ -713,7 +733,7 @@ void ModelGLTF::_drawNode(int currentFrame,
           vkUnmapMemory(_device->getLogicalDevice(),
                         material.bufferModelAuxilary->getBuffer()[currentFrame]->getMemory());
 
-          if (pipeline->getDescriptorSetLayout().size() > 3) {
+          if (alphaMaskLayout != pipelineLayout.end()) {
             vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipeline->getPipelineLayout(), 3, 1,
                                     &material.descriptorSetModelAuxilary->getDescriptorSets()[currentFrame], 0,
@@ -725,7 +745,7 @@ void ModelGLTF::_drawNode(int currentFrame,
             if (material.doubleSided) currentPipeline = pipelineCullOff;
             vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               currentPipeline->getPipeline());
-            if (pipeline->getDescriptorSetLayout().size() > 1) {
+            if (textureLayout != pipelineLayout.end()) {
               vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                       currentPipeline->getPipelineLayout(), 1, 1,
                                       &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
@@ -754,8 +774,12 @@ void ModelGLTF::draw(int currentFrame,
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
+    int offset = 0;
+    if (mode == ModelRenderMode::FULL) {
+      offset = sizeof(LightPush);
+    }
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_VERTEX_BIT, sizeof(LightPush), sizeof(PushConstants), &pushConstants);
+                       VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
   }
 
   // All vertices and indices are stored in single buffers, so we only need to bind once
