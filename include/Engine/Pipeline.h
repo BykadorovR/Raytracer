@@ -14,6 +14,14 @@ class Pipeline {
   VkPipelineLayout _pipelineLayout;
   std::shared_ptr<Shader> _shader;
 
+  VkPipelineInputAssemblyStateCreateInfo _inputAssembly;
+  VkPipelineViewportStateCreateInfo _viewportState;
+  VkPipelineRasterizationStateCreateInfo _rasterizer;
+  VkPipelineMultisampleStateCreateInfo _multisampling;
+  VkPipelineColorBlendAttachmentState _blendAttachmentState;
+  VkPipelineColorBlendStateCreateInfo _colorBlending;
+  VkPipelineDepthStencilStateCreateInfo _depthStencil;
+
  public:
   Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> device);
   void createGraphic2D(VkCullModeFlags cullMode,
@@ -22,12 +30,26 @@ class Pipeline {
                        VkVertexInputBindingDescription bindingDescription,
                        std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
+  void createGraphic2DShadow(
+      VkCullModeFlags cullMode,
+      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+      std::map<std::string, VkPushConstantRange> pushConstants,
+      VkVertexInputBindingDescription bindingDescription,
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
+      std::shared_ptr<RenderPass> renderPass);
   void createGraphic3D(VkCullModeFlags cullMode,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
+  void createGraphic3DShadow(
+      VkCullModeFlags cullMode,
+      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+      std::map<std::string, VkPushConstantRange> pushConstants,
+      VkVertexInputBindingDescription bindingDescription,
+      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
+      std::shared_ptr<RenderPass> renderPass);
   void createHUD(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                  std::map<std::string, VkPushConstantRange> pushConstants,
                  VkVertexInputBindingDescription bindingDescription,

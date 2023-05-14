@@ -53,9 +53,9 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline[SpriteRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2D(VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0]}, {},
-                                                        Vertex2D::getBindingDescription(),
-                                                        Vertex2D::getAttributeDescriptions(), renderDepth);
+    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2DShadow(VK_CULL_MODE_NONE, {_descriptorSetLayout[0]}, {},
+                                                              Vertex2D::getBindingDescription(),
+                                                              Vertex2D::getAttributeDescriptions(), renderDepth);
   }
 
   {

@@ -72,12 +72,12 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     _pipeline[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
-    _pipeline[ModelRenderMode::DEPTH]->createGraphic3D(
-        VK_CULL_MODE_BACK_BIT, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
+    _pipeline[ModelRenderMode::DEPTH]->createGraphic3DShadow(
+        VK_CULL_MODE_NONE, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
         Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), renderDepth);
 
     _pipelineCullOff[ModelRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipelineCullOff[ModelRenderMode::DEPTH]->createGraphic3D(
+    _pipelineCullOff[ModelRenderMode::DEPTH]->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
         Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), renderDepth);
   }
