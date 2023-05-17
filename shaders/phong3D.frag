@@ -70,10 +70,17 @@ float calculateShadow(vec3 normal, vec3 lightDir) {
     vec3 position = fragShadowCoord.xyz / fragShadowCoord.w;
     // transform to [0,1] range
     position.xy = position.xy * 0.5 + 0.5;
-    float bufferDepth = texture(shadowSampler, vec2(position.x, 1.0 - position.y)).r;
     float currentDepth = position.z;
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);  
-    float shadow = (currentDepth - bias) > bufferDepth  ? 1.0 : 0.0;
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    vec2 unitSize = 1.0 / textureSize(shadowSampler, 0);
+    float shadow = 0.0;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            float bufferDepth = texture(shadowSampler, vec2(position.x + x * unitSize.x, 1.0 - (position.y + y * unitSize.y))).r;
+            shadow += (currentDepth - bias) > bufferDepth  ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
     if(position.z > 1.0)
         shadow = 0.0;
     return shadow;
