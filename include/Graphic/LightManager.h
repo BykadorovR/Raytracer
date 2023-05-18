@@ -26,7 +26,7 @@ class LightManager {
   std::shared_ptr<PointLight> createPointLight();
   std::vector<std::shared_ptr<PointLight>> getPointLights();
   std::shared_ptr<DirectionalLight> createDirectionalLight();
-  std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLight();
+  std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayout();
   std::shared_ptr<DescriptorSet> getDescriptorSet();
   void draw(int frame);

@@ -34,15 +34,15 @@ class DirectionalLight {
     float ambient;
     float specular;
     alignas(16) glm::vec3 color;
-    alignas(16) glm::vec3 direction;
+    alignas(16) glm::vec3 position;
   };
   std::shared_ptr<PhongLightFields> _phong = nullptr;
 
  public:
   DirectionalLight();
   void createPhong(float ambient, float specular, glm::vec3 color);
-  void setDirection(glm::vec3 direction);
-  glm::vec3 getDirection();
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
   int getSize();
   void* getData();
 };

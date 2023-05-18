@@ -110,7 +110,7 @@ void SpriteManager::draw(int currentFrame, SpriteRenderMode mode) {
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
-  auto position = _lightManager->getPointLights()[0]->getPosition();
+  auto position = _lightManager->getDirectionalLights()[0]->getPosition();
   //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
   _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
   _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);

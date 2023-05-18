@@ -128,17 +128,9 @@ void initialize() {
   // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
   // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
 
-  pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setPosition({0.f, 15.f, 0.f});
-
-  // directionalLight = lightManager->createDirectionalLight();
-  // directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  // directionalLight->setDirection(glm::vec3(-0.2f, -1.f, -0.3f));
-
-  // directionalLight2 = lightManager->createDirectionalLight();
-  // directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 0.f, 0.f));
-  // directionalLight2->setDirection(glm::vec3(0.f, 1.f, 0.f));
+  directionalLight = lightManager->createDirectionalLight();
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->setPosition({0.f, 15.f, 0.f});
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
@@ -270,14 +262,13 @@ void drawFrame() {
   logger->setDebugUtils("Common command buffer", currentFrame);
   // update positions
   static float angleHorizontal = 90.f;
-  glm::vec3 lightPositionHorizontal = glm::vec3(3.f * cos(glm::radians(angleHorizontal)), 0.f,
-                                                3.f * sin(glm::radians(angleHorizontal)));
+  glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
+                                                15.f * sin(glm::radians(angleHorizontal)));
   static float angleVertical = 0.f;
-  glm::vec3 lightPositionVertical = glm::vec3(0.f, 3.f * sin(glm::radians(angleVertical)),
-                                              3.f * cos(glm::radians(angleVertical)));
+  glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
+                                              15.f * cos(glm::radians(angleVertical)));
 
-  // if (pointLightHorizontal) pointLightHorizontal->setPosition(lightPositionHorizontal);
-  // if (pointLightVertical) pointLightVertical->setPosition(lightPositionVertical);
+  if (directionalLight) directionalLight->setPosition(lightPositionVertical);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);

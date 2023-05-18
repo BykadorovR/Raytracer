@@ -26,7 +26,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
   return light;
 }
 
-std::vector<std::shared_ptr<DirectionalLight>> LightManager::getDirectionalLight() { return _directionalLights; }
+std::vector<std::shared_ptr<DirectionalLight>> LightManager::getDirectionalLights() { return _directionalLights; }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDescriptorSetLayout() { return _descriptorSetLayout; }
 

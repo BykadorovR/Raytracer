@@ -37,6 +37,6 @@ void DirectionalLight::createPhong(float ambient, float specular, glm::vec3 colo
   _phong->color = color;
 }
 
-void DirectionalLight::setDirection(glm::vec3 direction) { _phong->direction = direction; }
+void DirectionalLight::setPosition(glm::vec3 position) { _phong->position = position; }
 
-glm::vec3 DirectionalLight::getDirection() { return _phong->direction; }
+glm::vec3 DirectionalLight::getPosition() { return _phong->position; }

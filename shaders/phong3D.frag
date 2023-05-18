@@ -21,8 +21,9 @@ layout(set = 3, binding = 0) uniform AlphaMask {
 struct LightDirectional {
     float ambient;
     float specular;
+    //
     vec3 color;
-    vec3 direction;
+    vec3 position;
 };
 
 struct LightPoint {
@@ -51,21 +52,7 @@ layout( push_constant ) uniform constants {
     vec3 cameraPosition;
 } push;
 
-vec3 directionalLight(vec3 normal) {
-    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-    for (int i = 0; i < lightDirectionalNumber; i++) {
-        float ambientFactor = lightDirectional[i].ambient;
-        //dot product between normal and light ray
-        float diffuseFactor = max(dot(normalize(-lightDirectional[i].direction), normal), 0);
-        //dot product between reflected ray and light ray
-        float specularFactor = lightDirectional[i].specular * 
-                               pow(max(dot(normalize(reflect(lightDirectional[i].direction, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * lightDirectional[i].color; 
-    }
-    return lightFactor;
-}
-
-float calculateShadow(vec3 normal, vec3 lightDir) {
+float calculateTextureShadow(vec3 normal, vec3 lightDir) {
     // perform perspective divide
     vec3 position = fragShadowCoord.xyz / fragShadowCoord.w;
     // transform to [0,1] range
@@ -86,11 +73,26 @@ float calculateShadow(vec3 normal, vec3 lightDir) {
     return shadow;
 }
 
+vec3 directionalLight(vec3 normal) {
+    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+    for (int i = 0; i < lightDirectionalNumber; i++) {
+        vec3 lightDir = normalize(lightDirectional[i].position - fragPosition);
+        float shadow = calculateTextureShadow(normal, lightDir); 
+        float ambientFactor = lightDirectional[i].ambient;
+        //dot product between normal and light ray
+        float diffuseFactor = max(dot(lightDir, normal), 0);
+        //dot product between reflected ray and light ray
+        float specularFactor = lightDirectional[i].specular * 
+                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
+        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * lightDirectional[i].color; 
+    }
+    return lightFactor;
+}
+
 vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateShadow(normal, lightDir); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
@@ -99,7 +101,7 @@ vec3 pointLight(vec3 normal) {
         //dot product between reflected ray and light ray
         float specularFactor = lightPoint[i].specular * 
                                pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * lightPoint[i].color; 
+        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * attenuation * lightPoint[i].color; 
     }
 
     return lightFactor;

@@ -22,7 +22,7 @@ struct DepthPush {
 
 class DebugVisualization : public InputSubscriber {
  private:
-  std::vector<std::shared_ptr<ModelGLTF>> _lightModels;
+  std::vector<std::shared_ptr<ModelGLTF>> _pointLightModels, _directionalLightModels;
   std::shared_ptr<LightManager> _lightManager = nullptr;
   bool _showLights = true;
   bool _registerLights = false;
