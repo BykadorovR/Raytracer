@@ -19,10 +19,6 @@ class Model3DManager {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
-  std::shared_ptr<CameraOrtho> _cameraOrtho;
-  std::shared_ptr<UniformBuffer> _uniformShadow;
-  std::shared_ptr<DescriptorSet> _shadowDescriptorSet;
-  std::shared_ptr<DescriptorSetLayout> _shadowDescriptorSetLayout;
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
   std::shared_ptr<RenderPass> _renderPass;
 
@@ -37,9 +33,10 @@ class Model3DManager {
                  std::shared_ptr<Device> device,
                  std::shared_ptr<Settings> settings);
 
-  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path, std::shared_ptr<Texture> shadowMap);
+  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
-  void draw(int currentFrame, ModelRenderMode mode, float frameTimer);
+  void draw(int currentFrame, float frameTimer);
+  void drawShadow(int currentFrame, glm::mat4 view, glm::mat4 projection, float frameTimer);
 };

@@ -61,14 +61,13 @@ std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass, renderPassDepth;
-std::shared_ptr<Framebuffer> frameBuffer, frameBufferDepth;
-std::vector<std::shared_ptr<ImageView>> resultDepth;
+std::shared_ptr<Framebuffer> frameBuffer;
+std::vector<std::shared_ptr<Framebuffer>> frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
-std::vector<std::shared_ptr<Texture>> depthTexture;
 std::shared_ptr<Logger> logger;
 
 void initialize() {
@@ -93,25 +92,10 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        settings->getResolution(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        device);
-    image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-    resultDepth.push_back(std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, device));
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, resultDepth[i], device));
-  }
-
   renderPass = std::make_shared<RenderPass>(device);
   renderPass->initialize(swapchain->getImageFormat());
   renderPassDepth = std::make_shared<RenderPass>(device);
   renderPassDepth->initializeDepthPass();
-
-  frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
-                                              swapchain->getDepthImageView(), renderPass, device);
-
-  frameBufferDepth = std::make_shared<Framebuffer>(settings->getResolution(), resultDepth, renderPassDepth, device);
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
   gui->initialize(renderPass, queue, commandPool);
@@ -123,7 +107,7 @@ void initialize() {
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
-  lightManager = std::make_shared<LightManager>(settings, device);
+  lightManager = std::make_shared<LightManager>(state);
   // pointLightHorizontal = lightManager->createPointLight();
   // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
   // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
@@ -131,6 +115,8 @@ void initialize() {
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
+  directionalLight->setCenter({0.f, 0.f, 0.f});
+  directionalLight->setUp({0.f, 0.f, 1.f});
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
@@ -138,15 +124,15 @@ void initialize() {
                                                   renderPass, renderPassDepth, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state, logger);
   debugVisualization->setLights(modelManager, lightManager);
-  debugVisualization->setTexture(depthTexture[0]);
+  debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
-    auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-    auto sprite2 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-    auto sprite3 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-    auto sprite4 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-    auto sprite5 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
-    auto sprite6 = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite = spriteManager->createSprite(texture, normalMap);
+    auto sprite2 = spriteManager->createSprite(texture, normalMap);
+    auto sprite3 = spriteManager->createSprite(texture, normalMap);
+    auto sprite4 = spriteManager->createSprite(texture, normalMap);
+    auto sprite5 = spriteManager->createSprite(texture, normalMap);
+    auto sprite6 = spriteManager->createSprite(texture, normalMap);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
       model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
@@ -181,7 +167,7 @@ void initialize() {
     spriteManager->registerSprite(sprite6);
   }
   {
-    auto sprite = spriteManager->createSprite(texture, normalMap, depthTexture[0]);
+    auto sprite = spriteManager->createSprite(texture, normalMap);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
       model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
@@ -191,13 +177,13 @@ void initialize() {
 
     spriteManager->registerSprite(sprite);
   }
-  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf", depthTexture[0]);
-  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf", depthTexture[0]);
-  modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf", depthTexture[0]);
-  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf", depthTexture[0]);
-  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf", depthTexture);
+  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf", depthTexture);
+  modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf", depthTexture);
+  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture[0]);
+  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture);
   //{
   //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
@@ -211,6 +197,23 @@ void initialize() {
   }
 
   modelManager->registerModelGLTF(modelGLTF);
+
+  frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
+                                              swapchain->getDepthImageView(), renderPass, device);
+  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+    auto textures = lightManager->getDirectionalLights()[i]->getDepthTexture();
+    std::vector<std::shared_ptr<ImageView>> imageViews(textures.size());
+    for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
+    frameBufferDepth.push_back(
+        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device));
+  }
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    auto textures = lightManager->getPointLights()[i]->getDepthTexture();
+    std::vector<std::shared_ptr<ImageView>> imageViews(textures.size());
+    for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
+    frameBufferDepth.push_back(
+        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device));
+  }
 }
 
 VkRenderPassBeginInfo render(int index,
@@ -268,7 +271,7 @@ void drawFrame() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
                                               15.f * cos(glm::radians(angleVertical)));
 
-  if (directionalLight) directionalLight->setPosition(lightPositionVertical);
+  // if (directionalLight) directionalLight->setPosition(lightPositionVertical);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);
@@ -279,20 +282,49 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   {
     logger->beginDebugUtils("Render to depth buffer", currentFrame);
-    auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth);
-    clearValues[0].depthStencil = {1.0f, 0};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = clearValues.data();
-    // TODO: only one depth texture?
-    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-    // Set depth bias (aka "Polygon offset")
-    // Required to avoid shadow mapping artifacts
-    vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
-    // draw scene here
-    spriteManager->draw(currentFrame, SpriteRenderMode::DEPTH);
-    modelManager->draw(currentFrame, ModelRenderMode::DEPTH, frameTimer);
-    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    auto directionalLights = lightManager->getDirectionalLights();
+    for (int i = 0; i < directionalLights.size(); i++) {
+      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i]);
+      clearValues[0].depthStencil = {1.0f, 0};
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = clearValues.data();
+      // TODO: only one depth texture?
+      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
+      // Set depth bias (aka "Polygon offset")
+      // Required to avoid shadow mapping artifacts
+      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
+      // draw scene here
+      spriteManager->drawShadow(currentFrame, directionalLights[i]->getViewMatrix(),
+                                directionalLights[i]->getProjectionMatrix());
+      modelManager->drawShadow(currentFrame, directionalLights[i]->getViewMatrix(),
+                               directionalLights[i]->getProjectionMatrix(), frameTimer);
+      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    }
+
+    auto pointLights = lightManager->getPointLights();
+    for (int i = directionalLights.size(); i < pointLights.size() + directionalLights.size(); i++) {
+      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i]);
+      clearValues[0].depthStencil = {1.0f, 0};
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = clearValues.data();
+
+      // TODO: only one depth texture?
+      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
+      // Set depth bias (aka "Polygon offset")
+      // Required to avoid shadow mapping artifacts
+      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+
+      // draw scene here
+      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+      spriteManager->drawShadow(currentFrame, pointLights[i]->getViewMatrix(),
+                                pointLights[i]->getProjectionMatrix(aspect));
+      modelManager->drawShadow(currentFrame, pointLights[i]->getViewMatrix(),
+                               pointLights[i]->getProjectionMatrix(aspect), frameTimer);
+      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    }
     logger->endDebugUtils(currentFrame);
   }
 
@@ -300,19 +332,40 @@ void drawFrame() {
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
   // Image memory barrier to make sure that writes are finished before sampling from the texture
-  VkImageMemoryBarrier imageMemoryBarrier = {};
-  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  // We won't be changing the layout of the image
-  imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-  imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-  imageMemoryBarrier.image = resultDepth[currentFrame]->getImage()->getImage();
-  imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-  imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-  imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(frameBufferDepth.size());
+  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].image = lightManager->getDirectionalLights()[i]
+                                      ->getDepthTexture()[currentFrame]
+                                      ->getImageView()
+                                      ->getImage()
+                                      ->getImage();
+    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  }
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].image =
+        lightManager->getPointLights()[i]->getDepthTexture()[currentFrame]->getImageView()->getImage()->getImage();
+    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  }
+  // TODO: create 6 memory barriers and send them via one cvCmdPipelineBarrier
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
+                       imageMemoryBarrier.data());
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -328,8 +381,8 @@ void drawFrame() {
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     lightManager->draw(currentFrame);
     // draw scene here
-    spriteManager->draw(currentFrame, SpriteRenderMode::FULL);
-    modelManager->draw(currentFrame, ModelRenderMode::FULL, frameTimer);
+    spriteManager->draw(currentFrame);
+    modelManager->draw(currentFrame, frameTimer);
 
     debugVisualization->draw(currentFrame);
 

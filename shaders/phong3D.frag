@@ -6,12 +6,15 @@ layout(location = 2) in vec3 fragColor;
 layout(location = 3) in vec2 fragTexCoord;
 layout(location = 4) in mat3 fragTBN;
 //mat3 takes 3 slots
-layout(location = 7) in vec4 fragShadowCoord;
+layout(location = 7) in vec4 fragLightDirectionalCoord[2];
+layout(location = 9) in vec4 fragLightPointCoord[4];
 
 layout(location = 0) out vec4 outColor;
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 layout(set = 1, binding = 1) uniform sampler2D normalSampler;
-layout(set = 1, binding = 2) uniform sampler2D shadowSampler;
+layout(set = 6, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
+//TODO: change to cubemap
+layout(set = 6, binding = 1) uniform sampler2D shadowPointSampler[4];
 
 layout(set = 3, binding = 0) uniform AlphaMask {
     bool alphaMask;
@@ -52,9 +55,9 @@ layout( push_constant ) uniform constants {
     vec3 cameraPosition;
 } push;
 
-float calculateTextureShadow(vec3 normal, vec3 lightDir) {
+float calculateTextureShadow(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
     // perform perspective divide
-    vec3 position = fragShadowCoord.xyz / fragShadowCoord.w;
+    vec3 position = coords.xyz / coords.w;
     // transform to [0,1] range
     position.xy = position.xy * 0.5 + 0.5;
     float currentDepth = position.z;
@@ -77,7 +80,7 @@ vec3 directionalLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightDirectionalNumber; i++) {
         vec3 lightDir = normalize(lightDirectional[i].position - fragPosition);
-        float shadow = calculateTextureShadow(normal, lightDir); 
+        float shadow = calculateTextureShadow(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
         float ambientFactor = lightDirectional[i].ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
@@ -93,6 +96,7 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
+        float shadow = calculateTextureShadow(shadowPointSampler[i], fragLightPointCoord[i], normal, lightDir); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;

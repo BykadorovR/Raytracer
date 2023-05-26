@@ -20,7 +20,7 @@ class Sprite {
   std::shared_ptr<CommandPool> _commandPool;
 
   std::map<SpriteRenderMode, std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
-  std::shared_ptr<DescriptorSet> _descriptorSetTextures;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetTextures;
 
   std::shared_ptr<CommandBuffer> _commandBuffer;
   // don't delete, we store references here so it's not deleted
@@ -44,7 +44,6 @@ class Sprite {
  public:
   Sprite(std::shared_ptr<Texture> texture,
          std::shared_ptr<Texture> normalMap,
-         std::shared_ptr<Texture> shadowMap,
          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<DescriptorPool> descriptorPool,
          std::shared_ptr<CommandPool> commandPool,
@@ -56,5 +55,6 @@ class Sprite {
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);
-  void draw(int currentFrame, SpriteRenderMode mode, std::shared_ptr<Pipeline> pipeline);
+  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline);
+  void drawShadow(int currentFrame, std::shared_ptr<Pipeline> pipeline, glm::mat4 view, glm::mat4 projection);
 };

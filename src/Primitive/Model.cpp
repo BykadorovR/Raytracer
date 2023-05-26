@@ -20,7 +20,6 @@ struct ModelAuxilary {
 };
 
 ModelGLTF::ModelGLTF(std::string path,
-                     std::shared_ptr<Texture> shadowMap,
                      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                      std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
@@ -80,18 +79,19 @@ ModelGLTF::ModelGLTF(std::string path,
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
                                            device);
   for (auto& material : _materials) {
-    material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
-                                                             descriptorSetLayout[1].second, _descriptorPool, _device);
     auto diffuseTexture = _stubTexture;
     auto normalTexture = _stubTexture;
-    auto shadowTexture = _stubTexture;
     if (material.baseColorTextureIndex < _textures.size()) {
       diffuseTexture = _images[_textures[material.baseColorTextureIndex].imageIndex].texture;
       normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
     }
-    if (shadowMap) shadowTexture = shadowMap;
-    material.descriptorSet->createGraphicModel(diffuseTexture, normalTexture, shadowTexture);
+    material.descriptorSet.resize(settings->getMaxFramesInFlight());
+    for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+      material.descriptorSet[i] = std::make_shared<DescriptorSet>(
+          settings->getMaxFramesInFlight(), descriptorSetLayout[1].second, _descriptorPool, _device);
 
+      material.descriptorSet[i]->createGraphicModel(diffuseTexture, normalTexture);
+    }
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);
     material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
@@ -655,6 +655,8 @@ void ModelGLTF::_drawNode(int currentFrame,
                           ModelRenderMode mode,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
+                          glm::mat4 view,
+                          glm::mat4 projection,
                           NodeGLTF* node) {
   if (node->mesh.primitives.size() > 0) {
     glm::mat4 nodeMatrix = node->getLocalMatrix();
@@ -666,8 +668,8 @@ void ModelGLTF::_drawNode(int currentFrame,
     // pass this matrix to uniforms
     UniformObject ubo{};
     ubo.model = _model * nodeMatrix;
-    ubo.view = _camera->getView();
-    ubo.projection = _camera->getProjection();
+    ubo.view = view;
+    ubo.projection = projection;
 
     void* data;
     vkMapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory(), 0,
@@ -748,7 +750,8 @@ void ModelGLTF::_drawNode(int currentFrame,
             if (textureLayout != pipelineLayout.end()) {
               vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                       currentPipeline->getPipelineLayout(), 1, 1,
-                                      &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
+                                      &material.descriptorSet[currentFrame]->getDescriptorSets()[currentFrame], 0,
+                                      nullptr);
             }
           }
         } else {
@@ -762,12 +765,11 @@ void ModelGLTF::_drawNode(int currentFrame,
   }
 
   for (auto& child : node->children) {
-    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, child);
+    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, view, projection, child);
   }
 }
 
 void ModelGLTF::draw(int currentFrame,
-                     ModelRenderMode mode,
                      std::shared_ptr<Pipeline> pipeline,
                      std::shared_ptr<Pipeline> pipelineCullOff,
                      float frameTimer) {
@@ -775,9 +777,7 @@ void ModelGLTF::draw(int currentFrame,
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
     int offset = 0;
-    if (mode == ModelRenderMode::FULL) {
-      offset = sizeof(LightPush);
-    }
+    offset = sizeof(LightPush);
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
   }
@@ -790,7 +790,36 @@ void ModelGLTF::draw(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, node);
+    _drawNode(currentFrame, ModelRenderMode::FULL, pipeline, pipelineCullOff, _camera->getView(),
+              _camera->getProjection(), node);
+  }
+
+  if (_animations.size() > 0) _updateAnimation(frameTimer);
+}
+
+void ModelGLTF::drawShadow(int currentFrame,
+                           std::shared_ptr<Pipeline> pipeline,
+                           std::shared_ptr<Pipeline> pipelineCullOff,
+                           glm::mat4 view,
+                           glm::mat4 projection,
+                           float frameTimer) {
+  if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
+    PushConstants pushConstants;
+    pushConstants.jointNum = _jointsNum;
+    int offset = 0;
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
+  }
+
+  // All vertices and indices are stored in single buffers, so we only need to bind once
+  VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
+  VkDeviceSize offsets[] = {0};
+  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
+  // Render all nodes at top-level
+  for (auto& node : _nodes) {
+    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff, view, projection, node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);

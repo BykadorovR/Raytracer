@@ -10,9 +10,15 @@ layout(std430, set = 2, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
 
-layout(set = 5, binding = 0) uniform UniformDepth {
-    mat4 shadowVP;
-} shadow;
+layout(std430, set = 5, binding = 0) readonly buffer LightMatrixDirectional {
+    int lightDirectionalNumber;
+    mat4 lightDirectionalVP[];
+};
+
+layout(std430, set = 5, binding = 1) readonly buffer LightMatrixPoint {
+    int lightPointNumber;
+    mat4 lightPointVP[];
+};
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -28,7 +34,8 @@ layout(location = 2) out vec3 fragColor;
 layout(location = 3) out vec2 fragTexCoord;
 layout(location = 4) out mat3 fragTBN;
 //mat3 takes 3 slots
-layout(location = 7) out vec4 fragShadowCoord;
+layout(location = 7) out vec4 fragLightDirectionalCoord[2];
+layout(location = 9) out vec4 fragLightPointCoord[4];
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int jointNum;
@@ -58,5 +65,8 @@ void main() {
     fragTBN = mat3(tangent, bitangent, fragNormal);
     fragTexCoord = inTexCoord;
     fragPosition = afterModel.xyz;
-    fragShadowCoord = shadow.shadowVP * afterModel;
+    for (int i = 0; i < lightDirectionalNumber; i++)
+        fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
+    for (int i = 0; i < lightPointNumber; i++)
+        fragLightPointCoord[i] = lightPointVP[i] * afterModel;
 }

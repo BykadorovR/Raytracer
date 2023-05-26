@@ -19,6 +19,20 @@ void PointLight::setPosition(glm::vec3 position) { _phong->position = position; 
 
 glm::vec3 PointLight::getPosition() { return _phong->position; }
 
+void PointLight::setCenter(glm::vec3 center) { _center = center; }
+
+void PointLight::setUp(glm::vec3 up) { _up = up; }
+
+glm::mat4 PointLight::getViewMatrix() { return glm::lookAt(_phong->position, _center, _up); }
+
+glm::mat4 PointLight::getProjectionMatrix(float aspect) {
+  return glm::perspective(glm::radians(90.f), aspect, 0.1f, 40.f);
+}
+
+void PointLight::setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture) { _depthTexture = depthTexture; }
+
+std::vector<std::shared_ptr<Texture>> PointLight::getDepthTexture() { return _depthTexture; }
+
 void PointLight::setAttenuation(float constant, float linear, float quadratic) {
   _phong->constant = constant;
   _phong->linear = linear;
@@ -37,6 +51,20 @@ void DirectionalLight::createPhong(float ambient, float specular, glm::vec3 colo
   _phong->color = color;
 }
 
+void DirectionalLight::setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture) {
+  _depthTexture = depthTexture;
+}
+
+std::vector<std::shared_ptr<Texture>> DirectionalLight::getDepthTexture() { return _depthTexture; }
+
 void DirectionalLight::setPosition(glm::vec3 position) { _phong->position = position; }
 
 glm::vec3 DirectionalLight::getPosition() { return _phong->position; }
+
+void DirectionalLight::setCenter(glm::vec3 center) { _center = center; }
+
+void DirectionalLight::setUp(glm::vec3 up) { _up = up; }
+
+glm::mat4 DirectionalLight::getViewMatrix() { return glm::lookAt(_phong->position, _center, _up); }
+
+glm::mat4 DirectionalLight::getProjectionMatrix() { return glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f, 40.f); }

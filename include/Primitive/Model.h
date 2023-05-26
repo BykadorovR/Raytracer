@@ -23,10 +23,16 @@ class Model {
   void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
   virtual void draw(int currentFrame,
-                    ModelRenderMode mode,
                     std::shared_ptr<Pipeline> pipeline,
                     std::shared_ptr<Pipeline> pipelineCullOff,
                     float frameTimer) = 0;
+
+  virtual void drawShadow(int currentFrame,
+                          std::shared_ptr<Pipeline> pipeline,
+                          std::shared_ptr<Pipeline> pipelineCullOff,
+                          glm::mat4 view,
+                          glm::mat4 projection,
+                          float frameTimer) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -82,7 +88,7 @@ class ModelGLTF : public Model {
     float alphaMaskCutoff = 0.f;
     std::shared_ptr<UniformBuffer> bufferModelAuxilary;
     std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
-    std::shared_ptr<DescriptorSet> descriptorSet;
+    std::vector<std::shared_ptr<DescriptorSet>> descriptorSet;
   };
 
   // Images may be reused by texture objects and are as such separated
@@ -171,11 +177,12 @@ class ModelGLTF : public Model {
                  ModelRenderMode mode,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
+                 glm::mat4 view,
+                 glm::mat4 projection,
                  NodeGLTF* node);
 
  public:
   ModelGLTF(std::string path,
-            std::shared_ptr<Texture> shadowMap,
             std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
             std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
@@ -187,8 +194,14 @@ class ModelGLTF : public Model {
             std::shared_ptr<Settings> settings);
 
   void draw(int currentFrame,
-            ModelRenderMode mode,
             std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<Pipeline> pipelineCullOff,
             float frameTimer);
+
+  void drawShadow(int currentFrame,
+                  std::shared_ptr<Pipeline> pipeline,
+                  std::shared_ptr<Pipeline> pipelineCullOff,
+                  glm::mat4 view,
+                  glm::mat4 projection,
+                  float frameTimer);
 };

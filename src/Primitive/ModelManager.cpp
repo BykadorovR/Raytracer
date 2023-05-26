@@ -37,13 +37,11 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     setLayout->createModelAuxilary();
     _descriptorSetLayout.push_back({"alphaMask", setLayout});
   }
-  { _descriptorSetLayout.push_back({"light", _lightManager->getDescriptorSetLayout()}); }
+  { _descriptorSetLayout.push_back({"light", _lightManager->getDSLLight()}); }
 
-  {
-    _shadowDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(device);
-    _shadowDescriptorSetLayout->createShadow();
-    _descriptorSetLayout.push_back({"shadow", _shadowDescriptorSetLayout});
-  }
+  { _descriptorSetLayout.push_back({"lightVP", _lightManager->getDSLViewProjection()}); }
+
+  { _descriptorSetLayout.push_back({"shadowTexture", _lightManager->getDSLShadowTexture()}); }
 
   {
     auto shader = std::make_shared<Shader>(device);
@@ -81,21 +79,11 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
         VK_CULL_MODE_NONE, {_descriptorSetLayout[0], _descriptorSetLayout[2]}, defaultPushConstants,
         Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions(), renderDepth);
   }
-
-  {
-    _uniformShadow = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(glm::mat4), commandPool,
-                                                     queue, device);
-    _shadowDescriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), _shadowDescriptorSetLayout,
-                                                           descriptorPool, device);
-    _shadowDescriptorSet->createShadow(_uniformShadow);
-  }
-
-  _cameraOrtho = std::make_shared<CameraOrtho>();
 }
 
-std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path, std::shared_ptr<Texture> shadowMap) {
+std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
   _modelsCreated++;
-  return std::make_shared<ModelGLTF>(path, shadowMap, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
                                      _commandPool, _commandBuffer, _queue, _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
@@ -106,9 +94,9 @@ void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
 
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTimer) {
+void Model3DManager::draw(int currentFrame, float frameTimer) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline[mode]->getPipeline());
+                    _pipeline[ModelRenderMode::FULL]->getPipeline());
 
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -124,50 +112,71 @@ void Model3DManager::draw(int currentFrame, ModelRenderMode mode, float frameTim
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  if (_pipeline[mode]->getPushConstants().find("fragment") != _pipeline[mode]->getPushConstants().end()) {
+  if (_pipeline[ModelRenderMode::FULL]->getPushConstants().find("fragment") !=
+      _pipeline[ModelRenderMode::FULL]->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.cameraPosition = _camera->getEye();
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline[mode]->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame],
+                       _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                       sizeof(LightPush), &pushConstants);
   }
 
-  auto position = _lightManager->getDirectionalLights()[0]->getPosition();
-  //_cameraOrtho->setViewParameters(_camera->getEye(), _camera->getDirection(), _camera->getUp());
-  _cameraOrtho->setViewParameters(position, -position, glm::vec3(0.f, 0.f, 1.f));
-  _cameraOrtho->setProjectionParameters({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
-
-  if (mode == ModelRenderMode::FULL) {
-    glm::mat4 shadowCamera = _cameraOrtho->getProjection() * _cameraOrtho->getView();
-
-    void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(glm::mat4), 0, &data);
-    memcpy(data, &shadowCamera, sizeof(glm::mat4));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformShadow->getBuffer()[currentFrame]->getMemory());
-
+  auto pipelineLayout = _pipeline[ModelRenderMode::FULL]->getDescriptorSetLayout();
+  auto lightVPLayout = std::find_if(
+      pipelineLayout.begin(), pipelineLayout.end(),
+      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
+  if (lightVPLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[mode]->getPipelineLayout(), 5, 1,
-                            &_shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
+                            _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 5, 1,
+                            &_lightManager->getDSViewProjection()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  auto pipelineLayout = _pipeline[mode]->getDescriptorSetLayout();
+  auto shadowTextureLayout = std::find_if(
+      pipelineLayout.begin(), pipelineLayout.end(),
+      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "shadowTexture"; });
+  if (shadowTextureLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 6, 1,
+                            &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
+                            nullptr);
+  }
+
   auto lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                     return info.first == std::string("light");
                                   });
   if (lightLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[mode]->getPipelineLayout(), 4, 1,
-                            &_lightManager->getDescriptorSet()->getDescriptorSets()[currentFrame], 0, nullptr);
+                            _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 4, 1,
+                            &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   for (auto model : _modelsGLTF) {
-    if (mode == ModelRenderMode::DEPTH) {
-      model->setCamera(_cameraOrtho);
-    }
-    if (mode == ModelRenderMode::FULL) {
-      model->setCamera(_camera);
-    }
-    model->draw(currentFrame, mode, _pipeline[mode], _pipelineCullOff[mode], frameTimer);
+    model->setCamera(_camera);
+    model->draw(currentFrame, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL], frameTimer);
+  }
+}
+
+void Model3DManager::drawShadow(int currentFrame, glm::mat4 view, glm::mat4 projection, float frameTimer) {
+  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipeline[ModelRenderMode::DEPTH]->getPipeline());
+
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = std::get<1>(_settings->getResolution());
+  viewport.width = std::get<0>(_settings->getResolution());
+  viewport.height = -std::get<1>(_settings->getResolution());
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
+  vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+  for (auto model : _modelsGLTF) {
+    model->drawShadow(currentFrame, _pipeline[ModelRenderMode::DEPTH], _pipelineCullOff[ModelRenderMode::DEPTH], view,
+                      projection, frameTimer);
   }
 }
