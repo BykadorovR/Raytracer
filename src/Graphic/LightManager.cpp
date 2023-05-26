@@ -172,9 +172,7 @@ void LightManager::draw(int frame) {
   offset += sizeof(glm::vec4);
   std::vector<glm::mat4> directionalVP;
   for (int i = 0; i < _directionalLights.size(); i++) {
-    auto viewMatrix = _directionalLights[i]->getViewMatrix();
-    auto projectionMatrix = _directionalLights[i]->getProjectionMatrix();
-    glm::mat4 viewProjection = _directionalLights[i]->getViewMatrix() * _directionalLights[i]->getProjectionMatrix();
+    glm::mat4 viewProjection = _directionalLights[i]->getProjectionMatrix() * _directionalLights[i]->getViewMatrix();
     directionalVP.push_back(viewProjection);
   }
   int test = directionalVP.size() * sizeof(glm::mat4);
@@ -191,7 +189,7 @@ void LightManager::draw(int frame) {
   float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
                  (float)std::get<1>(_state->getSettings()->getResolution());
   for (int i = 0; i < _pointLights.size(); i++) {
-    glm::mat4 viewProjection = _pointLights[i]->getViewMatrix() * _pointLights[i]->getProjectionMatrix(aspect);
+    glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix(aspect) * _pointLights[i]->getViewMatrix();
     pointVP.push_back(viewProjection);
   }
   memcpy((uint8_t*)(_lightPointSSBOViewProjection->getMappedMemory()) + offset, pointVP.data(),
