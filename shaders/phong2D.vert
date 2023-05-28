@@ -45,10 +45,9 @@ void main() {
     
     fragTBN = mat3(tangent, bitangent, fragNormal);
     fragPosition = afterModel.xyz;
-    mat4 lightDirectionalVP0 = lightDirectionalVP[0];
-    vec4 fragLightDirectionalCoord0 = lightDirectionalVP0 * afterModel;
     for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
+
     for (int i = 0; i < lightPointNumber; i++)
         fragLightPointCoord[i] = lightPointVP[i] * afterModel;
 }

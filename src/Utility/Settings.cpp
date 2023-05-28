@@ -14,3 +14,7 @@ const std::tuple<int, int>& Settings::getResolution() { return _resolution; }
 int Settings::getMaxFramesInFlight() { return _maxFramesInFlight; }
 
 VkFormat Settings::getFormat() { return _format; }
+
+int Settings::getMaxDirectionalLights() { return _maxDirectionalLights; }
+
+int Settings::getMaxPointLights() { return _maxPointLights; }

@@ -8,12 +8,11 @@
 #include <memory>
 #include "State.h"
 
+enum class LightType { DIRECTIONAL = 0, POINT };
+
 class LightManager {
  private:
   int _descriptorPoolSize = 100;
-  // if changed have to be change in shaders too
-  int _maxDirectionalLights = 2;
-  int _maxPointLights = 4;
 
   std::vector<std::shared_ptr<PointLight>> _pointLights;
   std::vector<std::shared_ptr<DirectionalLight>> _directionalLights;
@@ -23,6 +22,7 @@ class LightManager {
   std::shared_ptr<Buffer> _lightDirectionalSSBO = nullptr, _lightPointSSBO = nullptr;
   std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjection = nullptr, _lightPointSSBOViewProjection = nullptr;
   std::shared_ptr<Texture> _stubTexture;
+  std::shared_ptr<Cubemap> _stubCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetLight;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLight;
   std::shared_ptr<DescriptorSet> _descriptorSetViewProjection;

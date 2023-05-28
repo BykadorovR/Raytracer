@@ -10,27 +10,34 @@ class Image {
   VkImage _image;
   VkDeviceMemory _imageMemory;
   VkFormat _format;
+  int _layers;
   bool _external = false;
   VkImageLayout _imageLayout;
 
  public:
   Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
   Image(std::tuple<int, int> resolution,
+        int layers,
         VkFormat format,
         VkImageTiling tiling,
         VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties,
         std::shared_ptr<Device> device);
 
-  void copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandPool> commandPool, std::shared_ptr<Queue> queue);
+  void copyFrom(std::shared_ptr<Buffer> buffer,
+                int layersNumber,
+                std::shared_ptr<CommandPool> commandPool,
+                std::shared_ptr<Queue> queue);
   void changeLayout(VkImageLayout oldLayout,
                     VkImageLayout newLayout,
+                    int layersNumber,
                     std::shared_ptr<CommandPool> commandPool,
                     std::shared_ptr<Queue> queue);
   void overrideLayout(VkImageLayout layout);
   VkImage& getImage();
   VkFormat& getFormat();
   VkImageLayout& getImageLayout();
+  int getLayersNumber();
 
   ~Image();
 };
@@ -42,7 +49,14 @@ class ImageView {
   std::shared_ptr<Device> _device;
 
  public:
-  ImageView(std::shared_ptr<Image> image, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device);
+  // layerCount = 1, baseArrayLayer = 0 by default
+  // type VK_IMAGE_VIEW_TYPE_2D or VK_IMAGE_VIEW_TYPE_CUBE
+  ImageView(std::shared_ptr<Image> image,
+            VkImageViewType type,
+            int layerCount,
+            int baseArrayLayer,
+            VkImageAspectFlags aspectFlags,
+            std::shared_ptr<Device> device);
   VkImageView& getImageView();
   std::shared_ptr<Image> getImage();
 

@@ -9,6 +9,9 @@ struct Settings {
   std::tuple<int, int> _resolution;
   std::string _name;
   VkFormat _format;
+  // if changed have to be change in shaders too
+  int _maxDirectionalLights = 2;
+  int _maxPointLights = 4;
 
  public:
   Settings(std::string name, std::tuple<int, int> resolution, VkFormat format, int maxFramesInFlight);
@@ -16,4 +19,6 @@ struct Settings {
   std::string getName();
   int getMaxFramesInFlight();
   VkFormat getFormat();
+  int getMaxDirectionalLights();
+  int getMaxPointLights();
 };

@@ -38,5 +38,5 @@ class Model3DManager {
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
   void draw(int currentFrame, float frameTimer);
-  void drawShadow(int currentFrame, glm::mat4 view, glm::mat4 projection, float frameTimer);
+  void drawShadow(int currentFrame, LightType lightType, int lightIndex, float frameTimer, int face = 0);
 };

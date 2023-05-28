@@ -30,6 +30,7 @@ class Model {
   virtual void drawShadow(int currentFrame,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
+                          int lightIndex,
                           glm::mat4 view,
                           glm::mat4 projection,
                           float frameTimer) = 0;
@@ -140,12 +141,14 @@ class ModelGLTF : public Model {
   uint32_t _activeAnimation = 0;
 
   std::vector<NodeGLTF*> _nodes;
-  std::map<ModelRenderMode, std::shared_ptr<UniformBuffer>> _uniformBuffer;
+  std::vector<std::shared_ptr<UniformBuffer>> _uniformBufferDepth;
+  std::shared_ptr<UniformBuffer> _uniformBufferFull;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::map<ModelRenderMode, std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraDepth;
+  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Queue> _queue;
@@ -177,6 +180,8 @@ class ModelGLTF : public Model {
                  ModelRenderMode mode,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
+                 std::shared_ptr<DescriptorSet> cameraDS,
+                 std::shared_ptr<UniformBuffer> cameraUBO,
                  glm::mat4 view,
                  glm::mat4 projection,
                  NodeGLTF* node);
@@ -201,6 +206,7 @@ class ModelGLTF : public Model {
   void drawShadow(int currentFrame,
                   std::shared_ptr<Pipeline> pipeline,
                   std::shared_ptr<Pipeline> pipelineCullOff,
+                  int lightIndex,
                   glm::mat4 view,
                   glm::mat4 projection,
                   float frameTimer);

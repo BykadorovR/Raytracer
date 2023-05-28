@@ -62,7 +62,7 @@ std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<RenderPass> renderPass, renderPassDepth;
 std::shared_ptr<Framebuffer> frameBuffer;
-std::vector<std::shared_ptr<Framebuffer>> frameBufferDepth;
+std::vector<std::vector<std::shared_ptr<Framebuffer>>> frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
@@ -108,15 +108,22 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  // pointLightHorizontal = lightManager->createPointLight();
-  // pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
-  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightHorizontal->setPosition({15.f, 3.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
+
+  /*directionalLight2 = lightManager->createDirectionalLight();
+  directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  directionalLight2->setPosition({15.f, 3.f, 0.f});
+  directionalLight2->setCenter({0.f, 0.f, 0.f});
+  directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
@@ -200,23 +207,36 @@ void initialize() {
 
   frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
                                               swapchain->getDepthImageView(), renderPass, device);
-  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+
+  int pointNumber = lightManager->getPointLights().size();
+  int directionalNumber = lightManager->getDirectionalLights().size();
+  frameBufferDepth.resize(pointNumber + directionalNumber);
+  for (int i = 0; i < directionalNumber; i++) {
     auto textures = lightManager->getDirectionalLights()[i]->getDepthTexture();
-    std::vector<std::shared_ptr<ImageView>> imageViews(textures.size());
+    std::vector<std::shared_ptr<ImageView>> imageViews(settings->getMaxFramesInFlight());
     for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
-    frameBufferDepth.push_back(
-        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device));
+    frameBufferDepth[i] = {
+        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device)};
   }
-  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
-    auto textures = lightManager->getPointLights()[i]->getDepthTexture();
-    std::vector<std::shared_ptr<ImageView>> imageViews(textures.size());
-    for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
-    frameBufferDepth.push_back(
-        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device));
+
+  for (int i = 0; i < pointNumber; i++) {
+    auto cubemap = lightManager->getPointLights()[i]->getDepthCubemap();
+    std::vector<std::pair<std::shared_ptr<ImageView>, std::shared_ptr<ImageView>>> imageViews(6);
+    frameBufferDepth[i + directionalNumber].resize(imageViews.size());
+    for (int j = 0; j < imageViews.size(); j++) {
+      imageViews[j] = {cubemap[0]->getTextureSeparate()[j]->getImageView(),
+                       cubemap[1]->getTextureSeparate()[j]->getImageView()};
+
+      auto [width, height] = state->getSettings()->getResolution();
+      frameBufferDepth[i + directionalNumber][j] = std::make_shared<Framebuffer>(
+          std::tuple{std::max(width, height), std::max(width, height)},
+          std::vector{imageViews[j].first, imageViews[j].second}, renderPassDepth, device);
+    }
   }
 }
 
 VkRenderPassBeginInfo render(int index,
+                             std::tuple<int, int> resolution,
                              std::shared_ptr<RenderPass> renderPass,
                              std::shared_ptr<Framebuffer> framebuffer) {
   VkRenderPassBeginInfo renderPassInfo{};
@@ -224,8 +244,8 @@ VkRenderPassBeginInfo render(int index,
   renderPassInfo.renderPass = renderPass->getRenderPass();
   renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent.width = std::get<0>(settings->getResolution());
-  renderPassInfo.renderArea.extent.height = std::get<1>(settings->getResolution());
+  renderPassInfo.renderArea.extent.width = std::get<0>(resolution);
+  renderPassInfo.renderArea.extent.height = std::get<1>(resolution);
 
   return renderPassInfo;
 }
@@ -271,7 +291,8 @@ void drawFrame() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
                                               15.f * cos(glm::radians(angleVertical)));
 
-  // if (directionalLight) directionalLight->setPosition(lightPositionVertical);
+  if (directionalLight) directionalLight->setPosition(lightPositionVertical);
+  // if (directionalLight2) directionalLight2->setPosition(lightPositionHorizontal);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);
@@ -284,7 +305,7 @@ void drawFrame() {
     logger->beginDebugUtils("Render to depth buffer", currentFrame);
     auto directionalLights = lightManager->getDirectionalLights();
     for (int i = 0; i < directionalLights.size(); i++) {
-      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i]);
+      auto renderPassInfo = render(currentFrame, settings->getResolution(), renderPassDepth, frameBufferDepth[i][0]);
       clearValues[0].depthStencil = {1.0f, 0};
       renderPassInfo.clearValueCount = 1;
       renderPassInfo.pClearValues = clearValues.data();
@@ -296,34 +317,34 @@ void drawFrame() {
       vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
       // draw scene here
-      spriteManager->drawShadow(currentFrame, directionalLights[i]->getViewMatrix(),
-                                directionalLights[i]->getProjectionMatrix());
-      modelManager->drawShadow(currentFrame, directionalLights[i]->getViewMatrix(),
-                               directionalLights[i]->getProjectionMatrix(), frameTimer);
+      spriteManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
+      modelManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i, frameTimer);
       vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
     }
 
     auto pointLights = lightManager->getPointLights();
-    for (int i = directionalLights.size(); i < pointLights.size() + directionalLights.size(); i++) {
-      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i]);
-      clearValues[0].depthStencil = {1.0f, 0};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = clearValues.data();
+    for (int i = 0; i < pointLights.size(); i++) {
+      for (int j = 0; j < 6; j++) {
+        auto [width, height] = settings->getResolution();
+        auto renderPassInfo = render(currentFrame, {std::max(width, height), std::max(width, height)}, renderPassDepth,
+                                     frameBufferDepth[i + directionalLights.size()][j]);
+        clearValues[0].depthStencil = {1.0f, 0};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = clearValues.data();
 
-      // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      // Set depth bias (aka "Polygon offset")
-      // Required to avoid shadow mapping artifacts
-      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+        // TODO: only one depth texture?
+        vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                             VK_SUBPASS_CONTENTS_INLINE);
+        // Set depth bias (aka "Polygon offset")
+        // Required to avoid shadow mapping artifacts
+        vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
-      // draw scene here
-      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-      spriteManager->drawShadow(currentFrame, pointLights[i]->getViewMatrix(),
-                                pointLights[i]->getProjectionMatrix(aspect));
-      modelManager->drawShadow(currentFrame, pointLights[i]->getViewMatrix(),
-                               pointLights[i]->getProjectionMatrix(aspect), frameTimer);
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+        // draw scene here
+        float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+        spriteManager->drawShadow(currentFrame, LightType::POINT, i, j);
+        modelManager->drawShadow(currentFrame, LightType::POINT, i, frameTimer, j);
+        vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+      }
     }
     logger->endDebugUtils(currentFrame);
   }
@@ -332,8 +353,10 @@ void drawFrame() {
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
   // Image memory barrier to make sure that writes are finished before sampling from the texture
-  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(frameBufferDepth.size());
-  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+  int directionalNum = lightManager->getDirectionalLights().size();
+  int pointNum = lightManager->getPointLights().size();
+  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum * 6);
+  for (int i = 0; i < directionalNum; i++) {
     imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
     imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -349,18 +372,25 @@ void drawFrame() {
     imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   }
-  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
-    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].image =
-        lightManager->getPointLights()[i]->getDepthTexture()[currentFrame]->getImageView()->getImage()->getImage();
-    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  for (int i = 0; i < pointNum; i++) {
+    for (int j = 0; j < 6; j++) {
+      int id = i + j + directionalNum;
+      imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      // We won't be changing the layout of the image
+      imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+      imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+      imageMemoryBarrier[id].image = lightManager->getPointLights()[i]
+                                         ->getDepthCubemap()[currentFrame]
+                                         ->getTextureSeparate()[j]
+                                         ->getImageView()
+                                         ->getImage()
+                                         ->getImage();
+      imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+      imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+      imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+      imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    }
   }
   // TODO: create 6 memory barriers and send them via one cvCmdPipelineBarrier
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
@@ -372,7 +402,7 @@ void drawFrame() {
   {
     logger->beginDebugUtils("Render to screen", currentFrame);
 
-    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer);
+    auto renderPassInfo = render(imageIndex, settings->getResolution(), renderPass, frameBuffer);
     clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
     clearValues[1].depthStencil = {1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());

@@ -10,6 +10,7 @@ Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, s
 }
 
 Image::Image(std::tuple<int, int> resolution,
+             int layers,
              VkFormat format,
              VkImageTiling tiling,
              VkImageUsageFlags usage,
@@ -18,6 +19,8 @@ Image::Image(std::tuple<int, int> resolution,
   _device = device;
   _resolution = resolution;
   _format = format;
+  _layers = layers;
+
   _imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
   VkImageCreateInfo imageInfo{};
@@ -27,13 +30,15 @@ Image::Image(std::tuple<int, int> resolution,
   imageInfo.extent.height = std::get<1>(resolution);
   imageInfo.extent.depth = 1;
   imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = 1;
+  imageInfo.arrayLayers = layers;
   imageInfo.format = format;
   imageInfo.tiling = tiling;
   imageInfo.initialLayout = _imageLayout;
   imageInfo.usage = usage;
   imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
   imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  // for cubemap need to set flag
+  if (layers == 6) imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
   if (vkCreateImage(device->getLogicalDevice(), &imageInfo, nullptr, &_image) != VK_SUCCESS) {
     throw std::runtime_error("failed to create image!");
@@ -66,12 +71,15 @@ Image::Image(std::tuple<int, int> resolution,
   vkBindImageMemory(device->getLogicalDevice(), _image, _imageMemory, 0);
 }
 
+int Image::getLayersNumber() { return _layers; }
+
 VkFormat& Image::getFormat() { return _format; }
 
 void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
+                         int layersNumber,
                          std::shared_ptr<CommandPool> commandPool,
                          std::shared_ptr<Queue> queue) {
   _imageLayout = newLayout;
@@ -91,7 +99,7 @@ void Image::changeLayout(VkImageLayout oldLayout,
   barrier.subresourceRange.baseMipLevel = 0;
   barrier.subresourceRange.levelCount = 1;
   barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
+  barrier.subresourceRange.layerCount = layersNumber;
 
   VkPipelineStageFlags sourceStage;
   VkPipelineStageFlags destinationStage;
@@ -117,6 +125,13 @@ void Image::changeLayout(VkImageLayout oldLayout,
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     destinationStage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+  } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
   } else {
     throw std::invalid_argument("unsupported layout transition!");
   }
@@ -128,26 +143,29 @@ void Image::changeLayout(VkImageLayout oldLayout,
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
+                     int layersNumber,
                      std::shared_ptr<CommandPool> commandPool,
                      std::shared_ptr<Queue> queue) {
   auto commandBuffer = std::make_shared<CommandBuffer>(1, commandPool, _device);
   commandBuffer->beginSingleTimeCommands(0);
+  std::vector<VkBufferImageCopy> bufferCopyRegions;
+  for (int i = 0; i < layersNumber; i++) {
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
 
-  VkBufferImageCopy region{};
-  region.bufferOffset = 0;
-  region.bufferRowLength = 0;
-  region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = i;
+    region.imageSubresource.layerCount = 1;
 
-  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.imageSubresource.mipLevel = 0;
-  region.imageSubresource.baseArrayLayer = 0;
-  region.imageSubresource.layerCount = 1;
-
-  region.imageOffset = {0, 0, 0};
-  region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
-
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
+    bufferCopyRegions.push_back(region);
+  }
   vkCmdCopyBufferToImage(commandBuffer->getCommandBuffer()[0], buffer->getData(), _image,
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 
   commandBuffer->endSingleTimeCommands(0, queue);
 }
@@ -163,14 +181,19 @@ Image::~Image() {
   }
 }
 
-ImageView::ImageView(std::shared_ptr<Image> image, VkImageAspectFlags aspectFlags, std::shared_ptr<Device> device) {
+ImageView::ImageView(std::shared_ptr<Image> image,
+                     VkImageViewType type,
+                     int layerCount,
+                     int baseArrayLayer,
+                     VkImageAspectFlags aspectFlags,
+                     std::shared_ptr<Device> device) {
   _device = device;
   _image = image;
 
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   viewInfo.image = image->getImage();
-  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.viewType = type;
   viewInfo.format = image->getFormat();
   viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -178,9 +201,9 @@ ImageView::ImageView(std::shared_ptr<Image> image, VkImageAspectFlags aspectFlag
   viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.subresourceRange.aspectMask = aspectFlags;
   viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
+  viewInfo.subresourceRange.layerCount = layerCount;
   viewInfo.subresourceRange.levelCount = 1;
-  viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = 1;
 
   if (vkCreateImageView(device->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");

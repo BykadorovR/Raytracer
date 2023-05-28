@@ -34,5 +34,5 @@ class SpriteManager {
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
   void draw(int currentFrame);
-  void drawShadow(int currentFrame, glm::mat4 view, glm::mat4 projection);
+  void drawShadow(int currentFrame, LightType lightType, int lightIndex, int face = 0);
 };

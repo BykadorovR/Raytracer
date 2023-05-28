@@ -63,21 +63,50 @@ ModelGLTF::ModelGLTF(std::string path,
   //********************************************************************
   _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandPool, queue, device);
-  _uniformBuffer[ModelRenderMode::DEPTH] = std::make_shared<UniformBuffer>(
-      settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
-  _uniformBuffer[ModelRenderMode::FULL] = std::make_shared<UniformBuffer>(
-      settings->getMaxFramesInFlight(), sizeof(UniformObject), commandPool, queue, device);
+  int lightNumber = settings->getMaxDirectionalLights() + settings->getMaxPointLights();
+  _uniformBufferDepth.resize(lightNumber);
+  for (int i = 0; i < lightNumber; i++) {
+    _uniformBufferDepth[i] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
+                                                             commandPool, queue, device);
+  }
+  _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
+                                                       commandPool, queue, device);
 
-  _descriptorSetCamera[ModelRenderMode::DEPTH] = std::make_shared<DescriptorSet>(
-      settings->getMaxFramesInFlight(), descriptorSetLayout[0].second, descriptorPool, device);
-  _descriptorSetCamera[ModelRenderMode::DEPTH]->createCamera(_uniformBuffer[ModelRenderMode::DEPTH]);
-
-  _descriptorSetCamera[ModelRenderMode::FULL] = std::make_shared<DescriptorSet>(
-      settings->getMaxFramesInFlight(), descriptorSetLayout[0].second, descriptorPool, device);
-  _descriptorSetCamera[ModelRenderMode::FULL]->createCamera(_uniformBuffer[ModelRenderMode::FULL]);
+  auto cameraLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
+                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                     return info.first == std::string("camera");
+                                   });
+  auto textureLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("texture");
+                                    });
+  auto jointLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
+                                  [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                    return info.first == std::string("joint");
+                                  });
+  auto alphaMaskLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
+                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                        return info.first == std::string("alphaMask");
+                                      });
+  {
+    _descriptorSetCameraDepth.resize(lightNumber);
+    for (int i = 0; i < lightNumber; i++) {
+      auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
+                                                       descriptorPool, device);
+      cameraSet->createCamera(_uniformBufferDepth[i]);
+      _descriptorSetCameraDepth[i] = cameraSet;
+    }
+  }
+  {
+    auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
+                                                     descriptorPool, device);
+    cameraSet->createCamera(_uniformBufferFull);
+    _descriptorSetCameraFull = cameraSet;
+  }
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
                                            device);
+
   for (auto& material : _materials) {
     auto diffuseTexture = _stubTexture;
     auto normalTexture = _stubTexture;
@@ -87,20 +116,20 @@ ModelGLTF::ModelGLTF(std::string path,
     }
     material.descriptorSet.resize(settings->getMaxFramesInFlight());
     for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-      material.descriptorSet[i] = std::make_shared<DescriptorSet>(
-          settings->getMaxFramesInFlight(), descriptorSetLayout[1].second, _descriptorPool, _device);
+      material.descriptorSet[i] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
+                                                                  (*textureLayout).second, _descriptorPool, _device);
 
       material.descriptorSet[i]->createGraphicModel(diffuseTexture, normalTexture);
     }
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
                                                                    sizeof(ModelAuxilary), commandPool, queue, device);
     material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
-        settings->getMaxFramesInFlight(), descriptorSetLayout[3].second, descriptorPool, device);
+        settings->getMaxFramesInFlight(), (*alphaMaskLayout).second, descriptorPool, device);
     material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
   }
 
-  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(
-      settings->getMaxFramesInFlight(), descriptorSetLayout[2].second, _descriptorPool, _device);
+  _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*jointLayout).second,
+                                                                _descriptorPool, _device);
   _defaultSSBO = std::make_shared<Buffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                           _device);
@@ -114,8 +143,8 @@ ModelGLTF::ModelGLTF(std::string path,
 
   // TODO: create descriptor set layout and set for skin->descriptorSet
   for (auto& skin : _skins) {
-    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
-                                                         descriptorSetLayout[2].second, _descriptorPool, _device);
+    skin.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*jointLayout).second,
+                                                         _descriptorPool, _device);
     skin.descriptorSet->createJoints(skin.ssbo);
   }
 }
@@ -161,14 +190,15 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
       vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
       auto image = std::make_shared<Image>(
-          std::tuple{glTFImage.width, glTFImage.height}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+          std::tuple{glTFImage.width, glTFImage.height}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
 
-      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _commandPool, _queue);
-      image->copyFrom(stagingBuffer, _commandPool, _queue);
-      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, _commandPool, _queue);
+      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, _commandPool, _queue);
+      image->copyFrom(stagingBuffer, 1, _commandPool, _queue);
+      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, _commandPool, _queue);
 
-      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, _device);
+      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                   _device);
       auto texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, imageView, _device);
 
       _images[i].texture = texture;
@@ -655,6 +685,8 @@ void ModelGLTF::_drawNode(int currentFrame,
                           ModelRenderMode mode,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
+                          std::shared_ptr<DescriptorSet> cameraDS,
+                          std::shared_ptr<UniformBuffer> cameraUBO,
                           glm::mat4 view,
                           glm::mat4 projection,
                           NodeGLTF* node) {
@@ -672,10 +704,10 @@ void ModelGLTF::_drawNode(int currentFrame,
     ubo.projection = projection;
 
     void* data;
-    vkMapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(ubo), 0, &data);
+    vkMapMemory(_device->getLogicalDevice(), cameraUBO->getBuffer()[currentFrame]->getMemory(), 0, sizeof(ubo), 0,
+                &data);
     memcpy(data, &ubo, sizeof(ubo));
-    vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer[mode]->getBuffer()[currentFrame]->getMemory());
+    vkUnmapMemory(_device->getLogicalDevice(), cameraUBO->getBuffer()[currentFrame]->getMemory());
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
     auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -684,8 +716,8 @@ void ModelGLTF::_drawNode(int currentFrame,
                                      });
     if (cameraLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetCamera[mode]->getDescriptorSets()[currentFrame], 0, nullptr);
+                              pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
     }
 
     auto jointLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -765,7 +797,7 @@ void ModelGLTF::_drawNode(int currentFrame,
   }
 
   for (auto& child : node->children) {
-    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, view, projection, child);
+    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
   }
 }
 
@@ -790,8 +822,8 @@ void ModelGLTF::draw(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, ModelRenderMode::FULL, pipeline, pipelineCullOff, _camera->getView(),
-              _camera->getProjection(), node);
+    _drawNode(currentFrame, ModelRenderMode::FULL, pipeline, pipelineCullOff, _descriptorSetCameraFull,
+              _uniformBufferFull, _camera->getView(), _camera->getProjection(), node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);
@@ -800,6 +832,7 @@ void ModelGLTF::draw(int currentFrame,
 void ModelGLTF::drawShadow(int currentFrame,
                            std::shared_ptr<Pipeline> pipeline,
                            std::shared_ptr<Pipeline> pipelineCullOff,
+                           int lightIndex,
                            glm::mat4 view,
                            glm::mat4 projection,
                            float frameTimer) {
@@ -819,7 +852,8 @@ void ModelGLTF::drawShadow(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff, view, projection, node);
+    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex],
+              _uniformBufferDepth[lightIndex], view, projection, node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);

@@ -19,7 +19,8 @@ class Sprite {
   std::shared_ptr<Device> _device;
   std::shared_ptr<CommandPool> _commandPool;
 
-  std::map<SpriteRenderMode, std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
+  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraDepth;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetTextures;
 
   std::shared_ptr<CommandBuffer> _commandBuffer;
@@ -29,7 +30,8 @@ class Sprite {
 
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::map<SpriteRenderMode, std::shared_ptr<UniformBuffer>> _uniformBuffer;
+  std::vector<std::shared_ptr<UniformBuffer>> _uniformBufferDepth;
+  std::shared_ptr<UniformBuffer> _uniformBufferFull;
 
   glm::mat4 _model = glm::mat4(1.f);
   // we swap Y here because image is going from top to bottom, but Vulkan vice versa
@@ -56,5 +58,9 @@ class Sprite {
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);
   void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline);
-  void drawShadow(int currentFrame, std::shared_ptr<Pipeline> pipeline, glm::mat4 view, glm::mat4 projection);
+  void drawShadow(int currentFrame,
+                  std::shared_ptr<Pipeline> pipeline,
+                  int lightIndex,
+                  glm::mat4 view,
+                  glm::mat4 projection);
 };

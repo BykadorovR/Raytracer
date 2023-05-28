@@ -12,7 +12,7 @@ layout(location = 0) out vec4 outColor;
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
 layout(set = 1, binding = 1) uniform sampler2D normalSampler;
 layout(set = 4, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 4, binding = 1) uniform sampler2D shadowPointSampler[4];
+layout(set = 4, binding = 1) uniform samplerCube shadowPointSampler[4];
 
 struct LightDirectional {
     float ambient;
@@ -48,7 +48,7 @@ layout( push_constant ) uniform constants {
     vec3 cameraPosition;
 } push;
 
-float calculateTextureShadow(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
+float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
     // perform perspective divide
     vec3 position = coords.xyz / coords.w;
     // transform to [0,1] range
@@ -69,11 +69,15 @@ float calculateTextureShadow(sampler2D shadowSampler, vec4 coords, vec3 normal, 
     return shadow;
 }
 
+float calculateTextureShadowPoint(samplerCube shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
+    return 0;
+}
+
 vec3 directionalLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightDirectionalNumber; i++) {
         vec3 lightDir = normalize(lightDirectional[i].position - fragPosition);
-        float shadow = calculateTextureShadow(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
+        float shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
         float ambientFactor = lightDirectional[i].ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
@@ -89,7 +93,7 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateTextureShadow(shadowPointSampler[i], fragLightPointCoord[i], normal, lightDir); 
+        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragLightPointCoord[i], normal, lightDir); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;

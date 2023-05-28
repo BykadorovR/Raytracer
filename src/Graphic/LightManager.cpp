@@ -18,10 +18,17 @@ LightManager::LightManager(std::shared_ptr<State> state) {
   // stub texture
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            _state->getCommandPool(), _state->getQueue(), _state->getDevice());
+  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", _state);
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight() {
-  auto light = std::make_shared<PointLight>();
+  std::vector<std::shared_ptr<Cubemap>> depthCubemap;
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    depthCubemap.push_back(std::make_shared<Cubemap>(_state));
+  }
+
+  auto light = std::make_shared<PointLight>(_state->getSettings());
+  light->setDepthCubemap(depthCubemap);
   _pointLights.push_back(light);
   _changed = true;
   return light;
@@ -33,11 +40,12 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
   std::vector<std::shared_ptr<Texture>> depthTexture;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        _state->getSettings()->getResolution(), VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        _state->getSettings()->getResolution(), 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         _state->getDevice());
     image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_DEPTH_BIT, _state->getDevice());
+    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                 _state->getDevice());
     depthTexture.push_back(
         std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, imageView, _state->getDevice()));
   }
@@ -113,20 +121,20 @@ void LightManager::draw(int frame) {
 
     _descriptorSetDepthTexture.resize(_state->getSettings()->getMaxFramesInFlight());
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
-      std::vector<std::shared_ptr<Texture>> directionalTextures(_maxDirectionalLights);
-      for (int i = 0; i < _maxDirectionalLights; i++) {
+      std::vector<std::shared_ptr<Texture>> directionalTextures(_state->getSettings()->getMaxDirectionalLights());
+      for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
         if (i < _directionalLights.size())
           directionalTextures[i] = _directionalLights[i]->getDepthTexture()[j];
         else
           directionalTextures[i] = _stubTexture;
       }
 
-      std::vector<std::shared_ptr<Texture>> pointTextures(_maxPointLights);
-      for (int i = 0; i < _maxPointLights; i++) {
+      std::vector<std::shared_ptr<Texture>> pointTextures(_state->getSettings()->getMaxPointLights());
+      for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
         if (i < _pointLights.size())
-          pointTextures[i] = _pointLights[i]->getDepthTexture()[j];
+          pointTextures[i] = _pointLights[i]->getDepthCubemap()[j]->getTexture();
         else
-          pointTextures[i] = _stubTexture;
+          pointTextures[i] = _stubCubemap->getTexture();
       }
 
       _descriptorSetDepthTexture[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
@@ -189,7 +197,7 @@ void LightManager::draw(int frame) {
   float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
                  (float)std::get<1>(_state->getSettings()->getResolution());
   for (int i = 0; i < _pointLights.size(); i++) {
-    glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix(aspect) * _pointLights[i]->getViewMatrix();
+    glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix() * _pointLights[i]->getViewMatrix(0);
     pointVP.push_back(viewProjection);
   }
   memcpy((uint8_t*)(_lightPointSSBOViewProjection->getMappedMemory()) + offset, pointVP.data(),

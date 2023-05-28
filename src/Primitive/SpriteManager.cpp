@@ -134,15 +134,25 @@ void SpriteManager::draw(int currentFrame) {
   }
 }
 
-void SpriteManager::drawShadow(int currentFrame, glm::mat4 view, glm::mat4 projection) {
+void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[SpriteRenderMode::DEPTH]->getPipeline());
-
+  auto [width, height] = _settings->getResolution();
+  int resolution = std::max(width, height);
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_settings->getResolution());
-  viewport.width = std::get<0>(_settings->getResolution());
-  viewport.height = -std::get<1>(_settings->getResolution());
+  if (lightType == LightType::DIRECTIONAL) {
+    viewport.y = std::get<1>(_settings->getResolution());
+    viewport.width = std::get<0>(_settings->getResolution());
+    viewport.height = -std::get<1>(_settings->getResolution());
+  }
+  // in case of POINT light we have cubemap it should be equal sized, so width = height
+  if (lightType == LightType::POINT) {
+    viewport.y = resolution;
+    viewport.width = resolution;
+    viewport.height = -resolution;
+  }
+
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
@@ -153,6 +163,19 @@ void SpriteManager::drawShadow(int currentFrame, glm::mat4 view, glm::mat4 proje
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   for (auto sprite : _sprites) {
-    sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DEPTH], view, projection);
+    glm::mat4 view(1.f);
+    glm::mat4 projection(1.f);
+    int lightIndexTotal = lightIndex;
+    if (lightType == LightType::DIRECTIONAL) {
+      view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
+      projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    }
+    if (lightType == LightType::POINT) {
+      lightIndexTotal += _settings->getMaxDirectionalLights();
+      view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
+      projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    }
+
+    sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DEPTH], lightIndexTotal, view, projection);
   }
 }
