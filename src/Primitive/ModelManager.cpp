@@ -186,6 +186,7 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   for (auto model : _modelsGLTF) {
+    if (model->isDebug()) continue;
     glm::mat4 view(1.f);
     glm::mat4 projection(1.f);
     int lightIndexTotal = lightIndex;

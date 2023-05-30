@@ -13,6 +13,8 @@ struct UniformObject {
 
 void Model::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 void Model::setModel(glm::mat4 model) { _model = model; }
+void Model::setDebug(bool debug) { _debug = debug; }
+bool Model::isDebug() { return _debug; }
 
 struct ModelAuxilary {
   VkBool32 alphaMask;
