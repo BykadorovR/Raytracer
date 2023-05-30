@@ -4,7 +4,7 @@
 
 Camera::Camera() {
   _eye = glm::vec3(0.f, 0.f, 3.f);
-  _direction = glm::vec3(0.f, 0.f, -3.f);
+  _direction = glm::vec3(0.f, 0.f, -1.f);
   _up = glm::vec3(0.f, 1.f, 0.f);
   _far = 100.f;
   _near = 0.1f;

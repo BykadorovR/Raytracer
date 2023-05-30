@@ -24,26 +24,30 @@ glm::vec3 PointLight::getPosition() { return _phong->position; }
 
 glm::mat4 PointLight::getViewMatrix(int face) {
   glm::mat4 viewMatrix = glm::mat4(1.0f);
+  // up is inverted because of some specific cubemap Y coordinate stuff
   switch (face) {
-    case 0:  // POSITIVE_X
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    case 0:  // POSITIVE_X / right
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(1.0, 0.0, 0.0),
+                               glm::vec3(0.0, -1.0, 0.0));
       break;
-    case 1:  // NEGATIVE_X
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    case 1:  // NEGATIVE_X /left
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(-1.0, 0.0, 0.0),
+                               glm::vec3(0.0, -1.0, 0.0));
       break;
-    case 2:  // POSITIVE_Y
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    case 2:  // POSITIVE_Y / top
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
       break;
-    case 3:  // NEGATIVE_Y
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    case 3:  // NEGATIVE_Y / bottom
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(0.0, -1.0, 0.0),
+                               glm::vec3(0.0, 0.0, -1.0));
       break;
-    case 4:  // POSITIVE_Z
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    case 4:  // POSITIVE_Z / near
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(0.0, 0.0, 1.0),
+                               glm::vec3(0.0, -1.0, 0.0));
       break;
-    case 5:  // NEGATIVE_Z
-      viewMatrix = glm::rotate(viewMatrix, glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    case 5:  // NEGATIVE_Z / far
+      viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(0.0, 0.0, -1.0),
+                               glm::vec3(0.0, -1.0, 0.0));
       break;
   }
 
@@ -51,8 +55,8 @@ glm::mat4 PointLight::getViewMatrix(int face) {
 }
 
 glm::mat4 PointLight::getProjectionMatrix() {
-  float aspect = std::get<0>(_settings->getResolution()) / std::get<1>(_settings->getResolution());
-  return glm::perspective(glm::radians(90.f), aspect, 0.1f, 40.f);
+  float aspect = 1.f;
+  return glm::perspective(glm::radians(90.f), aspect, 0.1f, 100.f);
 }
 
 void PointLight::setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap) { _depthCubemap = depthCubemap; }

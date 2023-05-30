@@ -111,7 +111,7 @@ void initialize() {
   pointLightHorizontal = lightManager->createPointLight();
   pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightHorizontal->setPosition({15.f, 3.f, 0.f});
+  pointLightHorizontal->setPosition({0.f, 0.f, 3.f});
 
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -176,7 +176,7 @@ void initialize() {
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);
     {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
+      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, 0.f));
       model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
       model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
       sprite->setModel(model);
@@ -184,10 +184,10 @@ void initialize() {
 
     spriteManager->registerSprite(sprite);
   }
-  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf", depthTexture);
-  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf", depthTexture);
-  modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf", depthTexture);
+  modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture);
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture);
@@ -197,9 +197,9 @@ void initialize() {
   //  model3D->setModel(model);
   //}
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-5.f, -5.f, 0.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    // model = glm::scale(model, glm::vec3(4.f, 4.f, 4.f));
+    model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTF->setModel(model);
   }
 
@@ -291,7 +291,7 @@ void drawFrame() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
                                               15.f * cos(glm::radians(angleVertical)));
 
-  if (directionalLight) directionalLight->setPosition(lightPositionVertical);
+  // if (directionalLight) directionalLight->setPosition(lightPositionVertical);
   // if (directionalLight2) directionalLight2->setPosition(lightPositionHorizontal);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;

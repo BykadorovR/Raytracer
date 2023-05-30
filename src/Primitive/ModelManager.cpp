@@ -166,15 +166,15 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
   VkViewport viewport{};
   viewport.x = 0.0f;
   if (lightType == LightType::DIRECTIONAL) {
-    viewport.y = std::get<1>(_settings->getResolution());
+    viewport.y = 0;
     viewport.width = std::get<0>(_settings->getResolution());
-    viewport.height = -std::get<1>(_settings->getResolution());
+    viewport.height = std::get<1>(_settings->getResolution());
   }
   // in case of POINT light we have cubemap it should be equal sized, so width = height
   if (lightType == LightType::POINT) {
-    viewport.y = resolution;
+    viewport.y = 0;
     viewport.width = resolution;
-    viewport.height = -resolution;
+    viewport.height = resolution;
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
@@ -182,7 +182,7 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
+  scissor.extent = VkExtent2D(resolution, resolution);
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   for (auto model : _modelsGLTF) {
@@ -200,6 +200,6 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
     }
 
     model->drawShadow(currentFrame, _pipeline[ModelRenderMode::DEPTH], _pipelineCullOff[ModelRenderMode::DEPTH],
-                      lightIndexTotal, view, projection, frameTimer);
+                      lightIndexTotal, view, projection, frameTimer, face);
   }
 }

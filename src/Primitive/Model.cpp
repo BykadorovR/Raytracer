@@ -64,11 +64,20 @@ ModelGLTF::ModelGLTF(std::string path,
   _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
   _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandPool, queue, device);
   int lightNumber = settings->getMaxDirectionalLights() + settings->getMaxPointLights();
-  _uniformBufferDepth.resize(lightNumber);
-  for (int i = 0; i < lightNumber; i++) {
-    _uniformBufferDepth[i] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
-                                                             commandPool, queue, device);
+  for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
+    _uniformBufferDepth.push_back({std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
+                                                                   sizeof(UniformObject), commandPool, queue, device)});
   }
+
+  for (int i = 0; i < settings->getMaxPointLights(); i++) {
+    std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
+    for (int j = 0; j < 6; j++) {
+      facesBuffer[j] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
+                                                       commandPool, queue, device);
+    }
+    _uniformBufferDepth.push_back(facesBuffer);
+  }
+
   _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
                                                        commandPool, queue, device);
 
@@ -89,12 +98,22 @@ ModelGLTF::ModelGLTF(std::string path,
                                         return info.first == std::string("alphaMask");
                                       });
   {
-    _descriptorSetCameraDepth.resize(lightNumber);
-    for (int i = 0; i < lightNumber; i++) {
+    for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                        descriptorPool, device);
-      cameraSet->createCamera(_uniformBufferDepth[i]);
-      _descriptorSetCameraDepth[i] = cameraSet;
+      cameraSet->createCamera(_uniformBufferDepth[i][0]);
+
+      _descriptorSetCameraDepth.push_back({cameraSet});
+    }
+
+    for (int i = 0; i < settings->getMaxPointLights(); i++) {
+      std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
+      for (int j = 0; j < 6; j++) {
+        facesSet[j] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
+                                                      descriptorPool, device);
+        facesSet[j]->createCamera(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
+      }
+      _descriptorSetCameraDepth.push_back(facesSet);
     }
   }
   {
@@ -835,7 +854,8 @@ void ModelGLTF::drawShadow(int currentFrame,
                            int lightIndex,
                            glm::mat4 view,
                            glm::mat4 projection,
-                           float frameTimer) {
+                           float frameTimer,
+                           int face) {
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
@@ -852,8 +872,9 @@ void ModelGLTF::drawShadow(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex],
-              _uniformBufferDepth[lightIndex], view, projection, node);
+    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff,
+              _descriptorSetCameraDepth[lightIndex][face], _uniformBufferDepth[lightIndex][face], view, projection,
+              node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);

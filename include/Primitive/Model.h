@@ -33,7 +33,8 @@ class Model {
                           int lightIndex,
                           glm::mat4 view,
                           glm::mat4 projection,
-                          float frameTimer) = 0;
+                          float frameTimer,
+                          int face) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -141,13 +142,13 @@ class ModelGLTF : public Model {
   uint32_t _activeAnimation = 0;
 
   std::vector<NodeGLTF*> _nodes;
-  std::vector<std::shared_ptr<UniformBuffer>> _uniformBufferDepth;
+  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraDepth;
+  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
@@ -209,5 +210,6 @@ class ModelGLTF : public Model {
                   int lightIndex,
                   glm::mat4 view,
                   glm::mat4 projection,
-                  float frameTimer);
+                  float frameTimer,
+                  int face);
 };

@@ -142,15 +142,15 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
   VkViewport viewport{};
   viewport.x = 0.0f;
   if (lightType == LightType::DIRECTIONAL) {
-    viewport.y = std::get<1>(_settings->getResolution());
+    viewport.y = 0;
     viewport.width = std::get<0>(_settings->getResolution());
-    viewport.height = -std::get<1>(_settings->getResolution());
+    viewport.height = std::get<1>(_settings->getResolution());
   }
   // in case of POINT light we have cubemap it should be equal sized, so width = height
   if (lightType == LightType::POINT) {
-    viewport.y = resolution;
+    viewport.y = 0;
     viewport.width = resolution;
-    viewport.height = -resolution;
+    viewport.height = resolution;
   }
 
   viewport.minDepth = 0.0f;
@@ -159,7 +159,7 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
+  scissor.extent = VkExtent2D(resolution, resolution);
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   for (auto sprite : _sprites) {
@@ -176,6 +176,6 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
     }
 
-    sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DEPTH], lightIndexTotal, view, projection);
+    sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DEPTH], lightIndexTotal, view, projection, face);
   }
 }
