@@ -29,7 +29,6 @@ layout(location = 3) out vec2 fragTexCoord;
 layout(location = 4) out mat3 fragTBN;
 //mat3 takes 3 slots
 layout(location = 7) out vec4 fragLightDirectionalCoord[2];
-layout(location = 9) out vec4 fragLightPointCoord[4];
 
 void main() {
     vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
@@ -47,7 +46,4 @@ void main() {
     fragPosition = afterModel.xyz;
     for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
-
-    for (int i = 0; i < lightPointNumber; i++)
-        fragLightPointCoord[i] = lightPointVP[i] * afterModel;
 }

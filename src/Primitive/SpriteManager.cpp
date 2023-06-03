@@ -40,20 +40,37 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(shader, device);
+    _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(device);
     _pipeline[SpriteRenderMode::FULL]->createGraphic2D(
-        VK_CULL_MODE_BACK_BIT, _descriptorSetLayout,
+        VK_CULL_MODE_BACK_BIT,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayout,
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
         Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
   }
   {
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    _pipeline[SpriteRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(device);
+    _pipeline[SpriteRenderMode::DIRECTIONAL]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {_descriptorSetLayout[0]}, {},
+        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), renderDepth);
+  }
+  {
+    std::map<std::string, VkPushConstantRange> defaultPushConstants;
+    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
+
+    auto shader = std::make_shared<Shader>(device);
+    shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipeline[SpriteRenderMode::DEPTH] = std::make_shared<Pipeline>(shader, device);
-    _pipeline[SpriteRenderMode::DEPTH]->createGraphic2DShadow(VK_CULL_MODE_NONE, {_descriptorSetLayout[0]}, {},
-                                                              Vertex2D::getBindingDescription(),
-                                                              Vertex2D::getAttributeDescriptions(), renderDepth);
+    _pipeline[SpriteRenderMode::POINT] = std::make_shared<Pipeline>(device);
+    _pipeline[SpriteRenderMode::POINT]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {_descriptorSetLayout[0]}, defaultPushConstants, Vertex2D::getBindingDescription(),
+        Vertex2D::getAttributeDescriptions(), renderDepth);
   }
 }
 
@@ -136,7 +153,7 @@ void SpriteManager::draw(int currentFrame) {
 
 void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline[SpriteRenderMode::DEPTH]->getPipeline());
+                    _pipeline[(SpriteRenderMode)lightType]->getPipeline());
   auto [width, height] = _settings->getResolution();
   int resolution = std::max(width, height);
   VkViewport viewport{};
@@ -162,6 +179,18 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
   scissor.extent = VkExtent2D(resolution, resolution);
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  if (_pipeline[SpriteRenderMode::POINT]->getPushConstants().find("fragment") !=
+      _pipeline[SpriteRenderMode::POINT]->getPushConstants().end()) {
+    if (lightType == LightType::POINT) {
+      DepthConstants pushConstants;
+      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.far = 100.f;
+      vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame],
+                         _pipeline[SpriteRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                         sizeof(DepthConstants), &pushConstants);
+    }
+  }
+
   for (auto sprite : _sprites) {
     glm::mat4 view(1.f);
     glm::mat4 projection(1.f);
@@ -169,13 +198,14 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+      sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DIRECTIONAL], lightIndexTotal, view, projection,
+                         face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _settings->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+      sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::POINT], lightIndexTotal, view, projection, face);
     }
-
-    sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DEPTH], lightIndexTotal, view, projection, face);
   }
 }

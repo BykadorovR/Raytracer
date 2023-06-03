@@ -74,7 +74,8 @@ std::vector<std::shared_ptr<DescriptorSet>> LightManager::getDSShadowTexture() {
 void LightManager::draw(int frame) {
   if (_changed) {
     int size = 0;
-    // align is 16 bytes, so even for int
+    // align is 16 bytes, so even for int because in our SSBO struct
+    // we have fields 16 bytes size so the whole struct has 16 bytes allignment
     size += sizeof(glm::vec4);
     for (int i = 0; i < _directionalLights.size(); i++) {
       size += _directionalLights[i]->getSize();

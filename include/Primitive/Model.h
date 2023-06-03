@@ -12,7 +12,7 @@
 #include "Camera.h"
 #include "LightManager.h"
 
-enum class ModelRenderMode { DEPTH, FULL };
+enum class ModelRenderMode { DIRECTIONAL, POINT, FULL };
 
 class Model {
  protected:
@@ -181,7 +181,6 @@ class ModelGLTF : public Model {
                  std::vector<uint32_t>& indexBuffer,
                  std::vector<Vertex3D>& vertexBuffer);
   void _drawNode(int currentFrame,
-                 ModelRenderMode mode,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
                  std::shared_ptr<DescriptorSet> cameraDS,

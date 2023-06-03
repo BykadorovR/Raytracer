@@ -703,7 +703,6 @@ void ModelGLTF::_updateAnimation(float deltaTime) {
 }
 
 void ModelGLTF::_drawNode(int currentFrame,
-                          ModelRenderMode mode,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
                           std::shared_ptr<DescriptorSet> cameraDS,
@@ -745,19 +744,17 @@ void ModelGLTF::_drawNode(int currentFrame,
                                     [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                       return info.first == std::string("joint");
                                     });
-    int jointSet = 2;
-    if (mode == ModelRenderMode::DEPTH) jointSet = 1;
 
     if (node->skin >= 0) {
       if (jointLayout != pipelineLayout.end()) {
         vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->getPipelineLayout(), jointSet, 1,
+                                pipeline->getPipelineLayout(), 1, 1,
                                 &_skins[node->skin].descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
       }
     } else {
       if (jointLayout != pipelineLayout.end()) {
         vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->getPipelineLayout(), jointSet, 1,
+                                pipeline->getPipelineLayout(), 1, 1,
                                 &_descriptorSetJointsDefault->getDescriptorSets()[currentFrame], 0, nullptr);
       }
     }
@@ -802,7 +799,7 @@ void ModelGLTF::_drawNode(int currentFrame,
                               currentPipeline->getPipeline());
             if (textureLayout != pipelineLayout.end()) {
               vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                      currentPipeline->getPipelineLayout(), 1, 1,
+                                      currentPipeline->getPipelineLayout(), 2, 1,
                                       &material.descriptorSet[currentFrame]->getDescriptorSets()[currentFrame], 0,
                                       nullptr);
             }
@@ -818,7 +815,7 @@ void ModelGLTF::_drawNode(int currentFrame,
   }
 
   for (auto& child : node->children) {
-    _drawNode(currentFrame, mode, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
+    _drawNode(currentFrame, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
   }
 }
 
@@ -829,8 +826,7 @@ void ModelGLTF::draw(int currentFrame,
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
-    int offset = 0;
-    offset = sizeof(LightPush);
+    int offset = sizeof(LightPush);
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
   }
@@ -843,8 +839,8 @@ void ModelGLTF::draw(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, ModelRenderMode::FULL, pipeline, pipelineCullOff, _descriptorSetCameraFull,
-              _uniformBufferFull, _camera->getView(), _camera->getProjection(), node);
+    _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraFull, _uniformBufferFull, _camera->getView(),
+              _camera->getProjection(), node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);
@@ -874,9 +870,8 @@ void ModelGLTF::drawShadow(int currentFrame,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, ModelRenderMode::DEPTH, pipeline, pipelineCullOff,
-              _descriptorSetCameraDepth[lightIndex][face], _uniformBufferDepth[lightIndex][face], view, projection,
-              node);
+    _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
+              _uniformBufferDepth[lightIndex][face], view, projection, node);
   }
 
   if (_animations.size() > 0) _updateAnimation(frameTimer);

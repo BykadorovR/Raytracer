@@ -108,13 +108,13 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  pointLightHorizontal = lightManager->createPointLight();
-  pointLightHorizontal->createPhong(0.f, 0.5f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightHorizontal->setPosition({0.f, 0.f, 3.f});
+  // pointLightHorizontal = lightManager->createPointLight();
+  // pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  // pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});

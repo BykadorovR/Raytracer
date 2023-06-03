@@ -31,8 +31,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   _textureSetLayout->createGraphic();
 
-  _pipeline = std::make_shared<Pipeline>(shader, state->getDevice());
+  _pipeline = std::make_shared<Pipeline>(state->getDevice());
   _pipeline->createHUD(
+      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {{"camera", cameraLayout}, {"texture", _textureSetLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("fragment"), DepthPush::getPushConstant()}},
       Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), _renderPass);

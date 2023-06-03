@@ -6,7 +6,7 @@ layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 proj;
 } mvp;
 
-layout(std430, set = 2, binding = 0) readonly buffer JointMatrices {
+layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
 
@@ -35,7 +35,6 @@ layout(location = 3) out vec2 fragTexCoord;
 layout(location = 4) out mat3 fragTBN;
 //mat3 takes 3 slots
 layout(location = 7) out vec4 fragLightDirectionalCoord[2];
-layout(location = 9) out vec4 fragLightPointCoord[4];
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int jointNum;
@@ -67,6 +66,4 @@ void main() {
     fragPosition = afterModel.xyz;
     for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
-    for (int i = 0; i < lightPointNumber; i++)
-        fragLightPointCoord[i] = lightPointVP[i] * afterModel;
 }

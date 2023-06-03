@@ -59,6 +59,20 @@ struct Vertex2D {
   }
 };
 
+struct DepthConstants {
+  alignas(16) glm::vec3 lightPosition;
+  int far;
+  static VkPushConstantRange getPushConstant(int offset) {
+    VkPushConstantRange pushConstant;
+    // this push constant range starts at the beginning
+    pushConstant.offset = offset;
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.size = sizeof(DepthConstants);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    return pushConstant;
+  }
+};
 struct LightPush {
   alignas(16) glm::vec3 cameraPosition;
   static VkPushConstantRange getPushConstant() {
@@ -74,7 +88,7 @@ struct LightPush {
 };
 
 struct PushConstants {
-  int jointNum = 0;
+  alignas(16) int jointNum = 0;
   static VkPushConstantRange getPushConstant(int offset) {
     VkPushConstantRange pushConstant;
     // this push constant range starts at the beginning

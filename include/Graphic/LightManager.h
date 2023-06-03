@@ -8,7 +8,7 @@
 #include <memory>
 #include "State.h"
 
-enum class LightType { DIRECTIONAL = 0, POINT };
+enum class LightType { DIRECTIONAL = 0, POINT = 1 };
 
 class LightManager {
  private:

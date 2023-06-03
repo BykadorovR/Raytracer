@@ -11,7 +11,7 @@
 #include "LightManager.h"
 #include "Light.h"
 
-enum class SpriteRenderMode { DEPTH, FULL };
+enum class SpriteRenderMode { DIRECTIONAL, POINT, FULL };
 
 class Sprite {
  private:

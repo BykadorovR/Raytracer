@@ -12,6 +12,9 @@ layout(location = 2) in vec3 inColor;
 layout(location = 3) in vec2 inTexCoord;
 layout(location = 4) in vec3 inTangent;
 
+layout(location = 0) out vec4 modelCoords;
+
 void main() {
     gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    modelCoords = mvp.model * vec4(inPosition, 1.0);
 }

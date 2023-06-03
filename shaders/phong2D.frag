@@ -6,7 +6,6 @@ layout(location = 3) in vec2 fragTexCoord;
 layout(location = 4) in mat3 fragTBN;
 //mat3 takes 3 slots
 layout(location = 7) in vec4 fragLightDirectionalCoord[2];
-layout(location = 9) in vec4 fragLightPointCoord[4];
 
 layout(location = 0) out vec4 outColor;
 layout(set = 1, binding = 0) uniform sampler2D texSampler;
@@ -69,8 +68,16 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     return shadow;
 }
 
-float calculateTextureShadowPoint(samplerCube shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
-    return 0;
+float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 normal, vec3 fragToLight) {
+    // perform perspective divide
+    float closestDepth = texture(shadowSampler, fragToLight).r;
+    float far = 100.0;
+    closestDepth *= far;
+    float currentDepth = length(fragToLight);
+    float bias = 0.05; 
+    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0; 
+
+    return shadow;
 }
 
 vec3 directionalLight(vec3 normal) {
@@ -93,7 +100,7 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragLightPointCoord[i], normal, lightDir); 
+        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], normal, fragPosition - lightPoint[i].position); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
@@ -102,7 +109,7 @@ vec3 pointLight(vec3 normal) {
         //dot product between reflected ray and light ray
         float specularFactor = lightPoint[i].specular * 
                                pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(push.cameraPosition - fragPosition)), 0), 32);
-        lightFactor += (ambientFactor + diffuseFactor + specularFactor) * attenuation * lightPoint[i].color; 
+        lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * lightPoint[i].color; 
     }
 
     return lightFactor;

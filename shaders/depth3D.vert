@@ -14,6 +14,8 @@ layout(location = 4) in vec4 inJointIndices;
 layout(location = 5) in vec4 inJointWeights;
 layout(location = 6) in vec4 inTangent;
 
+layout(location = 0) out vec4 modelCoords;
+
 layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
@@ -33,4 +35,5 @@ void main() {
 
     mat4 model = mvp.model * skinMat;
     gl_Position = mvp.proj * mvp.view * model * vec4(inPosition, 1.0);
+    modelCoords = model * vec4(inPosition, 1.0);
 }

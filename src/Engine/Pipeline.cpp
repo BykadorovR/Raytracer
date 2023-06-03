@@ -2,9 +2,8 @@
 #include "Buffer.h"
 #include <ranges>
 
-Pipeline::Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> device) {
+Pipeline::Pipeline(std::shared_ptr<Device> device) {
   _device = device;
-  _shader = shader;
 
   _inputAssembly = VkPipelineInputAssemblyStateCreateInfo{};
   _inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -66,7 +65,8 @@ Pipeline::Pipeline(std::shared_ptr<Shader> shader, std::shared_ptr<Device> devic
   _depthStencil.back = {};   // Optional
 }
 
-void Pipeline::createHUD(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+                         std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                          std::map<std::string, VkPushConstantRange> pushConstants,
                          VkVertexInputBindingDescription bindingDescription,
                          std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
@@ -113,10 +113,8 @@ void Pipeline::createHUD(std::vector<std::pair<std::string, std::shared_ptr<Desc
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                    _shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
-  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &_inputAssembly;
   pipelineInfo.pViewportState = &_viewportState;
@@ -138,6 +136,7 @@ void Pipeline::createHUD(std::vector<std::pair<std::string, std::shared_ptr<Desc
 
 void Pipeline::createGraphic3D(
     VkCullModeFlags cullMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
@@ -189,10 +188,8 @@ void Pipeline::createGraphic3D(
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                    _shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
-  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &_inputAssembly;
   pipelineInfo.pViewportState = &_viewportState;
@@ -214,6 +211,7 @@ void Pipeline::createGraphic3D(
 
 void Pipeline::createGraphic3DShadow(
     VkCullModeFlags cullMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
@@ -269,9 +267,8 @@ void Pipeline::createGraphic3DShadow(
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 1;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)};
-  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &_inputAssembly;
   pipelineInfo.pViewportState = &_viewportState;
@@ -293,6 +290,7 @@ void Pipeline::createGraphic3DShadow(
 
 void Pipeline::createGraphic2D(
     VkCullModeFlags cullMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
@@ -344,10 +342,8 @@ void Pipeline::createGraphic2D(
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                    _shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
-  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &_inputAssembly;
   pipelineInfo.pViewportState = &_viewportState;
@@ -369,6 +365,7 @@ void Pipeline::createGraphic2D(
 
 void Pipeline::createGraphic2DShadow(
     VkCullModeFlags cullMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
@@ -424,10 +421,8 @@ void Pipeline::createGraphic2DShadow(
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.stageCount = 2;
-  VkPipelineShaderStageCreateInfo shaderStages[] = {_shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                    _shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)};
-  pipelineInfo.pStages = shaderStages;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
   pipelineInfo.pInputAssemblyState = &_inputAssembly;
   pipelineInfo.pViewportState = &_viewportState;
@@ -448,6 +443,7 @@ void Pipeline::createGraphic2DShadow(
 }
 
 void Pipeline::createCompute(
+    VkPipelineShaderStageCreateInfo shaderStage,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout) {
   _descriptorSetLayout = descriptorSetLayout;
   // create pipeline layout
@@ -469,7 +465,8 @@ void Pipeline::createCompute(
   computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
   computePipelineCreateInfo.layout = _pipelineLayout;
   computePipelineCreateInfo.flags = 0;
-  computePipelineCreateInfo.stage = _shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT);
+  // VK_SHADER_STAGE_COMPUTE_BIT
+  computePipelineCreateInfo.stage = shaderStage;
   vkCreateComputePipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
                            &_pipeline);
 }
