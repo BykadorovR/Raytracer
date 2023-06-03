@@ -108,10 +108,15 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  // pointLightHorizontal = lightManager->createPointLight();
-  // pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
-  // pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+
+  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -374,7 +379,7 @@ void drawFrame() {
   }
   for (int i = 0; i < pointNum; i++) {
     for (int j = 0; j < 6; j++) {
-      int id = i + j + directionalNum;
+      int id = directionalNum + 6 * i + j;
       imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
       // We won't be changing the layout of the image
       imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
