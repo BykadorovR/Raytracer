@@ -28,6 +28,8 @@ struct LightPoint {
     float constant;
     float linear;
     float quadratic;
+    //parameters
+    float far;
     //
     vec3 color;
     vec3 position;
@@ -68,10 +70,9 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     return shadow;
 }
 
-float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 normal, vec3 fragToLight) {
+float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 normal, vec3 fragToLight, float far) {
     // perform perspective divide
     float closestDepth = texture(shadowSampler, fragToLight).r;
-    float far = 100.0;
     closestDepth *= far;
     float currentDepth = length(fragToLight);
     float bias = 0.05; 
@@ -100,7 +101,7 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], normal, fragPosition - lightPoint[i].position); 
+        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], normal, fragPosition - lightPoint[i].position, lightPoint[i].far); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;

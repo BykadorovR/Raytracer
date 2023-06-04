@@ -15,6 +15,8 @@ class PointLight {
     float constant = 1.f;
     float linear = 0.f;
     float quadratic = 0.f;
+    // parameters
+    float far;
     // if alignment changed need to change implementation, sizeof(glm::vec4) is used in LightManager
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;

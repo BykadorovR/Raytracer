@@ -7,6 +7,7 @@ int PointLight::getSize() { return sizeof(PhongLightFields); }
 
 PointLight::PointLight(std::shared_ptr<Settings> settings) {
   _phong = std::make_shared<PhongLightFields>();
+  _phong->far = 100.f;
   _settings = settings;
 }
 
@@ -56,7 +57,7 @@ glm::mat4 PointLight::getViewMatrix(int face) {
 
 glm::mat4 PointLight::getProjectionMatrix() {
   float aspect = 1.f;
-  return glm::perspective(glm::radians(90.f), aspect, 0.1f, 100.f);
+  return glm::perspective(glm::radians(90.f), aspect, 0.1f, _phong->far);
 }
 
 void PointLight::setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap) { _depthCubemap = depthCubemap; }
