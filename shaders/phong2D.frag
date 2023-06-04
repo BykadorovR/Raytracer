@@ -70,14 +70,31 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     return shadow;
 }
 
-float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 normal, vec3 fragToLight, float far) {
-    // perform perspective divide
-    float closestDepth = texture(shadowSampler, fragToLight).r;
-    closestDepth *= far;
-    float currentDepth = length(fragToLight);
-    float bias = 0.05; 
-    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0; 
+vec3 sampleOffsetDirections[20] = vec3[]
+(
+   vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+   vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+   vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+   vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+   vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+);   
 
+float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far) {
+    // perform perspective divide
+    vec3 fragToLight = fragPosition - lightPosition;
+    float currentDepth = length(fragToLight);
+    float shadow = 0.0;
+    float bias   = 0.05;
+    int samples  = 20;
+    float viewDistance = length(push.cameraPosition - fragPosition);
+    float diskRadius = (1.0 + (viewDistance / far)) / 25.0;  
+    for(int i = 0; i < samples; i++) {
+        float closestDepth = texture(shadowSampler, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
+        closestDepth *= far;
+        if(currentDepth - bias > closestDepth) shadow += 1.0;
+    }
+    
+    shadow /= float(samples); 
     return shadow;
 }
 
@@ -101,7 +118,7 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], normal, fragPosition - lightPoint[i].position, lightPoint[i].far); 
+        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
