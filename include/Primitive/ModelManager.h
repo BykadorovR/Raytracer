@@ -37,6 +37,7 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
-  void draw(int currentFrame, float frameTimer);
-  void drawShadow(int currentFrame, LightType lightType, int lightIndex, float frameTimer, int face = 0);
+  void draw(int currentFrame);
+  void drawShadow(int currentFrame, LightType lightType, int lightIndex, int face = 0);
+  void updateAnimation(float deltaTime);
 };

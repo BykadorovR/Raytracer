@@ -109,7 +109,7 @@ void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
 
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Model3DManager::draw(int currentFrame, float frameTimer) {
+void Model3DManager::draw(int currentFrame) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[ModelRenderMode::FULL]->getPipeline());
 
@@ -168,11 +168,17 @@ void Model3DManager::draw(int currentFrame, float frameTimer) {
 
   for (auto model : _modelsGLTF) {
     model->setCamera(_camera);
-    model->draw(currentFrame, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL], frameTimer);
+    model->draw(currentFrame, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL]);
   }
 }
 
-void Model3DManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, float frameTimer, int face) {
+void Model3DManager::updateAnimation(float deltaTime) {
+  for (auto model : _modelsGLTF) {
+    model->updateAnimation(deltaTime);
+  }
+}
+
+void Model3DManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[(ModelRenderMode)lightType]->getPipeline());
 
@@ -221,14 +227,14 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
       model->drawShadow(currentFrame, _pipeline[ModelRenderMode::DIRECTIONAL], _pipeline[ModelRenderMode::DIRECTIONAL],
-                        lightIndexTotal, view, projection, frameTimer, face);
+                        lightIndexTotal, view, projection, face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _settings->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
       model->drawShadow(currentFrame, _pipeline[ModelRenderMode::POINT], _pipeline[ModelRenderMode::POINT],
-                        lightIndexTotal, view, projection, frameTimer, face);
+                        lightIndexTotal, view, projection, face);
     }
   }
 }

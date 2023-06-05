@@ -651,12 +651,12 @@ void ModelGLTF::_updateJoints(NodeGLTF* node) {
 }
 
 // Update the current animation
-void ModelGLTF::_updateAnimation(float deltaTime) {
-  if (_activeAnimation > static_cast<uint32_t>(_animations.size()) - 1) {
-    std::cout << "No animation with index " << _activeAnimation << std::endl;
+void ModelGLTF::updateAnimation(float deltaTime) {
+  if (_animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
-  AnimationGLTF& animation = _animations[_activeAnimation];
+
+  AnimationGLTF& animation = _animations[_animationIndex];
   animation.currentTime += deltaTime;
   if (animation.currentTime > animation.end) {
     animation.currentTime -= animation.end;
@@ -664,7 +664,7 @@ void ModelGLTF::_updateAnimation(float deltaTime) {
 
   for (auto& channel : animation.channels) {
     AnimationSamplerGLTF& sampler = animation.samplers[channel.samplerIndex];
-    for (size_t i = 0; i < sampler.inputs.size() - 1; i++) {
+    for (size_t i = 0; i < sampler.inputs.size(); i++) {
       if (sampler.interpolation != "LINEAR") {
         std::cout << "This sample only supports linear interpolations\n";
         continue;
@@ -819,10 +819,7 @@ void ModelGLTF::_drawNode(int currentFrame,
   }
 }
 
-void ModelGLTF::draw(int currentFrame,
-                     std::shared_ptr<Pipeline> pipeline,
-                     std::shared_ptr<Pipeline> pipelineCullOff,
-                     float frameTimer) {
+void ModelGLTF::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff) {
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
@@ -842,8 +839,6 @@ void ModelGLTF::draw(int currentFrame,
     _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraFull, _uniformBufferFull, _camera->getView(),
               _camera->getProjection(), node);
   }
-
-  if (_animations.size() > 0) _updateAnimation(frameTimer);
 }
 
 void ModelGLTF::drawShadow(int currentFrame,
@@ -852,7 +847,6 @@ void ModelGLTF::drawShadow(int currentFrame,
                            int lightIndex,
                            glm::mat4 view,
                            glm::mat4 projection,
-                           float frameTimer,
                            int face) {
   if (pipeline->getPushConstants().find("vertex") != pipeline->getPushConstants().end()) {
     PushConstants pushConstants;
@@ -873,6 +867,4 @@ void ModelGLTF::drawShadow(int currentFrame,
     _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
               _uniformBufferDepth[lightIndex][face], view, projection, node);
   }
-
-  if (_animations.size() > 0) _updateAnimation(frameTimer);
 }

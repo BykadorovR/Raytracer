@@ -189,22 +189,22 @@ void initialize() {
 
     spriteManager->registerSprite(sprite);
   }
-  modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf", depthTexture);
-  // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf", depthTexture);
+  //  modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
+  //  modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
+  //  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
   //{
-  //  glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
-  //  // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-  //  model3D->setModel(model);
-  //}
+  //   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
+  //   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+  //   model3D->setModel(model);
+  // }
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
+    // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTF->setModel(model);
   }
 
@@ -347,7 +347,7 @@ void drawFrame() {
         // draw scene here
         float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
         spriteManager->drawShadow(currentFrame, LightType::POINT, i, j);
-        modelManager->drawShadow(currentFrame, LightType::POINT, i, frameTimer, j);
+        modelManager->drawShadow(currentFrame, LightType::POINT, i, j);
         vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
       }
     }
@@ -377,6 +377,7 @@ void drawFrame() {
     imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   }
+
   for (int i = 0; i < pointNum; i++) {
     for (int j = 0; j < 6; j++) {
       int id = directionalNum + 6 * i + j;
@@ -417,7 +418,7 @@ void drawFrame() {
     lightManager->draw(currentFrame);
     // draw scene here
     spriteManager->draw(currentFrame);
-    modelManager->draw(currentFrame, frameTimer);
+    modelManager->draw(currentFrame);
 
     debugVisualization->draw(currentFrame);
 
@@ -427,6 +428,10 @@ void drawFrame() {
 
     logger->endDebugUtils(currentFrame);
   }
+  ///////////////////////////////////////////////////////////////////////////////////////////
+
+  // Update models animations
+  modelManager->updateAnimation(frameTimer);
   ///////////////////////////////////////////////////////////////////////////////////////////
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
@@ -480,20 +485,21 @@ void drawFrame() {
 
 void mainLoop() {
   auto startTime = std::chrono::high_resolution_clock::now();
-  int frame = 0;
+  int frameFPS = 0;
   while (!glfwWindowShouldClose(window->getWindow())) {
     auto startTimeCurrent = std::chrono::high_resolution_clock::now();
     glfwPollEvents();
     drawFrame();
-    frame++;
+    frameFPS++;
     auto end = std::chrono::high_resolution_clock::now();
-    auto elapsedCurrent = std::chrono::duration_cast<std::chrono::microseconds>(end - startTimeCurrent).count();
-    frameTimer = (float)elapsedCurrent / 1000000.f;
-    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - startTime).count();
-    if (elapsed > 1000000.f) {
-      fps = (float)frame * (1000000.f / elapsed);
-      startTime = end;
-      frame = 0;
+    std::chrono::duration<double> elapsedCurrent = end - startTimeCurrent;
+    frameTimer = elapsedCurrent.count();
+    std::chrono::duration<double> elapsed = end - startTime;
+    // calculate frames per second
+    if (elapsed.count() > 1.f) {
+      fps = frameFPS;
+      frameFPS = 0;
+      startTime = std::chrono::high_resolution_clock::now();
     }
   }
 

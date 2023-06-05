@@ -27,8 +27,7 @@ class Model {
   bool isDebug();
   virtual void draw(int currentFrame,
                     std::shared_ptr<Pipeline> pipeline,
-                    std::shared_ptr<Pipeline> pipelineCullOff,
-                    float frameTimer) = 0;
+                    std::shared_ptr<Pipeline> pipelineCullOff) = 0;
 
   virtual void drawShadow(int currentFrame,
                           std::shared_ptr<Pipeline> pipeline,
@@ -36,8 +35,9 @@ class Model {
                           int lightIndex,
                           glm::mat4 view,
                           glm::mat4 projection,
-                          float frameTimer,
                           int face) = 0;
+
+  virtual void updateAnimation(float deltaTime) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -142,7 +142,6 @@ class ModelGLTF : public Model {
   std::vector<MaterialGLTF> _materials;
   std::vector<SkinGLTF> _skins;
   std::vector<AnimationGLTF> _animations;
-  uint32_t _activeAnimation = 0;
 
   std::vector<NodeGLTF*> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
@@ -161,9 +160,9 @@ class ModelGLTF : public Model {
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Buffer> _defaultSSBO;
   int _jointsNum = 0;
+  int _animationIndex = 0;
   std::shared_ptr<LightManager> _lightManager;
 
-  void _updateAnimation(float deltaTime);
   void _updateJoints(NodeGLTF* node);
   glm::mat4 _getNodeMatrix(NodeGLTF* node);
   void _loadAnimations(tinygltf::Model& model);
@@ -201,10 +200,7 @@ class ModelGLTF : public Model {
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
 
-  void draw(int currentFrame,
-            std::shared_ptr<Pipeline> pipeline,
-            std::shared_ptr<Pipeline> pipelineCullOff,
-            float frameTimer);
+  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff);
 
   void drawShadow(int currentFrame,
                   std::shared_ptr<Pipeline> pipeline,
@@ -212,6 +208,7 @@ class ModelGLTF : public Model {
                   int lightIndex,
                   glm::mat4 view,
                   glm::mat4 projection,
-                  float frameTimer,
                   int face);
+
+  void updateAnimation(float deltaTime);
 };
