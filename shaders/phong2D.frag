@@ -1,4 +1,6 @@
 #version 450
+#define epsilon 0.0001
+
 layout(location = 0) in vec3 fragPosition;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec3 fragColor;
@@ -136,8 +138,12 @@ vec3 pointLight(vec3 normal) {
 void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     vec3 normal = texture(normalSampler, fragTexCoord).rgb;
-    normal = normal * 2.0 - 1.0;
-    normal = normalize(fragTBN * normal);
+    if (length(normal) > epsilon) {
+        normal = normal * 2.0 - 1.0;
+        normal = normalize(fragTBN * normal);
+    } else {
+        normal = fragNormal;
+    }
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     //calculate directional light
     lightFactor += directionalLight(normal);

@@ -1,4 +1,5 @@
 #version 450
+#define epsilon 0.0001 
 
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
@@ -32,18 +33,23 @@ layout(location = 7) out vec4 fragLightDirectionalCoord[2];
 
 void main() {
     vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
+    mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
+
     gl_Position = mvp.proj * mvp.view * afterModel;
+    
     fragColor = inColor;
     fragTexCoord = inTexCoord;
-    mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
-    fragNormal = normalize(normalMatrix * inNormal);
-    vec3 tangent = normalize(normalMatrix * inTangent);
-    // re-orthogonalize T with respect to N
-    tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
-    vec3 bitangent = normalize(cross(fragNormal, tangent));
-    
-    fragTBN = mat3(tangent, bitangent, fragNormal);
     fragPosition = afterModel.xyz;
+
+    fragNormal = normalize(normalMatrix * inNormal);
+    fragTBN = mat3(1.0);
+    if (length(inTangent) > epsilon) {
+        vec3 tangent = normalize(normalMatrix * inTangent);
+        // re-orthogonalize T with respect to N
+        tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
+        vec3 bitangent = normalize(cross(fragNormal, tangent));
+        fragTBN = mat3(tangent, bitangent, fragNormal);
+    }
     for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
 }

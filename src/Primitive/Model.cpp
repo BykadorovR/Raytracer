@@ -127,13 +127,18 @@ ModelGLTF::ModelGLTF(std::string path,
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
                                            device);
+  // empty texture with 0, 0, 0 value
+  _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 commandPool, queue, device);
 
   for (auto& material : _materials) {
     auto diffuseTexture = _stubTexture;
-    auto normalTexture = _stubTexture;
+    auto normalTexture = _stubTextureNormal;
     if (material.baseColorTextureIndex < _textures.size()) {
       diffuseTexture = _images[_textures[material.baseColorTextureIndex].imageIndex].texture;
-      normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
+      // if the same texture, it means no normal map
+      if (material.baseColorTextureIndex != material.normalTextureIndex)
+        normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
     }
     material.descriptorSet.resize(settings->getMaxFramesInFlight());
     for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {

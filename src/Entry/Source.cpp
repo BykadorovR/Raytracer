@@ -108,7 +108,7 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  pointLightHorizontal = lightManager->createPointLight();
+  /*pointLightHorizontal = lightManager->createPointLight();
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
@@ -116,10 +116,10 @@ void initialize() {
   pointLightVertical = lightManager->createPointLight();
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
+  pointLightVertical->setPosition({-3.f, 4.f, 0.f});*/
 
   directionalLight = lightManager->createDirectionalLight();
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(0.1f, 0.1f, 0.1f));
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
@@ -190,19 +190,19 @@ void initialize() {
     spriteManager->registerSprite(sprite);
   }
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
-  //  modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
-  //  modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  //  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
   //{
   //   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
   //   model3D->setModel(model);
   // }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTF->setModel(model);

@@ -1,4 +1,5 @@
 #version 450
+#define epsilon 0.0001 
 
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
@@ -56,14 +57,17 @@ void main() {
     gl_Position = (mvp.proj * mvp.view * afterModel);
 
     fragColor = inColor;
-    fragNormal = normalize(normalMatrix * inNormal);
-    vec3 tangent = normalize(normalMatrix * inTangent.xyz);
-    tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
-    //w stores handness of tbn
-    vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
-    fragTBN = mat3(tangent, bitangent, fragNormal);
     fragTexCoord = inTexCoord;
     fragPosition = afterModel.xyz;
+    fragNormal = normalize(normalMatrix * inNormal);
+    fragTBN = mat3(1.0);
+    if (length(inTangent) > epsilon) {
+        vec3 tangent = normalize(normalMatrix * inTangent.xyz);
+        tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
+        //w stores handness of tbn
+        vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
+        fragTBN = mat3(tangent, bitangent, fragNormal);
+    }
     for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
 }

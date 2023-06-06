@@ -1,4 +1,5 @@
 #version 450
+#define epsilon 0.0001
 
 layout(location = 0) in vec3 fragPosition;
 layout(location = 1) in vec3 fragNormal;
@@ -61,7 +62,7 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     // transform to [0,1] range
     position.xy = position.xy * 0.5 + 0.5;
     float currentDepth = position.z;
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.005);
+    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.05);
     vec2 unitSize = 1.0 / textureSize(shadowSampler, 0);
     float shadow = 0.0;
     for (int y = -1; y <= 1; y++) {
@@ -90,7 +91,7 @@ float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, 
     vec3 fragToLight = fragPosition - lightPosition;
     float currentDepth = length(fragToLight);
     float shadow = 0.0;
-    float bias   = 0.05;
+    float bias   = 0.15;
     int samples  = 20;
     float viewDistance = length(push.cameraPosition - fragPosition);
     float diskRadius = (1.0 + (viewDistance / far)) / 25.0;
@@ -147,15 +148,17 @@ void main() {
         }
     }
 
-    if (isnan(fragTBN[0][0]) == false && isnan(fragTBN[1][1]) == false && isnan(fragTBN[2][2]) == false) {
-        vec3 normal = texture(normalSampler, fragTexCoord).rgb;
+    vec3 normal = texture(normalSampler, fragTexCoord).rgb;
+    if (length(normal) > epsilon) {
         normal = normal * 2.0 - 1.0;
         normal = normalize(fragTBN * normal);
-        vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-        //calculate directional light
-        lightFactor += directionalLight(normal);
-        //calculate point light
-        lightFactor += pointLight(normal);
-        outColor *= vec4(lightFactor, 1.f);
+    } else {
+        normal = fragNormal;
     }
+    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+    //calculate directional light
+    lightFactor += directionalLight(normal);
+    //calculate point light
+    lightFactor += pointLight(normal);
+    outColor *= vec4(lightFactor, 1.f);
 }
