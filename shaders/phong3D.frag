@@ -155,10 +155,13 @@ void main() {
     } else {
         normal = fragNormal;
     }
-    vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-    //calculate directional light
-    lightFactor += directionalLight(normal);
-    //calculate point light
-    lightFactor += pointLight(normal);
-    outColor *= vec4(lightFactor, 1.f);
+
+    if (length(normal) > epsilon) {
+        vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+        //calculate directional light
+        lightFactor += directionalLight(normal);
+        //calculate point light
+        lightFactor += pointLight(normal);
+        outColor *= vec4(lightFactor, 1.f);
+    }
 }

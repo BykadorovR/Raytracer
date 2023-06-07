@@ -59,6 +59,7 @@ void main() {
     fragColor = inColor;
     fragTexCoord = inTexCoord;
     fragPosition = afterModel.xyz;
+    
     fragNormal = normalize(normalMatrix * inNormal);
     fragTBN = mat3(1.0);
     if (length(inTangent) > epsilon) {

@@ -533,8 +533,10 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
         for (size_t v = 0; v < vertexCount; v++) {
           Vertex3D vert{};
           vert.pos = glm::vec4(glm::make_vec3(&positionBuffer[v * positionByteStride]), 1.0f);
-          vert.normal = glm::normalize(
-              glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * normalByteStride]) : glm::vec3(0.0f)));
+          vert.normal = glm::vec3(0.0f);
+          if (normalsBuffer) {
+            vert.normal = glm::normalize(glm::vec3(glm::make_vec3(&normalsBuffer[v * normalByteStride])));
+          }
           vert.texCoord = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * uv0ByteStride]) : glm::vec3(0.0f);
           vert.color = glm::vec3(1.0f);
           if (hasSkin) {
