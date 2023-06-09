@@ -19,6 +19,10 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _device = device;
   _settings = settings;
   _texture = texture;
+
+  if (normalMap == nullptr)
+    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool,
+                                          queue, device);
   _normalMap = normalMap;
 
   _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandPool, queue, device);
@@ -89,6 +93,8 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   }
 }
 
+void Sprite::enableShadow(bool enable) { _enableShadow = enable; }
+
 void Sprite::setModel(glm::mat4 model) { _model = model; }
 
 void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
@@ -100,6 +106,15 @@ void Sprite::setNormal(glm::vec3 normal) {
 }
 
 void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
+  if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
+    LightPush pushConstants;
+    pushConstants.enableShadow = _enableShadow;
+    pushConstants.cameraPosition = _camera->getEye();
+
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+  }
+
   UniformObject cameraUBO{};
   cameraUBO.model = _model;
   cameraUBO.view = _camera->getView();

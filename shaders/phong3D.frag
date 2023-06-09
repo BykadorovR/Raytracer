@@ -52,8 +52,10 @@ layout(set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
+//change offset in vertex shader if change values here
 layout( push_constant ) uniform constants {
-    vec3 cameraPosition;
+    layout(offset = 0) int enableShadow;
+    layout(offset = 16) vec3 cameraPosition;
 } push;
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
@@ -109,7 +111,8 @@ vec3 directionalLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightDirectionalNumber; i++) {
         vec3 lightDir = normalize(lightDirectional[i].position - fragPosition);
-        float shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
+        float shadow = 0.0;
+        if (push.enableShadow > 0) shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
         float ambientFactor = lightDirectional[i].ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
@@ -125,7 +128,8 @@ vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
-        float shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
+        float shadow = 0.0;
+        if (push.enableShadow > 0) shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;

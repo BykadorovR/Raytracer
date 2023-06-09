@@ -27,6 +27,7 @@ class Sprite {
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
   std::shared_ptr<Camera> _camera;
+  bool _enableShadow = true;
 
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
@@ -53,6 +54,7 @@ class Sprite {
          std::shared_ptr<Queue> queue,
          std::shared_ptr<Device> device,
          std::shared_ptr<Settings> settings);
+  void enableShadow(bool enable);
 
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);

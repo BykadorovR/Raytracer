@@ -127,15 +127,6 @@ void Model3DManager::draw(int currentFrame) {
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  if (_pipeline[ModelRenderMode::FULL]->getPushConstants().find("fragment") !=
-      _pipeline[ModelRenderMode::FULL]->getPushConstants().end()) {
-    LightPush pushConstants;
-    pushConstants.cameraPosition = _camera->getEye();
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame],
-                       _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                       sizeof(LightPush), &pushConstants);
-  }
-
   auto pipelineLayout = _pipeline[ModelRenderMode::FULL]->getDescriptorSetLayout();
   auto lightVPLayout = std::find_if(
       pipelineLayout.begin(), pipelineLayout.end(),

@@ -54,6 +54,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     model->setDebug(true);
+    model->enableShadow(false);
     _modelManager->registerModelGLTF(model);
     _pointLightModels.push_back(model);
   }
@@ -61,6 +62,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
   for (auto light : lightManager->getDirectionalLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     model->setDebug(true);
+    model->enableShadow(false);
     _modelManager->registerModelGLTF(model);
     _directionalLightModels.push_back(model);
   }

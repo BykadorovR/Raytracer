@@ -74,6 +74,7 @@ struct DepthConstants {
   }
 };
 struct LightPush {
+  alignas(16) int enableShadow;
   alignas(16) glm::vec3 cameraPosition;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
