@@ -38,7 +38,7 @@ layout(location = 4) out mat3 fragTBN;
 layout(location = 7) out vec4 fragLightDirectionalCoord[2];
 
 layout( push_constant ) uniform constants {
-    layout(offset = 32) int jointNum;
+    layout(offset = 48) int jointNum;
 } PushConstants;
 
 void main() {

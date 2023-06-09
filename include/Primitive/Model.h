@@ -164,6 +164,7 @@ class ModelGLTF : public Model {
   int _animationIndex = 0;
 
   bool _enableShadow = true;
+  bool _enableLighting = true;
   std::shared_ptr<LightManager> _lightManager;
 
   void _updateJoints(NodeGLTF* node);
@@ -203,6 +204,7 @@ class ModelGLTF : public Model {
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);
+  void enableLighting(bool enable);
 
   void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff);
   void drawShadow(int currentFrame,

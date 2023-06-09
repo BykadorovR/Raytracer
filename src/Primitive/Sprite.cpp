@@ -95,6 +95,8 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
 
 void Sprite::enableShadow(bool enable) { _enableShadow = enable; }
 
+void Sprite::enableLighting(bool enable) { _enableLighting = enable; }
+
 void Sprite::setModel(glm::mat4 model) { _model = model; }
 
 void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
@@ -109,6 +111,7 @@ void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
+    pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _camera->getEye();
 
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),

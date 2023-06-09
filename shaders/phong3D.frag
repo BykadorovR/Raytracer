@@ -55,7 +55,8 @@ layout(set = 4, binding = 1) readonly buffer LightBufferPoint {
 //change offset in vertex shader if change values here
 layout( push_constant ) uniform constants {
     layout(offset = 0) int enableShadow;
-    layout(offset = 16) vec3 cameraPosition;
+    layout(offset = 16) int enableLighting;
+    layout(offset = 32) vec3 cameraPosition;
 } push;
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
@@ -152,20 +153,22 @@ void main() {
         }
     }
 
-    vec3 normal = texture(normalSampler, fragTexCoord).rgb;
-    if (length(normal) > epsilon) {
-        normal = normal * 2.0 - 1.0;
-        normal = normalize(fragTBN * normal);
-    } else {
-        normal = fragNormal;
-    }
+    if (push.enableLighting > 0) {
+        vec3 normal = texture(normalSampler, fragTexCoord).rgb;
+        if (length(normal) > epsilon) {
+            normal = normal * 2.0 - 1.0;
+            normal = normalize(fragTBN * normal);
+        } else {
+            normal = fragNormal;
+        }
 
-    if (length(normal) > epsilon) {
-        vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-        //calculate directional light
-        lightFactor += directionalLight(normal);
-        //calculate point light
-        lightFactor += pointLight(normal);
-        outColor *= vec4(lightFactor, 1.f);
+        if (length(normal) > epsilon) {
+            vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+            //calculate directional light
+            lightFactor += directionalLight(normal);
+            //calculate point light
+            lightFactor += pointLight(normal);
+            outColor *= vec4(lightFactor, 1.f);
+        }
     }
 }

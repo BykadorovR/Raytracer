@@ -108,7 +108,7 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  /*pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal = lightManager->createPointLight();
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
@@ -116,10 +116,10 @@ void initialize() {
   pointLightVertical = lightManager->createPointLight();
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightVertical->setPosition({-3.f, 4.f, 0.f});*/
+  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(0.1f, 0.1f, 0.1f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
@@ -136,7 +136,7 @@ void initialize() {
                                                   renderPass, renderPassDepth, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state, logger);
   debugVisualization->setLights(modelManager, lightManager);
-  debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
+  if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);

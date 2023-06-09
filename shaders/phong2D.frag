@@ -49,7 +49,8 @@ layout(std430, set = 2, binding = 1) readonly buffer LightBufferPoint {
 
 layout( push_constant ) uniform constants {
     layout(offset = 0) int enableShadow;
-    layout(offset = 16) vec3 cameraPosition;
+    layout(offset = 16) int enableLighting;
+    layout(offset = 32) vec3 cameraPosition;
 } push;
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir) {
@@ -123,7 +124,7 @@ vec3 pointLight(vec3 normal) {
     for (int i = 0; i < lightPointNumber; i++) {
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
         float shadow = 0.0;
-        if (push.enableShadow > 0) calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
+        if (push.enableShadow > 0) shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
         float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
@@ -140,20 +141,23 @@ vec3 pointLight(vec3 normal) {
 
 void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
-    vec3 normal = texture(normalSampler, fragTexCoord).rgb;
-    if (length(normal) > epsilon) {
-        normal = normal * 2.0 - 1.0;
-        normal = normalize(fragTBN * normal);
-    } else {
-        normal = fragNormal;
-    }
 
-    if (length(normal) > epsilon) {
-        vec3 lightFactor = vec3(0.f, 0.f, 0.f);
-        //calculate directional light
-        lightFactor += directionalLight(normal);
-        //calculate point light
-        lightFactor += pointLight(normal);
-        outColor *= vec4(lightFactor, 1.f);
+    if (push.enableLighting > 0) {
+        vec3 normal = texture(normalSampler, fragTexCoord).rgb;
+        if (length(normal) > epsilon) {
+            normal = normal * 2.0 - 1.0;
+            normal = normalize(fragTBN * normal);
+        } else {
+            normal = fragNormal;
+        }
+
+        if (length(normal) > epsilon) {
+            vec3 lightFactor = vec3(0.f, 0.f, 0.f);
+            //calculate directional light
+            lightFactor += directionalLight(normal);
+            //calculate point light
+            lightFactor += pointLight(normal);
+            outColor *= vec4(lightFactor, 1.f);
+        }
     }
 }
