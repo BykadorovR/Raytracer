@@ -105,7 +105,8 @@ vec3 directionalLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightDirectionalNumber; i++) {
         vec3 lightDir = normalize(lightDirectional[i].position - fragPosition);
-        float shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
+        float shadow = 0.0;
+        if (push.test > 0) shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir); 
         float ambientFactor = lightDirectional[i].ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
