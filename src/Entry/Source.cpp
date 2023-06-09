@@ -136,7 +136,7 @@ void initialize() {
                                                   renderPass, renderPassDepth, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state, logger);
   debugVisualization->setLights(modelManager, lightManager);
-  debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
+  // debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);

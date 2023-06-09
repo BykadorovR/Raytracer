@@ -826,13 +826,11 @@ void ModelGLTF::_drawNode(int currentFrame,
   }
 }
 
-void ModelGLTF::enableShadow(bool enable) { _enableShadow = enable; }
-
 void ModelGLTF::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
-    pushConstants.enableShadow = _enableShadow;
     pushConstants.cameraPosition = _camera->getEye();
+    pushConstants.test = 4;
     vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
