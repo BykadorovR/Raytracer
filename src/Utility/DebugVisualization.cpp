@@ -2,12 +2,10 @@
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
-                                       std::shared_ptr<State> state,
-                                       std::shared_ptr<Logger> logger) {
+                                       std::shared_ptr<State> state) {
   _camera = camera;
   _gui = gui;
   _state = state;
-  _logger = logger;
 
   _renderPass = std::make_shared<RenderPass>(state->getDevice());
   _renderPass->initialize(state->getSwapchain()->getImageFormat());
@@ -74,8 +72,6 @@ void DebugVisualization::draw(int currentFrame) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
   _gui->drawCheckbox("Debug", {20, 100}, {100, 80}, toggleDepth);
-
-  _logger->beginDebugUtils("Debug visualization", currentFrame);
 
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
@@ -161,8 +157,6 @@ void DebugVisualization::draw(int currentFrame) {
     vkCmdDrawIndexed(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
                      static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
   }
-
-  _logger->endDebugUtils(currentFrame);
 }
 
 void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}

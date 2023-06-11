@@ -3,7 +3,8 @@
 #include "GUI.h"
 #include "LightManager.h"
 #include "State.h"
-#include "Logger.h"
+#undef near
+#undef far
 
 struct DepthPush {
   float near;
@@ -40,7 +41,6 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<DescriptorSet> _cameraSet;
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
-  std::shared_ptr<Logger> _logger;
   bool _showDepth = true;
 
   std::vector<Vertex2D> _vertices = {
@@ -52,10 +52,7 @@ class DebugVisualization : public InputSubscriber {
   const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
 
  public:
-  DebugVisualization(std::shared_ptr<Camera> camera,
-                     std::shared_ptr<GUI> gui,
-                     std::shared_ptr<State> state,
-                     std::shared_ptr<Logger> logger);
+  DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<GUI> gui, std::shared_ptr<State> state);
   void setLights(std::shared_ptr<Model3DManager> modelManager, std::shared_ptr<LightManager> lightManager);
   void setTexture(std::shared_ptr<Texture> texture);
   void draw(int currentFrame);

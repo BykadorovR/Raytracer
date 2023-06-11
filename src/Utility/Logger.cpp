@@ -1,6 +1,15 @@
 #include "Logger.h"
+#include "nvtx3/nvtx3.hpp"
 
-Logger::Logger(std::shared_ptr<State> state) {
+LoggerCPU::LoggerCPU() {}
+
+void LoggerCPU::begin(std::string name) { nvtxRangePush(name.c_str()); }
+
+void LoggerCPU::end() { nvtxRangePop(); }
+
+void LoggerCPU::mark(std::string name) { nvtx3::mark(name); }
+
+LoggerGPU::LoggerGPU(std::shared_ptr<State> state) {
   _state = state;
   _cmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(
       state->getInstance()->getInstance(), "vkCmdBeginDebugUtilsLabelEXT");
@@ -10,7 +19,7 @@ Logger::Logger(std::shared_ptr<State> state) {
       state->getInstance()->getInstance(), "vkSetDebugUtilsObjectNameEXT");
 }
 
-void Logger::setDebugUtils(std::string name, int currentFrame) {
+void LoggerGPU::initialize(std::string name, int currentFrame) {
   VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
       .pNext = NULL,
@@ -21,13 +30,13 @@ void Logger::setDebugUtils(std::string name, int currentFrame) {
   _setDebugUtilsObjectNameEXT(_state->getDevice()->getLogicalDevice(), &cmdBufInfo);
 }
 
-void Logger::beginDebugUtils(std::string name, int currentFrame) {
+void LoggerGPU::begin(std::string name, int currentFrame) {
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = name.c_str();
   _cmdBeginDebugUtilsLabelEXT(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], &markerInfo);
 }
 
-void Logger::endDebugUtils(int currentFrame) {
+void LoggerGPU::end(int currentFrame) {
   _cmdEndDebugUtilsLabelEXT(_state->getCommandBuffer()->getCommandBuffer()[currentFrame]);
 }

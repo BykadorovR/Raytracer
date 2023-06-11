@@ -1,7 +1,15 @@
 #pragma once
 #include "State.h"
 
-class Logger {
+class LoggerCPU {
+ public:
+  LoggerCPU();
+  void begin(std::string name);
+  void end();
+  void mark(std::string name);
+};
+
+class LoggerGPU {
  private:
   PFN_vkCmdBeginDebugUtilsLabelEXT _cmdBeginDebugUtilsLabelEXT;
   PFN_vkCmdEndDebugUtilsLabelEXT _cmdEndDebugUtilsLabelEXT;
@@ -10,8 +18,8 @@ class Logger {
   std::shared_ptr<State> _state;
 
  public:
-  Logger(std::shared_ptr<State> state);
-  void setDebugUtils(std::string name, int currentFrame);
-  void beginDebugUtils(std::string marker, int currentFrame);
-  void endDebugUtils(int currentFrame);
+  LoggerGPU(std::shared_ptr<State> state);
+  void initialize(std::string bufferName, int currentFrame);
+  void begin(std::string marker, int currentFrame);
+  void end(int currentFrame);
 };

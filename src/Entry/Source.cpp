@@ -68,7 +68,8 @@ std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
-std::shared_ptr<Logger> logger;
+std::shared_ptr<LoggerGPU> loggerGPU;
+std::shared_ptr<LoggerCPU> loggerCPU;
 
 void initialize() {
   state = std::make_shared<State>(
@@ -84,7 +85,8 @@ void initialize() {
   commandBuffer = state->getCommandBuffer();
   swapchain = state->getSwapchain();
   descriptorPool = state->getDescriptorPool();
-  logger = std::make_shared<Logger>(state);
+  loggerGPU = std::make_shared<LoggerGPU>(state);
+  loggerCPU = std::make_shared<LoggerCPU>();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
@@ -108,18 +110,18 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  pointLightHorizontal = lightManager->createPointLight();
-  pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  // pointLightHorizontal = lightManager->createPointLight();
+  // pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  // pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  pointLightVertical = lightManager->createPointLight();
-  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
-  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
+  // pointLightVertical = lightManager->createPointLight();
+  // pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  // pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
+  // pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(0.1f, 0.1f, 0.1f));
+  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
@@ -134,7 +136,7 @@ void initialize() {
                                                   renderPass, renderPassDepth, device, settings);
   modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
-  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state, logger);
+  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state);
   debugVisualization->setLights(modelManager, lightManager);
   if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -191,11 +193,11 @@ void initialize() {
   }
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
+  modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
+  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
   //{
   //   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
@@ -287,7 +289,7 @@ void drawFrame() {
     throw std::runtime_error("failed to begin recording command buffer!");
   }
 
-  logger->setDebugUtils("Common command buffer", currentFrame);
+  loggerGPU->initialize("Common", currentFrame);
   // update positions
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
@@ -307,7 +309,7 @@ void drawFrame() {
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    logger->beginDebugUtils("Render to depth buffer", currentFrame);
+    loggerGPU->begin("Directional to depth buffer", currentFrame);
     auto directionalLights = lightManager->getDirectionalLights();
     for (int i = 0; i < directionalLights.size(); i++) {
       auto renderPassInfo = render(currentFrame, settings->getResolution(), renderPassDepth, frameBufferDepth[i][0]);
@@ -322,11 +324,18 @@ void drawFrame() {
       vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
       // draw scene here
+      loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
       spriteManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
+      loggerGPU->end(currentFrame);
+
+      loggerGPU->begin("Models to directional depth buffer", currentFrame);
       modelManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i, frameTimer);
+      loggerGPU->end(currentFrame);
       vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
     }
+    loggerGPU->end(currentFrame);
 
+    loggerGPU->begin("Point to depth buffer", currentFrame);
     auto pointLights = lightManager->getPointLights();
     for (int i = 0; i < pointLights.size(); i++) {
       for (int j = 0; j < 6; j++) {
@@ -346,12 +355,16 @@ void drawFrame() {
 
         // draw scene here
         float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+        loggerGPU->begin("Sprites to point depth buffer", currentFrame);
         spriteManager->drawShadow(currentFrame, LightType::POINT, i, j);
+        loggerGPU->end(currentFrame);
+        loggerGPU->begin("Models to point depth buffer", currentFrame);
         modelManager->drawShadow(currentFrame, LightType::POINT, i, j);
+        loggerGPU->end(currentFrame);
         vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
       }
     }
-    logger->endDebugUtils(currentFrame);
+    loggerGPU->end(currentFrame);
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -373,7 +386,7 @@ void drawFrame() {
                                       ->getImage();
     imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
     imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   }
@@ -393,20 +406,20 @@ void drawFrame() {
                                          ->getImage();
       imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
       imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-      imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+      imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
       imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
       imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     }
   }
   // TODO: create 6 memory barriers and send them via one cvCmdPipelineBarrier
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    logger->beginDebugUtils("Render to screen", currentFrame);
+    loggerGPU->begin("Render to screen", currentFrame);
 
     auto renderPassInfo = render(imageIndex, settings->getResolution(), renderPass, frameBuffer);
     clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
@@ -417,21 +430,32 @@ void drawFrame() {
     vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     lightManager->draw(currentFrame);
     // draw scene here
+    loggerGPU->begin("Render sprites", currentFrame);
     spriteManager->draw(currentFrame);
+    loggerGPU->end(currentFrame);
+
+    loggerGPU->begin("Render models", currentFrame);
     modelManager->draw(currentFrame);
+    loggerGPU->end(currentFrame);
 
+    loggerGPU->begin("Render debug visualization", currentFrame);
     debugVisualization->draw(currentFrame);
+    loggerGPU->end(currentFrame);
 
+    loggerGPU->begin("Render GUI", currentFrame);
     gui->updateBuffers(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
+    loggerGPU->end(currentFrame);
+
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 
-    logger->endDebugUtils(currentFrame);
+    loggerGPU->end(currentFrame);
   }
   ///////////////////////////////////////////////////////////////////////////////////////////
-
+  loggerCPU->begin("Update animation");
   // Update models animations
   modelManager->updateAnimation(frameTimer);
+  loggerCPU->end();
   ///////////////////////////////////////////////////////////////////////////////////////////
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
