@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <future>
 
 #include "Window.h"
 #include "Instance.h"
@@ -110,15 +111,15 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  // pointLightHorizontal = lightManager->createPointLight();
-  // pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  // pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
-  // pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  // pointLightVertical = lightManager->createPointLight();
-  // pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  // pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
-  // pointLightVertical->setPosition({-3.f, 4.f, 0.f});
+  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight();
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
@@ -257,6 +258,7 @@ VkRenderPassBeginInfo render(int index,
   return renderPassInfo;
 }
 
+std::future<void> updateJoints;
 void drawFrame() {
   auto result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
                                 UINT64_MAX);
@@ -281,6 +283,7 @@ void drawFrame() {
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   gui->drawText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
+
   // record command buffer
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -328,8 +331,12 @@ void drawFrame() {
       spriteManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
       loggerGPU->end(currentFrame);
 
+      if (updateJoints.valid()) {
+        updateJoints.get();
+      }
+
       loggerGPU->begin("Models to directional depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i, frameTimer);
+      modelManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
       loggerGPU->end(currentFrame);
       vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
     }
@@ -438,6 +445,12 @@ void drawFrame() {
     modelManager->draw(currentFrame);
     loggerGPU->end(currentFrame);
 
+    updateJoints = std::async([&]() {
+      loggerCPU->begin("Update animation");
+      modelManager->updateAnimation(frameTimer);
+      loggerCPU->end();
+    });
+
     loggerGPU->begin("Render debug visualization", currentFrame);
     debugVisualization->draw(currentFrame);
     loggerGPU->end(currentFrame);
@@ -451,11 +464,6 @@ void drawFrame() {
 
     loggerGPU->end(currentFrame);
   }
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  loggerCPU->begin("Update animation");
-  // Update models animations
-  modelManager->updateAnimation(frameTimer);
-  loggerCPU->end();
   ///////////////////////////////////////////////////////////////////////////////////////////
 
   if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
