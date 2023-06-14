@@ -21,10 +21,10 @@ LightManager::LightManager(std::shared_ptr<State> state) {
   _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", _state);
 }
 
-std::shared_ptr<PointLight> LightManager::createPointLight() {
+std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    depthCubemap.push_back(std::make_shared<Cubemap>(_state));
+    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _state));
   }
 
   auto light = std::make_shared<PointLight>(_state->getSettings());
@@ -36,11 +36,11 @@ std::shared_ptr<PointLight> LightManager::createPointLight() {
 
 std::vector<std::shared_ptr<PointLight>> LightManager::getPointLights() { return _pointLights; }
 
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
   std::vector<std::shared_ptr<Texture>> depthTexture;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        _state->getSettings()->getResolution(), 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        resolution, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         _state->getDevice());
     image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);

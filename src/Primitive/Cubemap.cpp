@@ -37,11 +37,9 @@ Cubemap::Cubemap(std::string path, std::shared_ptr<State> state) {
   _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, _state->getDevice());
 }
 
-Cubemap::Cubemap(std::shared_ptr<State> state) {
+Cubemap::Cubemap(std::tuple<int, int> resolution, std::shared_ptr<State> state) {
   _state = state;
-  auto [width, height] = state->getSettings()->getResolution();
-  _image = std::make_shared<Image>(std::tuple{std::max(width, height), std::max(width, height)}, 6,
-                                   VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+  _image = std::make_shared<Image>(resolution, 6, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
   _image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);

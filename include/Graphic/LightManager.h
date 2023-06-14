@@ -34,9 +34,9 @@ class LightManager {
 
  public:
   LightManager(std::shared_ptr<State> state);
-  std::shared_ptr<PointLight> createPointLight();
+  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
   std::vector<std::shared_ptr<PointLight>> getPointLights();
-  std::shared_ptr<DirectionalLight> createDirectionalLight();
+  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
   std::shared_ptr<DescriptorSetLayout> getDSLLight();
   std::shared_ptr<DescriptorSet> getDSLight();

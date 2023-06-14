@@ -77,6 +77,8 @@ VkFormat& Image::getFormat() { return _format; }
 
 void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 
+std::tuple<int, int> Image::getResolution() { return _resolution; }
+
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
                          int layersNumber,

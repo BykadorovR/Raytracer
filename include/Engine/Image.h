@@ -34,6 +34,7 @@ class Image {
                     std::shared_ptr<CommandPool> commandPool,
                     std::shared_ptr<Queue> queue);
   void overrideLayout(VkImageLayout layout);
+  std::tuple<int, int> getResolution();
   VkImage& getImage();
   VkFormat& getFormat();
   VkImageLayout& getImageLayout();

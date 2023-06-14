@@ -72,6 +72,8 @@ std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
+std::tuple<int, int> depthResolution = {256, 256};
+
 void initialize() {
   state = std::make_shared<State>(
       std::make_shared<Settings>("Vulkan", std::tuple{1600, 900}, VK_FORMAT_B8G8R8A8_UNORM, 2));
@@ -111,17 +113,17 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(state);
-  pointLightHorizontal = lightManager->createPointLight();
+  pointLightHorizontal = lightManager->createPointLight(depthResolution);
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  pointLightVertical = lightManager->createPointLight();
+  pointLightVertical = lightManager->createPointLight(depthResolution);
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  directionalLight = lightManager->createDirectionalLight();
+  directionalLight = lightManager->createDirectionalLight(depthResolution);
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
@@ -213,8 +215,8 @@ void initialize() {
 
   modelManager->registerModelGLTF(modelGLTF);
 
-  frameBuffer = std::make_shared<Framebuffer>(settings->getResolution(), swapchain->getImageViews(),
-                                              swapchain->getDepthImageView(), renderPass, device);
+  frameBuffer = std::make_shared<Framebuffer>(swapchain->getImageViews(), swapchain->getDepthImageView(), renderPass,
+                                              device);
 
   int pointNumber = lightManager->getPointLights().size();
   int directionalNumber = lightManager->getDirectionalLights().size();
@@ -223,8 +225,7 @@ void initialize() {
     auto textures = lightManager->getDirectionalLights()[i]->getDepthTexture();
     std::vector<std::shared_ptr<ImageView>> imageViews(settings->getMaxFramesInFlight());
     for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
-    frameBufferDepth[i] = {
-        std::make_shared<Framebuffer>(settings->getResolution(), imageViews, renderPassDepth, device)};
+    frameBufferDepth[i] = {std::make_shared<Framebuffer>(imageViews, renderPassDepth, device)};
   }
 
   for (int i = 0; i < pointNumber; i++) {
@@ -237,14 +238,12 @@ void initialize() {
 
       auto [width, height] = state->getSettings()->getResolution();
       frameBufferDepth[i + directionalNumber][j] = std::make_shared<Framebuffer>(
-          std::tuple{std::max(width, height), std::max(width, height)},
           std::vector{imageViews[j].first, imageViews[j].second}, renderPassDepth, device);
     }
   }
 }
 
 VkRenderPassBeginInfo render(int index,
-                             std::tuple<int, int> resolution,
                              std::shared_ptr<RenderPass> renderPass,
                              std::shared_ptr<Framebuffer> framebuffer) {
   VkRenderPassBeginInfo renderPassInfo{};
@@ -252,8 +251,9 @@ VkRenderPassBeginInfo render(int index,
   renderPassInfo.renderPass = renderPass->getRenderPass();
   renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
   renderPassInfo.renderArea.offset = {0, 0};
-  renderPassInfo.renderArea.extent.width = std::get<0>(resolution);
-  renderPassInfo.renderArea.extent.height = std::get<1>(resolution);
+  auto [width, height] = framebuffer->getResolution();
+  renderPassInfo.renderArea.extent.width = width;
+  renderPassInfo.renderArea.extent.height = height;
 
   return renderPassInfo;
 }
@@ -315,7 +315,7 @@ void drawFrame() {
     loggerGPU->begin("Directional to depth buffer", currentFrame);
     auto directionalLights = lightManager->getDirectionalLights();
     for (int i = 0; i < directionalLights.size(); i++) {
-      auto renderPassInfo = render(currentFrame, settings->getResolution(), renderPassDepth, frameBufferDepth[i][0]);
+      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i][0]);
       clearValues[0].depthStencil = {1.0f, 0};
       renderPassInfo.clearValueCount = 1;
       renderPassInfo.pClearValues = clearValues.data();
@@ -346,9 +346,7 @@ void drawFrame() {
     auto pointLights = lightManager->getPointLights();
     for (int i = 0; i < pointLights.size(); i++) {
       for (int j = 0; j < 6; j++) {
-        auto [width, height] = settings->getResolution();
-        auto renderPassInfo = render(currentFrame, {std::max(width, height), std::max(width, height)}, renderPassDepth,
-                                     frameBufferDepth[i + directionalLights.size()][j]);
+        auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i + directionalLights.size()][j]);
         clearValues[0].depthStencil = {1.0f, 0};
         renderPassInfo.clearValueCount = 1;
         renderPassInfo.pClearValues = clearValues.data();
@@ -428,7 +426,7 @@ void drawFrame() {
   {
     loggerGPU->begin("Render to screen", currentFrame);
 
-    auto renderPassInfo = render(imageIndex, settings->getResolution(), renderPass, frameBuffer);
+    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer);
     clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
     clearValues[1].depthStencil = {1.0f, 0};
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());

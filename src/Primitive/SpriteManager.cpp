@@ -145,21 +145,28 @@ void SpriteManager::draw(int currentFrame) {
 void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
   vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[(SpriteRenderMode)lightType]->getPipeline());
-  auto [width, height] = _settings->getResolution();
-  int resolution = std::max(width, height);
   VkViewport viewport{};
-  viewport.x = 0.0f;
+  viewport.x = 0.f;
+  viewport.y = 0.f;
+
+  std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    viewport.y = 0;
-    viewport.width = std::get<0>(_settings->getResolution());
-    viewport.height = std::get<1>(_settings->getResolution());
+    resolution = _lightManager->getDirectionalLights()[lightIndex]
+                     ->getDepthTexture()[currentFrame]
+                     ->getImageView()
+                     ->getImage()
+                     ->getResolution();
   }
-  // in case of POINT light we have cubemap it should be equal sized, so width = height
   if (lightType == LightType::POINT) {
-    viewport.y = 0;
-    viewport.width = resolution;
-    viewport.height = resolution;
+    resolution = _lightManager->getPointLights()[lightIndex]
+                     ->getDepthCubemap()[currentFrame]
+                     ->getTexture()
+                     ->getImageView()
+                     ->getImage()
+                     ->getResolution();
   }
+  viewport.width = std::get<0>(resolution);
+  viewport.height = std::get<1>(resolution);
 
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
@@ -167,7 +174,7 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(resolution, resolution);
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_pipeline[SpriteRenderMode::POINT]->getPushConstants().find("fragment") !=
