@@ -2,7 +2,6 @@
 #include "Device.h"
 #include <array>
 #include "Command.h"
-#include "Queue.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
@@ -197,7 +196,7 @@ class Buffer {
 
  public:
   Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
-  void copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandPool> commandPool, std::shared_ptr<Queue> queue);
+  void copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   VkBuffer& getData();
   VkDeviceSize& getSize();
   VkDeviceMemory& getMemory();
@@ -214,8 +213,7 @@ class VertexBuffer2D {
 
  public:
   VertexBuffer2D(std::vector<Vertex2D> vertices,
-                 std::shared_ptr<CommandPool> commandPool,
-                 std::shared_ptr<Queue> queue,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<Device> device);
   std::shared_ptr<Buffer> getBuffer();
 };
@@ -226,8 +224,7 @@ class VertexBuffer3D {
 
  public:
   VertexBuffer3D(std::vector<Vertex3D> vertices,
-                 std::shared_ptr<CommandPool> commandPool,
-                 std::shared_ptr<Queue> queue,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<Device> device);
   std::shared_ptr<Buffer> getBuffer();
 };
@@ -238,8 +235,7 @@ class IndexBuffer {
 
  public:
   IndexBuffer(std::vector<uint32_t> indices,
-              std::shared_ptr<CommandPool> commandPool,
-              std::shared_ptr<Queue> queue,
+              std::shared_ptr<CommandBuffer> commandBufferTransfer,
               std::shared_ptr<Device> device);
   std::shared_ptr<Buffer> getBuffer();
 };
@@ -249,10 +245,6 @@ class UniformBuffer {
   std::vector<std::shared_ptr<Buffer>> _buffer;
 
  public:
-  UniformBuffer(int number,
-                int size,
-                std::shared_ptr<CommandPool> commandPool,
-                std::shared_ptr<Queue> queue,
-                std::shared_ptr<Device> device);
+  UniformBuffer(int number, int size, std::shared_ptr<Device> device);
   std::vector<std::shared_ptr<Buffer>>& getBuffer();
 };

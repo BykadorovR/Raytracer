@@ -82,12 +82,10 @@ std::tuple<int, int> Image::getResolution() { return _resolution; }
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
                          int layersNumber,
-                         std::shared_ptr<CommandPool> commandPool,
-                         std::shared_ptr<Queue> queue) {
+                         std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _imageLayout = newLayout;
 
-  auto commandBuffer = std::make_shared<CommandBuffer>(1, commandPool, _device);
-  commandBuffer->beginSingleTimeCommands(0);
+  commandBufferTransfer->beginCommands(0);
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -138,18 +136,16 @@ void Image::changeLayout(VkImageLayout oldLayout,
     throw std::invalid_argument("unsupported layout transition!");
   }
 
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr,
-                       1, &barrier);
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[0], sourceStage, destinationStage, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
 
-  commandBuffer->endSingleTimeCommands(0, queue);
+  commandBufferTransfer->endCommands(0);
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
                      int layersNumber,
-                     std::shared_ptr<CommandPool> commandPool,
-                     std::shared_ptr<Queue> queue) {
-  auto commandBuffer = std::make_shared<CommandBuffer>(1, commandPool, _device);
-  commandBuffer->beginSingleTimeCommands(0);
+                     std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  commandBufferTransfer->beginCommands(0);
   std::vector<VkBufferImageCopy> bufferCopyRegions;
   for (int i = 0; i < layersNumber; i++) {
     VkBufferImageCopy region{};
@@ -166,10 +162,10 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
     region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
     bufferCopyRegions.push_back(region);
   }
-  vkCmdCopyBufferToImage(commandBuffer->getCommandBuffer()[0], buffer->getData(), _image,
+  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 
-  commandBuffer->endSingleTimeCommands(0, queue);
+  commandBufferTransfer->endCommands(0);
 }
 
 VkImageLayout& Image::getImageLayout() { return _imageLayout; }

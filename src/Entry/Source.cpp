@@ -12,7 +12,6 @@
 #include "Shader.h"
 #include "Pipeline.h"
 #include "Command.h"
-#include "Queue.h"
 #include "Sync.h"
 #include "Command.h"
 #include "Settings.h"
@@ -43,10 +42,9 @@ float depthBiasSlope = 1.75f;
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<CommandBuffer> commandBuffer;
-std::shared_ptr<CommandPool> commandPool;
+std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer;
+std::shared_ptr<CommandPool> commandPool, commandPoolTransfer;
 std::shared_ptr<DescriptorPool> descriptorPool;
-std::shared_ptr<Queue> queue;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
 std::shared_ptr<State> state;
@@ -83,12 +81,15 @@ void initialize() {
   instance = state->getInstance();
   surface = state->getSurface();
   device = state->getDevice();
-  commandPool = state->getCommandPool();
-  queue = state->getQueue();
-  commandBuffer = state->getCommandBuffer();
   swapchain = state->getSwapchain();
   descriptorPool = state->getDescriptorPool();
-  loggerGPU = std::make_shared<LoggerGPU>(state);
+  // allocate commands
+  commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
+  commandPoolTransfer = std::make_shared<CommandPool>(QueueType::TRANSFER, device);
+  commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPool, device);
+  //
+  loggerGPU = std::make_shared<LoggerGPU>(commandBuffer, state);
   loggerCPU = std::make_shared<LoggerCPU>();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
@@ -103,16 +104,16 @@ void initialize() {
   renderPassDepth->initializeDepthPass();
 
   gui = std::make_shared<GUI>(settings->getResolution(), window, device);
-  gui->initialize(renderPass, queue, commandPool);
+  gui->initialize(renderPass, commandBufferTransfer);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
-                                           device);
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           commandBufferTransfer, device);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             commandPool, queue, device);
+                                             commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
-  lightManager = std::make_shared<LightManager>(state);
+  lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
   pointLightHorizontal = lightManager->createPointLight(depthResolution);
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
@@ -135,11 +136,11 @@ void initialize() {
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBuffer, commandBufferTransfer, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandPool, commandBuffer, queue, descriptorPool,
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandBuffer, commandBufferTransfer, descriptorPool,
                                                   renderPass, renderPassDepth, device, settings);
-  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, state);
+  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBuffer, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
   if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -285,12 +286,7 @@ void drawFrame() {
   gui->drawText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
 
   // record command buffer
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-
-  if (vkBeginCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], &beginInfo) != VK_SUCCESS) {
-    throw std::runtime_error("failed to begin recording command buffer!");
-  }
+  commandBuffer->beginCommands(currentFrame);
 
   loggerGPU->initialize("Common", currentFrame);
   // update positions
@@ -462,12 +458,7 @@ void drawFrame() {
 
     loggerGPU->end(currentFrame);
   }
-  ///////////////////////////////////////////////////////////////////////////////////////////
 
-  if (vkEndCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame]) != VK_SUCCESS) {
-    throw std::runtime_error("failed to record command buffer!");
-  }
-  //
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -484,10 +475,8 @@ void drawFrame() {
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  result = vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, inFlightFences[currentFrame]->getFence());
-  if (result != VK_SUCCESS) {
-    throw std::runtime_error("failed to submit draw command buffer!");
-  }
+  // end command buffer
+  commandBuffer->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -501,7 +490,8 @@ void drawFrame() {
 
   presentInfo.pImageIndices = &imageIndex;
 
-  result = vkQueuePresentKHR(queue->getPresentQueue(), &presentInfo);
+  // TODO: change to own present queue
+  result = vkQueuePresentKHR(device->getQueue(QueueType::PRESENT), &presentInfo);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
     // TODO: recreate swapchain

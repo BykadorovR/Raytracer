@@ -1,18 +1,16 @@
 #include "ModelManager.h"
 
 Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
-                               std::shared_ptr<CommandPool> commandPool,
                                std::shared_ptr<CommandBuffer> commandBuffer,
-                               std::shared_ptr<Queue> queue,
+                               std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,
                                std::shared_ptr<RenderPass> render,
                                std::shared_ptr<RenderPass> renderDepth,
                                std::shared_ptr<Device> device,
                                std::shared_ptr<Settings> settings) {
-  _commandPool = commandPool;
   _lightManager = lightManager;
   _commandBuffer = commandBuffer;
-  _queue = queue;
+  _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
   _renderPass = render;
@@ -99,7 +97,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
   _modelsCreated++;
   return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
-                                     _commandPool, _commandBuffer, _queue, _device, _settings);
+                                     _commandBuffer, _commandBufferTransfer, _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
 

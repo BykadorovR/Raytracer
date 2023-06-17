@@ -1,8 +1,9 @@
 #include "LightManager.h"
 #include "Buffer.h"
 
-LightManager::LightManager(std::shared_ptr<State> state) {
+LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _state = state;
+  _commandBufferTransfer = commandBufferTransfer;
 
   _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
 
@@ -17,8 +18,8 @@ LightManager::LightManager(std::shared_ptr<State> state) {
 
   // stub texture
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                           _state->getCommandPool(), _state->getQueue(), _state->getDevice());
-  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", _state);
+                                           commandBufferTransfer, _state->getDevice());
+  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", commandBufferTransfer, _state);
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {

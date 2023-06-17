@@ -25,12 +25,7 @@ GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::s
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
-void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
-                     std::shared_ptr<Queue> queue,
-                     std::shared_ptr<CommandPool> commandPool) {
-  _commandPool = commandPool;
-  _queue = queue;
-
+void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGuiIO& io = ImGui::GetIO();
 
   // Create font texture
@@ -66,9 +61,9 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   _fontImage = std::make_shared<Image>(
       std::tuple{texWidth, texHeight}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandPool, queue);
-  _fontImage->copyFrom(stagingBuffer, 1, commandPool, queue);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, commandPool, queue);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBufferTransfer);
+  _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, _device);
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
 
@@ -76,7 +71,7 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), commandPool, queue, _device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), _device);
   _descriptorSet = std::make_shared<DescriptorSet>(2, _descriptorSetLayout, _descriptorPool, _device);
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 

@@ -2,10 +2,13 @@
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
+                                       std::shared_ptr<CommandBuffer> commandBuffer,
+                                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                        std::shared_ptr<State> state) {
   _camera = camera;
   _gui = gui;
   _state = state;
+  _commandBuffer = commandBuffer;
 
   _renderPass = std::make_shared<RenderPass>(state->getDevice());
   _renderPass->initialize(state->getSwapchain()->getImageFormat());
@@ -13,11 +16,9 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
-                                                   state->getCommandPool(), state->getQueue(), state->getDevice());
-  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, state->getCommandPool(), state->getQueue(),
                                                    state->getDevice());
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, state->getCommandPool(), state->getQueue(),
-                                               state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandBufferTransfer, state->getDevice());
+  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraLayout->createCamera();
@@ -105,7 +106,7 @@ void DebugVisualization::draw(int currentFrame) {
   }
 
   if (_texture != nullptr && _showDepth) {
-    vkCmdBindPipeline(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       _pipeline->getPipeline());
 
     VkViewport viewport{};
@@ -115,18 +116,18 @@ void DebugVisualization::draw(int currentFrame) {
     viewport.height = -std::get<1>(_state->getSettings()->getResolution());
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
                                 std::get<1>(_state->getSettings()->getResolution()));
-    vkCmdSetScissor(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     DepthPush pushConstants;
     pushConstants.near = _camera->getNear();
     pushConstants.far = _camera->getFar();
-    vkCmdPushConstants(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
 
     glm::mat4 model = glm::mat4(1.f);
@@ -141,21 +142,21 @@ void DebugVisualization::draw(int currentFrame) {
 
     VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(_state->getCommandBuffer()->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
-                         _indexBuffer->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+                         VK_INDEX_TYPE_UINT32);
 
-    vkCmdBindDescriptorSets(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
-                            VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipelineLayout(), 0, 1,
-                            &_cameraSet->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline->getPipelineLayout(), 0, 1, &_cameraSet->getDescriptorSets()[currentFrame], 0,
+                            nullptr);
 
-    vkCmdBindDescriptorSets(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
-                            VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipelineLayout(), 1, 1,
-                            &_textureSet->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipeline->getPipelineLayout(), 1, 1, &_textureSet->getDescriptorSets()[currentFrame], 0,
+                            nullptr);
 
-    vkCmdDrawIndexed(_state->getCommandBuffer()->getCommandBuffer()[currentFrame],
-                     static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
+                     0);
   }
 }
 

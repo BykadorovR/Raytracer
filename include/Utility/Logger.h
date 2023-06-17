@@ -14,11 +14,11 @@ class LoggerGPU {
   PFN_vkCmdBeginDebugUtilsLabelEXT _cmdBeginDebugUtilsLabelEXT;
   PFN_vkCmdEndDebugUtilsLabelEXT _cmdEndDebugUtilsLabelEXT;
   PFN_vkSetDebugUtilsObjectNameEXT _setDebugUtilsObjectNameEXT;
-
+  std::shared_ptr<CommandBuffer> _buffer;
   std::shared_ptr<State> _state;
 
  public:
-  LoggerGPU(std::shared_ptr<State> state);
+  LoggerGPU(std::shared_ptr<CommandBuffer> buffer, std::shared_ptr<State> state);
   void initialize(std::string bufferName, int currentFrame);
   void begin(std::string marker, int currentFrame);
   void end(int currentFrame);

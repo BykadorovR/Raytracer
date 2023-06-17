@@ -11,9 +11,12 @@
 #include <iostream>
 #include <optional>
 #include <set>
+#include <map>
 
 #include "Instance.h"
 #include "Surface.h"
+
+enum class QueueType { PRESENT = 0, GRAPHIC, COMPUTE, TRANSFER };
 
 class Device {
  private:
@@ -26,9 +29,7 @@ class Device {
   // supported device features
   VkPhysicalDeviceFeatures _supportedFeatures;
   // supported queues
-  std::optional<uint32_t> _graphicsFamily;
-  std::optional<uint32_t> _presentFamily;
-  std::optional<uint32_t> _computeFamily;
+  std::map<QueueType, std::optional<uint32_t>> _family;
   // supported surface capabilities
   VkSurfaceCapabilitiesKHR _surfaceCapabilities;
   std::vector<VkSurfaceFormatKHR> _surfaceFormats;
@@ -45,9 +46,8 @@ class Device {
   std::vector<VkSurfaceFormatKHR>& getSupportedSurfaceFormats();
   std::vector<VkPresentModeKHR>& getSupportedSurfacePresentModes();
   VkSurfaceCapabilitiesKHR& getSupportedSurfaceCapabilities();
-  std::optional<uint32_t> getSupportedGraphicsFamilyIndex();
-  std::optional<uint32_t> getSupportedPresentFamilyIndex();
-  std::optional<uint32_t> getSupportedComputeFamilyIndex();
+  std::optional<uint32_t> getSupportedFamilyIndex(QueueType type);
+  VkQueue getQueue(QueueType type);
 
   VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
                                           VkImageTiling tiling,

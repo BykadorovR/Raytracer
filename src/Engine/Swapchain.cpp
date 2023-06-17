@@ -58,11 +58,11 @@ Swapchain::Swapchain(VkFormat format,
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  uint32_t queueFamilyIndices[] = {device->getSupportedGraphicsFamilyIndex().value(),
-                                   device->getSupportedPresentFamilyIndex().value()};
+  uint32_t queueFamilyIndices[] = {device->getSupportedFamilyIndex(QueueType::GRAPHIC).value(),
+                                   device->getSupportedFamilyIndex(QueueType::PRESENT).value()};
   // if we have separate queues for presentation and graphic we can use concurrent mode
   // render using graphic queue and show using presentation queue
-  if (device->getSupportedGraphicsFamilyIndex() != device->getSupportedPresentFamilyIndex()) {
+  if (device->getSupportedFamilyIndex(QueueType::GRAPHIC) != device->getSupportedFamilyIndex(QueueType::PRESENT)) {
     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     createInfo.queueFamilyIndexCount = 2;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;

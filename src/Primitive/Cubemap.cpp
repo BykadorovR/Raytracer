@@ -1,7 +1,7 @@
 #include "Cubemap.h"
 #include "Buffer.h"
 
-Cubemap::Cubemap(std::string path, std::shared_ptr<State> state) {
+Cubemap::Cubemap(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _state = state;
   // load texture
   int texWidth, texHeight, texChannels;
@@ -27,11 +27,10 @@ Cubemap::Cubemap(std::string path, std::shared_ptr<State> state) {
                                    VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
-  _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6, state->getCommandPool(),
-                       state->getQueue());
-  _image->copyFrom(stagingBuffer, 6, state->getCommandPool(), state->getQueue());
+  _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6, commandBufferTransfer);
+  _image->copyFrom(stagingBuffer, 6, commandBufferTransfer);
   _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6,
-                       state->getCommandPool(), state->getQueue());
+                       commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0, VK_IMAGE_ASPECT_COLOR_BIT,
                                            state->getDevice());
   _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, _state->getDevice());

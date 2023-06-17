@@ -24,15 +24,11 @@ class Image {
         VkMemoryPropertyFlags properties,
         std::shared_ptr<Device> device);
 
-  void copyFrom(std::shared_ptr<Buffer> buffer,
-                int layersNumber,
-                std::shared_ptr<CommandPool> commandPool,
-                std::shared_ptr<Queue> queue);
+  void copyFrom(std::shared_ptr<Buffer> buffer, int layersNumber, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void changeLayout(VkImageLayout oldLayout,
                     VkImageLayout newLayout,
                     int layersNumber,
-                    std::shared_ptr<CommandPool> commandPool,
-                    std::shared_ptr<Queue> queue);
+                    std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void overrideLayout(VkImageLayout layout);
   std::tuple<int, int> getResolution();
   VkImage& getImage();

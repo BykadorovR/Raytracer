@@ -26,16 +26,14 @@ ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
-                     std::shared_ptr<CommandPool> commandPool,
                      std::shared_ptr<CommandBuffer> commandBuffer,
-                     std::shared_ptr<Queue> queue,
+                     std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<Device> device,
                      std::shared_ptr<Settings> settings) {
   _device = device;
-  _queue = queue;
-  _commandPool = commandPool;
   _descriptorPool = descriptorPool;
   _commandBuffer = commandBuffer;
+  _commandBufferTransfer = commandBufferTransfer;
   _lightManager = lightManager;
 
   tinygltf::Model model;
@@ -63,25 +61,23 @@ ModelGLTF::ModelGLTF(std::string path,
   }
 
   //********************************************************************
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandPool, queue, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandPool, queue, device);
+  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandBufferTransfer, device);
   int lightNumber = settings->getMaxDirectionalLights() + settings->getMaxPointLights();
   for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
-    _uniformBufferDepth.push_back({std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
-                                                                   sizeof(UniformObject), commandPool, queue, device)});
+    _uniformBufferDepth.push_back(
+        {std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device)});
   }
 
   for (int i = 0; i < settings->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
-                                                       commandPool, queue, device);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device);
     }
     _uniformBufferDepth.push_back(facesBuffer);
   }
 
-  _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
-                                                       commandPool, queue, device);
+  _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device);
 
   auto cameraLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
@@ -125,11 +121,11 @@ ModelGLTF::ModelGLTF(std::string path,
     _descriptorSetCameraFull = cameraSet;
   }
 
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool, queue,
-                                           device);
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           commandBufferTransfer, device);
   // empty texture with 0, 0, 0 value
   _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 commandPool, queue, device);
+                                                 commandBufferTransfer, device);
 
   for (auto& material : _materials) {
     auto diffuseTexture = _stubTexture;
@@ -148,7 +144,7 @@ ModelGLTF::ModelGLTF(std::string path,
       material.descriptorSet[i]->createGraphicModel(diffuseTexture, normalTexture);
     }
     material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
-                                                                   sizeof(ModelAuxilary), commandPool, queue, device);
+                                                                   sizeof(ModelAuxilary), device);
     material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
         settings->getMaxFramesInFlight(), (*alphaMaskLayout).second, descriptorPool, device);
     material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
@@ -181,8 +177,8 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
     tinygltf::Image& glTFImage = model.images[i];
     // TODO: check if such file exists and load it from disk
     if (std::filesystem::exists(glTFImage.uri)) {
-      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT, _commandPool,
-                                                     _queue, _device);
+      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                     _commandBufferTransfer, _device);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -219,9 +215,9 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
           std::tuple{glTFImage.width, glTFImage.height}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
 
-      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, _commandPool, _queue);
-      image->copyFrom(stagingBuffer, 1, _commandPool, _queue);
-      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, _commandPool, _queue);
+      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, _commandBufferTransfer);
+      image->copyFrom(stagingBuffer, 1, _commandBufferTransfer);
+      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, _commandBufferTransfer);
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _device);

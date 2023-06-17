@@ -14,8 +14,7 @@ class Model3DManager {
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<Queue> _queue;
+  std::shared_ptr<CommandBuffer> _commandBuffer, _commandBufferTransfer;
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
@@ -24,9 +23,8 @@ class Model3DManager {
 
  public:
   Model3DManager(std::shared_ptr<LightManager> lightManager,
-                 std::shared_ptr<CommandPool> commandPool,
                  std::shared_ptr<CommandBuffer> commandBuffer,
-                 std::shared_ptr<Queue> queue,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<DescriptorPool> descriptorPool,
                  std::shared_ptr<RenderPass> render,
                  std::shared_ptr<RenderPass> renderDepth,

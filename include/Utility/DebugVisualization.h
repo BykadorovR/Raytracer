@@ -27,6 +27,7 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<LightManager> _lightManager = nullptr;
   bool _showLights = true;
   bool _registerLights = false;
+  std::shared_ptr<CommandBuffer> _commandBuffer;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Model3DManager> _modelManager;
   std::shared_ptr<GUI> _gui;
@@ -52,7 +53,11 @@ class DebugVisualization : public InputSubscriber {
   const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
 
  public:
-  DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<GUI> gui, std::shared_ptr<State> state);
+  DebugVisualization(std::shared_ptr<Camera> camera,
+                     std::shared_ptr<GUI> gui,
+                     std::shared_ptr<CommandBuffer> commandBuffer,
+                     std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                     std::shared_ptr<State> state);
   void setLights(std::shared_ptr<Model3DManager> modelManager, std::shared_ptr<LightManager> lightManager);
   void setTexture(std::shared_ptr<Texture> texture);
   void draw(int currentFrame);

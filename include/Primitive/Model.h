@@ -5,7 +5,6 @@
 #include "Render.h"
 #include "Pipeline.h"
 #include "Command.h"
-#include "Queue.h"
 #include "Settings.h"
 #include "tiny_obj_loader.h"
 #include "tiny_gltf.h"
@@ -149,12 +148,11 @@ class ModelGLTF : public Model {
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<CommandBuffer> _commandBuffer;
+  std::shared_ptr<CommandBuffer> _commandBuffer, _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<Queue> _queue;
   std::shared_ptr<Device> _device;
   // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
   std::shared_ptr<Texture> _stubTexture;
@@ -198,9 +196,8 @@ class ModelGLTF : public Model {
             std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
-            std::shared_ptr<CommandPool> commandPool,
             std::shared_ptr<CommandBuffer> commandBuffer,
-            std::shared_ptr<Queue> queue,
+            std::shared_ptr<CommandBuffer> commandBufferTransfer,
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);

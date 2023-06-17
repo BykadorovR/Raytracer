@@ -6,11 +6,13 @@ std::vector<VkSurfaceFormatKHR>& Device::getSupportedSurfaceFormats() { return _
 
 VkSurfaceCapabilitiesKHR& Device::getSupportedSurfaceCapabilities() { return _surfaceCapabilities; }
 
-std::optional<uint32_t> Device::getSupportedGraphicsFamilyIndex() { return _graphicsFamily; }
+std::optional<uint32_t> Device::getSupportedFamilyIndex(QueueType type) { return _family[type]; }
 
-std::optional<uint32_t> Device::getSupportedPresentFamilyIndex() { return _presentFamily; }
-
-std::optional<uint32_t> Device::getSupportedComputeFamilyIndex() { return _computeFamily; }
+VkQueue Device::getQueue(QueueType type) {
+  VkQueue queue;
+  vkGetDeviceQueue(getLogicalDevice(), getSupportedFamilyIndex(type).value(), 0, &queue);
+  return queue;
+}
 
 bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check if queue supported
@@ -20,28 +22,38 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
   vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-  int i = 0;
-  for (const auto& queueFamily : queueFamilies) {
+  // find graphic, present and compute queue
+  for (int i = 0; i < queueFamilies.size(); i++) {
+    auto queueFamily = queueFamilies[i];
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      _graphicsFamily = i;
+      _family[QueueType::GRAPHIC] = i;
     }
 
     if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-      _computeFamily = i;
+      _family[QueueType::COMPUTE] = i;
     }
 
     VkBool32 presentSupport = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(device, i, _surface->getSurface(), &presentSupport);
 
     if (presentSupport) {
-      _presentFamily = i;
+      _family[QueueType::PRESENT] = i;
     }
 
-    if (_presentFamily.has_value() && _graphicsFamily.has_value() && _computeFamily.has_value()) {
+    if (_family[QueueType::PRESENT].has_value() && _family[QueueType::GRAPHIC].has_value() &&
+        _family[QueueType::COMPUTE].has_value()) {
       break;
     }
 
     i++;
+  }
+
+  // find transfer queue != graphic queue
+  for (int i = 0; i < queueFamilies.size(); i++) {
+    auto queueFamily = queueFamilies[i];
+    if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT && i != _family[QueueType::GRAPHIC]) {
+      _family[QueueType::TRANSFER] = i;
+    }
   }
 
   // check if device extensions are supported
@@ -85,7 +97,8 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check device features
   vkGetPhysicalDeviceFeatures(device, &_supportedFeatures);
 
-  return _presentFamily.has_value() && _graphicsFamily.has_value() && _computeFamily.has_value() &&
+  return _family[QueueType::PRESENT].has_value() && _family[QueueType::GRAPHIC].has_value() &&
+         _family[QueueType::COMPUTE].has_value() && _family[QueueType::TRANSFER].has_value() &&
          requiredExtensions.empty() && swapChainAdequate && _supportedFeatures.samplerAnisotropy;
 }
 
@@ -116,7 +129,8 @@ void Device::_pickPhysicalDevice() {
 
 void Device::_createLogicalDevice() {
   std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-  std::set<uint32_t> uniqueQueueFamilies = {_graphicsFamily.value(), _presentFamily.value(), _computeFamily.value()};
+  std::set<uint32_t> uniqueQueueFamilies = {_family[QueueType::PRESENT].value(), _family[QueueType::GRAPHIC].value(),
+                                            _family[QueueType::COMPUTE].value(), _family[QueueType::TRANSFER].value()};
 
   float queuePriority = 1.0f;
   for (uint32_t queueFamily : uniqueQueueFamilies) {

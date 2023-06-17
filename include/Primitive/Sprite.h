@@ -5,7 +5,6 @@
 #include "Render.h"
 #include "Pipeline.h"
 #include "Command.h"
-#include "Queue.h"
 #include "Settings.h"
 #include "Camera.h"
 #include "LightManager.h"
@@ -17,13 +16,13 @@ class Sprite {
  private:
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Device> _device;
-  std::shared_ptr<CommandPool> _commandPool;
 
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetTextures;
 
   std::shared_ptr<CommandBuffer> _commandBuffer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
   std::shared_ptr<Camera> _camera;
@@ -50,9 +49,8 @@ class Sprite {
          std::shared_ptr<Texture> normalMap,
          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<DescriptorPool> descriptorPool,
-         std::shared_ptr<CommandPool> commandPool,
          std::shared_ptr<CommandBuffer> commandBuffer,
-         std::shared_ptr<Queue> queue,
+         std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<Device> device,
          std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);

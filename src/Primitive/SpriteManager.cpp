@@ -2,17 +2,15 @@
 #include <ranges>
 
 SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
-                             std::shared_ptr<CommandPool> commandPool,
                              std::shared_ptr<CommandBuffer> commandBuffer,
-                             std::shared_ptr<Queue> queue,
+                             std::shared_ptr<CommandBuffer> commandBufferTransfer,
                              std::shared_ptr<DescriptorPool> descriptorPool,
                              std::shared_ptr<RenderPass> render,
                              std::shared_ptr<RenderPass> renderDepth,
                              std::shared_ptr<Device> device,
                              std::shared_ptr<Settings> settings) {
-  _commandPool = commandPool;
   _commandBuffer = commandBuffer;
-  _queue = queue;
+  _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
   _lightManager = lightManager;
@@ -77,8 +75,8 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
                                                     std::shared_ptr<Texture> normalMap) {
   _spritesCreated++;
-  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandPool,
-                                  _commandBuffer, _queue, _device, _settings);
+  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandBuffer,
+                                  _commandBufferTransfer, _device, _settings);
 }
 
 void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }

@@ -56,8 +56,6 @@ class GUI : public InputSubscriber {
   std::array<std::shared_ptr<Buffer>, 2> _indexBuffer;
   int _lastBuffer = 0;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
-  std::shared_ptr<Queue> _queue;
-  std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<DescriptorPool> _descriptorPool;
@@ -70,9 +68,7 @@ class GUI : public InputSubscriber {
 
  public:
   GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
-  void initialize(std::shared_ptr<RenderPass> renderPass,
-                  std::shared_ptr<Queue> queue,
-                  std::shared_ptr<CommandPool> commandPool);
+  void initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name,
                 std::tuple<int, int> position,
                 std::tuple<int, int> size,

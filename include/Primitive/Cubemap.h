@@ -11,7 +11,7 @@ class Cubemap {
   std::vector<std::shared_ptr<Texture>> _textureSeparate;
 
  public:
-  Cubemap(std::string path, std::shared_ptr<State> state);
+  Cubemap(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   Cubemap(std::tuple<int, int> resolution, std::shared_ptr<State> state);
   std::shared_ptr<Texture> getTexture();
   std::vector<std::shared_ptr<Texture>> getTextureSeparate();

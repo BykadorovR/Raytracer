@@ -10,39 +10,37 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Texture> normalMap,
                std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                std::shared_ptr<DescriptorPool> descriptorPool,
-               std::shared_ptr<CommandPool> commandPool,
                std::shared_ptr<CommandBuffer> commandBuffer,
-               std::shared_ptr<Queue> queue,
+               std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<Device> device,
                std::shared_ptr<Settings> settings) {
   _commandBuffer = commandBuffer;
+  _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
   _texture = texture;
 
   if (normalMap == nullptr)
-    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandPool,
-                                          queue, device);
+    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                          commandBufferTransfer, device);
   _normalMap = normalMap;
 
-  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandPool, queue, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandPool, queue, device);
+  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, device);
   for (int i = 0; i < _settings->getMaxDirectionalLights(); i++) {
-    _uniformBufferDepth.push_back({std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
-                                                                   sizeof(UniformObject), commandPool, queue, device)});
+    _uniformBufferDepth.push_back(
+        {std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device)});
   }
 
   for (int i = 0; i < _settings->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
-                                                       commandPool, queue, device);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device);
     }
     _uniformBufferDepth.push_back(facesBuffer);
   }
 
-  _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject),
-                                                       commandPool, queue, device);
+  _uniformBufferFull = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device);
   {
     auto cameraLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
