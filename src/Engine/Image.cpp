@@ -60,6 +60,7 @@ Image::Image(std::tuple<int, int> resolution,
     if ((memRequirements.memoryTypeBits & (1 << i)) &&
         (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
       allocInfo.memoryTypeIndex = i;
+      break;
     }
   }
   if (allocInfo.memoryTypeIndex < 0) throw std::runtime_error("failed to find suitable memory type!");

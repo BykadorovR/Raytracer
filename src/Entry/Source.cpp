@@ -70,7 +70,7 @@ std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
-std::tuple<int, int> depthResolution = {256, 256};
+std::tuple<int, int> depthResolution = {1024, 1024};
 
 void initialize() {
   state = std::make_shared<State>(
