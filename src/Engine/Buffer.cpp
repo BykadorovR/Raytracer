@@ -31,6 +31,7 @@ Buffer::Buffer(VkDeviceSize size,
     if ((memRequirements.memoryTypeBits & (1 << i)) &&
         (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
       memoryID = i;
+      break;
     }
   }
   if (memoryID < 0) throw std::runtime_error("failed to find suitable memory type!");
