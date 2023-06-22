@@ -71,6 +71,73 @@ std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::tuple<int, int> depthResolution = {1024, 1024};
+std::thread directionalThread;
+std::mutex directionalMutex;
+std::condition_variable directionalCV;
+std::future<void> updateJoints;
+bool updateDirectional = false;
+bool shouldWork = true;
+
+VkRenderPassBeginInfo render(int index,
+                             std::shared_ptr<RenderPass> renderPass,
+                             std::shared_ptr<Framebuffer> framebuffer) {
+  VkRenderPassBeginInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassInfo.renderPass = renderPass->getRenderPass();
+  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
+  renderPassInfo.renderArea.offset = {0, 0};
+  auto [width, height] = framebuffer->getResolution();
+  renderPassInfo.renderArea.extent.width = width;
+  renderPassInfo.renderArea.extent.height = height;
+
+  return renderPassInfo;
+}
+
+void directionalLightCalculator() {
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
+  auto loggerGPU = std::make_shared<LoggerGPU>(state);
+  loggerGPU->initialize("Directional", currentFrame, commandBuffer);
+  while (shouldWork) {
+    std::unique_lock<std::mutex> lock(directionalMutex);
+    if (updateDirectional == false) {
+      directionalCV.wait(lock);
+    }
+    if (updateDirectional) {
+      // record command buffer
+      commandBuffer->beginCommands(currentFrame);
+      updateDirectional = false;
+      loggerGPU->begin("Directional to depth buffer", currentFrame);
+      auto directionalLights = lightManager->getDirectionalLights();
+      for (int i = 0; i < directionalLights.size(); i++) {
+        auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i][0]);
+        clearValues[0].depthStencil = {1.0f, 0};
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = clearValues.data();
+        // TODO: only one depth texture?
+        vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                             VK_SUBPASS_CONTENTS_INLINE);
+        // Set depth bias (aka "Polygon offset")
+        // Required to avoid shadow mapping artifacts
+        vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+
+        // draw scene here
+        loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
+        spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, i);
+        loggerGPU->end(currentFrame);
+
+        loggerGPU->begin("Models to directional depth buffer", currentFrame);
+        modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, i);
+        loggerGPU->end(currentFrame);
+        vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+      }
+      loggerGPU->end(currentFrame);
+
+      // record command buffer
+      commandBuffer->endCommands(currentFrame);
+    }
+  }
+}
 
 void initialize() {
   state = std::make_shared<State>(
@@ -89,7 +156,7 @@ void initialize() {
   commandPoolTransfer = std::make_shared<CommandPool>(QueueType::TRANSFER, device);
   commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPool, device);
   //
-  loggerGPU = std::make_shared<LoggerGPU>(commandBuffer, state);
+  loggerGPU = std::make_shared<LoggerGPU>(state);
   loggerCPU = std::make_shared<LoggerCPU>();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
@@ -136,11 +203,11 @@ void initialize() {
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBuffer, commandBufferTransfer, descriptorPool,
-                                                  renderPass, renderPassDepth, device, settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandBuffer, commandBufferTransfer, descriptorPool,
-                                                  renderPass, renderPassDepth, device, settings);
-  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBuffer, commandBufferTransfer, state);
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
+                                                  renderPassDepth, device, settings);
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
+                                                  renderPassDepth, device, settings);
+  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
   if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -242,24 +309,10 @@ void initialize() {
           std::vector{imageViews[j].first, imageViews[j].second}, renderPassDepth, device);
     }
   }
+
+  directionalThread = std::thread(directionalLightCalculator);
 }
 
-VkRenderPassBeginInfo render(int index,
-                             std::shared_ptr<RenderPass> renderPass,
-                             std::shared_ptr<Framebuffer> framebuffer) {
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = renderPass->getRenderPass();
-  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
-  renderPassInfo.renderArea.offset = {0, 0};
-  auto [width, height] = framebuffer->getResolution();
-  renderPassInfo.renderArea.extent.width = width;
-  renderPassInfo.renderArea.extent.height = height;
-
-  return renderPassInfo;
-}
-
-std::future<void> updateJoints;
 void drawFrame() {
   auto result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
                                 UINT64_MAX);
@@ -288,7 +341,7 @@ void drawFrame() {
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
 
-  loggerGPU->initialize("Common", currentFrame);
+  loggerGPU->initialize("Common", currentFrame, commandBuffer);
   // update positions
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
@@ -304,17 +357,29 @@ void drawFrame() {
   spriteManager->setCamera(camera);
   modelManager->setCamera(camera);
 
+  // TODO: find the better way this one is too long
+  if (updateJoints.valid()) {
+    updateJoints.get();
+  }
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    loggerGPU->begin("Directional to depth buffer", currentFrame);
-    auto directionalLights = lightManager->getDirectionalLights();
-    for (int i = 0; i < directionalLights.size(); i++) {
-      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i][0]);
+    std::unique_lock<std::mutex> lock(directionalMutex);
+    updateDirectional = true;
+    directionalCV.notify_all();
+  }
+
+  loggerGPU->begin("Point to depth buffer", currentFrame);
+  auto pointLights = lightManager->getPointLights();
+  for (int i = 0; i < pointLights.size(); i++) {
+    for (int j = 0; j < 6; j++) {
+      auto renderPassInfo = render(currentFrame, renderPassDepth,
+                                   frameBufferDepth[i + lightManager->getDirectionalLights().size()][j]);
       clearValues[0].depthStencil = {1.0f, 0};
       renderPassInfo.clearValueCount = 1;
       renderPassInfo.pClearValues = clearValues.data();
+
       // TODO: only one depth texture?
       vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
                            VK_SUBPASS_CONTENTS_INLINE);
@@ -323,51 +388,17 @@ void drawFrame() {
       vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
       // draw scene here
-      loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
-      spriteManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
+      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+      loggerGPU->begin("Sprites to point depth buffer", currentFrame);
+      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, i, j);
       loggerGPU->end(currentFrame);
-
-      if (updateJoints.valid()) {
-        updateJoints.get();
-      }
-
-      loggerGPU->begin("Models to directional depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, LightType::DIRECTIONAL, i);
+      loggerGPU->begin("Models to point depth buffer", currentFrame);
+      modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, i, j);
       loggerGPU->end(currentFrame);
       vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
     }
-    loggerGPU->end(currentFrame);
-
-    loggerGPU->begin("Point to depth buffer", currentFrame);
-    auto pointLights = lightManager->getPointLights();
-    for (int i = 0; i < pointLights.size(); i++) {
-      for (int j = 0; j < 6; j++) {
-        auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i + directionalLights.size()][j]);
-        clearValues[0].depthStencil = {1.0f, 0};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = clearValues.data();
-
-        // TODO: only one depth texture?
-        vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                             VK_SUBPASS_CONTENTS_INLINE);
-        // Set depth bias (aka "Polygon offset")
-        // Required to avoid shadow mapping artifacts
-        vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
-
-        // draw scene here
-        float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-        loggerGPU->begin("Sprites to point depth buffer", currentFrame);
-        spriteManager->drawShadow(currentFrame, LightType::POINT, i, j);
-        loggerGPU->end(currentFrame);
-        loggerGPU->begin("Models to point depth buffer", currentFrame);
-        modelManager->drawShadow(currentFrame, LightType::POINT, i, j);
-        loggerGPU->end(currentFrame);
-        vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-      }
-    }
-    loggerGPU->end(currentFrame);
   }
-
+  loggerGPU->end(currentFrame);
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -432,26 +463,26 @@ void drawFrame() {
     lightManager->draw(currentFrame);
     // draw scene here
     loggerGPU->begin("Render sprites", currentFrame);
-    spriteManager->draw(currentFrame);
+    spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     loggerGPU->begin("Render models", currentFrame);
-    modelManager->draw(currentFrame);
+    modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    updateJoints = std::async([&]() {
+    updateJoints = std::async(std::launch::async, [&]() {
       loggerCPU->begin("Update animation");
       modelManager->updateAnimation(frameTimer);
       loggerCPU->end();
     });
 
     loggerGPU->begin("Render debug visualization", currentFrame);
-    debugVisualization->draw(currentFrame);
+    debugVisualization->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     loggerGPU->begin("Render GUI", currentFrame);
     gui->updateBuffers(currentFrame);
-    gui->drawFrame(currentFrame, commandBuffer->getCommandBuffer()[currentFrame]);
+    gui->drawFrame(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -523,6 +554,12 @@ void mainLoop() {
     }
   }
 
+  shouldWork = false;
+  {
+    std::unique_lock<std::mutex> lock(directionalMutex);
+    directionalCV.notify_all();
+  }
+  directionalThread.join();
   vkDeviceWaitIdle(device->getLogicalDevice());
 }
 
@@ -534,6 +571,5 @@ int main() {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
   }
-
   return EXIT_SUCCESS;
 }

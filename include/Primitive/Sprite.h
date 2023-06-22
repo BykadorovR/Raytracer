@@ -21,8 +21,6 @@ class Sprite {
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetTextures;
 
-  std::shared_ptr<CommandBuffer> _commandBuffer;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   // don't delete, we store references here so it's not deleted
   std::shared_ptr<Texture> _texture, _normalMap;
   std::shared_ptr<Camera> _camera;
@@ -49,7 +47,6 @@ class Sprite {
          std::shared_ptr<Texture> normalMap,
          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<DescriptorPool> descriptorPool,
-         std::shared_ptr<CommandBuffer> commandBuffer,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<Device> device,
          std::shared_ptr<Settings> settings);
@@ -59,8 +56,9 @@ class Sprite {
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);
-  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline);
+  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline);
   void drawShadow(int currentFrame,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
                   std::shared_ptr<Pipeline> pipeline,
                   int lightIndex,
                   glm::mat4 view,

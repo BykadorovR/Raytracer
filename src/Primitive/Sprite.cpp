@@ -10,12 +10,9 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Texture> normalMap,
                std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                std::shared_ptr<DescriptorPool> descriptorPool,
-               std::shared_ptr<CommandBuffer> commandBuffer,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<Device> device,
                std::shared_ptr<Settings> settings) {
-  _commandBuffer = commandBuffer;
-  _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
   _texture = texture;
@@ -105,14 +102,14 @@ void Sprite::setNormal(glm::vec3 normal) {
   }
 }
 
-void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
+void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _camera->getEye();
 
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
@@ -129,9 +126,9 @@ void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -140,7 +137,7 @@ void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCameraFull->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -150,16 +147,16 @@ void Sprite::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline) {
                                       return info.first == std::string("texture");
                                     });
   if (textureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 1, 1,
                             &_descriptorSetTextures[currentFrame]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
-                   0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
 }
 
 void Sprite::drawShadow(int currentFrame,
+                        std::shared_ptr<CommandBuffer> commandBuffer,
                         std::shared_ptr<Pipeline> pipeline,
                         int lightIndex,
                         glm::mat4 view,
@@ -180,9 +177,9 @@ void Sprite::drawShadow(int currentFrame,
 
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -191,10 +188,9 @@ void Sprite::drawShadow(int currentFrame,
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCameraDepth[lightIndex][face]->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        0, 1, &_descriptorSetCameraDepth[lightIndex][face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -202,11 +198,10 @@ void Sprite::drawShadow(int currentFrame,
                                       return info.first == std::string("texture");
                                     });
   if (textureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 1, 1,
                             &_descriptorSetTextures[currentFrame]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
-                   0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
 }

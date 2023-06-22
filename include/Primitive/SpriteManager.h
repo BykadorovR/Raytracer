@@ -10,7 +10,7 @@ class SpriteManager {
 
   int _spritesCreated = 0;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<CommandBuffer> _commandBuffer, _commandBufferTransfer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
@@ -19,7 +19,6 @@ class SpriteManager {
 
  public:
   SpriteManager(std::shared_ptr<LightManager> lightManager,
-                std::shared_ptr<CommandBuffer> commandBuffer,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                 std::shared_ptr<DescriptorPool> descriptorPool,
                 std::shared_ptr<RenderPass> render,
@@ -30,6 +29,10 @@ class SpriteManager {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame);
-  void drawShadow(int currentFrame, LightType lightType, int lightIndex, int face = 0);
+  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawShadow(int currentFrame,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  LightType lightType,
+                  int lightIndex,
+                  int face = 0);
 };

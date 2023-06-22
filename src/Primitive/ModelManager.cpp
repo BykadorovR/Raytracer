@@ -1,7 +1,6 @@
 #include "ModelManager.h"
 
 Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
-                               std::shared_ptr<CommandBuffer> commandBuffer,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,
                                std::shared_ptr<RenderPass> render,
@@ -9,7 +8,6 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<Device> device,
                                std::shared_ptr<Settings> settings) {
   _lightManager = lightManager;
-  _commandBuffer = commandBuffer;
   _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
@@ -97,7 +95,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
   _modelsCreated++;
   return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
-                                     _commandBuffer, _commandBufferTransfer, _device, _settings);
+                                     _commandBufferTransfer, _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
 
@@ -107,8 +105,8 @@ void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
 
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Model3DManager::draw(int currentFrame) {
-  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[ModelRenderMode::FULL]->getPipeline());
 
   VkViewport viewport{};
@@ -118,19 +116,19 @@ void Model3DManager::draw(int currentFrame) {
   viewport.height = -std::get<1>(_settings->getResolution());
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
-  vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto pipelineLayout = _pipeline[ModelRenderMode::FULL]->getDescriptorSetLayout();
   auto lightVPLayout = std::find_if(
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
   if (lightVPLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 5, 1,
                             &_lightManager->getDSViewProjection()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -139,7 +137,7 @@ void Model3DManager::draw(int currentFrame) {
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "shadowTexture"; });
   if (shadowTextureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 6, 1,
                             &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
                             nullptr);
@@ -150,14 +148,14 @@ void Model3DManager::draw(int currentFrame) {
                                     return info.first == std::string("light");
                                   });
   if (lightLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[ModelRenderMode::FULL]->getPipelineLayout(), 4, 1,
                             &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   for (auto model : _modelsGLTF) {
     model->setCamera(_camera);
-    model->draw(currentFrame, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL]);
+    model->draw(currentFrame, commandBuffer, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL]);
   }
 }
 
@@ -167,8 +165,12 @@ void Model3DManager::updateAnimation(float deltaTime) {
   }
 }
 
-void Model3DManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
-  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+void Model3DManager::drawShadow(int currentFrame,
+                                std::shared_ptr<CommandBuffer> commandBuffer,
+                                LightType lightType,
+                                int lightIndex,
+                                int face) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[(ModelRenderMode)lightType]->getPipeline());
 
   VkViewport viewport{};
@@ -196,12 +198,12 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
 
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
-  vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_pipeline[ModelRenderMode::POINT]->getPushConstants().find("fragment") !=
       _pipeline[ModelRenderMode::POINT]->getPushConstants().end()) {
@@ -209,7 +211,7 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
       pushConstants.far = 100.f;
-      vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame],
+      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[ModelRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
                          sizeof(PushConstants), sizeof(DepthConstants), &pushConstants);
     }
@@ -223,15 +225,15 @@ void Model3DManager::drawShadow(int currentFrame, LightType lightType, int light
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(currentFrame, _pipeline[ModelRenderMode::DIRECTIONAL], _pipeline[ModelRenderMode::DIRECTIONAL],
-                        lightIndexTotal, view, projection, face);
+      model->drawShadow(currentFrame, commandBuffer, _pipeline[ModelRenderMode::DIRECTIONAL],
+                        _pipeline[ModelRenderMode::DIRECTIONAL], lightIndexTotal, view, projection, face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _settings->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(currentFrame, _pipeline[ModelRenderMode::POINT], _pipeline[ModelRenderMode::POINT],
-                        lightIndexTotal, view, projection, face);
+      model->drawShadow(currentFrame, commandBuffer, _pipeline[ModelRenderMode::POINT],
+                        _pipeline[ModelRenderMode::POINT], lightIndexTotal, view, projection, face);
     }
   }
 }

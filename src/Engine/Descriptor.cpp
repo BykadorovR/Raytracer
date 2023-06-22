@@ -310,7 +310,8 @@ DescriptorSet::DescriptorSet(int number,
   allocInfo.descriptorSetCount = static_cast<uint32_t>(_descriptorSets.size());
   allocInfo.pSetLayouts = layouts.data();
 
-  if (vkAllocateDescriptorSets(_device->getLogicalDevice(), &allocInfo, _descriptorSets.data()) != VK_SUCCESS) {
+  auto sts = vkAllocateDescriptorSets(_device->getLogicalDevice(), &allocInfo, _descriptorSets.data());
+  if (sts != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate descriptor sets!");
   }
 }

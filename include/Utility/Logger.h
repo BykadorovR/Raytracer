@@ -18,8 +18,8 @@ class LoggerGPU {
   std::shared_ptr<State> _state;
 
  public:
-  LoggerGPU(std::shared_ptr<CommandBuffer> buffer, std::shared_ptr<State> state);
-  void initialize(std::string bufferName, int currentFrame);
+  LoggerGPU(std::shared_ptr<State> state);
+  void initialize(std::string bufferName, int currentFrame, std::shared_ptr<CommandBuffer> buffer);
   void begin(std::string marker, int currentFrame);
   void end(int currentFrame);
 };

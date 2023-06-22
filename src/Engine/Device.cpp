@@ -14,6 +14,11 @@ VkQueue Device::getQueue(QueueType type) {
   return queue;
 }
 
+std::mutex& Device::getQueueMutex(QueueType type) {
+  std::unique_lock<std::mutex> lock(_mapMutex);
+  return _queueMutex[type];
+}
+
 bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check if queue supported
   uint32_t queueFamilyCount = 0;

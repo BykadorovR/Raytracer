@@ -78,7 +78,7 @@ class GUI : public InputSubscriber {
                     std::tuple<int, int> size,
                     std::map<std::string, bool*> variable);
   void updateBuffers(int current);
-  void drawFrame(int current, VkCommandBuffer commandBuffer);
+  void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos);
   void mouseNotify(GLFWwindow* window, int button, int action, int mods);

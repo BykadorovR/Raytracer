@@ -2,13 +2,11 @@
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
-                                       std::shared_ptr<CommandBuffer> commandBuffer,
                                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                        std::shared_ptr<State> state) {
   _camera = camera;
   _gui = gui;
   _state = state;
-  _commandBuffer = commandBuffer;
 
   _renderPass = std::make_shared<RenderPass>(state->getDevice());
   _renderPass->initialize(state->getSwapchain()->getImageFormat());
@@ -69,7 +67,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
   }
 }
 
-void DebugVisualization::draw(int currentFrame) {
+void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
   _gui->drawCheckbox("Debug", {20, 100}, {100, 80}, toggleDepth);
@@ -106,7 +104,7 @@ void DebugVisualization::draw(int currentFrame) {
   }
 
   if (_texture != nullptr && _showDepth) {
-    vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       _pipeline->getPipeline());
 
     VkViewport viewport{};
@@ -116,18 +114,18 @@ void DebugVisualization::draw(int currentFrame) {
     viewport.height = -std::get<1>(_state->getSettings()->getResolution());
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
                                 std::get<1>(_state->getSettings()->getResolution()));
-    vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     DepthPush pushConstants;
     pushConstants.near = _camera->getNear();
     pushConstants.far = _camera->getFar();
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
 
     glm::mat4 model = glm::mat4(1.f);
@@ -142,20 +140,20 @@ void DebugVisualization::draw(int currentFrame) {
 
     VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                          VK_INDEX_TYPE_UINT32);
 
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline->getPipelineLayout(), 0, 1, &_cameraSet->getDescriptorSets()[currentFrame], 0,
                             nullptr);
 
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline->getPipelineLayout(), 1, 1, &_textureSet->getDescriptorSets()[currentFrame], 0,
                             nullptr);
 
-    vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
+    vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
                      0);
   }
 }

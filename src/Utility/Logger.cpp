@@ -9,9 +9,8 @@ void LoggerCPU::end() { nvtxRangePop(); }
 
 void LoggerCPU::mark(std::string name) { nvtx3::mark(name); }
 
-LoggerGPU::LoggerGPU(std::shared_ptr<CommandBuffer> buffer, std::shared_ptr<State> state) {
+LoggerGPU::LoggerGPU(std::shared_ptr<State> state) {
   _state = state;
-  _buffer = buffer;
 
   _cmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(
       state->getInstance()->getInstance(), "vkCmdBeginDebugUtilsLabelEXT");
@@ -21,7 +20,8 @@ LoggerGPU::LoggerGPU(std::shared_ptr<CommandBuffer> buffer, std::shared_ptr<Stat
       state->getInstance()->getInstance(), "vkSetDebugUtilsObjectNameEXT");
 }
 
-void LoggerGPU::initialize(std::string name, int currentFrame) {
+void LoggerGPU::initialize(std::string name, int currentFrame, std::shared_ptr<CommandBuffer> buffer) {
+  _buffer = buffer;
   VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {
       .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
       .pNext = NULL,

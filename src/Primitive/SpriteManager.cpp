@@ -2,14 +2,12 @@
 #include <ranges>
 
 SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
-                             std::shared_ptr<CommandBuffer> commandBuffer,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                              std::shared_ptr<DescriptorPool> descriptorPool,
                              std::shared_ptr<RenderPass> render,
                              std::shared_ptr<RenderPass> renderDepth,
                              std::shared_ptr<Device> device,
                              std::shared_ptr<Settings> settings) {
-  _commandBuffer = commandBuffer;
   _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
@@ -75,8 +73,8 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<Texture> texture,
                                                     std::shared_ptr<Texture> normalMap) {
   _spritesCreated++;
-  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandBuffer,
-                                  _commandBufferTransfer, _device, _settings);
+  return std::make_shared<Sprite>(texture, normalMap, _descriptorSetLayout, _descriptorPool, _commandBufferTransfer,
+                                  _device, _settings);
 }
 
 void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
@@ -87,8 +85,8 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());
 }
 
-void SpriteManager::draw(int currentFrame) {
-  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+void SpriteManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[SpriteRenderMode::FULL]->getPipeline());
 
   VkViewport viewport{};
@@ -98,19 +96,19 @@ void SpriteManager::draw(int currentFrame) {
   viewport.height = -std::get<1>(_settings->getResolution());
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
-  vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto pipelineLayout = _pipeline[SpriteRenderMode::FULL]->getDescriptorSetLayout();
   auto lightLayout = std::find_if(
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "light"; });
   if (lightLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[SpriteRenderMode::FULL]->getPipelineLayout(), 2, 1,
                             &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -119,7 +117,7 @@ void SpriteManager::draw(int currentFrame) {
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
   if (lightVPLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[SpriteRenderMode::FULL]->getPipelineLayout(), 3, 1,
                             &_lightManager->getDSViewProjection()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -128,7 +126,7 @@ void SpriteManager::draw(int currentFrame) {
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "shadowTexture"; });
   if (shadowTextureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline[SpriteRenderMode::FULL]->getPipelineLayout(), 4, 1,
                             &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
                             nullptr);
@@ -136,12 +134,16 @@ void SpriteManager::draw(int currentFrame) {
 
   for (auto sprite : _sprites) {
     sprite->setCamera(_camera);
-    sprite->draw(currentFrame, _pipeline[SpriteRenderMode::FULL]);
+    sprite->draw(currentFrame, commandBuffer, _pipeline[SpriteRenderMode::FULL]);
   }
 }
 
-void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightIndex, int face) {
-  vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+void SpriteManager::drawShadow(int currentFrame,
+                               std::shared_ptr<CommandBuffer> commandBuffer,
+                               LightType lightType,
+                               int lightIndex,
+                               int face) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[(SpriteRenderMode)lightType]->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.f;
@@ -168,12 +170,12 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
 
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
-  vkCmdSetScissor(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_pipeline[SpriteRenderMode::POINT]->getPushConstants().find("fragment") !=
       _pipeline[SpriteRenderMode::POINT]->getPushConstants().end()) {
@@ -181,7 +183,7 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
       pushConstants.far = 100.f;
-      vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame],
+      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[SpriteRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                          sizeof(DepthConstants), &pushConstants);
     }
@@ -194,14 +196,15 @@ void SpriteManager::drawShadow(int currentFrame, LightType lightType, int lightI
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::DIRECTIONAL], lightIndexTotal, view, projection,
-                         face);
+      sprite->drawShadow(currentFrame, commandBuffer, _pipeline[SpriteRenderMode::DIRECTIONAL], lightIndexTotal, view,
+                         projection, face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _settings->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(currentFrame, _pipeline[SpriteRenderMode::POINT], lightIndexTotal, view, projection, face);
+      sprite->drawShadow(currentFrame, commandBuffer, _pipeline[SpriteRenderMode::POINT], lightIndexTotal, view,
+                         projection, face);
     }
   }
 }

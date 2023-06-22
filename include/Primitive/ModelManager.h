@@ -14,7 +14,7 @@ class Model3DManager {
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<CommandBuffer> _commandBuffer, _commandBufferTransfer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
@@ -23,7 +23,6 @@ class Model3DManager {
 
  public:
   Model3DManager(std::shared_ptr<LightManager> lightManager,
-                 std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<DescriptorPool> descriptorPool,
                  std::shared_ptr<RenderPass> render,
@@ -35,7 +34,11 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModelGLTF(std::shared_ptr<Model> model);
   void unregisterModelGLTF(std::shared_ptr<Model> model);
-  void draw(int currentFrame);
-  void drawShadow(int currentFrame, LightType lightType, int lightIndex, int face = 0);
+  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawShadow(int currentFrame,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  LightType lightType,
+                  int lightIndex,
+                  int face = 0);
   void updateAnimation(float deltaTime);
 };

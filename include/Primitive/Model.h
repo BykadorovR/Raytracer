@@ -25,10 +25,12 @@ class Model {
   void setDebug(bool debug);
   bool isDebug();
   virtual void draw(int currentFrame,
+                    std::shared_ptr<CommandBuffer> commandBuffer,
                     std::shared_ptr<Pipeline> pipeline,
                     std::shared_ptr<Pipeline> pipelineCullOff) = 0;
 
   virtual void drawShadow(int currentFrame,
+                          std::shared_ptr<CommandBuffer> commandBuffer,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
                           int lightIndex,
@@ -92,7 +94,7 @@ class ModelGLTF : public Model {
     float alphaMaskCutoff = 0.f;
     std::shared_ptr<UniformBuffer> bufferModelAuxilary;
     std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
-    std::vector<std::shared_ptr<DescriptorSet>> descriptorSet;
+    std::shared_ptr<DescriptorSet> descriptorSet;
   };
 
   // Images may be reused by texture objects and are as such separated
@@ -148,7 +150,7 @@ class ModelGLTF : public Model {
   std::shared_ptr<VertexBuffer3D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<CommandBuffer> _commandBuffer, _commandBufferTransfer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
@@ -182,6 +184,7 @@ class ModelGLTF : public Model {
                  std::vector<uint32_t>& indexBuffer,
                  std::vector<Vertex3D>& vertexBuffer);
   void _drawNode(int currentFrame,
+                 std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
                  std::shared_ptr<DescriptorSet> cameraDS,
@@ -196,15 +199,18 @@ class ModelGLTF : public Model {
             std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
-            std::shared_ptr<CommandBuffer> commandBuffer,
             std::shared_ptr<CommandBuffer> commandBufferTransfer,
             std::shared_ptr<Device> device,
             std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
 
-  void draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff);
+  void draw(int currentFrame,
+            std::shared_ptr<CommandBuffer> commandBuffer,
+            std::shared_ptr<Pipeline> pipeline,
+            std::shared_ptr<Pipeline> pipelineCullOff);
   void drawShadow(int currentFrame,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
                   std::shared_ptr<Pipeline> pipeline,
                   std::shared_ptr<Pipeline> pipelineCullOff,
                   int lightIndex,

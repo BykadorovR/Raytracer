@@ -26,13 +26,11 @@ ModelGLTF::ModelGLTF(std::string path,
                      std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
-                     std::shared_ptr<CommandBuffer> commandBuffer,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<Device> device,
                      std::shared_ptr<Settings> settings) {
   _device = device;
   _descriptorPool = descriptorPool;
-  _commandBuffer = commandBuffer;
   _commandBufferTransfer = commandBufferTransfer;
   _lightManager = lightManager;
 
@@ -127,6 +125,7 @@ ModelGLTF::ModelGLTF(std::string path,
   _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                                  commandBufferTransfer, device);
 
+  std::vector<std::reference_wrapper<MaterialGLTF>> processedMaterialsAlpha;
   for (auto& material : _materials) {
     auto diffuseTexture = _stubTexture;
     auto normalTexture = _stubTextureNormal;
@@ -136,17 +135,45 @@ ModelGLTF::ModelGLTF(std::string path,
       if (material.baseColorTextureIndex != material.normalTextureIndex)
         normalTexture = _images[_textures[material.normalTextureIndex].imageIndex].texture;
     }
-    material.descriptorSet.resize(settings->getMaxFramesInFlight());
-    for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-      material.descriptorSet[i] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(),
-                                                                  (*textureLayout).second, _descriptorPool, _device);
+    material.descriptorSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*textureLayout).second,
+                                                             _descriptorPool, _device);
 
-      material.descriptorSet[i]->createGraphicModel(diffuseTexture, normalTexture);
+    material.descriptorSet->createGraphicModel(diffuseTexture, normalTexture);
+
+    // we don't want to create different buffers for same data
+    auto alphaMaterial = std::find_if(
+        processedMaterialsAlpha.begin(), processedMaterialsAlpha.end(), [&](MaterialGLTF& modelGLTF) {
+          if (modelGLTF.alphaMask == 0 && material.alphaMask == 0) return true;
+          if (modelGLTF.alphaMask == 1 && material.alphaMask == 1 &&
+              std::fabs(modelGLTF.alphaMaskCutoff - material.alphaMaskCutoff) < std::numeric_limits<float>::epsilon())
+            return true;
+
+          return false;
+        });
+
+    std::shared_ptr<UniformBuffer> bufferModelAuxilary;
+    std::shared_ptr<DescriptorSet> descriptorSetModelAuxilary;
+    if (alphaMaterial != processedMaterialsAlpha.end()) {
+      bufferModelAuxilary = (*alphaMaterial).get().bufferModelAuxilary;
+      descriptorSetModelAuxilary = (*alphaMaterial).get().descriptorSetModelAuxilary;
+    } else {
+      ModelAuxilary aux{};
+      aux.alphaMask = material.alphaMask;
+      aux.alphaMaskCutoff = material.alphaMaskCutoff;
+
+      bufferModelAuxilary = std::make_shared<UniformBuffer>(1, sizeof(ModelAuxilary), device);
+      void* data;
+      vkMapMemory(_device->getLogicalDevice(), bufferModelAuxilary->getBuffer()[0]->getMemory(), 0, sizeof(aux), 0,
+                  &data);
+      memcpy(data, &aux, sizeof(aux));
+      vkUnmapMemory(_device->getLogicalDevice(), bufferModelAuxilary->getBuffer()[0]->getMemory());
+
+      descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(1, (*alphaMaskLayout).second, descriptorPool,
+                                                                   device);
+      processedMaterialsAlpha.push_back(material);
     }
-    material.bufferModelAuxilary = std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(),
-                                                                   sizeof(ModelAuxilary), device);
-    material.descriptorSetModelAuxilary = std::make_shared<DescriptorSet>(
-        settings->getMaxFramesInFlight(), (*alphaMaskLayout).second, descriptorPool, device);
+    material.bufferModelAuxilary = bufferModelAuxilary;
+    material.descriptorSetModelAuxilary = descriptorSetModelAuxilary;
     material.descriptorSetModelAuxilary->createModelAuxilary(material.bufferModelAuxilary);
   }
 
@@ -705,6 +732,7 @@ void ModelGLTF::updateAnimation(float deltaTime) {
 }
 
 void ModelGLTF::_drawNode(int currentFrame,
+                          std::shared_ptr<CommandBuffer> commandBuffer,
                           std::shared_ptr<Pipeline> pipeline,
                           std::shared_ptr<Pipeline> pipelineCullOff,
                           std::shared_ptr<DescriptorSet> cameraDS,
@@ -737,7 +765,7 @@ void ModelGLTF::_drawNode(int currentFrame,
                                        return info.first == std::string("camera");
                                      });
     if (cameraLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets()[currentFrame], 0,
                               nullptr);
     }
@@ -749,13 +777,13 @@ void ModelGLTF::_drawNode(int currentFrame,
 
     if (node->skin >= 0) {
       if (jointLayout != pipelineLayout.end()) {
-        vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 pipeline->getPipelineLayout(), 1, 1,
                                 &_skins[node->skin].descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
       }
     } else {
       if (jointLayout != pipelineLayout.end()) {
-        vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 pipeline->getPipelineLayout(), 1, 1,
                                 &_descriptorSetJointsDefault->getDescriptorSets()[currentFrame], 0, nullptr);
       }
@@ -775,49 +803,37 @@ void ModelGLTF::_drawNode(int currentFrame,
         if (_materials.size() > 0 && primitive.materialIndex >= 0) {
           auto material = _materials[primitive.materialIndex];
 
-          // pass this matrix to uniforms
-          ModelAuxilary aux{};
-          aux.alphaMask = material.alphaMask;
-          aux.alphaMaskCutoff = material.alphaMaskCutoff;
-
-          void* data;
-          vkMapMemory(_device->getLogicalDevice(), material.bufferModelAuxilary->getBuffer()[currentFrame]->getMemory(),
-                      0, sizeof(aux), 0, &data);
-          memcpy(data, &aux, sizeof(aux));
-          vkUnmapMemory(_device->getLogicalDevice(),
-                        material.bufferModelAuxilary->getBuffer()[currentFrame]->getMemory());
-
           if (alphaMaskLayout != pipelineLayout.end()) {
-            vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+            // 0 in descriptorSetModelAuxilary because we init values in constructor and they can't change during
+            // execution
+            vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipeline->getPipelineLayout(), 3, 1,
-                                    &material.descriptorSetModelAuxilary->getDescriptorSets()[currentFrame], 0,
-                                    nullptr);
+                                    &material.descriptorSetModelAuxilary->getDescriptorSets()[0], 0, nullptr);
           }
 
           {
             auto currentPipeline = pipeline;
             if (material.doubleSided) currentPipeline = pipelineCullOff;
-            vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+            vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               currentPipeline->getPipeline());
             if (textureLayout != pipelineLayout.end()) {
-              vkCmdBindDescriptorSets(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+              vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                                       currentPipeline->getPipelineLayout(), 2, 1,
-                                      &material.descriptorSet[currentFrame]->getDescriptorSets()[currentFrame], 0,
-                                      nullptr);
+                                      &material.descriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
             }
           }
         } else {
-          vkCmdBindPipeline(_commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipeline());
         }
-        vkCmdDrawIndexed(_commandBuffer->getCommandBuffer()[currentFrame], primitive.indexCount, 1,
-                         primitive.firstIndex, 0, 0);
+        vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], primitive.indexCount, 1, primitive.firstIndex,
+                         0, 0);
       }
     }
   }
 
   for (auto& child : node->children) {
-    _drawNode(currentFrame, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
+    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
   }
 }
 
@@ -825,13 +841,16 @@ void ModelGLTF::enableShadow(bool enable) { _enableShadow = enable; }
 
 void ModelGLTF::enableLighting(bool enable) { _enableLighting = enable; }
 
-void ModelGLTF::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::shared_ptr<Pipeline> pipelineCullOff) {
+void ModelGLTF::draw(int currentFrame,
+                     std::shared_ptr<CommandBuffer> commandBuffer,
+                     std::shared_ptr<Pipeline> pipeline,
+                     std::shared_ptr<Pipeline> pipelineCullOff) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _camera->getEye();
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
@@ -839,24 +858,25 @@ void ModelGLTF::draw(int currentFrame, std::shared_ptr<Pipeline> pipeline, std::
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
     int offset = sizeof(LightPush);
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
   }
 
   // All vertices and indices are stored in single buffers, so we only need to bind once
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
-  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraFull, _uniformBufferFull, _camera->getView(),
-              _camera->getProjection(), node);
+    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraFull, _uniformBufferFull,
+              _camera->getView(), _camera->getProjection(), node);
   }
 }
 
 void ModelGLTF::drawShadow(int currentFrame,
+                           std::shared_ptr<CommandBuffer> commandBuffer,
                            std::shared_ptr<Pipeline> pipeline,
                            std::shared_ptr<Pipeline> pipelineCullOff,
                            int lightIndex,
@@ -867,19 +887,19 @@ void ModelGLTF::drawShadow(int currentFrame,
     PushConstants pushConstants;
     pushConstants.jointNum = _jointsNum;
     int offset = 0;
-    vkCmdPushConstants(_commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_VERTEX_BIT, offset, sizeof(PushConstants), &pushConstants);
   }
 
   // All vertices and indices are stored in single buffers, so we only need to bind once
   VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(_commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
-  vkCmdBindIndexBuffer(_commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
                        VK_INDEX_TYPE_UINT32);
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
+    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
               _uniformBufferDepth[lightIndex][face], view, projection, node);
   }
 }
