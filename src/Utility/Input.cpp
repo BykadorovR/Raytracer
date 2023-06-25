@@ -2,15 +2,15 @@
 #include <memory>
 
 static void cursorCallback(GLFWwindow* window, double xpos, double ypos) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(xpos, ypos);
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
 }
 
 static void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(button, action, mods);
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
 }
 
 static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(key, action, mods);
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, action, mods);
 }
 
 Input::Input(std::shared_ptr<Window> window) {
@@ -21,21 +21,21 @@ Input::Input(std::shared_ptr<Window> window) {
   glfwSetKeyCallback(window->getWindow(), keyCallback);
 }
 
-void Input::keyHandler(int key, int action, int mods) {
+void Input::keyHandler(GLFWwindow* window, int key, int action, int mods) {
   for (auto& sub : _subscribers) {
-    sub->keyNotify(key, action, mods);
+    sub->keyNotify(window, key, action, mods);
   }
 }
 
-void Input::cursorHandler(double xpos, double ypos) {
+void Input::cursorHandler(GLFWwindow* window, double xpos, double ypos) {
   for (auto& sub : _subscribers) {
-    sub->cursorNotify(xpos, ypos);
+    sub->cursorNotify(window, xpos, ypos);
   }
 }
 
-void Input::mouseHandler(int button, int action, int mods) {
+void Input::mouseHandler(GLFWwindow* window, int button, int action, int mods) {
   for (auto& sub : _subscribers) {
-    sub->mouseNotify(button, action, mods);
+    sub->mouseNotify(window, button, action, mods);
   }
 }
 

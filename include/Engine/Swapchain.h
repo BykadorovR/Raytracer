@@ -14,7 +14,10 @@ class Swapchain {
   VkExtent2D _swapchainExtent;
 
  public:
-  Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> surface, std::shared_ptr<Device> device);
+  Swapchain(VkFormat format,
+            std::shared_ptr<Window> window,
+            std::shared_ptr<Surface> surface,
+            std::shared_ptr<Device> device);
   VkSwapchainKHR& getSwapchain();
   VkExtent2D& getSwapchainExtent();
   std::vector<std::shared_ptr<ImageView>>& getImageViews();

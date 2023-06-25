@@ -27,6 +27,11 @@ void Shader::add(std::string path, VkShaderStageFlagBits type) {
   _shaders[type].pName = "main";
 }
 
+void Shader::setSpecializationInfo(VkSpecializationInfo info, VkShaderStageFlagBits type) {
+  _specializationInfo = info;
+  _shaders[type].pSpecializationInfo = &_specializationInfo;
+}
+
 VkPipelineShaderStageCreateInfo& Shader::getShaderStageInfo(VkShaderStageFlagBits type) { return _shaders[type]; }
 
 Shader::~Shader() {

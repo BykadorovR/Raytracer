@@ -63,8 +63,8 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
   // validation
   createInfo.enabledLayerCount = 0;
   createInfo.pNext = nullptr;
+  VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
   if (_validation) {
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
     createInfo.ppEnabledLayerNames = _validationLayers.data();
 
@@ -85,7 +85,7 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
   }
 
   if (_validation) {
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;

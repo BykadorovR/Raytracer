@@ -14,10 +14,10 @@ class Texture {
 
  public:
   Texture(std::string path,
-          std::shared_ptr<CommandPool> commandPool,
-          std::shared_ptr<Queue> queue,
+          VkSamplerAddressMode mode,
+          std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<Device> device);
-  Texture(std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device);
+  Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device);
   std::shared_ptr<ImageView> getImageView();
   std::shared_ptr<Sampler> getSampler();
 };

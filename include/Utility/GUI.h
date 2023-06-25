@@ -1,3 +1,4 @@
+#pragma once
 #include <imgui.h>
 #include "Device.h"
 #include "Render.h"
@@ -21,8 +22,8 @@ struct VertexGUI {
     return bindingDescription;
   }
 
-  static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+  static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{3};
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -55,8 +56,6 @@ class GUI : public InputSubscriber {
   std::array<std::shared_ptr<Buffer>, 2> _indexBuffer;
   int _lastBuffer = 0;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
-  std::shared_ptr<Queue> _queue;
-  std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<DescriptorPool> _descriptorPool;
@@ -64,28 +63,26 @@ class GUI : public InputSubscriber {
   std::shared_ptr<ImageView> _imageView;
   std::array<int32_t, 2> _vertexCount = {0, 0};
   std::array<int32_t, 2> _indexCount = {0, 0};
-
+  std::map<std::string, VkDescriptorSet> _textureSet;
   int _calls = 0;
 
  public:
   GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
-  void initialize(std::shared_ptr<RenderPass> renderPass,
-                  std::shared_ptr<Queue> queue,
-                  std::shared_ptr<CommandPool> commandPool);
-  void addText(std::string name,
-               std::tuple<int, int> position,
-               std::tuple<int, int> size,
-               std::vector<std::string> text);
-  void addCheckbox(std::string name,
-                   std::tuple<int, int> position,
-                   std::tuple<int, int> size,
-                   std::map<std::string, bool*> variable);
+  void initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void drawText(std::string name,
+                std::tuple<int, int> position,
+                std::tuple<int, int> size,
+                std::vector<std::string> text);
+  void drawCheckbox(std::string name,
+                    std::tuple<int, int> position,
+                    std::tuple<int, int> size,
+                    std::map<std::string, bool*> variable);
   void updateBuffers(int current);
-  void drawFrame(int current, VkCommandBuffer commandBuffer);
+  void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 
-  void cursorNotify(float xPos, float yPos);
-  void mouseNotify(int button, int action, int mods);
-  void keyNotify(int key, int action, int mods);
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
+  void keyNotify(GLFWwindow* window, int key, int action, int mods);
 
   ~GUI();
 };

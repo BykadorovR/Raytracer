@@ -56,6 +56,15 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+ExternalProject_Add(
+  nvtx
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/nvtx
+  GIT_REPOSITORY https://github.com/NVIDIA/NVTX.git
+  GIT_TAG release-v3
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
@@ -74,7 +83,7 @@ ExternalProject_Add(
   imgui
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui
-  GIT_TAG 713e034d95f6cc8a57ca504d52cb4f60da6359d9
+  GIT_TAG 70cca1eac07aa3809bdd3717253c3754a5b7cfcc
   CONFIGURE_COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/
   INSTALL_COMMAND ""
 )
@@ -114,17 +123,17 @@ add_executable(${PROJECT_NAME} ${app_header_graphic} ${app_source_graphic}
                                ${app_header_engine} ${app_source_engine}
                                ${app_source_entry})
 ###############################
-
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader)
+add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader nvtx)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinygltf/src/tinygltf)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinyobjloader/src/tinyobjloader)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/nvtx/src/nvtx/c/include)
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)

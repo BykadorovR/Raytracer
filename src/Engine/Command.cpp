@@ -1,16 +1,19 @@
 #include "Command.h"
 
-CommandPool::CommandPool(std::shared_ptr<Device> device) {
+CommandPool::CommandPool(QueueType type, std::shared_ptr<Device> device) {
   _device = device;
+  _type = type;
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = device->getSupportedGraphicsFamilyIndex().value();
+  poolInfo.queueFamilyIndex = device->getSupportedFamilyIndex(type).value();
 
   if (vkCreateCommandPool(device->getLogicalDevice(), &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics command pool!");
   }
 }
+
+QueueType CommandPool::getType() { return _type; }
 
 VkCommandPool& CommandPool::getCommandPool() { return _commandPool; }
 
@@ -33,24 +36,33 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
   }
 }
 
-void CommandBuffer::beginSingleTimeCommands(int commandNumber) {
+void CommandBuffer::beginCommands(int cmd) {
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-  vkBeginCommandBuffer(_buffer[commandNumber], &beginInfo);
+  vkBeginCommandBuffer(_buffer[cmd], &beginInfo);
 }
 
-void CommandBuffer::endSingleTimeCommands(int commandNumber, std::shared_ptr<Queue> queue) {
-  vkEndCommandBuffer(_buffer[commandNumber]);
+void CommandBuffer::endCommands(int cmd) {
+  vkEndCommandBuffer(_buffer[cmd]);
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &_buffer[commandNumber];
+  submitInfo.pCommandBuffers = &_buffer[cmd];
+  auto queue = _device->getQueue(_pool->getType());
+  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
+  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  // instead of fence
+  vkQueueWaitIdle(queue);
+}
 
-  vkQueueSubmit(queue->getGraphicQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-  vkQueueWaitIdle(queue->getGraphicQueue());
+void CommandBuffer::endCommands(int cmd, VkSubmitInfo info, std::shared_ptr<Fence> fence) {
+  vkEndCommandBuffer(_buffer[cmd]);
+  auto queue = _device->getQueue(_pool->getType());
+  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
+  vkQueueSubmit(queue, 1, &info, fence->getFence());
 }
 
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }

@@ -58,7 +58,7 @@ void DescriptorSetLayout::createCompute() {
   }
 }
 
-void DescriptorSetLayout::createGraphic() {
+void DescriptorSetLayout::createCamera() {
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
   uboLayoutBinding.descriptorCount = 1;
@@ -66,18 +66,168 @@ void DescriptorSetLayout::createGraphic() {
   uboLayoutBinding.pImmutableSamplers = nullptr;
   uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &uboLayoutBinding;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createGraphicModel() {
+  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  bindings[0].binding = 0;
+  bindings[0].descriptorCount = 1;
+  bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[0].pImmutableSamplers = nullptr;
+  bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  bindings[1].binding = 1;
+  bindings[1].descriptorCount = 1;
+  bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[1].pImmutableSamplers = nullptr;
+  bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = bindings.size();
+  layoutInfo.pBindings = bindings.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createGraphic() {
   VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-  samplerLayoutBinding.binding = 1;
+  samplerLayoutBinding.binding = 0;
   samplerLayoutBinding.descriptorCount = 1;
   samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   samplerLayoutBinding.pImmutableSamplers = nullptr;
   samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &samplerLayoutBinding;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createModelAuxilary() {
+  VkDescriptorSetLayoutBinding modelAuxilary{};
+  modelAuxilary.binding = 0;
+  modelAuxilary.descriptorCount = 1;
+  modelAuxilary.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  modelAuxilary.pImmutableSamplers = nullptr;
+  modelAuxilary.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &modelAuxilary;
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createShadowTexture() {
+  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  bindings[0].binding = 0;
+  bindings[0].descriptorCount = 2;
+  bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[0].pImmutableSamplers = nullptr;
+  bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  bindings[1].binding = 1;
+  bindings[1].descriptorCount = 4;
+  bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[1].pImmutableSamplers = nullptr;
+  bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = bindings.size();
   layoutInfo.pBindings = bindings.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createLightVP() {
+  std::array<VkDescriptorSetLayoutBinding, 2> ssboLayoutBinding{};
+  ssboLayoutBinding[0].binding = 0;
+  ssboLayoutBinding[0].descriptorCount = 1;
+  ssboLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[0].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  ssboLayoutBinding[1].binding = 1;
+  ssboLayoutBinding[1].descriptorCount = 1;
+  ssboLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[1].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = ssboLayoutBinding.size();
+  layoutInfo.pBindings = ssboLayoutBinding.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createLight() {
+  std::array<VkDescriptorSetLayoutBinding, 2> ssboLayoutBinding{};
+  ssboLayoutBinding[0].binding = 0;
+  ssboLayoutBinding[0].descriptorCount = 1;
+  ssboLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[0].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  ssboLayoutBinding[1].binding = 1;
+  ssboLayoutBinding[1].descriptorCount = 1;
+  ssboLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding[1].pImmutableSamplers = nullptr;
+  ssboLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = ssboLayoutBinding.size();
+  layoutInfo.pBindings = ssboLayoutBinding.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
+void DescriptorSetLayout::createJoints() {
+  VkDescriptorSetLayoutBinding ssboLayoutBinding{};
+  ssboLayoutBinding.binding = 0;
+  ssboLayoutBinding.descriptorCount = 1;
+  ssboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  ssboLayoutBinding.pImmutableSamplers = nullptr;
+  ssboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+  VkDescriptorSetLayoutBinding bindings = ssboLayoutBinding;
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = 1;
+  layoutInfo.pBindings = &bindings;
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -121,13 +271,15 @@ DescriptorSetLayout::~DescriptorSetLayout() {
 DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
   _device = device;
 
-  std::array<VkDescriptorPoolSize, 3> poolSizes{};
+  std::array<VkDescriptorPoolSize, 4> poolSizes{};
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   poolSizes[0].descriptorCount = static_cast<uint32_t>(number);
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   poolSizes[1].descriptorCount = static_cast<uint32_t>(number);
   poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   poolSizes[2].descriptorCount = static_cast<uint32_t>(number);
+  poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  poolSizes[3].descriptorCount = static_cast<uint32_t>(number);
 
   VkDescriptorPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -158,32 +310,34 @@ DescriptorSet::DescriptorSet(int number,
   allocInfo.descriptorSetCount = static_cast<uint32_t>(_descriptorSets.size());
   allocInfo.pSetLayouts = layouts.data();
 
-  if (vkAllocateDescriptorSets(_device->getLogicalDevice(), &allocInfo, _descriptorSets.data()) != VK_SUCCESS) {
+  auto sts = vkAllocateDescriptorSets(_device->getLogicalDevice(), &allocInfo, _descriptorSets.data());
+  if (sts != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate descriptor sets!");
   }
 }
 
-void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
-    bufferInfo.offset = 0;
-    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
-
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
     // TODO: make appropriate name
     imageInfo.imageView = texture->getImageView()->getImageView();
     imageInfo.sampler = texture->getSampler()->getSampler();
 
+    VkDescriptorImageInfo normalInfo{};
+    normalInfo.imageLayout = normal->getImageView()->getImage()->getImageLayout();
+    // TODO: make appropriate name
+    normalInfo.imageView = normal->getImageView()->getImageView();
+    normalInfo.sampler = normal->getSampler()->getSampler();
+
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = _descriptorSets[i];
     descriptorWrites[0].dstBinding = 0;
     descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferInfo;
+    descriptorWrites[0].pImageInfo = &imageInfo;
 
     descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[1].dstSet = _descriptorSets[i];
@@ -191,10 +345,165 @@ void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture, std::shared_
     descriptorWrites[1].dstArrayElement = 0;
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfo;
+    descriptorWrites[1].pImageInfo = &normalInfo;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);
+  }
+}
+
+void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
+    // TODO: make appropriate name
+    imageInfo.imageView = texture->getImageView()->getImageView();
+    imageInfo.sampler = texture->getSampler()->getSampler();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
+                                        std::vector<std::shared_ptr<Texture>> point) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    std::vector<VkDescriptorImageInfo> directionalImageInfo(directional.size());
+    for (int j = 0; j < directionalImageInfo.size(); j++) {
+      directionalImageInfo[j].imageLayout = directional[j]->getImageView()->getImage()->getImageLayout();
+      // TODO: make appropriate name
+      directionalImageInfo[j].imageView = directional[j]->getImageView()->getImageView();
+      directionalImageInfo[j].sampler = directional[j]->getSampler()->getSampler();
+    }
+
+    std::vector<VkDescriptorImageInfo> pointImageInfo(point.size());
+    for (int j = 0; j < pointImageInfo.size(); j++) {
+      pointImageInfo[j].imageLayout = point[j]->getImageView()->getImage()->getImageLayout();
+      // TODO: make appropriate name
+      pointImageInfo[j].imageView = point[j]->getImageView()->getImageView();
+      pointImageInfo[j].sampler = point[j]->getSampler()->getSampler();
+    }
+
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[0].descriptorCount = directionalImageInfo.size();
+    descriptorWrites[0].pImageInfo = directionalImageInfo.data();
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[1].descriptorCount = pointImageInfo.size();
+    descriptorWrites[1].pImageInfo = pointImageInfo.data();
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
+                           descriptorWrites.data(), 0, nullptr);
+  }
+}
+
+void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createCamera(std::shared_ptr<UniformBuffer> uniformBuffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferDirectionalInfo{};
+    bufferDirectionalInfo.buffer = bufferDirectional->getData();
+    bufferDirectionalInfo.offset = 0;
+    bufferDirectionalInfo.range = bufferDirectional->getSize();
+
+    VkDescriptorBufferInfo bufferPointInfo{};
+    bufferPointInfo.buffer = bufferPoint->getData();
+    bufferPointInfo.offset = 0;
+    bufferPointInfo.range = bufferPoint->getSize();
+
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferDirectionalInfo;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &bufferPointInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+  }
+}
+
+void DescriptorSet::createJoints(std::shared_ptr<Buffer> buffer) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = buffer->getData();
+    bufferInfo.offset = 0;
+    bufferInfo.range = buffer->getSize();
+
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = _descriptorSets[i];
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = 0;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pBufferInfo = &bufferInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
   }
 }
 

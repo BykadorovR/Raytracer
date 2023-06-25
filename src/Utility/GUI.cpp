@@ -25,12 +25,7 @@ GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::s
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
-void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
-                     std::shared_ptr<Queue> queue,
-                     std::shared_ptr<CommandPool> commandPool) {
-  _commandPool = commandPool;
-  _queue = queue;
-
+void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGuiIO& io = ImGui::GetIO();
 
   // Create font texture
@@ -64,19 +59,19 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
   _fontImage = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      std::tuple{texWidth, texHeight}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, commandPool, queue);
-  _fontImage->copyFrom(stagingBuffer, commandPool, queue);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, commandPool, queue);
-  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_ASPECT_COLOR_BIT, _device);
-  _fontTexture = std::make_shared<Texture>(_imageView, _device);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBufferTransfer);
+  _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, commandBufferTransfer);
+  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, _device);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _device);
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), commandPool, queue, _device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), _device);
   _descriptorSet = std::make_shared<DescriptorSet>(2, _descriptorSetLayout, _descriptorPool, _device);
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
@@ -84,14 +79,17 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass,
   shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  _pipeline = std::make_shared<Pipeline>(shader, _descriptorSetLayout, _device);
-  _pipeline->createGUI(VertexGUI::getBindingDescription(), VertexGUI::getAttributeDescriptions(), renderPass);
+  _pipeline = std::make_shared<Pipeline>(_device);
+  _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                       {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
+                       VertexGUI::getAttributeDescriptions(), renderPass);
 }
 
-void GUI::addCheckbox(std::string name,
-                      std::tuple<int, int> position,
-                      std::tuple<int, int> size,
-                      std::map<std::string, bool*> variable) {
+void GUI::drawCheckbox(std::string name,
+                       std::tuple<int, int> position,
+                       std::tuple<int, int> size,
+                       std::map<std::string, bool*> variable) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
@@ -103,10 +101,10 @@ void GUI::addCheckbox(std::string name,
   _calls++;
 }
 
-void GUI::addText(std::string name,
-                  std::tuple<int, int> position,
-                  std::tuple<int, int> size,
-                  std::vector<std::string> text) {
+void GUI::drawText(std::string name,
+                   std::tuple<int, int> position,
+                   std::tuple<int, int> size,
+                   std::vector<std::string> text) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto value : text) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
@@ -162,10 +160,11 @@ void GUI::updateBuffers(int current) {
   _indexBuffer[current]->flush();
 }
 
-void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
+void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   ImGuiIO& io = ImGui::GetIO();
 
-  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipeline->getPipeline());
 
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -173,7 +172,7 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
   std::tie(viewport.width, viewport.height) = _resolution;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[current], 0, 1, &viewport);
 
   // UI scale and translate via push constants
   UniformData uniformData{};
@@ -186,8 +185,9 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
   memcpy(data, &uniformData, sizeof(uniformData));
   vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory());
 
-  vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipelineLayout(), 0, 1,
-                          &_descriptorSet->getDescriptorSets()[current], 0, nullptr);
+  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,
+                          nullptr);
 
   // Render commands
   ImDrawData* imDrawData = ImGui::GetDrawData();
@@ -196,8 +196,10 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
 
   if (imDrawData->CmdListsCount > 0) {
     VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &_vertexBuffer[current]->getData(), offsets);
-    vkCmdBindIndexBuffer(commandBuffer, _indexBuffer[current]->getData(), 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[current], 0, 1, &_vertexBuffer[current]->getData(),
+                           offsets);
+    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[current], _indexBuffer[current]->getData(), 0,
+                         VK_INDEX_TYPE_UINT16);
 
     for (int32_t i = 0; i < imDrawData->CmdListsCount; i++) {
       const ImDrawList* cmd_list = imDrawData->CmdLists[i];
@@ -208,8 +210,8 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
         scissorRect.offset.y = std::max((int32_t)(pcmd->ClipRect.y), 0);
         scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
         scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissorRect);
-        vkCmdDrawIndexed(commandBuffer, pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
+        vkCmdSetScissor(commandBuffer->getCommandBuffer()[current], 0, 1, &scissorRect);
+        vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[current], pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
         indexOffset += pcmd->ElemCount;
       }
       vertexOffset += cmd_list->VtxBuffer.Size;
@@ -219,12 +221,12 @@ void GUI::drawFrame(int current, VkCommandBuffer commandBuffer) {
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(float xPos, float yPos) {
+void GUI::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
 }
 
-void GUI::mouseNotify(int button, int action, int mods) {
+void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     io.MouseDown[0] = true;
@@ -240,4 +242,4 @@ void GUI::mouseNotify(int button, int action, int mods) {
   }
 }
 
-void GUI::keyNotify(int key, int action, int mods) {}
+void GUI::keyNotify(GLFWwindow* window, int key, int action, int mods) {}

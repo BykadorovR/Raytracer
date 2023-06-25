@@ -1,15 +1,17 @@
 #include "Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> surface, std::shared_ptr<Device> device) {
+Swapchain::Swapchain(VkFormat format,
+                     std::shared_ptr<Window> window,
+                     std::shared_ptr<Surface> surface,
+                     std::shared_ptr<Device> device) {
   _device = device;
 
   auto physicalDevice = device->getPhysicalDevice();
   // pick surface format
   VkSurfaceFormatKHR surfaceFormat = device->getSupportedSurfaceFormats()[0];
   for (const auto& availableFormat : device->getSupportedSurfaceFormats()) {
-    if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-        availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+    if (availableFormat.format == format && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       surfaceFormat = availableFormat;
     }
   }
@@ -56,11 +58,11 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-  uint32_t queueFamilyIndices[] = {device->getSupportedGraphicsFamilyIndex().value(),
-                                   device->getSupportedPresentFamilyIndex().value()};
+  uint32_t queueFamilyIndices[] = {device->getSupportedFamilyIndex(QueueType::GRAPHIC).value(),
+                                   device->getSupportedFamilyIndex(QueueType::PRESENT).value()};
   // if we have separate queues for presentation and graphic we can use concurrent mode
   // render using graphic queue and show using presentation queue
-  if (device->getSupportedGraphicsFamilyIndex() != device->getSupportedPresentFamilyIndex()) {
+  if (device->getSupportedFamilyIndex(QueueType::GRAPHIC) != device->getSupportedFamilyIndex(QueueType::PRESENT)) {
     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     createInfo.queueFamilyIndexCount = 2;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -89,18 +91,17 @@ Swapchain::Swapchain(std::shared_ptr<Window> window, std::shared_ptr<Surface> su
   for (uint32_t i = 0; i < _swapchainImages.size(); i++) {
     auto image = std::make_shared<Image>(_swapchainImages[i], std::tuple{extent.width, extent.height},
                                          surfaceFormat.format, device);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
+    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, device);
 
     _swapchainImageViews[i] = imageView;
   }
 
-  VkFormat depthFormat = _device->findDepthBufferSupportedFormat(
-      {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
-      VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-  _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+  VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+  _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, 1, depthFormat,
+                                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_ASPECT_DEPTH_BIT, device);
+  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_DEPTH_BIT,
+                                                device);
 }
 
 VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }

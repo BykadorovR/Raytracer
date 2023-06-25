@@ -6,9 +6,9 @@
 
 class InputSubscriber {
  public:
-  virtual void cursorNotify(float xPos, float yPos) = 0;
-  virtual void mouseNotify(int button, int action, int mods) = 0;
-  virtual void keyNotify(int key, int action, int mods) = 0;
+  virtual void cursorNotify(GLFWwindow* window, float xPos, float yPos) = 0;
+  virtual void mouseNotify(GLFWwindow* window, int button, int action, int mods) = 0;
+  virtual void keyNotify(GLFWwindow* window, int key, int action, int mods) = 0;
 };
 
 static void cursorCallback(GLFWwindow* window, double xpos, double ypos);
@@ -22,8 +22,8 @@ class Input {
 
  public:
   Input(std::shared_ptr<Window> window);
-  void cursorHandler(double xpos, double ypos);
-  void mouseHandler(int button, int action, int mods);
-  void keyHandler(int key, int action, int mods);
+  void cursorHandler(GLFWwindow* window, double xpos, double ypos);
+  void mouseHandler(GLFWwindow* window, int button, int action, int mods);
+  void keyHandler(GLFWwindow* window, int key, int action, int mods);
   void subscribe(std::shared_ptr<InputSubscriber> sub);
 };

@@ -11,6 +11,13 @@ class DescriptorSetLayout {
  public:
   DescriptorSetLayout(std::shared_ptr<Device> device);
   void createGraphic();
+  void createGraphicModel();
+  void createCamera();
+  void createJoints();
+  void createLight();
+  void createLightVP();
+  void createShadowTexture();
+  void createModelAuxilary();
   void createCompute();
   void createGUI();
   VkDescriptorSetLayout& getDescriptorSetLayout();
@@ -38,7 +45,14 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
-  void createGraphic(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createJoints(std::shared_ptr<Buffer> buffer);
+  void createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint);
+  void createCamera(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
+  void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
+                           std::vector<std::shared_ptr<Texture>> point);
+  void createGraphic(std::shared_ptr<Texture> texture);
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,
                      std::shared_ptr<UniformBuffer> uniformSpheres,

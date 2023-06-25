@@ -31,6 +31,7 @@ Buffer::Buffer(VkDeviceSize size,
     if ((memRequirements.memoryTypeBits & (1 << i)) &&
         (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
       memoryID = i;
+      break;
     }
   }
   if (memoryID < 0) throw std::runtime_error("failed to find suitable memory type!");
@@ -44,17 +45,14 @@ Buffer::Buffer(VkDeviceSize size,
   vkBindBufferMemory(device->getLogicalDevice(), _data, _memory, 0);
 }
 
-void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
-                      std::shared_ptr<CommandPool> commandPool,
-                      std::shared_ptr<Queue> queue) {
-  auto commandBuffer = std::make_shared<CommandBuffer>(1, commandPool, _device);
-  commandBuffer->beginSingleTimeCommands(0);
+void Buffer::copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  commandBufferTransfer->beginCommands(0);
 
   VkBufferCopy copyRegion{};
   copyRegion.size = _size;
-  vkCmdCopyBuffer(commandBuffer->getCommandBuffer()[0], buffer->getData(), _data, 1, &copyRegion);
+  vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _data, 1, &copyRegion);
 
-  commandBuffer->endSingleTimeCommands(0, queue);
+  commandBufferTransfer->endCommands(0);
 }
 
 VkDeviceSize& Buffer::getSize() { return _size; }
@@ -92,10 +90,9 @@ Buffer::~Buffer() {
   vkFreeMemory(_device->getLogicalDevice(), _memory, nullptr);
 }
 
-VertexBuffer::VertexBuffer(std::vector<Vertex> vertices,
-                           std::shared_ptr<CommandPool> commandPool,
-                           std::shared_ptr<Queue> queue,
-                           std::shared_ptr<Device> device) {
+VertexBuffer2D::VertexBuffer2D(std::vector<Vertex2D> vertices,
+                               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                               std::shared_ptr<Device> device) {
   VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
   auto stagingBuffer = std::make_shared<Buffer>(
@@ -110,14 +107,35 @@ VertexBuffer::VertexBuffer(std::vector<Vertex> vertices,
   _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
 
-  _buffer->copyFrom(stagingBuffer, commandPool, queue);
+  _buffer->copyFrom(stagingBuffer, commandBufferTransfer);
 }
 
-std::shared_ptr<Buffer> VertexBuffer::getBuffer() { return _buffer; }
+std::shared_ptr<Buffer> VertexBuffer2D::getBuffer() { return _buffer; }
+
+VertexBuffer3D::VertexBuffer3D(std::vector<Vertex3D> vertices,
+                               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                               std::shared_ptr<Device> device) {
+  VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+  auto stagingBuffer = std::make_shared<Buffer>(
+      bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, device);
+
+  void* data;
+  vkMapMemory(device->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+  memcpy(data, vertices.data(), (size_t)bufferSize);
+  vkUnmapMemory(device->getLogicalDevice(), stagingBuffer->getMemory());
+
+  _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+
+  _buffer->copyFrom(stagingBuffer, commandBufferTransfer);
+}
+
+std::shared_ptr<Buffer> VertexBuffer3D::getBuffer() { return _buffer; }
 
 IndexBuffer::IndexBuffer(std::vector<uint32_t> indices,
-                         std::shared_ptr<CommandPool> commandPool,
-                         std::shared_ptr<Queue> queue,
+                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
                          std::shared_ptr<Device> device) {
   VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
 
@@ -133,16 +151,12 @@ IndexBuffer::IndexBuffer(std::vector<uint32_t> indices,
   _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
 
-  _buffer->copyFrom(stagingBuffer, commandPool, queue);
+  _buffer->copyFrom(stagingBuffer, commandBufferTransfer);
 }
 
 std::shared_ptr<Buffer> IndexBuffer::getBuffer() { return _buffer; }
 
-UniformBuffer::UniformBuffer(int number,
-                             int size,
-                             std::shared_ptr<CommandPool> commandPool,
-                             std::shared_ptr<Queue> queue,
-                             std::shared_ptr<Device> device) {
+UniformBuffer::UniformBuffer(int number, int size, std::shared_ptr<Device> device) {
   _buffer.resize(number);
   VkDeviceSize bufferSize = size;
 

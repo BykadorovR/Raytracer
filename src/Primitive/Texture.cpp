@@ -3,13 +3,12 @@
 #include "Buffer.h"
 
 Texture::Texture(std::string path,
-                 std::shared_ptr<CommandPool> commandPool,
-                 std::shared_ptr<Queue> queue,
+                 VkSamplerAddressMode mode,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<Device> device) {
   _device = device;
   // load texture
   int texWidth, texHeight, texChannels;
-  stbi_set_flip_vertically_on_load(true);
   stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   VkDeviceSize imageSize = texWidth * texHeight * 4;
 
@@ -28,21 +27,22 @@ Texture::Texture(std::string path,
   stbi_image_free(pixels);
   // image
   auto image = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      std::tuple{texWidth, texHeight}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-  image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, commandPool, queue);
-  image->copyFrom(stagingBuffer, commandPool, queue);
-  image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, commandPool,
-                      queue);
+  image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBufferTransfer);
+  image->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 1,
+                      commandBufferTransfer);
   // image view
-  _imageView = std::make_shared<ImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT, device);
+  _imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, device);
 
-  _sampler = std::make_shared<Sampler>(device);
+  _sampler = std::make_shared<Sampler>(mode, device);
 }
 
-Texture::Texture(std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
+Texture::Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
+  _device = device;
   _imageView = imageView;
-  _sampler = std::make_shared<Sampler>(device);
+  _sampler = std::make_shared<Sampler>(mode, device);
 }
 
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }
