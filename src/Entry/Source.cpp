@@ -50,8 +50,11 @@ std::shared_ptr<Settings> settings;
 std::shared_ptr<State> state;
 std::array<VkClearValue, 2> clearValues{};
 
-std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
-std::vector<std::shared_ptr<Fence>> inFlightFences;
+std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, directedLightSemaphore;
+std::vector<std::vector<std::shared_ptr<Semaphore>>> pointLightSemaphores;
+
+std::vector<std::shared_ptr<Fence>> inFlightFences, directedLightFences;
+std::vector<std::vector<std::shared_ptr<Fence>>> pointLightFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
@@ -72,10 +75,18 @@ std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::tuple<int, int> depthResolution = {1024, 1024};
 std::thread directionalThread;
+std::vector<std::thread> pointThread;
 std::mutex directionalMutex;
 std::condition_variable directionalCV;
+std::mutex pointMutex;
+std::condition_variable pointCV;
 std::future<void> updateJoints;
 bool updateDirectional = false;
+std::vector<bool> updatePoint;
+
+std::mutex lightMutex;
+std::condition_variable lightCV;
+std::atomic<int> lightCounter = 0;
 bool shouldWork = true;
 
 VkRenderPassBeginInfo render(int index,
@@ -98,12 +109,22 @@ void directionalLightCalculator() {
   auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
   auto loggerGPU = std::make_shared<LoggerGPU>(state);
   loggerGPU->initialize("Directional", currentFrame, commandBuffer);
+  bool start = false;
   while (shouldWork) {
-    std::unique_lock<std::mutex> lock(directionalMutex);
-    if (updateDirectional == false) {
-      directionalCV.wait(lock);
+    {
+      std::unique_lock<std::mutex> lock(directionalMutex);
+      while (updateDirectional == false) {
+        directionalCV.wait(lock);
+      }
+
+      if (shouldWork == false) break;
+
+      if (updateDirectional) {
+        updateDirectional = false;
+        start = true;
+      }
     }
-    if (updateDirectional) {
+    if (start) {
       // record command buffer
       commandBuffer->beginCommands(currentFrame);
       updateDirectional = false;
@@ -133,8 +154,92 @@ void directionalLightCalculator() {
       }
       loggerGPU->end(currentFrame);
 
+      VkSubmitInfo submitInfo{};
+      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      // no need to wait anything because this thread starts in main thread only when needed
+      submitInfo.commandBufferCount = 1;
+      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+
+      VkSemaphore signalSemaphores[] = {directedLightSemaphore[currentFrame]->getSemaphore()};
+      submitInfo.signalSemaphoreCount = 1;
+      submitInfo.pSignalSemaphores = signalSemaphores;
       // record command buffer
-      commandBuffer->endCommands(currentFrame);
+      commandBuffer->endCommands(currentFrame, submitInfo, directedLightFences[currentFrame]);
+      lightCounter++;
+      {
+        std::unique_lock<std::mutex> lock(lightMutex);
+        lightCV.notify_all();
+      }
+    }
+  }
+}
+
+void pointLightCalculator(int index, int face) {
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
+  auto loggerGPU = std::make_shared<LoggerGPU>(state);
+  auto id = face + index * 6;
+  loggerGPU->initialize("Point " + std::to_string(index) + "x" + std::to_string(face), currentFrame, commandBuffer);
+  bool start = false;
+  while (shouldWork) {
+    {
+      std::unique_lock<std::mutex> lock(pointMutex);
+      while (updatePoint[id] == false) {
+        pointCV.wait(lock);
+      }
+
+      if (shouldWork == false) break;
+
+      if (updatePoint[id]) {
+        updatePoint[id] = false;
+        start = true;
+      }
+    }
+    if (start) {
+      start = false;
+      // record command buffer
+      commandBuffer->beginCommands(currentFrame);
+      loggerGPU->begin("Point to depth buffer", currentFrame);
+      auto renderPassInfo = render(currentFrame, renderPassDepth,
+                                   frameBufferDepth[index + lightManager->getDirectionalLights().size()][face]);
+      clearValues[0].depthStencil = {1.0f, 0};
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = clearValues.data();
+
+      // TODO: only one depth texture?
+      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
+      // Set depth bias (aka "Polygon offset")
+      // Required to avoid shadow mapping artifacts
+      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+
+      // draw scene here
+      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+      loggerGPU->begin("Sprites to point depth buffer", currentFrame);
+      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+      loggerGPU->end(currentFrame);
+      loggerGPU->begin("Models to point depth buffer", currentFrame);
+      modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+      loggerGPU->end(currentFrame);
+      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+      loggerGPU->end(currentFrame);
+
+      VkSubmitInfo submitInfo{};
+      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+      // no need to wait anything because this thread starts in main thread only when needed
+      submitInfo.commandBufferCount = 1;
+      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+
+      VkSemaphore signalSemaphores[] = {pointLightSemaphores[id][currentFrame]->getSemaphore()};
+      submitInfo.signalSemaphoreCount = 1;
+      submitInfo.pSignalSemaphores = signalSemaphores;
+      // record command buffer
+      commandBuffer->endCommands(currentFrame, submitInfo, pointLightFences[id][currentFrame]);
+      lightCounter++;
+      {
+        std::unique_lock<std::mutex> lock(lightMutex);
+        lightCV.notify_all();
+      }
     }
   }
 }
@@ -163,6 +268,9 @@ void initialize() {
     imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
     renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(device));
     inFlightFences.push_back(std::make_shared<Fence>(device));
+
+    directedLightFences.push_back(std::make_shared<Fence>(device));
+    directedLightSemaphore.push_back(std::make_shared<Semaphore>(device));
   }
 
   renderPass = std::make_shared<RenderPass>(device);
@@ -310,12 +418,38 @@ void initialize() {
     }
   }
 
+  pointLightSemaphores.resize(lightManager->getPointLights().size() * 6);
+  pointLightFences.resize(lightManager->getPointLights().size() * 6);
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    for (int j = 0; j < 6; j++) {
+      int index = j + i * 6;
+      for (int k = 0; k < settings->getMaxFramesInFlight(); k++) {
+        pointLightSemaphores[index].push_back(std::make_shared<Semaphore>(device));
+        pointLightFences[index].push_back(std::make_shared<Fence>(device));
+      }
+    }
+  }
+
+  updatePoint.resize(lightManager->getPointLights().size() * 6);
+
   directionalThread = std::thread(directionalLightCalculator);
+
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    for (int j = 0; j < 6; j++) {
+      auto thread = std::thread(pointLightCalculator, i, j);
+      pointThread.push_back(std::move(thread));
+    }
+  }
 }
 
 void drawFrame() {
-  auto result = vkWaitForFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence(), VK_TRUE,
-                                UINT64_MAX);
+  std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence(),
+                                     directedLightFences[currentFrame]->getFence()};
+  for (int i = 0; i < pointLightFences.size(); i++) {
+    waitFences.push_back(pointLightFences[i][currentFrame]->getFence());
+  }
+
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
   uint32_t imageIndex;
@@ -330,7 +464,7 @@ void drawFrame() {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
 
-  result = vkResetFences(device->getLogicalDevice(), 1, &inFlightFences[currentFrame]->getFence());
+  result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
 
   result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
@@ -364,41 +498,27 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
+  lightCounter = 0;
   {
     std::unique_lock<std::mutex> lock(directionalMutex);
     updateDirectional = true;
     directionalCV.notify_all();
   }
 
-  loggerGPU->begin("Point to depth buffer", currentFrame);
-  auto pointLights = lightManager->getPointLights();
-  for (int i = 0; i < pointLights.size(); i++) {
-    for (int j = 0; j < 6; j++) {
-      auto renderPassInfo = render(currentFrame, renderPassDepth,
-                                   frameBufferDepth[i + lightManager->getDirectionalLights().size()][j]);
-      clearValues[0].depthStencil = {1.0f, 0};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = clearValues.data();
-
-      // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      // Set depth bias (aka "Polygon offset")
-      // Required to avoid shadow mapping artifacts
-      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
-
-      // draw scene here
-      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-      loggerGPU->begin("Sprites to point depth buffer", currentFrame);
-      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, i, j);
-      loggerGPU->end(currentFrame);
-      loggerGPU->begin("Models to point depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, i, j);
-      loggerGPU->end(currentFrame);
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  {
+    std::unique_lock<std::mutex> lock(pointMutex);
+    for (int i = 0; i < pointThread.size(); i++) {
+      updatePoint[i] = true;
     }
+    pointCV.notify_all();
   }
-  loggerGPU->end(currentFrame);
+
+  {
+    std::unique_lock<std::mutex> lock(lightMutex);
+    // TODO: change directional to the same scheme as point
+    lightCV.wait(lock, []() { return lightCounter == (pointThread.size() + 1); });
+  }
+
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -443,7 +563,6 @@ void drawFrame() {
       imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     }
   }
-  // TODO: create 6 memory barriers and send them via one cvCmdPipelineBarrier
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
@@ -512,8 +631,14 @@ void drawFrame() {
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-  presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = signalSemaphores;
+  std::vector<VkSemaphore> signalSemaphoresGeneral = {renderFinishedSemaphores[currentFrame]->getSemaphore(),
+                                                      directedLightSemaphore[currentFrame]->getSemaphore()};
+  for (int i = 0; i < pointLightSemaphores.size(); i++) {
+    signalSemaphoresGeneral.push_back(pointLightSemaphores[i][currentFrame]->getSemaphore());
+  }
+
+  presentInfo.waitSemaphoreCount = signalSemaphoresGeneral.size();
+  presentInfo.pWaitSemaphores = signalSemaphoresGeneral.data();
 
   VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
   presentInfo.swapchainCount = 1;
@@ -553,14 +678,22 @@ void mainLoop() {
       startTime = std::chrono::high_resolution_clock::now();
     }
   }
-
+  vkDeviceWaitIdle(device->getLogicalDevice());
   shouldWork = false;
   {
     std::unique_lock<std::mutex> lock(directionalMutex);
+    updateDirectional = true;
     directionalCV.notify_all();
   }
   directionalThread.join();
-  vkDeviceWaitIdle(device->getLogicalDevice());
+  {
+    std::unique_lock<std::mutex> lock(pointMutex);
+    for (int i = 0; i < pointThread.size(); i++) {
+      updatePoint[i] = true;
+    }
+    pointCV.notify_all();
+  }
+  for (int i = 0; i < pointThread.size(); i++) pointThread[i].join();
 }
 
 int main() {
