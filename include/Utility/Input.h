@@ -1,7 +1,6 @@
 #pragma once
 #include <tuple>
 #include "glfw/glfw3.h"
-#include "glm/glm.hpp"
 #include "Window.h"
 
 class InputSubscriber {
