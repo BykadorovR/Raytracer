@@ -1,6 +1,9 @@
 #include <iostream>
 #include <chrono>
 #include <future>
+#include <windows.h>
+#undef near
+#undef far
 
 #include "Window.h"
 #include "Instance.h"
@@ -697,6 +700,9 @@ void mainLoop() {
 }
 
 int main() {
+#ifdef WIN32
+  SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
+#endif
   try {
     initialize();
     mainLoop();
