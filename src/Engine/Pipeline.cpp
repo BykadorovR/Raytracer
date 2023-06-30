@@ -136,6 +136,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
 
 void Pipeline::createGraphic3D(
     VkCullModeFlags cullMode,
+    VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
@@ -183,6 +184,8 @@ void Pipeline::createGraphic3D(
   dynamicState.pDynamicStates = dynamicStates.data();
 
   _rasterizer.cullMode = cullMode;
+  _rasterizer.polygonMode = polygonMode;
+
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 

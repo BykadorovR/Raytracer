@@ -29,6 +29,7 @@
 #include "DebugVisualization.h"
 #include "State.h"
 #include "Logger.h"
+#include "Sphere.h"
 
 #undef near
 #undef far
@@ -90,6 +91,8 @@ std::mutex lightMutex;
 std::condition_variable lightCV;
 std::atomic<int> lightCounter = 0;
 bool shouldWork = true;
+
+std::shared_ptr<Sphere> sphere;
 
 VkRenderPassBeginInfo render(int index,
                              std::shared_ptr<RenderPass> renderPass,
@@ -388,6 +391,9 @@ void initialize() {
 
   modelManager->registerModelGLTF(modelGLTF);
 
+  sphere = std::make_shared<Sphere>(commandBufferTransfer, renderPass, state);
+  sphere->setCamera(camera);
+
   frameBuffer = std::make_shared<Framebuffer>(swapchain->getImageViews(), swapchain->getDepthImageView(), renderPass,
                                               device);
 
@@ -601,6 +607,7 @@ void drawFrame() {
 
     loggerGPU->begin("Render models", currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
+    sphere->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     updateJoints = std::async(std::launch::async, [&]() {
