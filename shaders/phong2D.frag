@@ -30,6 +30,7 @@ struct LightPoint {
     float constant;
     float linear;
     float quadratic;
+    int distance;
     //parameters
     float far;
     //

@@ -93,7 +93,6 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  _modelsCreated++;
   return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
                                      _commandBufferTransfer, _device, _settings);
 }
@@ -161,7 +160,7 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
 
 void Model3DManager::updateAnimation(float deltaTime) {
   for (auto model : _modelsGLTF) {
-    model->updateAnimation(deltaTime);
+    if (model) model->updateAnimation(deltaTime);
   }
 }
 

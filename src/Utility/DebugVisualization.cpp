@@ -7,6 +7,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _camera = camera;
   _gui = gui;
   _state = state;
+  _commandBufferTransfer = commandBufferTransfer;
 
   _renderPass = std::make_shared<RenderPass>(state->getDevice());
   _renderPass->initialize(state->getSwapchain()->getImageFormat());
@@ -35,6 +36,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
       {{"camera", cameraLayout}, {"texture", _textureSetLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("fragment"), DepthPush::getPushConstant()}},
       Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), _renderPass);
+
+  for (auto elem : _state->getSettings()->getAttenuations()) {
+    _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
+  }
 }
 
 void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
@@ -55,6 +60,10 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     model->enableLighting(false);
     _modelManager->registerModelGLTF(model);
     _pointLightModels.push_back(model);
+
+    auto sphere = std::make_shared<Sphere>(_commandBufferTransfer, _renderPass, _state);
+    sphere->setCamera(_camera);
+    _spheres.push_back(sphere);
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
@@ -70,18 +79,39 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
-  _gui->drawCheckbox("Debug", {20, 100}, {100, 80}, toggleDepth);
+  _gui->drawCheckbox("Debug", {20, 100}, toggleDepth);
 
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
     toggle["Lights"] = &_showLights;
-    _gui->drawCheckbox("Debug", {20, 100}, {100, 60}, toggle);
+    _gui->drawCheckbox("Debug", {20, 100}, toggle);
     if (_showLights) {
+      std::map<std::string, bool*> toggle;
+      toggle["Spheres"] = &_enableSpheres;
+      _gui->drawCheckbox("Debug", {20, 100}, toggle);
+      if (_enableSpheres) {
+        std::map<std::string, int*> toggleSpheres;
+        toggleSpheres["##Spheres"] = &_lightSpheresIndex;
+        _gui->drawListBox("Debug Spheres", {20, 220}, _attenuationKeys, toggleSpheres);
+      }
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
         if (_registerLights) _modelManager->registerModelGLTF(_pointLightModels[i]);
-        auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-        _pointLightModels[i]->setModel(model);
+        {
+          auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
+          model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+          _pointLightModels[i]->setModel(model);
+        }
+        {
+          auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
+          if (_enableSpheres) {
+            if (_lightSpheresIndex < 0) _lightSpheresIndex = _lightManager->getPointLights()[i]->getAttenuationIndex();
+            _lightManager->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);
+            int distance = _lightManager->getPointLights()[i]->getDistance();
+            model = glm::scale(model, glm::vec3(distance, distance, distance));
+            _spheres[i]->setModel(model);
+            _spheres[i]->draw(currentFrame, commandBuffer);
+          }
+        }
       }
       for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
         if (_registerLights) _modelManager->registerModelGLTF(_directionalLightModels[i]);

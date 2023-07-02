@@ -69,14 +69,13 @@ class GUI : public InputSubscriber {
  public:
   GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
   void initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void drawText(std::string name,
-                std::tuple<int, int> position,
-                std::tuple<int, int> size,
-                std::vector<std::string> text);
-  void drawCheckbox(std::string name,
-                    std::tuple<int, int> position,
-                    std::tuple<int, int> size,
-                    std::map<std::string, bool*> variable);
+  void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
+  void drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
+  void drawListBox(std::string name,
+                   std::tuple<int, int> position,
+                   std::vector<std::string> list,
+                   std::map<std::string, int*> variable);
+
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 

@@ -29,7 +29,6 @@
 #include "DebugVisualization.h"
 #include "State.h"
 #include "Logger.h"
-#include "Sphere.h"
 
 #undef near
 #undef far
@@ -91,8 +90,6 @@ std::mutex lightMutex;
 std::condition_variable lightCV;
 std::atomic<int> lightCounter = 0;
 bool shouldWork = true;
-
-std::shared_ptr<Sphere> sphere;
 
 VkRenderPassBeginInfo render(int index,
                              std::shared_ptr<RenderPass> renderPass,
@@ -291,12 +288,10 @@ void initialize() {
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
   pointLightHorizontal = lightManager->createPointLight(depthResolution);
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
   pointLightVertical = lightManager->createPointLight(depthResolution);
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
   directionalLight = lightManager->createDirectionalLight(depthResolution);
@@ -390,9 +385,6 @@ void initialize() {
   }
 
   modelManager->registerModelGLTF(modelGLTF);
-
-  sphere = std::make_shared<Sphere>(commandBufferTransfer, renderPass, state);
-  sphere->setCamera(camera);
 
   frameBuffer = std::make_shared<Framebuffer>(swapchain->getImageViews(), swapchain->getDepthImageView(), renderPass,
                                               device);
@@ -488,7 +480,7 @@ void drawFrame() {
   result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
-  gui->drawText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
+  gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
 
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
@@ -607,7 +599,6 @@ void drawFrame() {
 
     loggerGPU->begin("Render models", currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
-    sphere->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     updateJoints = std::async(std::launch::async, [&]() {

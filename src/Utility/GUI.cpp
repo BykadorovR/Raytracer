@@ -86,30 +86,40 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Com
                        VertexGUI::getAttributeDescriptions(), renderPass);
 }
 
-void GUI::drawCheckbox(std::string name,
-                       std::tuple<int, int> position,
-                       std::tuple<int, int> size,
-                       std::map<std::string, bool*> variable) {
+void GUI::drawListBox(std::string name,
+                      std::tuple<int, int> position,
+                      std::vector<std::string> list,
+                      std::map<std::string, int*> variable) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str());
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    std::vector<const char*> listFormatted;
+    for (auto& item : list) {
+      listFormatted.push_back(item.c_str());
+    }
+    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 4);
+    ImGui::End();
+  }
+  _calls++;
+}
+
+void GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Checkbox(key.c_str(), value);
     ImGui::End();
   }
   _calls++;
 }
 
-void GUI::drawText(std::string name,
-                   std::tuple<int, int> position,
-                   std::tuple<int, int> size,
-                   std::vector<std::string> text) {
+void GUI::drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto value : text) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str());
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text(value.c_str());
     ImGui::End();
   }

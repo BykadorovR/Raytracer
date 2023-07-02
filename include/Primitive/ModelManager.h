@@ -10,7 +10,6 @@ class Model3DManager {
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
 
-  int _modelsCreated = 0;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<CommandPool> _commandPool;

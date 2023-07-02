@@ -18,3 +18,5 @@ VkFormat Settings::getFormat() { return _format; }
 int Settings::getMaxDirectionalLights() { return _maxDirectionalLights; }
 
 int Settings::getMaxPointLights() { return _maxPointLights; }
+
+std::vector<std::tuple<int, float, float, float>> Settings::getAttenuations() { return _attenuations; }

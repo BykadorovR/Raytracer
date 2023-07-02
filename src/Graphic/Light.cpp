@@ -6,6 +6,8 @@ PointLight::PointLight(std::shared_ptr<Settings> settings) {
   _phong = std::make_shared<PhongLightFields>();
   _phong->far = 100.f;
   _settings = settings;
+
+  setAttenuationIndex(_attenuationIndex);
 }
 
 void* PointLight::getData() { return _phong.get(); }
@@ -61,11 +63,17 @@ void PointLight::setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCube
 
 std::vector<std::shared_ptr<Cubemap>> PointLight::getDepthCubemap() { return _depthCubemap; }
 
-void PointLight::setAttenuation(float constant, float linear, float quadratic) {
-  _phong->constant = constant;
-  _phong->linear = linear;
-  _phong->quadratic = quadratic;
+int PointLight::getAttenuationIndex() { return _attenuationIndex; }
+
+void PointLight::setAttenuationIndex(int index) {
+  _attenuationIndex = index;
+  _phong->distance = std::get<0>(_settings->getAttenuations()[index]);
+  _phong->constant = std::get<1>(_settings->getAttenuations()[index]);
+  _phong->linear = std::get<2>(_settings->getAttenuations()[index]);
+  _phong->quadratic = std::get<3>(_settings->getAttenuations()[index]);
 }
+
+int PointLight::getDistance() { return _phong->distance; }
 
 DirectionalLight::DirectionalLight() { _phong = std::make_shared<PhongLightFields>(); }
 

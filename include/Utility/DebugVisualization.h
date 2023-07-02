@@ -3,6 +3,7 @@
 #include "GUI.h"
 #include "LightManager.h"
 #include "State.h"
+#include "Sphere.h"
 #undef near
 #undef far
 
@@ -24,6 +25,7 @@ struct DepthPush {
 class DebugVisualization : public InputSubscriber {
  private:
   std::vector<std::shared_ptr<ModelGLTF>> _pointLightModels, _directionalLightModels;
+  std::vector<std::shared_ptr<Sphere>> _spheres;
   std::shared_ptr<LightManager> _lightManager = nullptr;
   bool _showLights = true;
   bool _registerLights = false;
@@ -41,7 +43,11 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<DescriptorSet> _cameraSet;
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   bool _showDepth = true;
+  int _lightSpheresIndex = -1;
+  bool _enableSpheres = false;
+  std::vector<std::string> _attenuationKeys;
 
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
