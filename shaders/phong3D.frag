@@ -129,10 +129,12 @@ vec3 directionalLight(vec3 normal) {
 vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
+        float distance = length(lightPoint[i].position - fragPosition);
+        if (distance > lightPoint[i].distance) break;
+
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
         float shadow = 0.0;
         if (push.enableShadow > 0) shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
-        float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
         //dot product between normal and light ray

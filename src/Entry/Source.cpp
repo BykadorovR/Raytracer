@@ -294,7 +294,7 @@ void initialize() {
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  directionalLight = lightManager->createDirectionalLight(depthResolution);
+  /*directionalLight = lightManager->createDirectionalLight(depthResolution);
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
@@ -304,7 +304,7 @@ void initialize() {
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight2->setPosition({15.f, 3.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
-  directionalLight2->setUp({0.f, 1.f, 0.f});
+  directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
                                                   renderPassDepth, device, settings);
