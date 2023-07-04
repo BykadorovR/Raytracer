@@ -29,6 +29,7 @@
 #include "DebugVisualization.h"
 #include "State.h"
 #include "Logger.h"
+#include "BS_thread_pool.hpp"
 
 #undef near
 #undef far
@@ -70,25 +71,25 @@ std::shared_ptr<Framebuffer> frameBuffer;
 std::vector<std::vector<std::shared_ptr<Framebuffer>>> frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
-std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
+std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::tuple<int, int> depthResolution = {1024, 1024};
-std::vector<std::thread> directionalThread, pointThread;
-std::mutex directionalMutex;
-std::condition_variable directionalCV;
-std::mutex pointMutex;
-std::condition_variable pointCV;
 std::future<void> updateJoints;
-std::vector<bool> updateDirectional;
-std::vector<bool> updatePoint;
 
-std::mutex lightMutex;
-std::condition_variable lightCV;
-std::atomic<int> lightCounter = 0;
+std::shared_ptr<BS::thread_pool> pool;
+std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
+std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
+
+std::vector<std::shared_ptr<CommandBuffer>> commandBufferDirectional;
+std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
+
+std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
+std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
+
 bool shouldWork = true;
 
 VkRenderPassBeginInfo render(int index,
@@ -107,141 +108,91 @@ VkRenderPassBeginInfo render(int index,
 }
 
 void directionalLightCalculator(int index) {
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
-  auto loggerGPU = std::make_shared<LoggerGPU>(state);
+  auto commandBuffer = commandBufferDirectional[index];
+  auto loggerGPU = loggerGPUDirectional[index];
+
   loggerGPU->initialize("Directional", currentFrame, commandBuffer);
-  bool start = false;
-  while (shouldWork) {
-    {
-      std::unique_lock<std::mutex> lock(directionalMutex);
-      while (updateDirectional[index] == false) {
-        directionalCV.wait(lock);
-      }
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+  loggerGPU->begin("Directional to depth buffer", currentFrame);
+  auto directionalLights = lightManager->getDirectionalLights();
+  auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[index][0]);
+  clearValues[0].depthStencil = {1.0f, 0};
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = clearValues.data();
+  // TODO: only one depth texture?
+  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  // Set depth bias (aka "Polygon offset")
+  // Required to avoid shadow mapping artifacts
+  vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
-      if (shouldWork == false) break;
+  // draw scene here
+  loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
+  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
 
-      if (updateDirectional[index]) {
-        updateDirectional[index] = false;
-        start = true;
-      }
-    }
-    if (start) {
-      start = false;
-      // record command buffer
-      commandBuffer->beginCommands(currentFrame);
-      loggerGPU->begin("Directional to depth buffer", currentFrame);
-      auto directionalLights = lightManager->getDirectionalLights();
-      auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[index][0]);
-      clearValues[0].depthStencil = {1.0f, 0};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = clearValues.data();
-      // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      // Set depth bias (aka "Polygon offset")
-      // Required to avoid shadow mapping artifacts
-      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+  loggerGPU->begin("Models to directional depth buffer", currentFrame);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
+  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  loggerGPU->end(currentFrame);
 
-      // draw scene here
-      loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
-      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
-      loggerGPU->end(currentFrame);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  // no need to wait anything because this thread starts in main thread only when needed
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
 
-      loggerGPU->begin("Models to directional depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
-      loggerGPU->end(currentFrame);
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-      loggerGPU->end(currentFrame);
-
-      VkSubmitInfo submitInfo{};
-      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-      // no need to wait anything because this thread starts in main thread only when needed
-      submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
-      VkSemaphore signalSemaphores[] = {directionalLightSemaphores[index][currentFrame]->getSemaphore()};
-      submitInfo.signalSemaphoreCount = 1;
-      submitInfo.pSignalSemaphores = signalSemaphores;
-      // record command buffer
-      commandBuffer->endCommands(currentFrame, submitInfo, directionalLightFences[index][currentFrame]);
-      lightCounter++;
-      {
-        std::unique_lock<std::mutex> lock(lightMutex);
-        lightCV.notify_all();
-      }
-    }
-  }
+  VkSemaphore signalSemaphores[] = {directionalLightSemaphores[index][currentFrame]->getSemaphore()};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+  // record command buffer
+  commandBuffer->endCommands(currentFrame, submitInfo, directionalLightFences[index][currentFrame]);
 }
 
 void pointLightCalculator(int index, int face) {
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
-  auto loggerGPU = std::make_shared<LoggerGPU>(state);
+  auto commandBuffer = commandBufferPoint[index][face];
+  auto loggerGPU = loggerGPUPoint[index][face];
+
   auto id = face + index * 6;
   loggerGPU->initialize("Point " + std::to_string(index) + "x" + std::to_string(face), currentFrame, commandBuffer);
-  bool start = false;
-  while (shouldWork) {
-    {
-      std::unique_lock<std::mutex> lock(pointMutex);
-      while (updatePoint[id] == false) {
-        pointCV.wait(lock);
-      }
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+  loggerGPU->begin("Point to depth buffer", currentFrame);
+  auto renderPassInfo = render(currentFrame, renderPassDepth,
+                               frameBufferDepth[index + lightManager->getDirectionalLights().size()][face]);
+  clearValues[0].depthStencil = {1.0f, 0};
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = clearValues.data();
 
-      if (shouldWork == false) break;
+  // TODO: only one depth texture?
+  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  // Set depth bias (aka "Polygon offset")
+  // Required to avoid shadow mapping artifacts
+  vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
-      if (updatePoint[id]) {
-        updatePoint[id] = false;
-        start = true;
-      }
-    }
-    if (start) {
-      start = false;
-      // record command buffer
-      commandBuffer->beginCommands(currentFrame);
-      loggerGPU->begin("Point to depth buffer", currentFrame);
-      auto renderPassInfo = render(currentFrame, renderPassDepth,
-                                   frameBufferDepth[index + lightManager->getDirectionalLights().size()][face]);
-      clearValues[0].depthStencil = {1.0f, 0};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = clearValues.data();
+  // draw scene here
+  float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+  loggerGPU->begin("Sprites to point depth buffer", currentFrame);
+  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Models to point depth buffer", currentFrame);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  loggerGPU->end(currentFrame);
 
-      // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      // Set depth bias (aka "Polygon offset")
-      // Required to avoid shadow mapping artifacts
-      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  // no need to wait anything because this thread starts in main thread only when needed
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
 
-      // draw scene here
-      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-      loggerGPU->begin("Sprites to point depth buffer", currentFrame);
-      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-      loggerGPU->end(currentFrame);
-      loggerGPU->begin("Models to point depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-      loggerGPU->end(currentFrame);
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-      loggerGPU->end(currentFrame);
-
-      VkSubmitInfo submitInfo{};
-      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-      // no need to wait anything because this thread starts in main thread only when needed
-      submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
-      VkSemaphore signalSemaphores[] = {pointLightSemaphores[id][currentFrame]->getSemaphore()};
-      submitInfo.signalSemaphoreCount = 1;
-      submitInfo.pSignalSemaphores = signalSemaphores;
-      // record command buffer
-      commandBuffer->endCommands(currentFrame, submitInfo, pointLightFences[id][currentFrame]);
-      lightCounter++;
-      {
-        std::unique_lock<std::mutex> lock(lightMutex);
-        lightCV.notify_all();
-      }
-    }
-  }
+  VkSemaphore signalSemaphores[] = {pointLightSemaphores[id][currentFrame]->getSemaphore()};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+  // record command buffer
+  commandBuffer->endCommands(currentFrame, submitInfo, pointLightFences[id][currentFrame]);
 }
 
 void initialize() {
@@ -294,7 +245,15 @@ void initialize() {
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  /*directionalLight = lightManager->createDirectionalLight(depthResolution);
+  pointLightHorizontal2 = lightManager->createPointLight(depthResolution);
+  pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
+
+  pointLightVertical2 = lightManager->createPointLight(depthResolution);
+  pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});
+
+  directionalLight = lightManager->createDirectionalLight(depthResolution);
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
@@ -304,7 +263,7 @@ void initialize() {
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight2->setPosition({15.f, 3.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
-  directionalLight2->setUp({0.f, 1.f, 0.f});*/
+  directionalLight2->setUp({0.f, 1.f, 0.f});
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
                                                   renderPassDepth, device, settings);
@@ -420,10 +379,19 @@ void initialize() {
       directionalLightSemaphores[i].push_back(std::make_shared<Semaphore>(device));
       directionalLightFences[i].push_back(std::make_shared<Fence>(device));
     }
+
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
+    commandPoolDirectional.push_back(commandPool);
+    commandBufferDirectional.push_back(
+        std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+    loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(state));
   }
 
   pointLightSemaphores.resize(lightManager->getPointLights().size() * 6);
   pointLightFences.resize(lightManager->getPointLights().size() * 6);
+  commandPoolPoint.resize(lightManager->getPointLights().size());
+  commandBufferPoint.resize(lightManager->getPointLights().size());
+  loggerGPUPoint.resize(lightManager->getPointLights().size());
   for (int i = 0; i < lightManager->getPointLights().size(); i++) {
     for (int j = 0; j < 6; j++) {
       int index = j + i * 6;
@@ -431,23 +399,17 @@ void initialize() {
         pointLightSemaphores[index].push_back(std::make_shared<Semaphore>(device));
         pointLightFences[index].push_back(std::make_shared<Fence>(device));
       }
+
+      auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
+      commandPoolPoint[i].push_back(commandPool);
+      commandBufferPoint[i].push_back(
+          std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+      loggerGPUPoint[i].push_back(std::make_shared<LoggerGPU>(state));
     }
   }
 
-  updatePoint.resize(lightManager->getPointLights().size() * 6, false);
-  updateDirectional.resize(lightManager->getDirectionalLights().size(), false);
-
-  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
-    auto thread = std::thread(directionalLightCalculator, i);
-    directionalThread.push_back(std::move(thread));
-  }
-
-  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
-    for (int j = 0; j < 6; j++) {
-      auto thread = std::thread(pointLightCalculator, i, j);
-      pointThread.push_back(std::move(thread));
-    }
-  }
+  // pool = std::make_shared<BS::thread_pool>(std::thread::hardware_concurrency() - 1);
+  pool = std::make_shared<BS::thread_pool>(6);
 }
 
 void drawFrame() {
@@ -482,10 +444,6 @@ void drawFrame() {
 
   gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
 
-  // record command buffer
-  commandBuffer->beginCommands(currentFrame);
-
-  loggerGPU->initialize("Common", currentFrame, commandBuffer);
   // update positions
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
@@ -508,29 +466,22 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
-  lightCounter = 0;
-  {
-    std::unique_lock<std::mutex> lock(directionalMutex);
-    for (int i = 0; i < directionalThread.size(); i++) {
-      updateDirectional[i] = true;
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    for (int j = 0; j < 6; j++) {
+      pool->push_task(pointLightCalculator, i, j);
     }
-    directionalCV.notify_all();
   }
 
-  {
-    std::unique_lock<std::mutex> lock(pointMutex);
-    for (int i = 0; i < pointThread.size(); i++) {
-      updatePoint[i] = true;
-    }
-    pointCV.notify_all();
+  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+    pool->push_task(directionalLightCalculator, i);
   }
 
-  {
-    std::unique_lock<std::mutex> lock(lightMutex);
-    // TODO: change directional to the same scheme as point
-    lightCV.wait(lock, []() { return lightCounter == (pointThread.size() + directionalThread.size()); });
-  }
+  pool->wait_for_tasks();
 
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+
+  loggerGPU->initialize("Common", currentFrame, commandBuffer);
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -694,22 +645,6 @@ void mainLoop() {
   }
   vkDeviceWaitIdle(device->getLogicalDevice());
   shouldWork = false;
-  {
-    std::unique_lock<std::mutex> lock(directionalMutex);
-    for (int i = 0; i < directionalThread.size(); i++) {
-      updateDirectional[i] = true;
-    }
-    directionalCV.notify_all();
-  }
-  for (int i = 0; i < directionalThread.size(); i++) directionalThread[i].join();
-  {
-    std::unique_lock<std::mutex> lock(pointMutex);
-    for (int i = 0; i < pointThread.size(); i++) {
-      updatePoint[i] = true;
-    }
-    pointCV.notify_all();
-  }
-  for (int i = 0; i < pointThread.size(); i++) pointThread[i].join();
 }
 
 int main() {

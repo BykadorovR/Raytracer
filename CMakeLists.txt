@@ -66,6 +66,16 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+ExternalProject_Add(
+  thread-pool
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/thread-pool
+  GIT_REPOSITORY https://github.com/bshoshany/thread-pool.git
+  GIT_TAG cabb3df5876c9a6824b07fcb0ff73d4a0e506ca0
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ""
+)
+
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
   "cmake_minimum_required(VERSION 3.16)\n"
@@ -127,13 +137,14 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader nvtx)
+add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader nvtx thread-pool)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinygltf/src/tinygltf)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinyobjloader/src/tinyobjloader)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/nvtx/src/nvtx/c/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/thread-pool/src/thread-pool/include)
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)
