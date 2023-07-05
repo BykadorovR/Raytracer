@@ -1,11 +1,14 @@
 #include "Settings.h"
 
-Settings::Settings(std::string name, std::tuple<int, int> resolution, VkFormat format, int maxFramesInFlight) {
-  _resolution = resolution;
-  _maxFramesInFlight = maxFramesInFlight;
-  _name = name;
-  _format = format;
-}
+void Settings::setName(std::string name) { _name = name; }
+
+void Settings::setResolution(std::tuple<int, int> resolution) { _resolution = resolution; }
+
+void Settings::setFormat(VkFormat format) { _format = format; }
+
+void Settings::setMaxFramesInFlight(int maxFramesInFlight) { _maxFramesInFlight = maxFramesInFlight; }
+
+void Settings::setThreadsInPool(int threadsInPool) { _threadsInPool = threadsInPool; }
 
 std::string Settings::getName() { return _name; }
 
@@ -20,3 +23,5 @@ int Settings::getMaxDirectionalLights() { return _maxDirectionalLights; }
 int Settings::getMaxPointLights() { return _maxPointLights; }
 
 std::vector<std::tuple<int, float, float, float>> Settings::getAttenuations() { return _attenuations; }
+
+int Settings::getThreadsInPool() { return _threadsInPool; }

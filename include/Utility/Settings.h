@@ -6,10 +6,11 @@
 struct Settings {
  private:
   int _maxFramesInFlight;
-  std::tuple<int, int> _resolution;
-  std::string _name;
-  VkFormat _format;
+  std::tuple<int, int> _resolution = {1920, 1080};
+  std::string _name = "default";
+  VkFormat _format = VK_FORMAT_B8G8R8A8_UNORM;
   // if changed have to be change in shaders too
+  int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
   std::vector<std::tuple<int, float, float, float>> _attenuations = {
@@ -18,7 +19,13 @@ struct Settings {
       {200, 1.0, 0.022, 0.0019}, {325, 1.0, 0.014, 0.0007}, {600, 1.0, 0.007, 0.0002}, {3250, 1.0, 0.0014, 0.000007}};
 
  public:
-  Settings(std::string name, std::tuple<int, int> resolution, VkFormat format, int maxFramesInFlight);
+  // setters
+  void setName(std::string name);
+  void setResolution(std::tuple<int, int> resolution);
+  void setFormat(VkFormat format);
+  void setMaxFramesInFlight(int maxFramesInFlight);
+  void setThreadsInPool(int threadsInPool);
+  // getters
   const std::tuple<int, int>& getResolution();
   std::string getName();
   int getMaxFramesInFlight();
@@ -26,4 +33,5 @@ struct Settings {
   int getMaxDirectionalLights();
   int getMaxPointLights();
   std::vector<std::tuple<int, float, float, float>> getAttenuations();
+  int getThreadsInPool();
 };

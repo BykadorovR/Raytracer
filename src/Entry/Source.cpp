@@ -196,9 +196,14 @@ void pointLightCalculator(int index, int face) {
 }
 
 void initialize() {
-  state = std::make_shared<State>(
-      std::make_shared<Settings>("Vulkan", std::tuple{1600, 900}, VK_FORMAT_B8G8R8A8_UNORM, 2));
-  settings = state->getSettings();
+  settings = std::make_shared<Settings>();
+  settings->setName("Vulkan");
+  settings->setResolution(std::tuple{1600, 900});
+  settings->setFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setMaxFramesInFlight(2);
+  settings->setThreadsInPool(6);
+
+  state = std::make_shared<State>(settings);
   window = state->getWindow();
   input = state->getInput();
   instance = state->getInstance();
@@ -408,7 +413,6 @@ void initialize() {
     }
   }
 
-  // pool = std::make_shared<BS::thread_pool>(std::thread::hardware_concurrency() - 1);
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
@@ -552,7 +556,7 @@ void drawFrame() {
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    updateJoints = std::async(std::launch::async, [&]() {
+    updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation");
       modelManager->updateAnimation(frameTimer);
       loggerCPU->end();
