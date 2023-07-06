@@ -4,8 +4,6 @@
 SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                              std::shared_ptr<DescriptorPool> descriptorPool,
-                             std::shared_ptr<RenderPass> render,
-                             std::shared_ptr<RenderPass> renderDepth,
                              std::shared_ptr<Device> device,
                              std::shared_ptr<Settings> settings) {
   _commandBufferTransfer = commandBufferTransfer;
@@ -36,22 +34,22 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(device);
+    _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
     _pipeline[SpriteRenderMode::FULL]->createGraphic2D(
         VK_CULL_MODE_BACK_BIT,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout,
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), render);
+        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipeline[SpriteRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(device);
+    _pipeline[SpriteRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(settings, device);
     _pipeline[SpriteRenderMode::DIRECTIONAL]->createGraphic2DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {_descriptorSetLayout[0]}, {},
-        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), renderDepth);
+        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
   }
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -60,13 +58,13 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipeline[SpriteRenderMode::POINT] = std::make_shared<Pipeline>(device);
+    _pipeline[SpriteRenderMode::POINT] = std::make_shared<Pipeline>(settings, device);
     _pipeline[SpriteRenderMode::POINT]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {_descriptorSetLayout[0]}, defaultPushConstants, Vertex2D::getBindingDescription(),
-        Vertex2D::getAttributeDescriptions(), renderDepth);
+        Vertex2D::getAttributeDescriptions());
   }
 }
 

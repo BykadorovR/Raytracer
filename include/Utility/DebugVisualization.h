@@ -35,7 +35,6 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<State> _state;
   std::shared_ptr<Texture> _texture = nullptr;
   bool _cursorEnabled = false;
-  std::shared_ptr<RenderPass> _renderPass;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSetLayout> _textureSetLayout;

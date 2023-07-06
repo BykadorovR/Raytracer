@@ -10,7 +10,6 @@
 #include "Surface.h"
 #include "Device.h"
 #include "Swapchain.h"
-#include "Render.h"
 #include "Buffer.h"
 #include "Shader.h"
 #include "Pipeline.h"
@@ -52,7 +51,6 @@ std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
 std::shared_ptr<State> state;
-std::array<VkClearValue, 2> clearValues{};
 
 std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
 std::vector<std::vector<std::shared_ptr<Semaphore>>> directionalLightSemaphores, pointLightSemaphores;
@@ -66,9 +64,6 @@ std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
-std::shared_ptr<RenderPass> renderPass, renderPassDepth;
-std::shared_ptr<Framebuffer> frameBuffer;
-std::vector<std::vector<std::shared_ptr<Framebuffer>>> frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
@@ -77,7 +72,6 @@ std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
-std::tuple<int, int> depthResolution = {1024, 1024};
 std::future<void> updateJoints;
 
 std::shared_ptr<BS::thread_pool> pool;
@@ -92,21 +86,6 @@ std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
 
 bool shouldWork = true;
 
-VkRenderPassBeginInfo render(int index,
-                             std::shared_ptr<RenderPass> renderPass,
-                             std::shared_ptr<Framebuffer> framebuffer) {
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = renderPass->getRenderPass();
-  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
-  renderPassInfo.renderArea.offset = {0, 0};
-  auto [width, height] = framebuffer->getResolution();
-  renderPassInfo.renderArea.extent.width = width;
-  renderPassInfo.renderArea.extent.height = height;
-
-  return renderPassInfo;
-}
-
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
   auto loggerGPU = loggerGPUDirectional[index];
@@ -116,12 +95,31 @@ void directionalLightCalculator(int index) {
   commandBuffer->beginCommands(currentFrame);
   loggerGPU->begin("Directional to depth buffer", currentFrame);
   auto directionalLights = lightManager->getDirectionalLights();
-  auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[index][0]);
-  clearValues[0].depthStencil = {1.0f, 0};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = clearValues.data();
+  VkClearValue clearDepth;
+  clearDepth.depthStencil = {1.0f, 0};
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = directionalLights[index]->getDepthTexture()[currentFrame]->getImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearDepth,
+  };
+
+  auto [width, height] =
+      directionalLights[index]->getDepthTexture()[currentFrame]->getImageView()->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfoKHR renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
+
   // TODO: only one depth texture?
-  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
   // Set depth bias (aka "Polygon offset")
   // Required to avoid shadow mapping artifacts
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
@@ -134,7 +132,7 @@ void directionalLightCalculator(int index) {
   loggerGPU->begin("Models to directional depth buffer", currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
-  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
   VkSubmitInfo submitInfo{};
@@ -159,14 +157,40 @@ void pointLightCalculator(int index, int face) {
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
   loggerGPU->begin("Point to depth buffer", currentFrame);
-  auto renderPassInfo = render(currentFrame, renderPassDepth,
-                               frameBufferDepth[index + lightManager->getDirectionalLights().size()][face]);
-  clearValues[0].depthStencil = {1.0f, 0};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = clearValues.data();
+  auto pointLights = lightManager->getPointLights();
+  VkClearValue clearDepth;
+  clearDepth.depthStencil = {1.0f, 0};
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = pointLights[index]
+                       ->getDepthCubemap()[currentFrame]
+                       ->getTextureSeparate()[face]
+                       ->getImageView()
+                       ->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearDepth,
+  };
+
+  auto [width, height] = pointLights[index]
+                             ->getDepthCubemap()[currentFrame]
+                             ->getTextureSeparate()[face]
+                             ->getImageView()
+                             ->getImage()
+                             ->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
 
   // TODO: only one depth texture?
-  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
   // Set depth bias (aka "Polygon offset")
   // Required to avoid shadow mapping artifacts
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
@@ -179,7 +203,7 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->begin("Models to point depth buffer", currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end(currentFrame);
-  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
   VkSubmitInfo submitInfo{};
@@ -199,7 +223,8 @@ void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
   settings->setResolution(std::tuple{1600, 900});
-  settings->setFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
 
@@ -226,13 +251,8 @@ void initialize() {
     inFlightFences.push_back(std::make_shared<Fence>(device));
   }
 
-  renderPass = std::make_shared<RenderPass>(device);
-  renderPass->initialize(swapchain->getImageFormat());
-  renderPassDepth = std::make_shared<RenderPass>(device);
-  renderPassDepth->initializeDepthPass();
-
-  gui = std::make_shared<GUI>(settings->getResolution(), window, device);
-  gui->initialize(renderPass, commandBufferTransfer);
+  gui = std::make_shared<GUI>(settings, window, device);
+  gui->initialize(commandBufferTransfer);
 
   auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            commandBufferTransfer, device);
@@ -242,38 +262,38 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  pointLightHorizontal = lightManager->createPointLight(depthResolution);
+  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  pointLightVertical = lightManager->createPointLight(depthResolution);
+  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  pointLightHorizontal2 = lightManager->createPointLight(depthResolution);
+  pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
 
-  pointLightVertical2 = lightManager->createPointLight(depthResolution);
+  pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});
 
-  directionalLight = lightManager->createDirectionalLight(depthResolution);
+  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
 
-  directionalLight2 = lightManager->createDirectionalLight(depthResolution);
+  directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight2->setPosition({15.f, 3.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
-                                                  renderPassDepth, device, settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
-                                                  renderPassDepth, device, settings);
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, device,
+                                                  settings);
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, device,
+                                                  settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
   if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
@@ -349,33 +369,6 @@ void initialize() {
   }
 
   modelManager->registerModelGLTF(modelGLTF);
-
-  frameBuffer = std::make_shared<Framebuffer>(swapchain->getImageViews(), swapchain->getDepthImageView(), renderPass,
-                                              device);
-
-  int pointNumber = lightManager->getPointLights().size();
-  int directionalNumber = lightManager->getDirectionalLights().size();
-  frameBufferDepth.resize(pointNumber + directionalNumber);
-  for (int i = 0; i < directionalNumber; i++) {
-    auto textures = lightManager->getDirectionalLights()[i]->getDepthTexture();
-    std::vector<std::shared_ptr<ImageView>> imageViews(settings->getMaxFramesInFlight());
-    for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
-    frameBufferDepth[i] = {std::make_shared<Framebuffer>(imageViews, renderPassDepth, device)};
-  }
-
-  for (int i = 0; i < pointNumber; i++) {
-    auto cubemap = lightManager->getPointLights()[i]->getDepthCubemap();
-    std::vector<std::pair<std::shared_ptr<ImageView>, std::shared_ptr<ImageView>>> imageViews(6);
-    frameBufferDepth[i + directionalNumber].resize(imageViews.size());
-    for (int j = 0; j < imageViews.size(); j++) {
-      imageViews[j] = {cubemap[0]->getTextureSeparate()[j]->getImageView(),
-                       cubemap[1]->getTextureSeparate()[j]->getImageView()};
-
-      auto [width, height] = state->getSettings()->getResolution();
-      frameBufferDepth[i + directionalNumber][j] = std::make_shared<Framebuffer>(
-          std::vector{imageViews[j].first, imageViews[j].second}, renderPassDepth, device);
-    }
-  }
 
   directionalLightFences.resize(lightManager->getDirectionalLights().size());
   directionalLightSemaphores.resize(lightManager->getDirectionalLights().size());
@@ -484,8 +477,27 @@ void drawFrame() {
 
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
-
   loggerGPU->initialize("Common", currentFrame, commandBuffer);
+  {
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                      .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
+  }
+
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -538,14 +550,42 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   {
     loggerGPU->begin("Render to screen", currentFrame);
+    VkClearValue clearColor;
+    clearColor.color = {0.25f, 0.25f, 0.25f, 1.f};
+    const VkRenderingAttachmentInfo colorAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
 
-    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer);
-    clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
-    clearValues[1].depthStencil = {1.0f, 0};
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    VkClearValue clearDepth;
+    clearDepth.depthStencil = {1.0f, 0};
+    const VkRenderingAttachmentInfo depthAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getDepthImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearDepth,
+    };
 
-    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    auto [width, height] = swapchain->getImageViews()[imageIndex]->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = renderArea,
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentInfo,
+        .pDepthAttachment = &depthAttachmentInfo,
+    };
+
+    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
     lightManager->draw(currentFrame);
     // draw scene here
     loggerGPU->begin("Render sprites", currentFrame);
@@ -571,8 +611,27 @@ void drawFrame() {
     gui->drawFrame(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
+    {
+      VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
+                                        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                             .baseMipLevel = 0,
+                                                             .levelCount = 1,
+                                                             .baseArrayLayer = 0,
+                                                             .layerCount = 1}};
+      vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+                           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,           // dstStageMask
+                           0, 0, nullptr, 0, nullptr,
+                           1,             // imageMemoryBarrierCount
+                           &colorBarrier  // pImageMemoryBarriers
+      );
+    }
     loggerGPU->end(currentFrame);
   }
 

@@ -27,21 +27,25 @@ Cubemap::Cubemap(std::string path, std::shared_ptr<CommandBuffer> commandBufferT
                                    VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
-  _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 6, commandBufferTransfer);
-  _image->copyFrom(stagingBuffer, 6, commandBufferTransfer);
-  _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 6,
+  _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 6,
                        commandBufferTransfer);
+  _image->copyFrom(stagingBuffer, 6, commandBufferTransfer);
+  _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                       VK_IMAGE_ASPECT_COLOR_BIT, 6, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0, VK_IMAGE_ASPECT_COLOR_BIT,
                                            state->getDevice());
   _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, _state->getDevice());
 }
 
-Cubemap::Cubemap(std::tuple<int, int> resolution, std::shared_ptr<State> state) {
+Cubemap::Cubemap(std::tuple<int, int> resolution,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<State> state) {
   _state = state;
-  _image = std::make_shared<Image>(resolution, 6, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+  _image = std::make_shared<Image>(resolution, 6, _state->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
-  _image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
+  _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                       VK_IMAGE_ASPECT_DEPTH_BIT, 6, commandBufferTransfer);
 
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0, VK_IMAGE_ASPECT_DEPTH_BIT,
                                            state->getDevice());

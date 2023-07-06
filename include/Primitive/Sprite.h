@@ -2,7 +2,6 @@
 #include "Device.h"
 #include "Buffer.h"
 #include "Shader.h"
-#include "Render.h"
 #include "Pipeline.h"
 #include "Command.h"
 #include "Settings.h"

@@ -7,8 +7,10 @@ struct Settings {
  private:
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
+  std::tuple<int, int> _depthResolution = {1024, 1024};
   std::string _name = "default";
-  VkFormat _format = VK_FORMAT_B8G8R8A8_UNORM;
+  VkFormat _colorFormat = VK_FORMAT_B8G8R8A8_UNORM;
+  VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
   // if changed have to be change in shaders too
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
@@ -22,16 +24,20 @@ struct Settings {
   // setters
   void setName(std::string name);
   void setResolution(std::tuple<int, int> resolution);
-  void setFormat(VkFormat format);
+  void setDepthResolution(std::tuple<int, int> depthResolution);
+  void setColorFormat(VkFormat format);
+  void setDepthFormat(VkFormat format);
   void setMaxFramesInFlight(int maxFramesInFlight);
   void setThreadsInPool(int threadsInPool);
   // getters
   const std::tuple<int, int>& getResolution();
+  const std::tuple<int, int>& getDepthResolution();
   std::string getName();
   int getMaxFramesInFlight();
-  VkFormat getFormat();
   int getMaxDirectionalLights();
   int getMaxPointLights();
   std::vector<std::tuple<int, float, float, float>> getAttenuations();
   int getThreadsInPool();
+  VkFormat getColorFormat();
+  VkFormat getDepthFormat();
 };

@@ -15,9 +15,7 @@ class Sphere {
   std::vector<uint32_t> _indices;
 
  public:
-  Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-         std::shared_ptr<RenderPass> renderPass,
-         std::shared_ptr<State> state);
+  Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
 

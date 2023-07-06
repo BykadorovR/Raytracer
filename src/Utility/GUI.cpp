@@ -3,10 +3,11 @@
 #include "Descriptor.h"
 #include "Input.h"
 
-GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
+GUI::GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
   _device = device;
   _window = window;
-  _resolution = resolution;
+  _settings = settings;
+  _resolution = settings->getResolution();
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -21,11 +22,11 @@ GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::s
   style.Colors[ImGuiCol_Header] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
   style.Colors[ImGuiCol_CheckMark] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
   // Dimensions
-  io.DisplaySize = ImVec2(std::get<0>(resolution), std::get<1>(resolution));
+  io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
-void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGuiIO& io = ImGui::GetIO();
 
   // Create font texture
@@ -61,9 +62,11 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Com
   _fontImage = std::make_shared<Image>(
       std::tuple{texWidth, texHeight}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBufferTransfer);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                           1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, commandBufferTransfer);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+                           commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, _device);
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
 
@@ -79,11 +82,11 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Com
   shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  _pipeline = std::make_shared<Pipeline>(_device);
+  _pipeline = std::make_shared<Pipeline>(_settings, _device);
   _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
-                       VertexGUI::getAttributeDescriptions(), renderPass);
+                       VertexGUI::getAttributeDescriptions());
 }
 
 void GUI::drawListBox(std::string name,

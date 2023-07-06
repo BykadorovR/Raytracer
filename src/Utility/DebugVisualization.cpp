@@ -9,8 +9,6 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
 
-  _renderPass = std::make_shared<RenderPass>(state->getDevice());
-  _renderPass->initialize(state->getSwapchain()->getImageFormat());
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -29,13 +27,13 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   _textureSetLayout->createGraphic();
 
-  _pipeline = std::make_shared<Pipeline>(state->getDevice());
+  _pipeline = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
   _pipeline->createHUD(
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {{"camera", cameraLayout}, {"texture", _textureSetLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("fragment"), DepthPush::getPushConstant()}},
-      Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions(), _renderPass);
+      Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
 
   for (auto elem : _state->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
@@ -61,7 +59,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     _modelManager->registerModelGLTF(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(_commandBufferTransfer, _renderPass, _state);
+    auto sphere = std::make_shared<Sphere>(_commandBufferTransfer, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }

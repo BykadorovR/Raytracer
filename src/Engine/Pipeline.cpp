@@ -2,7 +2,8 @@
 #include "Buffer.h"
 #include <ranges>
 
-Pipeline::Pipeline(std::shared_ptr<Device> device) {
+Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device) {
+  _settings = settings;
   _device = device;
 
   _inputAssembly = VkPipelineInputAssemblyStateCreateInfo{};
@@ -69,8 +70,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
                          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                          std::map<std::string, VkPushConstantRange> pushConstants,
                          VkVertexInputBindingDescription bindingDescription,
-                         std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-                         std::shared_ptr<RenderPass> renderPass) {
+                         std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -111,8 +111,15 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
   dynamicState.pDynamicStates = dynamicStates.data();
 
+  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
+                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -124,7 +131,6 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   pipelineInfo.pColorBlendState = &_colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = _pipelineLayout;
-  pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -141,8 +147,7 @@ void Pipeline::createGraphic3D(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
-    std::shared_ptr<RenderPass> renderPass) {
+    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -189,8 +194,15 @@ void Pipeline::createGraphic3D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
+  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
+                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -202,7 +214,6 @@ void Pipeline::createGraphic3D(
   pipelineInfo.pColorBlendState = &_colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = _pipelineLayout;
-  pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -218,8 +229,7 @@ void Pipeline::createGraphic3DShadow(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions,
-    std::shared_ptr<RenderPass> renderPass) {
+    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -268,8 +278,12 @@ void Pipeline::createGraphic3DShadow(
   _depthStencil.depthWriteEnable = VK_TRUE;
   _colorBlending.attachmentCount = 0;
 
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -281,7 +295,6 @@ void Pipeline::createGraphic3DShadow(
   pipelineInfo.pColorBlendState = &_colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = _pipelineLayout;
-  pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -297,8 +310,7 @@ void Pipeline::createGraphic2D(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-    std::shared_ptr<RenderPass> renderPass) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -343,8 +355,15 @@ void Pipeline::createGraphic2D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
+  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
+                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -356,7 +375,6 @@ void Pipeline::createGraphic2D(
   pipelineInfo.pColorBlendState = &_colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = _pipelineLayout;
-  pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
@@ -372,8 +390,7 @@ void Pipeline::createGraphic2DShadow(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-    std::shared_ptr<RenderPass> renderPass) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -422,8 +439,12 @@ void Pipeline::createGraphic2DShadow(
   _depthStencil.depthWriteEnable = VK_TRUE;
   _colorBlending.attachmentCount = 0;
 
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -435,7 +456,6 @@ void Pipeline::createGraphic2DShadow(
   pipelineInfo.pColorBlendState = &_colorBlending;
   pipelineInfo.pDynamicState = &dynamicState;
   pipelineInfo.layout = _pipelineLayout;
-  pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 

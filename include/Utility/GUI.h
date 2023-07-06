@@ -1,7 +1,6 @@
 #pragma once
 #include <imgui.h>
 #include "Device.h"
-#include "Render.h"
 #include "Image.h"
 #include "Pipeline.h"
 #include <chrono>
@@ -49,6 +48,7 @@ class GUI : public InputSubscriber {
   float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
   std::shared_ptr<Device> _device;
+  std::shared_ptr<Settings> _settings;
   std::shared_ptr<Window> _window;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
@@ -67,8 +67,8 @@ class GUI : public InputSubscriber {
   int _calls = 0;
 
  public:
-  GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
-  void initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
+  void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
   void drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
   void drawListBox(std::string name,

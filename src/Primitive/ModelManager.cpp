@@ -3,8 +3,6 @@
 Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,
-                               std::shared_ptr<RenderPass> render,
-                               std::shared_ptr<RenderPass> renderDepth,
                                std::shared_ptr<Device> device,
                                std::shared_ptr<Settings> settings) {
   _lightManager = lightManager;
@@ -43,7 +41,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[ModelRenderMode::FULL] = std::make_shared<Pipeline>(device);
+    _pipeline[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(sizeof(LightPush));
     defaultPushConstants["fragment"] = LightPush::getPushConstant();
@@ -53,32 +51,32 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                       _descriptorSetLayout, defaultPushConstants,
                                                       Vertex3D::getBindingDescription(),
-                                                      Vertex3D::getAttributeDescriptions(), render);
+                                                      Vertex3D::getAttributeDescriptions());
 
-    _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(device);
+    _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
     _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              _descriptorSetLayout, defaultPushConstants,
                                                              Vertex3D::getBindingDescription(),
-                                                             Vertex3D::getAttributeDescriptions(), render);
+                                                             Vertex3D::getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipeline[ModelRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(device);
+    _pipeline[ModelRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(settings, device);
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
     _pipeline[ModelRenderMode::DIRECTIONAL]->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
         {_descriptorSetLayout[0], _descriptorSetLayout[1]}, defaultPushConstants, Vertex3D::getBindingDescription(),
-        Vertex3D::getAttributeDescriptions(), renderDepth);
+        Vertex3D::getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(device);
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipeline[ModelRenderMode::POINT] = std::make_shared<Pipeline>(device);
+    _pipeline[ModelRenderMode::POINT] = std::make_shared<Pipeline>(settings, device);
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(sizeof(PushConstants));
@@ -87,7 +85,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              {_descriptorSetLayout[0], _descriptorSetLayout[1]},
                                                              defaultPushConstants, Vertex3D::getBindingDescription(),
-                                                             Vertex3D::getAttributeDescriptions(), renderDepth);
+                                                             Vertex3D::getAttributeDescriptions());
   }
 }
 
