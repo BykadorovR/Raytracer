@@ -11,7 +11,6 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   _commandBufferTransfer = commandBufferTransfer;
   _device = device;
   _settings = settings;
-  _renderPass = render;
   _descriptorPool = descriptorPool;
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
@@ -93,8 +92,8 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _renderPass, _descriptorPool,
-                                     _commandBufferTransfer, _device, _settings);
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _descriptorPool, _commandBufferTransfer,
+                                     _device, _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
 
