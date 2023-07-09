@@ -25,6 +25,7 @@
 #include "Input.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Terrain.h"
 #include "DebugVisualization.h"
 #include "State.h"
 #include "Logger.h"
@@ -50,6 +51,7 @@ std::shared_ptr<CommandPool> commandPool, commandPoolTransfer;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
+std::shared_ptr<Terrain> terrain;
 std::shared_ptr<State> state;
 
 std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
@@ -406,6 +408,9 @@ void initialize() {
     }
   }
 
+  terrain = std::make_shared<Terrain>(commandBufferTransfer, state);
+  terrain->setCamera(camera);
+
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
@@ -595,6 +600,8 @@ void drawFrame() {
     loggerGPU->begin("Render models", currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
+
+    terrain->draw(currentFrame, commandBuffer);
 
     updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation");
