@@ -96,7 +96,7 @@ ModelGLTF::ModelGLTF(std::string path,
     for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                        descriptorPool, device);
-      cameraSet->createCamera(_uniformBufferDepth[i][0]);
+      cameraSet->createBuffer(_uniformBufferDepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
@@ -106,7 +106,7 @@ ModelGLTF::ModelGLTF(std::string path,
       for (int j = 0; j < 6; j++) {
         facesSet[j] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                       descriptorPool, device);
-        facesSet[j]->createCamera(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
+        facesSet[j]->createBuffer(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -114,7 +114,7 @@ ModelGLTF::ModelGLTF(std::string path,
   {
     auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                      descriptorPool, device);
-    cameraSet->createCamera(_uniformBufferFull);
+    cameraSet->createBuffer(_uniformBufferFull);
     _descriptorSetCameraFull = cameraSet;
   }
 

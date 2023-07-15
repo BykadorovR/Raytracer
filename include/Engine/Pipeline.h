@@ -43,7 +43,17 @@ class Pipeline {
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
-  void createGraphicTerrain(
+
+  void createGraphicTerrainCPU(
+      VkCullModeFlags cullMode,
+      VkPolygonMode polygonMode,
+      std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+      std::map<std::string, VkPushConstantRange> pushConstants,
+      VkVertexInputBindingDescription bindingDescription,
+      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+
+  void createGraphicTerrainGPU(
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,

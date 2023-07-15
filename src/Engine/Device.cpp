@@ -150,6 +150,7 @@ void Device::_createLogicalDevice() {
   VkPhysicalDeviceFeatures deviceFeatures{};
   deviceFeatures.samplerAnisotropy = VK_TRUE;
   deviceFeatures.fillModeNonSolid = VK_TRUE;
+  deviceFeatures.tessellationShader = VK_TRUE;
 
   constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,

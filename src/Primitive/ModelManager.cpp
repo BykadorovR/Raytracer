@@ -12,7 +12,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   _descriptorPool = descriptorPool;
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createCamera();
+    setLayout->createBuffer();
     _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {

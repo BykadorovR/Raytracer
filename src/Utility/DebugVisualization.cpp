@@ -18,14 +18,14 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraLayout->createCamera();
+  cameraLayout->createBuffer();
 
   _cameraSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                state->getDescriptorPool(), state->getDevice());
-  _cameraSet->createCamera(_uniformBuffer);
+  _cameraSet->createBuffer(_uniformBuffer);
 
   _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  _textureSetLayout->createGraphic();
+  _textureSetLayout->createTexture();
 
   _pipeline = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
   _pipeline->createHUD(
@@ -44,7 +44,7 @@ void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
   _texture = texture;
   _textureSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _textureSetLayout,
                                                 _state->getDescriptorPool(), _state->getDevice());
-  _textureSet->createGraphic(texture);
+  _textureSet->createTexture(texture);
 }
 
 void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,

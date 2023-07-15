@@ -33,3 +33,5 @@ int Settings::getMaxPointLights() { return _maxPointLights; }
 std::vector<std::tuple<int, float, float, float>> Settings::getAttenuations() { return _attenuations; }
 
 int Settings::getThreadsInPool() { return _threadsInPool; }
+
+VkClearColorValue Settings::getClearColor() { return _clearColor; }

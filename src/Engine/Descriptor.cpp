@@ -58,13 +58,13 @@ void DescriptorSetLayout::createCompute() {
   }
 }
 
-void DescriptorSetLayout::createCamera() {
+void DescriptorSetLayout::createBuffer(VkShaderStageFlags stage) {
   VkDescriptorSetLayoutBinding uboLayoutBinding{};
   uboLayoutBinding.binding = 0;
   uboLayoutBinding.descriptorCount = 1;
   uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   uboLayoutBinding.pImmutableSamplers = nullptr;
-  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  uboLayoutBinding.stageFlags = stage;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -102,13 +102,13 @@ void DescriptorSetLayout::createGraphicModel() {
   }
 }
 
-void DescriptorSetLayout::createGraphic() {
+void DescriptorSetLayout::createTexture(VkShaderStageFlags stage) {
   VkDescriptorSetLayoutBinding samplerLayoutBinding{};
   samplerLayoutBinding.binding = 0;
   samplerLayoutBinding.descriptorCount = 1;
   samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   samplerLayoutBinding.pImmutableSamplers = nullptr;
-  samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  samplerLayoutBinding.stageFlags = stage;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -352,7 +352,7 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
   }
 }
 
-void DescriptorSet::createGraphic(std::shared_ptr<Texture> texture) {
+void DescriptorSet::createTexture(std::shared_ptr<Texture> texture) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
@@ -434,7 +434,7 @@ void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createCamera(std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();

@@ -261,6 +261,7 @@ void initialize() {
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
+  camera->setProjectionParameters(60.f, 0.1f, 300.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
@@ -408,7 +409,9 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<Terrain>(commandBufferTransfer, state);
+  terrain = std::make_shared<TerrainGPU>(20, commandBufferTransfer, state);
+  auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(1.f, 1.f, 1.f));
+  terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
 
   pool = std::make_shared<BS::thread_pool>(6);
@@ -556,7 +559,7 @@ void drawFrame() {
   {
     loggerGPU->begin("Render to screen", currentFrame);
     VkClearValue clearColor;
-    clearColor.color = {0.25f, 0.25f, 0.25f, 1.f};
+    clearColor.color = settings->getClearColor();
     const VkRenderingAttachmentInfo colorAttachmentInfo{
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
         .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
