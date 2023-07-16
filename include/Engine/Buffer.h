@@ -220,12 +220,16 @@ class VertexBuffer2D {
 
 class VertexBuffer3D {
  private:
-  std::shared_ptr<Buffer> _buffer;
+  std::shared_ptr<Buffer> _buffer, _stagingBuffer;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<Device> _device;
 
  public:
   VertexBuffer3D(std::vector<Vertex3D> vertices,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<Device> device);
+
+  void setData(std::vector<Vertex3D> vertices);
   std::shared_ptr<Buffer> getBuffer();
 };
 

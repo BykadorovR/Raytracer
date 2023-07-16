@@ -115,21 +115,35 @@ std::shared_ptr<Buffer> VertexBuffer2D::getBuffer() { return _buffer; }
 VertexBuffer3D::VertexBuffer3D(std::vector<Vertex3D> vertices,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<Device> device) {
+  _device = device;
+  _commandBufferTransfer = commandBufferTransfer;
+
   VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-  auto stagingBuffer = std::make_shared<Buffer>(
-      bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, device);
+  _stagingBuffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                            device);
 
   void* data;
-  vkMapMemory(device->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+  vkMapMemory(device->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
   memcpy(data, vertices.data(), (size_t)bufferSize);
-  vkUnmapMemory(device->getLogicalDevice(), stagingBuffer->getMemory());
+  vkUnmapMemory(device->getLogicalDevice(), _stagingBuffer->getMemory());
 
   _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
 
-  _buffer->copyFrom(stagingBuffer, commandBufferTransfer);
+  _buffer->copyFrom(_stagingBuffer, commandBufferTransfer);
+}
+
+void VertexBuffer3D::setData(std::vector<Vertex3D> vertices) {
+  VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+  if (bufferSize != _stagingBuffer->getSize()) throw std::runtime_error("Buffer size should be the same");
+
+  void* data;
+  vkMapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+  memcpy(data, vertices.data(), (size_t)bufferSize);
+  vkUnmapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory());
+  _buffer->copyFrom(_stagingBuffer, _commandBufferTransfer);
 }
 
 std::shared_ptr<Buffer> VertexBuffer3D::getBuffer() { return _buffer; }

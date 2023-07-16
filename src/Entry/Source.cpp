@@ -23,6 +23,7 @@
 #include "ModelManager.h"
 #include "GUI.h"
 #include "Input.h"
+#include "Line.h"
 #include "Camera.h"
 #include "LightManager.h"
 #include "Terrain.h"
@@ -85,6 +86,7 @@ std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
 
 std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
 std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
+std::shared_ptr<Line> line1;
 
 bool shouldWork = true;
 
@@ -261,7 +263,7 @@ void initialize() {
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
-  camera->setProjectionParameters(60.f, 0.1f, 300.f);
+  camera->setProjectionParameters(60.f, 0.1f, 3.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
@@ -413,6 +415,10 @@ void initialize() {
   auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(1.f, 1.f, 1.f));
   terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
+
+  line1 = std::make_shared<Line>(5, commandBufferTransfer, state);
+  line1->setCamera(camera);
+  line1->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 1.f));
 
   pool = std::make_shared<BS::thread_pool>(6);
 }
@@ -604,7 +610,16 @@ void drawFrame() {
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
+    loggerGPU->begin("Render terrain", currentFrame);
     terrain->draw(currentFrame, commandBuffer);
+    loggerGPU->end(currentFrame);
+
+    loggerGPU->begin("Render line", currentFrame);
+    {
+      line1->setPosition(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -3.f));
+      line1->draw(currentFrame, commandBuffer);
+    }
+    loggerGPU->end(currentFrame);
 
     updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation");

@@ -217,7 +217,7 @@ TerrainGPU::TerrainGPU(int patchSize,
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
