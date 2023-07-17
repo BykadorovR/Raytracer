@@ -86,7 +86,7 @@ std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
 
 std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
 std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
-std::shared_ptr<Line> line1;
+std::vector<std::shared_ptr<Line>> lineFrustum;
 
 bool shouldWork = true;
 
@@ -263,7 +263,7 @@ void initialize() {
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
-  camera->setProjectionParameters(60.f, 0.1f, 3.f);
+  camera->setProjectionParameters(60.f, 1.f, 30.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
@@ -416,10 +416,13 @@ void initialize() {
   terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
 
-  line1 = std::make_shared<Line>(5, commandBufferTransfer, state);
-  line1->setCamera(camera);
-  line1->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 1.f));
-
+  lineFrustum.resize(12);
+  for (int i = 0; i < lineFrustum.size(); i++) {
+    auto line = std::make_shared<Line>(3, commandBufferTransfer, state);
+    line->setCamera(camera);
+    line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
+    lineFrustum[i] = line;
+  }
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
@@ -616,8 +619,48 @@ void drawFrame() {
 
     loggerGPU->begin("Render line", currentFrame);
     {
-      line1->setPosition(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -3.f));
-      line1->draw(currentFrame, commandBuffer);
+      static bool once = true;
+      if (once) {
+        auto eye = camera->getEye();
+        float height1 = sin(glm::radians(30.f)) * camera->getNear();
+        float width1 = height1 *
+                       ((float)std::get<0>(settings->getResolution()) / (float)std::get<1>(settings->getResolution()));
+        lineFrustum[0]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, eye.z - camera->getNear()),
+                                    glm::vec3(width1 / 2.f, -height1 / 2.f, eye.z - camera->getNear()));
+        lineFrustum[1]->setPosition(glm::vec3(-width1 / 2.f, height1 / 2.f, eye.z - camera->getNear()),
+                                    glm::vec3(width1 / 2.f, height1 / 2.f, eye.z - camera->getNear()));
+        lineFrustum[2]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, eye.z - camera->getNear()),
+                                    glm::vec3(-width1 / 2.f, height1 / 2.f, eye.z - camera->getNear()));
+        lineFrustum[3]->setPosition(glm::vec3(width1 / 2.f, -height1 / 2.f, eye.z - camera->getNear()),
+                                    glm::vec3(width1 / 2.f, height1 / 2.f, eye.z - camera->getNear()));
+
+        float height2 = sin(glm::radians(30.f)) * camera->getFar();
+        float width2 = height2 *
+                       ((float)std::get<0>(settings->getResolution()) / (float)std::get<1>(settings->getResolution()));
+        lineFrustum[4]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()),
+                                    glm::vec3(width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[5]->setPosition(glm::vec3(-width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()),
+                                    glm::vec3(width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[6]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()),
+                                    glm::vec3(-width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[7]->setPosition(glm::vec3(width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()),
+                                    glm::vec3(width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()));
+
+        lineFrustum[8]->setPosition(eye, glm::vec3(-width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[8]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        lineFrustum[9]->setPosition(eye, glm::vec3(width2 / 2.f, -height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[9]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        lineFrustum[10]->setPosition(eye, glm::vec3(-width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[10]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        lineFrustum[11]->setPosition(eye, glm::vec3(width2 / 2.f, height2 / 2.f, eye.z - camera->getFar()));
+        lineFrustum[11]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+
+        once = false;
+      }
+
+      for (auto& line : lineFrustum) {
+        line->draw(currentFrame, commandBuffer);
+      }
     }
     loggerGPU->end(currentFrame);
 
