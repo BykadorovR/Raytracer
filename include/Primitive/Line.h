@@ -23,6 +23,7 @@ class Line {
   Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   void setPosition(glm::vec3 p0, glm::vec3 p1);
   std::pair<glm::vec3, glm::vec3> getPosition();
+  void setModel(glm::mat4 model);
   void setColor(glm::vec3 c0, glm::vec3 c1);
   void setCamera(std::shared_ptr<Camera> camera);
 

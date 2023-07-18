@@ -92,37 +92,41 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       auto camera = std::dynamic_pointer_cast<CameraFly>(_camera);
       if (camera == nullptr) return;
 
-      auto eye = camera->getEye();
       auto [resX, resY] = _state->getSettings()->getResolution();
       float height1 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
       float width1 = height1 * ((float)resX / (float)resY);
-      _lineFrustum[0]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
-                                   glm::vec3(eye.x + width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()));
-      _lineFrustum[1]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()),
-                                   glm::vec3(eye.x + width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
-      _lineFrustum[2]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
-                                   glm::vec3(eye.x - width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
-      _lineFrustum[3]->setPosition(glm::vec3(eye.x + width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
-                                   glm::vec3(eye.x + width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
+      _lineFrustum[0]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                   glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()));
+      _lineFrustum[1]->setPosition(glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
+                                   glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear()));
+      _lineFrustum[2]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                   glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()));
+      _lineFrustum[3]->setPosition(glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                   glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear()));
 
       float height2 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
       float width2 = height2 * ((float)resX / (float)resY);
-      _lineFrustum[4]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
-                                   glm::vec3(eye.x + width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()));
-      _lineFrustum[5]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()),
-                                   glm::vec3(eye.x + width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
-      _lineFrustum[6]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
-                                   glm::vec3(eye.x - width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
-      _lineFrustum[7]->setPosition(glm::vec3(eye.x + width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
-                                   glm::vec3(eye.x + width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
-      _lineFrustum[8]->setPosition(eye, _lineFrustum[4]->getPosition().first);
+      _lineFrustum[4]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                   glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()));
+      _lineFrustum[5]->setPosition(glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
+                                   glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar()));
+      _lineFrustum[6]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                   glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()));
+      _lineFrustum[7]->setPosition(glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                   glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar()));
+
+      _lineFrustum[8]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().first);
       _lineFrustum[8]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-      _lineFrustum[9]->setPosition(eye, _lineFrustum[4]->getPosition().second);
+      _lineFrustum[9]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().second);
       _lineFrustum[9]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-      _lineFrustum[10]->setPosition(eye, _lineFrustum[5]->getPosition().first);
+      _lineFrustum[10]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().first);
       _lineFrustum[10]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-      _lineFrustum[11]->setPosition(eye, _lineFrustum[5]->getPosition().second);
+      _lineFrustum[11]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().second);
       _lineFrustum[11]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+
+      for (auto& line : _lineFrustum) {
+        line->setModel(glm::inverse(camera->getView()));
+      }
     }
   }
 

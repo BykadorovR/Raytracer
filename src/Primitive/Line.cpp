@@ -54,6 +54,8 @@ void Line::setPosition(glm::vec3 p0, glm::vec3 p1) {
   _changed = true;
 }
 
+void Line::setModel(glm::mat4 model) { _model = model; }
+
 void Line::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 void Line::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
