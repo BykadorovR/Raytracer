@@ -107,6 +107,19 @@ void GUI::drawListBox(std::string name,
   _calls++;
 }
 
+bool GUI::drawButton(std::string name, std::tuple<int, int> position, std::string label) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+  ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+  if (ImGui::Button(label.c_str())) {
+    result = true;
+  }
+  ImGui::End();
+  _calls++;
+  return result;
+}
+
 void GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {

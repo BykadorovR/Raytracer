@@ -67,6 +67,8 @@ glm::mat4 CameraFly::getProjection() {
   return projection;
 }
 
+float CameraFly::getFOV() { return _fov; }
+
 void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;

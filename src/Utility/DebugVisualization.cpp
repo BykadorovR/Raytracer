@@ -38,6 +38,14 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   for (auto elem : _state->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
   }
+
+  _lineFrustum.resize(12);
+  for (int i = 0; i < _lineFrustum.size(); i++) {
+    auto line = std::make_shared<Line>(3, commandBufferTransfer, state);
+    line->setCamera(camera);
+    line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
+    _lineFrustum[i] = line;
+  }
 }
 
 void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
@@ -71,6 +79,57 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     model->enableLighting(false);
     _modelManager->registerModelGLTF(model);
     _directionalLightModels.push_back(model);
+  }
+}
+
+void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto clicked = _gui->drawButton("Debug", {20, 100}, "Frustum");
+  if (clicked) {
+    if (_frustumDraw == true) {
+      _frustumDraw = false;
+    } else {
+      _frustumDraw = true;
+      auto camera = std::dynamic_pointer_cast<CameraFly>(_camera);
+      if (camera == nullptr) return;
+
+      auto eye = camera->getEye();
+      auto [resX, resY] = _state->getSettings()->getResolution();
+      float height1 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
+      float width1 = height1 * ((float)resX / (float)resY);
+      _lineFrustum[0]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
+                                   glm::vec3(eye.x + width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()));
+      _lineFrustum[1]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()),
+                                   glm::vec3(eye.x + width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
+      _lineFrustum[2]->setPosition(glm::vec3(eye.x - width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
+                                   glm::vec3(eye.x - width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
+      _lineFrustum[3]->setPosition(glm::vec3(eye.x + width1 / 2.f, eye.y - height1 / 2.f, eye.z - camera->getNear()),
+                                   glm::vec3(eye.x + width1 / 2.f, eye.y + height1 / 2.f, eye.z - camera->getNear()));
+
+      float height2 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
+      float width2 = height2 * ((float)resX / (float)resY);
+      _lineFrustum[4]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
+                                   glm::vec3(eye.x + width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()));
+      _lineFrustum[5]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()),
+                                   glm::vec3(eye.x + width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
+      _lineFrustum[6]->setPosition(glm::vec3(eye.x - width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
+                                   glm::vec3(eye.x - width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
+      _lineFrustum[7]->setPosition(glm::vec3(eye.x + width2 / 2.f, eye.y - height2 / 2.f, eye.z - camera->getFar()),
+                                   glm::vec3(eye.x + width2 / 2.f, eye.y + height2 / 2.f, eye.z - camera->getFar()));
+      _lineFrustum[8]->setPosition(eye, _lineFrustum[4]->getPosition().first);
+      _lineFrustum[8]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[9]->setPosition(eye, _lineFrustum[4]->getPosition().second);
+      _lineFrustum[9]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[10]->setPosition(eye, _lineFrustum[5]->getPosition().first);
+      _lineFrustum[10]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[11]->setPosition(eye, _lineFrustum[5]->getPosition().second);
+      _lineFrustum[11]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+    }
+  }
+
+  if (_frustumDraw) {
+    for (auto& line : _lineFrustum) {
+      line->draw(currentFrame, commandBuffer);
+    }
   }
 }
 
@@ -130,6 +189,8 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       }
     }
   }
+
+  _drawFrustum(currentFrame, commandBuffer);
 
   if (_texture != nullptr && _showDepth) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

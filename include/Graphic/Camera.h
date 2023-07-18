@@ -60,6 +60,7 @@ class CameraFly : public Camera, public InputSubscriber {
   CameraFly(std::shared_ptr<Settings> settings);
   void setProjectionParameters(float fov, float near, float far);
   glm::mat4 getProjection() override;
+  float getFOV();
   void cursorNotify(GLFWwindow* window, float xPos, float yPos);
   void mouseNotify(GLFWwindow* window, int button, int action, int mods);
   void keyNotify(GLFWwindow* window, int key, int action, int mods);

@@ -46,6 +46,8 @@ void Line::setColor(glm::vec3 p0, glm::vec3 p1) {
   _changed = true;
 }
 
+std::pair<glm::vec3, glm::vec3> Line::getPosition() { return _position; }
+
 void Line::setPosition(glm::vec3 p0, glm::vec3 p1) {
   _position.first = p0;
   _position.second = p1;

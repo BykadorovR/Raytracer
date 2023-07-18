@@ -4,6 +4,7 @@
 #include "LightManager.h"
 #include "State.h"
 #include "Sphere.h"
+#include "Line.h"
 #undef near
 #undef far
 
@@ -48,6 +49,9 @@ class DebugVisualization : public InputSubscriber {
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
 
+  bool _frustumDraw = false;
+  std::vector<std::shared_ptr<Line>> _lineFrustum;
+
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
       {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
@@ -55,6 +59,8 @@ class DebugVisualization : public InputSubscriber {
       {{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}};
 
   const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
+
+  void _drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
   DebugVisualization(std::shared_ptr<Camera> camera,
