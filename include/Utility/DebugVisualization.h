@@ -51,6 +51,7 @@ class DebugVisualization : public InputSubscriber {
 
   bool _frustumDraw = false;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
+  glm::vec3 _eyeSave, _dirSave, _upSave, _angles;
 
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},

@@ -70,7 +70,7 @@ class GUI : public InputSubscriber {
   GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
-  bool drawButton(std::string name, std::tuple<int, int> position, std::string label);
+  bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);
   void drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
   void drawListBox(std::string name,
                    std::tuple<int, int> position,

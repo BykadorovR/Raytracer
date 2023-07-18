@@ -54,6 +54,18 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
   _direction = glm::normalize(_direction);
 }
 
+glm::vec3 CameraFly::getAngles() { return glm::vec3(_yaw, _pitch, _roll); }
+
+void CameraFly::setAngles(float yaw, float pitch, float roll) {
+  _yaw = yaw;
+  _pitch = pitch;
+  _roll = roll;
+}
+
+void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
+  Camera::setViewParameters(eye, direction, up);
+}
+
 void CameraFly::setProjectionParameters(float fov, float near, float far) {
   _fov = fov;
   _near = near;

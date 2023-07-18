@@ -83,7 +83,35 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
 }
 
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto clicked = _gui->drawButton("Debug", {20, 100}, "Frustum");
+  auto [resX, resY] = _state->getSettings()->getResolution();
+  auto eye = _camera->getEye();
+  auto direction = _camera->getDirection();
+  _gui->drawText("Camera", {resX - 140, 20},
+                 {std::string("eye x: ") + std::to_string(eye.x), std::string("eye y: ") + std::to_string(eye.y),
+                  std::string("eye z: ") + std::to_string(eye.z)});
+  _gui->drawText(
+      "Camera", {resX - 140, 20},
+      {std::string("dir x: ") + std::to_string(direction.x), std::string("dir y: ") + std::to_string(direction.y),
+       std::string("dir z: ") + std::to_string(direction.z)});
+
+  std::string buttonText = "Hide frustum";
+  if (_frustumDraw == false) {
+    buttonText = "Show frustum";
+  }
+
+  if (_gui->drawButton("Frustum", {resX - 140, 150}, "Save camera", true)) {
+    _eyeSave = _camera->getEye();
+    _dirSave = _camera->getDirection();
+    _upSave = _camera->getUp();
+    _angles = std::dynamic_pointer_cast<CameraFly>(_camera)->getAngles();
+  }
+
+  if (_gui->drawButton("Frustum", {resX - 140, 150}, "Load camera", true)) {
+    _camera->setViewParameters(_eyeSave, _dirSave, _upSave);
+    std::dynamic_pointer_cast<CameraFly>(_camera)->setAngles(_angles.x, _angles.y, _angles.z);
+  }
+
+  auto clicked = _gui->drawButton("Frustum", {resX - 140, 150}, buttonText, true);
   if (clicked) {
     if (_frustumDraw == true) {
       _frustumDraw = false;
