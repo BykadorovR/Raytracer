@@ -66,5 +66,6 @@ class CameraFly : public Camera, public InputSubscriber {
   float getFOV();
   void cursorNotify(GLFWwindow* window, float xPos, float yPos);
   void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int action, int mods);
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods);
+  void charNotify(GLFWwindow* window, unsigned int code);
 };

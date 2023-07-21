@@ -5,6 +5,8 @@
 #include "State.h"
 #include "Sphere.h"
 #include "Line.h"
+#include "Sprite.h"
+#include "SpriteManager.h"
 #undef near
 #undef far
 
@@ -32,6 +34,7 @@ class DebugVisualization : public InputSubscriber {
   bool _registerLights = false;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Model3DManager> _modelManager;
+  std::shared_ptr<SpriteManager> _spriteManager;
   std::shared_ptr<GUI> _gui;
   std::shared_ptr<State> _state;
   std::shared_ptr<Texture> _texture = nullptr;
@@ -50,8 +53,12 @@ class DebugVisualization : public InputSubscriber {
   std::vector<std::string> _attenuationKeys;
 
   bool _frustumDraw = false;
+  bool _showPlanes = false;
+  bool _planesRegistered = false;
+  float _near, _far;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
-  glm::vec3 _eyeSave, _dirSave, _upSave, _angles;
+  std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;
+  glm::vec3 _eyeSave = {0, 0, 3}, _dirSave = {0, 0, -1}, _upSave = {0, 1, 0}, _angles = {-90, 0, 0};
 
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
@@ -68,11 +75,13 @@ class DebugVisualization : public InputSubscriber {
                      std::shared_ptr<GUI> gui,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<State> state);
+  void setSpriteManager(std::shared_ptr<SpriteManager> spriteManager);
   void setLights(std::shared_ptr<Model3DManager> modelManager, std::shared_ptr<LightManager> lightManager);
   void setTexture(std::shared_ptr<Texture> texture);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos);
   void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int action, int mods);
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods);
+  void charNotify(GLFWwindow* window, unsigned int code);
 };

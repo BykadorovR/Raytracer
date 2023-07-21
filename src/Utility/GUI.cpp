@@ -136,6 +136,22 @@ void GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map
   _calls++;
 }
 
+bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(100);
+    if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f)) result = true;
+    ImGui::PopItemWidth();
+    ImGui::End();
+  }
+  _calls++;
+
+  return result;
+}
+
 void GUI::drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto value : text) {
@@ -273,4 +289,27 @@ void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   }
 }
 
-void GUI::keyNotify(GLFWwindow* window, int key, int action, int mods) {}
+void GUI::charNotify(GLFWwindow* window, unsigned int code) {
+  ImGuiIO& io = ImGui::GetIO();
+  io.AddInputCharacter(code);
+}
+
+void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  ImGuiIO& io = ImGui::GetIO();
+  if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_Backspace, true);
+    io.AddKeyEvent(ImGuiKey_Backspace, false);
+  }
+  if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_Delete, true);
+    io.AddKeyEvent(ImGuiKey_Delete, false);
+  }
+  if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_LeftArrow, true);
+    io.AddKeyEvent(ImGuiKey_LeftArrow, false);
+  }
+  if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_RightArrow, true);
+    io.AddKeyEvent(ImGuiKey_RightArrow, false);
+  }
+}

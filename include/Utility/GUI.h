@@ -76,13 +76,13 @@ class GUI : public InputSubscriber {
                    std::tuple<int, int> position,
                    std::vector<std::string> list,
                    std::map<std::string, int*> variable);
-
+  bool drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos);
   void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int action, int mods);
-
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods);
+  void charNotify(GLFWwindow* window, unsigned int code);
   ~GUI();
 };

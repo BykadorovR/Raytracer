@@ -115,7 +115,7 @@ void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
 
 void CameraFly::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
 
-void CameraFly::keyNotify(GLFWwindow* window, int key, int action, int mods) {
+void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {
@@ -142,3 +142,5 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int action, int mods) {
     _eye += _sensitivity * _up;
   }
 }
+
+void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}

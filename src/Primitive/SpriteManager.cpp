@@ -188,6 +188,7 @@ void SpriteManager::drawShadow(int currentFrame,
   }
 
   for (auto sprite : _sprites) {
+    if (sprite->isDepthEnabled() == false) continue;
     glm::mat4 view(1.f);
     glm::mat4 projection(1.f);
     int lightIndexTotal = lightIndex;

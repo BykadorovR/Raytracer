@@ -25,7 +25,7 @@ class Sprite {
   std::shared_ptr<Camera> _camera;
   bool _enableShadow = true;
   bool _enableLighting = true;
-
+  bool _enableDepth = true;
   std::shared_ptr<VertexBuffer2D> _vertexBuffer;
   std::shared_ptr<IndexBuffer> _indexBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
@@ -51,6 +51,8 @@ class Sprite {
          std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
+  void enableDepth(bool enable);
+  bool isDepthEnabled();
 
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);

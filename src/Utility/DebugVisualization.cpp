@@ -1,4 +1,5 @@
 #include "DebugVisualization.h"
+#include "Descriptor.h"
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
@@ -46,6 +47,9 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
     line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
     _lineFrustum[i] = line;
   }
+
+  _near = _camera->getNear();
+  _far = _camera->getFar();
 }
 
 void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
@@ -61,7 +65,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
   _lightManager = lightManager;
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
-    model->setDebug(true);
+    model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
     _modelManager->registerModelGLTF(model);
@@ -74,7 +78,7 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
 
   for (auto light : lightManager->getDirectionalLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
-    model->setDebug(true);
+    model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
     _modelManager->registerModelGLTF(model);
@@ -82,15 +86,27 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
   }
 }
 
+void DebugVisualization::setSpriteManager(std::shared_ptr<SpriteManager> spriteManager) {
+  _spriteManager = spriteManager;
+  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCW->enableLighting(false);
+  _farPlaneCW->enableShadow(false);
+  _farPlaneCW->enableDepth(false);
+  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCCW->enableLighting(false);
+  _farPlaneCCW->enableShadow(false);
+  _farPlaneCCW->enableDepth(false);
+}
+
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   auto [resX, resY] = _state->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
-  _gui->drawText("Camera", {resX - 140, 20},
+  _gui->drawText("Camera", {resX - 160, 20},
                  {std::string("eye x: ") + std::to_string(eye.x), std::string("eye y: ") + std::to_string(eye.y),
                   std::string("eye z: ") + std::to_string(eye.z)});
   _gui->drawText(
-      "Camera", {resX - 140, 20},
+      "Camera", {resX - 160, 20},
       {std::string("dir x: ") + std::to_string(direction.x), std::string("dir y: ") + std::to_string(direction.y),
        std::string("dir z: ") + std::to_string(direction.z)});
 
@@ -99,19 +115,44 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
     buttonText = "Show frustum";
   }
 
-  if (_gui->drawButton("Frustum", {resX - 140, 150}, "Save camera", true)) {
+  if (_gui->drawInputFloat("Camera", {resX - 160, 20}, {{"near", &_near}})) {
+    auto cameraFly = std::dynamic_pointer_cast<CameraFly>(_camera);
+    cameraFly->setProjectionParameters(cameraFly->getFOV(), _near, _camera->getFar());
+  }
+
+  if (_gui->drawInputFloat("Camera", {resX - 160, 20}, {{"far", &_far}})) {
+    auto cameraFly = std::dynamic_pointer_cast<CameraFly>(_camera);
+    cameraFly->setProjectionParameters(cameraFly->getFOV(), _camera->getNear(), _far);
+  }
+
+  if (_gui->drawButton("Camera", {resX - 160, 20}, "Save camera")) {
     _eyeSave = _camera->getEye();
     _dirSave = _camera->getDirection();
     _upSave = _camera->getUp();
     _angles = std::dynamic_pointer_cast<CameraFly>(_camera)->getAngles();
   }
 
-  if (_gui->drawButton("Frustum", {resX - 140, 150}, "Load camera", true)) {
+  if (_gui->drawButton("Camera", {resX - 160, 20}, "Load camera")) {
     _camera->setViewParameters(_eyeSave, _dirSave, _upSave);
     std::dynamic_pointer_cast<CameraFly>(_camera)->setAngles(_angles.x, _angles.y, _angles.z);
   }
 
-  auto clicked = _gui->drawButton("Frustum", {resX - 140, 150}, buttonText, true);
+  auto clicked = _gui->drawButton("Frustum", {resX - 140, 260}, buttonText);
+  _gui->drawCheckbox("Frustum", {resX - 140, 260}, {{"Show planes", &_showPlanes}});
+  if (_frustumDraw && _showPlanes) {
+    if (_planesRegistered == false) {
+      _spriteManager->registerSprite(_farPlaneCW);
+      _spriteManager->registerSprite(_farPlaneCCW);
+      _planesRegistered = true;
+    }
+  } else {
+    if (_planesRegistered == true) {
+      _spriteManager->unregisterSprite(_farPlaneCW);
+      _spriteManager->unregisterSprite(_farPlaneCCW);
+      _planesRegistered = false;
+    }
+  }
+
   if (clicked) {
     if (_frustumDraw == true) {
       _frustumDraw = false;
@@ -121,7 +162,7 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       if (camera == nullptr) return;
 
       auto [resX, resY] = _state->getSettings()->getResolution();
-      float height1 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
+      float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
       float width1 = height1 * ((float)resX / (float)resY);
       _lineFrustum[0]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                    glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()));
@@ -132,7 +173,7 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       _lineFrustum[3]->setPosition(glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                    glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear()));
 
-      float height2 = sin(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
+      float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
       float width2 = height2 * ((float)resX / (float)resY);
       _lineFrustum[4]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                    glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()));
@@ -142,6 +183,12 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
                                    glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()));
       _lineFrustum[7]->setPosition(glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                    glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar()));
+
+      auto model = glm::scale(glm::mat4(1.f), glm::vec3(width2, height2, 1.f));
+      model = glm::translate(model, glm::vec3(0.f, 0.f, -camera->getFar()));
+      _farPlaneCW->setModel(glm::inverse(camera->getView()) * model);
+      model = glm::rotate(model, glm::radians(180.f), glm::vec3(1, 0, 0));
+      _farPlaneCCW->setModel(glm::inverse(camera->getView()) * model);
 
       _lineFrustum[8]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().first);
       _lineFrustum[8]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
@@ -283,7 +330,7 @@ void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos
 
 void DebugVisualization::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
 
-void DebugVisualization::keyNotify(GLFWwindow* window, int key, int action, int mods) {
+void DebugVisualization::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
       glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -294,3 +341,5 @@ void DebugVisualization::keyNotify(GLFWwindow* window, int key, int action, int 
     }
   }
 }
+
+void DebugVisualization::charNotify(GLFWwindow* window, unsigned int code) {}

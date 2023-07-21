@@ -262,7 +262,7 @@ void initialize() {
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
-  camera->setProjectionParameters(60.f, 1.f, 30.f);
+  camera->setProjectionParameters(60.f, 1.f, 5.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
@@ -300,6 +300,7 @@ void initialize() {
                                                   settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
+  debugVisualization->setSpriteManager(spriteManager);
   if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {

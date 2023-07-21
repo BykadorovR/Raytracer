@@ -16,13 +16,13 @@ class Model {
  protected:
   std::shared_ptr<Camera> _camera;
   glm::mat4 _model = glm::mat4(1.f);
-  bool _debug = false;
+  bool _enableDepth = true;
 
  public:
   void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
-  void setDebug(bool debug);
-  bool isDebug();
+  void enableDepth(bool enable);
+  bool isDepthEnabled();
   virtual void draw(int currentFrame,
                     std::shared_ptr<CommandBuffer> commandBuffer,
                     std::shared_ptr<Pipeline> pipeline,

@@ -214,7 +214,7 @@ void Model3DManager::drawShadow(int currentFrame,
   }
 
   for (auto model : _modelsGLTF) {
-    if (model->isDebug()) continue;
+    if (model->isDepthEnabled() == false) continue;
     glm::mat4 view(1.f);
     glm::mat4 projection(1.f);
     int lightIndexTotal = lightIndex;
