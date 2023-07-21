@@ -58,8 +58,10 @@ ModelGLTF::ModelGLTF(std::string path,
   }
 
   //********************************************************************
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandBufferTransfer, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandBufferTransfer, device);
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertexBuffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(indexBuffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, device);
   int lightNumber = settings->getMaxDirectionalLights() + settings->getMaxPointLights();
   for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
     _uniformBufferDepth.push_back(

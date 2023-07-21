@@ -5,8 +5,8 @@
 class Sphere {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<VertexBuffer3D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _pipeline;

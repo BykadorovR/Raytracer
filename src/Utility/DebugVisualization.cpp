@@ -15,8 +15,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
                                                    state->getDevice());
-  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandBufferTransfer, state->getDevice());
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(_vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraLayout->createBuffer();

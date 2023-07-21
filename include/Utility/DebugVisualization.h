@@ -44,8 +44,8 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<DescriptorSetLayout> _textureSetLayout;
   std::shared_ptr<DescriptorSet> _textureSet;
   std::shared_ptr<DescriptorSet> _cameraSet;
-  std::shared_ptr<VertexBuffer2D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   bool _showDepth = true;
   int _lightSpheresIndex = -1;

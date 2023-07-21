@@ -26,8 +26,8 @@ class Sprite {
   bool _enableShadow = true;
   bool _enableLighting = true;
   bool _enableDepth = true;
-  std::shared_ptr<VertexBuffer2D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
 

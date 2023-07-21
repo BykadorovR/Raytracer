@@ -19,8 +19,10 @@ Line::Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std:
   _stagingBuffer = std::make_shared<Buffer>(vertices.size() * sizeof(Vertex3D), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                             _state->getDevice());
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertices, _commandBufferTransfer, _state->getDevice());
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, _commandBufferTransfer, _state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           _commandBufferTransfer, _state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          _commandBufferTransfer, _state->getDevice());
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());

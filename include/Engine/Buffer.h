@@ -207,41 +207,50 @@ class Buffer {
   ~Buffer();
 };
 
-class VertexBuffer2D {
- private:
-  std::shared_ptr<Buffer> _buffer;
-
- public:
-  VertexBuffer2D(std::vector<Vertex2D> vertices,
-                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<Device> device);
-  std::shared_ptr<Buffer> getBuffer();
-};
-
-class VertexBuffer3D {
+template <class T>
+class VertexBuffer {
  private:
   std::shared_ptr<Buffer> _buffer, _stagingBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Device> _device;
 
  public:
-  VertexBuffer3D(std::vector<Vertex3D> vertices,
-                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<Device> device);
+  VertexBuffer(std::vector<T> vertices,
+               VkBufferUsageFlagBits type,
+               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<Device> device) {
+    _device = device;
+    _commandBufferTransfer = commandBufferTransfer;
 
-  void setData(std::vector<Vertex3D> vertices);
-  std::shared_ptr<Buffer> getBuffer();
-};
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
-class IndexBuffer {
- private:
-  std::shared_ptr<Buffer> _buffer;
+    _stagingBuffer = std::make_shared<Buffer>(
+        bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, device);
 
- public:
-  IndexBuffer(std::vector<uint32_t> indices,
-              std::shared_ptr<CommandBuffer> commandBufferTransfer,
-              std::shared_ptr<Device> device);
-  std::shared_ptr<Buffer> getBuffer();
+    void* data;
+    vkMapMemory(device->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(device->getLogicalDevice(), _stagingBuffer->getMemory());
+
+    _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | type,
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
+
+    _buffer->copyFrom(_stagingBuffer, commandBufferTransfer);
+  }
+
+  void setData(std::vector<T> vertices) {
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    if (bufferSize != _stagingBuffer->getSize()) throw std::runtime_error("Buffer size should be the same");
+
+    void* data;
+    vkMapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory());
+    _buffer->copyFrom(_stagingBuffer, _commandBufferTransfer);
+  }
+
+  std::shared_ptr<Buffer> getBuffer() { return _buffer; }
 };
 
 class UniformBuffer {

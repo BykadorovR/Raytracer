@@ -25,8 +25,10 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _normalMap = normalMap;
   _texture = texture;
 
-  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandBufferTransfer, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, device);
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(_vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, device);
   for (int i = 0; i < _settings->getMaxDirectionalLights(); i++) {
     _uniformBufferDepth.push_back(
         {std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device)});

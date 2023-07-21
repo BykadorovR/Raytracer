@@ -77,8 +77,10 @@ Sphere::Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared
     }
   }
 
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertices, commandBufferTransfer, state->getDevice());
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, state->getDevice());
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
                                                    state->getDevice());

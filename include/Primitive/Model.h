@@ -146,8 +146,8 @@ class ModelGLTF : public Model {
   std::vector<NodeGLTF*> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
-  std::shared_ptr<VertexBuffer3D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;

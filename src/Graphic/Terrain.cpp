@@ -50,8 +50,10 @@ TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   _numStrips = height - 1;
   _numVertsPerStrip = width * 2;
 
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertices, commandBufferTransfer, state->getDevice());
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, state->getDevice());
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(CameraObject),
                                                    state->getDevice());
@@ -180,7 +182,8 @@ TerrainGPU::TerrainGPU(int patchSize,
   }
 
   _vertexNumber = vertices.size();
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertices, commandBufferTransfer, state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, state->getDevice());
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(CameraObject),
                                                   state->getDevice());
 
