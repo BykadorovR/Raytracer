@@ -94,10 +94,12 @@ void DebugVisualization::setSpriteManager(std::shared_ptr<SpriteManager> spriteM
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
+  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
   _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
+  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 }
 
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -139,8 +141,8 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
     std::dynamic_pointer_cast<CameraFly>(_camera)->setAngles(_angles.x, _angles.y, _angles.z);
   }
 
-  auto clicked = _gui->drawButton("Frustum", {resX - 140, 260}, buttonText);
-  _gui->drawCheckbox("Frustum", {resX - 140, 260}, {{"Show planes", &_showPlanes}});
+  auto clicked = _gui->drawButton("Frustum", {resX - 160, 260}, buttonText);
+  _gui->drawCheckbox("Frustum", {resX - 160, 260}, {{"Show planes", &_showPlanes}});
   if (_frustumDraw && _showPlanes) {
     if (_planesRegistered == false) {
       _spriteManager->registerSprite(_farPlaneCW);
@@ -192,10 +194,12 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       model = glm::rotate(model, glm::radians(180.f), glm::vec3(1, 0, 0));
       _farPlaneCCW->setModel(glm::inverse(camera->getView()) * model);
 
+      // bottom
       _lineFrustum[8]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().first);
-      _lineFrustum[8]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[8]->setColor(glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 1.f, 0.f));
       _lineFrustum[9]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().second);
-      _lineFrustum[9]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[9]->setColor(glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 1.f, 0.f));
+      // top
       _lineFrustum[10]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().first);
       _lineFrustum[10]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
       _lineFrustum[11]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().second);

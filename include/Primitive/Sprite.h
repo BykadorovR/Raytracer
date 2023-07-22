@@ -54,6 +54,7 @@ class Sprite {
   void enableDepth(bool enable);
   bool isDepthEnabled();
 
+  void setColor(glm::vec3 color);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);

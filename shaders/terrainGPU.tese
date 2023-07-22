@@ -16,6 +16,11 @@ layout(set = 2, binding = 0) uniform sampler2D heightMap;
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
 
+layout( push_constant ) uniform constants {
+    layout(offset = 16) int patchDimX;
+    int patchDimY;
+} push;
+
 void main()
 {
     // get patch coordinate
@@ -24,10 +29,10 @@ void main()
 
     // ----------------------------------------------------------------------
     // retrieve control point texture coordinates
-    vec2 t00 = TextureCoord[0];
-    vec2 t01 = TextureCoord[1];
-    vec2 t10 = TextureCoord[2];
-    vec2 t11 = TextureCoord[3];
+    vec2 t00 = TextureCoord[0] / vec2(push.patchDimX, push.patchDimY);
+    vec2 t01 = TextureCoord[1] / vec2(push.patchDimX, push.patchDimY);
+    vec2 t10 = TextureCoord[2] / vec2(push.patchDimX, push.patchDimY);
+    vec2 t11 = TextureCoord[3] / vec2(push.patchDimX, push.patchDimY);
 
     // bilinearly interpolate texture coordinate across patch
     vec2 t0 = (t01 - t00) * u + t00;

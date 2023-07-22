@@ -93,6 +93,14 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   }
 }
 
+void Sprite::setColor(glm::vec3 color) {
+  for (auto& vertex : _vertices) {
+    vertex.color = color;
+  }
+
+  _vertexBuffer->setData(_vertices);
+}
+
 void Sprite::enableDepth(bool enable) { _enableDepth = enable; }
 
 bool Sprite::isDepthEnabled() { return _enableDepth; }

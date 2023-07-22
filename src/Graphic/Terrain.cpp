@@ -143,40 +143,57 @@ struct LoDConstants {
   }
 };
 
-TerrainGPU::TerrainGPU(int patchSize,
+struct PatchConstants {
+  int patchDimX;
+  int patchDimY;
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant{};
+    // this push constant range starts at the beginning
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.offset = sizeof(LoDConstants);
+    pushConstant.size = sizeof(PatchConstants);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    return pushConstant;
+  }
+};
+
+TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<State> state) {
   _state = state;
+  _patchNumber = patchNumber;
 
-  _heightMap = std::make_shared<Texture>("../data/heightmap.png", VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-                                         commandBufferTransfer, state->getDevice());
+  _heightMap = std::make_shared<Texture>("../data/heightmap.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandBufferTransfer,
+                                         state->getDevice());
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
   std::vector<Vertex3D> vertices;
-  for (unsigned i = 0; i <= patchSize - 1; i++) {
-    for (unsigned j = 0; j <= patchSize - 1; j++) {
+  for (unsigned i = 0; i < patchNumber.first; i++) {
+    for (unsigned j = 0; j < patchNumber.second; j++) {
+      // define patch: 4 points (square)
       Vertex3D vertex1;
-      vertex1.pos = glm::vec3(-width / 2.0f + width * i / (float)patchSize, 0.f,
-                              -height / 2.0f + height * j / (float)patchSize);
-      vertex1.texCoord = glm::vec2(i / (float)patchSize, j / (float)patchSize);
+      vertex1.pos = glm::vec3(-width / 2.0f + width * i / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + height * j / (float)patchNumber.second);
+      vertex1.texCoord = glm::vec2(i, j);
       vertices.push_back(vertex1);
 
       Vertex3D vertex2;
-      vertex2.pos = glm::vec3(-width / 2.0f + width * (i + 1) / (float)patchSize, 0.f,
-                              -height / 2.0f + height * j / (float)patchSize);
-      vertex2.texCoord = glm::vec2((i + 1) / (float)patchSize, j / (float)patchSize);
+      vertex2.pos = glm::vec3(-width / 2.0f + width * (i + 1) / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + height * j / (float)patchNumber.second);
+      vertex2.texCoord = glm::vec2(i + 1, j);
       vertices.push_back(vertex2);
 
       Vertex3D vertex3;
-      vertex3.pos = glm::vec3(-width / 2.0f + width * i / (float)patchSize, 0.f,
-                              -height / 2.0f + height * (j + 1) / (float)patchSize);
-      vertex3.texCoord = glm::vec2(i / (float)patchSize, (j + 1) / (float)patchSize);
+      vertex3.pos = glm::vec3(-width / 2.0f + width * i / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + height * (j + 1) / (float)patchNumber.second);
+      vertex3.texCoord = glm::vec2(i, j + 1);
       vertices.push_back(vertex3);
 
       Vertex3D vertex4;
-      vertex4.pos = glm::vec3(-width / 2.0f + width * (i + 1) / (float)patchSize, 0.f,
-                              -height / 2.0f + height * (j + 1) / (float)patchSize);
-      vertex4.texCoord = glm::vec2((i + 1) / (float)patchSize, (j + 1) / (float)patchSize);
+      vertex4.pos = glm::vec3(-width / 2.0f + width * (i + 1) / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + height * (j + 1) / (float)patchNumber.second);
+      vertex4.texCoord = glm::vec2(i + 1, j + 1);
       vertices.push_back(vertex4);
     }
   }
@@ -217,10 +234,11 @@ TerrainGPU::TerrainGPU(int patchSize,
 
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();
+  defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -253,9 +271,17 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
     pushConstants.far = _maxDistance;
     pushConstants.minTessellationLevel = _minTessellationLevel;
     pushConstants.maxTessellationLevel = _maxTessellationLevel;
-
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(LoDConstants), &pushConstants);
+  }
+
+  if (_pipeline->getPushConstants().find("evaluate") != _pipeline->getPushConstants().end()) {
+    PatchConstants pushConstants;
+    pushConstants.patchDimX = _patchNumber.first;
+    pushConstants.patchDimY = _patchNumber.second;
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(LoDConstants), sizeof(PatchConstants),
+                       &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages

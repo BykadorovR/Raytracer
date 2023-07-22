@@ -41,11 +41,14 @@ class TerrainGPU : public Terrain {
   std::shared_ptr<DescriptorSet> _descriptorSetCameraControl, _descriptorSetCameraEvaluation, _descriptorSetHeight;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Texture> _heightMap;
+  std::pair<int, int> _patchNumber;
   // TODO: work very strange, don't use not equal values
-  int _minTessellationLevel = 16, _maxTessellationLevel = 16;
-  float _minDistance = 0.1, _maxDistance = 30;
+  int _minTessellationLevel = 4, _maxTessellationLevel = 64;
+  float _minDistance = 0.1, _maxDistance = 100;
 
  public:
-  TerrainGPU(int patchSize, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  TerrainGPU(std::pair<int, int> patchNumber,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
