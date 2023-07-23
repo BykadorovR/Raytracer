@@ -18,6 +18,7 @@ TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
 
   // vertex generation
   std::vector<Vertex3D> vertices;
+  // 255 - max value from height map, 256 is number of colors
   float yScale = 64.0f / 256.0f, yShift = 16.0f;  // apply a scale+shift to the height data
   for (unsigned int i = 0; i < height; i++) {
     for (unsigned int j = 0; j < width; j++) {
@@ -164,8 +165,17 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   _state = state;
   _patchNumber = patchNumber;
 
-  _heightMap = std::make_shared<Texture>("../data/heightmap.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandBufferTransfer,
-                                         state->getDevice());
+  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                               commandBufferTransfer, state->getDevice());
+  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                               commandBufferTransfer, state->getDevice());
+  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                               commandBufferTransfer, state->getDevice());
+  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                               commandBufferTransfer, state->getDevice());
+
+  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                         commandBufferTransfer, state->getDevice());
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
   std::vector<Vertex3D> vertices;
@@ -211,7 +221,10 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   setCameraEvaluation->createBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
   auto setHeight = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setHeight->createTexture(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  setHeight->createTexture(1, 0, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+
+  auto setTerrainTiles = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setTerrainTiles->createTexture(4);
 
   _descriptorSetCameraControl = std::make_shared<DescriptorSet>(
       state->getSettings()->getMaxFramesInFlight(), setCameraControl, state->getDescriptorPool(), state->getDevice());
@@ -224,7 +237,12 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _descriptorSetHeight = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setHeight,
                                                          state->getDescriptorPool(), state->getDevice());
-  _descriptorSetHeight->createTexture(_heightMap);
+  _descriptorSetHeight->createTexture({_heightMap});
+
+  _descriptorSetTerrainTiles = std::make_shared<DescriptorSet>(
+      state->getSettings()->getMaxFramesInFlight(), setTerrainTiles, state->getDescriptorPool(), state->getDevice());
+  _descriptorSetTerrainTiles->createTexture(
+      std::vector<std::shared_ptr<Texture>>(_terrainTiles.begin(), _terrainTiles.end()));
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -243,7 +261,8 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
       {std::pair{std::string("cameraControl"), setCameraControl},
-       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight}},
+       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
+       std::pair{std::string("terrainTiles"), setTerrainTiles}},
       defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 }
 
@@ -334,6 +353,18 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               _pipeline->getPipelineLayout(), 2, 1,
                               &_descriptorSetHeight->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+  }
+
+  {
+    auto terrainLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                        return info.first == std::string("terrainTiles");
+                                      });
+    if (terrainLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              _pipeline->getPipelineLayout(), 3, 1,
+                              &_descriptorSetTerrainTiles->getDescriptorSets()[currentFrame], 0, nullptr);
     }
   }
 

@@ -10,7 +10,7 @@ class DescriptorSetLayout {
 
  public:
   DescriptorSetLayout(std::shared_ptr<Device> device);
-  void createTexture(VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
+  void createTexture(int number = 1, int binding = 0, VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
   void createBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
 
   void createGraphicModel();
@@ -47,7 +47,7 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
   void createBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
-  void createTexture(std::shared_ptr<Texture> texture);
+  void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
 
   void createJoints(std::shared_ptr<Buffer> buffer);
   void createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint);

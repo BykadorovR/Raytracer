@@ -15,6 +15,7 @@ layout(set = 2, binding = 0) uniform sampler2D heightMap;
 
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
+layout (location = 1) out vec2 TexCoord;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -29,18 +30,21 @@ void main()
 
     // ----------------------------------------------------------------------
     // retrieve control point texture coordinates
-    vec2 t00 = TextureCoord[0] / vec2(push.patchDimX, push.patchDimY);
-    vec2 t01 = TextureCoord[1] / vec2(push.patchDimX, push.patchDimY);
-    vec2 t10 = TextureCoord[2] / vec2(push.patchDimX, push.patchDimY);
-    vec2 t11 = TextureCoord[3] / vec2(push.patchDimX, push.patchDimY);
+    vec2 t00 = TextureCoord[0];
+    vec2 t01 = TextureCoord[1];
+    vec2 t10 = TextureCoord[2];
+    vec2 t11 = TextureCoord[3];
 
     // bilinearly interpolate texture coordinate across patch
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     vec2 texCoord = (t1 - t0) * v + t0;
+    TexCoord = texCoord;
 
+    // IMPORTANT: need to divide, othervwise we will have the whole heightmap for every tile
     // lookup texel at patch coordinate for height and scale + shift as desired
-    Height = texture(heightMap, texCoord).y * 64.0 - 16.0;
+    float heightValue = texture(heightMap, texCoord / vec2(push.patchDimX, push.patchDimY)).y;
+    Height = heightValue * 256.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -60,7 +64,7 @@ void main()
     vec4 p = (p1 - p0) * v + p0;
 
     // displace point along normal
-    p += normal * Height;
+    p += normal * (heightValue * 64.0 - 16.0);
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space

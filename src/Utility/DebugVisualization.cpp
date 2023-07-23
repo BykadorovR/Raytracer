@@ -58,7 +58,7 @@ void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
   _texture = texture;
   _textureSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _textureSetLayout,
                                                 _state->getDescriptorPool(), _state->getDevice());
-  _textureSet->createTexture(texture);
+  _textureSet->createTexture({texture});
 }
 
 void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,

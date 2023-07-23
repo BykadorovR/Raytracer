@@ -102,10 +102,10 @@ void DescriptorSetLayout::createGraphicModel() {
   }
 }
 
-void DescriptorSetLayout::createTexture(VkShaderStageFlags stage) {
+void DescriptorSetLayout::createTexture(int number, int binding, VkShaderStageFlags stage) {
   VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-  samplerLayoutBinding.binding = 0;
-  samplerLayoutBinding.descriptorCount = 1;
+  samplerLayoutBinding.binding = binding;
+  samplerLayoutBinding.descriptorCount = number;
   samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   samplerLayoutBinding.pImmutableSamplers = nullptr;
   samplerLayoutBinding.stageFlags = stage;
@@ -352,22 +352,24 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
   }
 }
 
-void DescriptorSet::createTexture(std::shared_ptr<Texture> texture) {
+void DescriptorSet::createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
-    imageInfo.imageView = texture->getImageView()->getImageView();
-    imageInfo.sampler = texture->getSampler()->getSampler();
+    std::vector<VkDescriptorImageInfo> imageInfo(texture.size());
+    for (int j = 0; j < texture.size(); j++) {
+      imageInfo[j].imageLayout = texture[j]->getImageView()->getImage()->getImageLayout();
+      // TODO: make appropriate name
+      imageInfo[j].imageView = texture[j]->getImageView()->getImageView();
+      imageInfo[j].sampler = texture[j]->getSampler()->getSampler();
+    }
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites.dstSet = _descriptorSets[i];
-    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstBinding = binding;
     descriptorWrites.dstArrayElement = 0;
     descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites.descriptorCount = 1;
-    descriptorWrites.pImageInfo = &imageInfo;
+    descriptorWrites.descriptorCount = imageInfo.size();
+    descriptorWrites.pImageInfo = imageInfo.data();
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
   }

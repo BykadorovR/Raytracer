@@ -411,7 +411,7 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<TerrainGPU>(std::pair{4, 4}, commandBufferTransfer, state);
+  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, state);
   auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
   terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
