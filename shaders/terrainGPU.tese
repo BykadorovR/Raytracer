@@ -20,6 +20,8 @@ layout (location = 1) out vec2 TexCoord;
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
     int patchDimY;
+    float heightScale;
+    float heightShift;
 } push;
 
 void main()
@@ -64,7 +66,7 @@ void main()
     vec4 p = (p1 - p0) * v + p0;
 
     // displace point along normal
-    p += normal * (heightValue * 64.0 - 16.0);
+    p += normal * (heightValue * push.heightScale - push.heightShift);
 
     // ----------------------------------------------------------------------
     // output patch point position in clip space

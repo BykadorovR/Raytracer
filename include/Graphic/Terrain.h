@@ -44,6 +44,9 @@ class TerrainGPU : public Terrain {
   std::shared_ptr<Texture> _heightMap;
   std::array<std::shared_ptr<Texture>, 4> _terrainTiles;
   std::pair<int, int> _patchNumber;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  float _heightLevels[4] = {16, 128, 192, 256};
   // TODO: work very strange, don't use not equal values
   int _minTessellationLevel = 4, _maxTessellationLevel = 64;
   float _minDistance = 0.1, _maxDistance = 100;

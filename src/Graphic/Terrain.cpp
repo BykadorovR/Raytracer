@@ -147,6 +147,8 @@ struct LoDConstants {
 struct PatchConstants {
   int patchDimX;
   int patchDimY;
+  float heightScale;
+  float heightShift;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -155,6 +157,20 @@ struct PatchConstants {
     pushConstant.size = sizeof(PatchConstants);
     // this push constant range is accessible only in the vertex shader
     pushConstant.stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    return pushConstant;
+  }
+};
+
+struct HeightLevels {
+  float heightLevels[4];
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant{};
+    // this push constant range starts at the beginning
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.offset = sizeof(LoDConstants) + sizeof(PatchConstants);
+    pushConstant.size = sizeof(HeightLevels);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     return pushConstant;
   }
 };
@@ -253,6 +269,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();
   defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
+  defaultPushConstants["fragment"] = HeightLevels::getPushConstant();
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createGraphicTerrainGPU(
@@ -298,9 +315,20 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
     PatchConstants pushConstants;
     pushConstants.patchDimX = _patchNumber.first;
     pushConstants.patchDimY = _patchNumber.second;
+    pushConstants.heightScale = _heightScale;
+    pushConstants.heightShift = _heightShift;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(LoDConstants), sizeof(PatchConstants),
                        &pushConstants);
+  }
+
+  if (_pipeline->getPushConstants().find("fragment") != _pipeline->getPushConstants().end()) {
+    HeightLevels pushConstants;
+    int test = sizeof(HeightLevels);
+    std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
+                       sizeof(HeightLevels), &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
