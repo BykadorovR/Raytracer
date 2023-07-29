@@ -64,6 +64,12 @@ Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> d
   _depthStencil.stencilTestEnable = VK_FALSE;
   _depthStencil.front = {};  // Optional
   _depthStencil.back = {};   // Optional
+
+  _dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_DEPTH_BIAS};
+  _dynamicState = VkPipelineDynamicStateCreateInfo{};
+  _dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+  _dynamicState.dynamicStateCount = static_cast<uint32_t>(_dynamicStates.size());
+  _dynamicState.pDynamicStates = _dynamicStates.data();
 }
 
 void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -105,12 +111,6 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
@@ -129,7 +129,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -182,12 +182,6 @@ void Pipeline::createGraphic3D(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
 
@@ -212,7 +206,7 @@ void Pipeline::createGraphic3D(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -267,12 +261,6 @@ void Pipeline::createGraphicTerrainCPU(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
 
@@ -297,7 +285,7 @@ void Pipeline::createGraphicTerrainCPU(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -350,12 +338,6 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 
   _rasterizer.cullMode = cullMode;
@@ -383,7 +365,7 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -438,12 +420,6 @@ void Pipeline::createGraphicTerrainGPU(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
 
@@ -474,7 +450,7 @@ void Pipeline::createGraphicTerrainGPU(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.pTessellationState = &tessellationState;
   pipelineInfo.subpass = 0;
@@ -527,13 +503,6 @@ void Pipeline::createGraphic3DShadow(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
-                                               VK_DYNAMIC_STATE_DEPTH_BIAS};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _rasterizer.depthBiasEnable = VK_TRUE;
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -556,7 +525,7 @@ void Pipeline::createGraphic3DShadow(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -608,12 +577,6 @@ void Pipeline::createGraphic2D(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
@@ -636,7 +599,7 @@ void Pipeline::createGraphic2D(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -688,13 +651,6 @@ void Pipeline::createGraphic2DShadow(
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR,
-                                               VK_DYNAMIC_STATE_DEPTH_BIAS};
-  auto dynamicState = VkPipelineDynamicStateCreateInfo{};
-  dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-  dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-  dynamicState.pDynamicStates = dynamicStates.data();
-
   _rasterizer.cullMode = cullMode;
   _rasterizer.depthBiasEnable = VK_TRUE;
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
@@ -717,7 +673,7 @@ void Pipeline::createGraphic2DShadow(
   pipelineInfo.pRasterizationState = &_rasterizer;
   pipelineInfo.pMultisampleState = &_multisampling;
   pipelineInfo.pColorBlendState = &_colorBlending;
-  pipelineInfo.pDynamicState = &dynamicState;
+  pipelineInfo.pDynamicState = &_dynamicState;
   pipelineInfo.layout = _pipelineLayout;
   pipelineInfo.subpass = 0;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;

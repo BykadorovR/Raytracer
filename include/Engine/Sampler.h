@@ -7,7 +7,7 @@ class Sampler {
   VkSampler _sampler;
 
  public:
-  Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device);
+  Sampler(VkSamplerAddressMode mode, int mipMapLevels, std::shared_ptr<Device> device);
   VkSampler& getSampler();
 
   ~Sampler();

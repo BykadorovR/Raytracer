@@ -11,6 +11,7 @@ Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, s
 
 Image::Image(std::tuple<int, int> resolution,
              int layers,
+             int mipMapLevels,
              VkFormat format,
              VkImageTiling tiling,
              VkImageUsageFlags usage,
@@ -29,7 +30,7 @@ Image::Image(std::tuple<int, int> resolution,
   imageInfo.extent.width = std::get<0>(resolution);
   imageInfo.extent.height = std::get<1>(resolution);
   imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
+  imageInfo.mipLevels = mipMapLevels;
   imageInfo.arrayLayers = layers;
   imageInfo.format = format;
   imageInfo.tiling = tiling;
@@ -84,6 +85,7 @@ void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
                          VkImageAspectFlags aspectMask,
                          int layersNumber,
+                         int mipMapLevels,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _imageLayout = newLayout;
 
@@ -99,7 +101,7 @@ void Image::changeLayout(VkImageLayout oldLayout,
   barrier.image = _image;
   barrier.subresourceRange.aspectMask = aspectMask;
   barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.levelCount = mipMapLevels;
   barrier.subresourceRange.baseArrayLayer = 0;
   barrier.subresourceRange.layerCount = layersNumber;
 
@@ -239,6 +241,7 @@ ImageView::ImageView(std::shared_ptr<Image> image,
                      VkImageViewType type,
                      int layerCount,
                      int baseArrayLayer,
+                     int mipMapLevels,
                      VkImageAspectFlags aspectFlags,
                      std::shared_ptr<Device> device) {
   _device = device;
@@ -257,7 +260,7 @@ ImageView::ImageView(std::shared_ptr<Image> image,
   viewInfo.subresourceRange.baseMipLevel = 0;
   viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
   viewInfo.subresourceRange.layerCount = layerCount;
-  viewInfo.subresourceRange.levelCount = 1;
+  viewInfo.subresourceRange.levelCount = mipMapLevels;
 
   if (vkCreateImageView(device->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");

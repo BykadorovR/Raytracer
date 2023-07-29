@@ -26,7 +26,7 @@ layout( push_constant ) uniform constants {
 
 void main()
 {
-    // get patch coordinate
+    // get patch coordinate (2D)
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
 
@@ -43,7 +43,7 @@ void main()
     vec2 texCoord = (t1 - t0) * v + t0;
     TexCoord = texCoord;
 
-    // IMPORTANT: need to divide, othervwise we will have the whole heightmap for every tile
+    // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
     // lookup texel at patch coordinate for height and scale + shift as desired
     float heightValue = texture(heightMap, texCoord / vec2(push.patchDimX, push.patchDimY)).y;
     Height = heightValue * 256.0;

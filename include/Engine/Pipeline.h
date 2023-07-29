@@ -10,9 +10,11 @@ class Pipeline {
   std::shared_ptr<Device> _device;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::map<std::string, VkPushConstantRange> _pushConstants;
+  std::vector<VkDynamicState> _dynamicStates;
   VkPipeline _pipeline;
   VkPipelineLayout _pipelineLayout;
 
+  VkPipelineDynamicStateCreateInfo _dynamicState;
   VkPipelineInputAssemblyStateCreateInfo _inputAssembly;
   VkPipelineViewportStateCreateInfo _viewportState;
   VkPipelineRasterizationStateCreateInfo _rasterizer;

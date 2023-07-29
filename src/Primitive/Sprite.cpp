@@ -16,11 +16,11 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
   _device = device;
   _settings = settings;
   if (texture == nullptr)
-    texture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, commandBufferTransfer,
-                                        device);
+    texture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                        commandBufferTransfer, device);
 
   if (normalMap == nullptr)
-    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                           commandBufferTransfer, device);
   _normalMap = normalMap;
   _texture = texture;

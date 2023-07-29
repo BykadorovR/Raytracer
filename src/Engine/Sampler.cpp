@@ -1,6 +1,6 @@
 #include "Sampler.h"
 
-Sampler::Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device) {
+Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, std::shared_ptr<Device> device) {
   _device = device;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
@@ -20,7 +20,7 @@ Sampler::Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device) {
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.mipLodBias = 0.0f;
   samplerInfo.minLod = 0.0f;
-  samplerInfo.maxLod = 0.0f;
+  samplerInfo.maxLod = static_cast<float>(mipMapLevels);
 
   if (vkCreateSampler(device->getLogicalDevice(), &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture sampler!");
