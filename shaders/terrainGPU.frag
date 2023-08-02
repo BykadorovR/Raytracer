@@ -2,6 +2,7 @@
 
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 texCoord;
+layout(location = 2) in vec3 fragNormal;
 layout(location = 0) out vec4 outColor;
 layout(set = 3, binding = 0) uniform sampler2D terrainSampler[4];
 

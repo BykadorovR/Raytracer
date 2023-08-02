@@ -1,7 +1,7 @@
 // tessellation evaluation shader
 #version 450 core
 
-layout (quads, equal_spacing, ccw) in;
+layout (quads, fractional_odd_spacing, ccw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
@@ -71,6 +71,9 @@ void main()
 
     //
     vec2 textureSize = textureSize(heightMap, 0);
+    //classic implementation
+    //vec2 stepCoords = vec2(1.0, 1.0);
+    //my implementation
     vec2 stepCoords = textureSize / (vec2(push.patchDimX, push.patchDimY) * vec2(gl_TessLevelInner[0], gl_TessLevelInner[1]));
     vec2 stepTexture = stepCoords / textureSize;
 
@@ -87,6 +90,4 @@ void main()
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
     colorVertex = normalize(cross(tangent, bitangent));
     normalVertex = normalize(vec3(mvp.view * vec4(colorVertex, 0.0)));
-    //
-
 }

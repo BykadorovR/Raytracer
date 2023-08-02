@@ -48,8 +48,8 @@ class TerrainGPU : public Terrain {
   float _heightShift = 16.f;
   float _heightLevels[4] = {16, 128, 192, 256};
   // TODO: work very strange, don't use not equal values
-  int _minTessellationLevel = 4, _maxTessellationLevel = 4;
-  float _minDistance = 0.1, _maxDistance = 100;
+  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
+  float _minDistance = 0.1, _maxDistance = 30;
 
  public:
   TerrainGPU(std::pair<int, int> patchNumber,
