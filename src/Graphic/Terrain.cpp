@@ -75,7 +75,7 @@ TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
                                      Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 }
 
-void TerrainCPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void TerrainCPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, bool normals) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};
@@ -236,6 +236,9 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   auto setCameraEvaluation = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setCameraEvaluation->createBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
+  auto setCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setCameraGeometry->createBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
+
   auto setHeight = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setHeight->createTexture(1, 0, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
@@ -250,6 +253,10 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
                                                                    setCameraEvaluation, state->getDescriptorPool(),
                                                                    state->getDevice());
   _descriptorSetCameraEvaluation->createBuffer(_cameraBuffer);
+
+  _descriptorSetCameraGeometry = std::make_shared<DescriptorSet>(
+      state->getSettings()->getMaxFramesInFlight(), setCameraGeometry, state->getDescriptorPool(), state->getDevice());
+  _descriptorSetCameraGeometry->createBuffer(_cameraBuffer);
 
   _descriptorSetHeight = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setHeight,
                                                          state->getDescriptorPool(), state->getDevice());
@@ -266,6 +273,13 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   shader->add("../shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
   shader->add("../shaders/terrainGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
+  auto shaderNormal = std::make_shared<Shader>(state->getDevice());
+  shaderNormal->add("../shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderNormal->add("../shaders/normal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shaderNormal->add("../shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  shaderNormal->add("../shaders/normal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  shaderNormal->add("../shaders/normal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
+
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();
   defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
@@ -273,7 +287,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -281,11 +295,26 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
        std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
        std::pair{std::string("terrainTiles"), setTerrainTiles}},
       defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
+
+  _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipelineNormal->createGraphicTerrainGPU(
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
+       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
+       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+      {std::pair{std::string("cameraControl"), setCameraControl},
+       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
+       std::pair{std::string("cameraGeometry"), setCameraGeometry}},
+      defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 }
 
-void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, bool normals) {
+  std::shared_ptr<Pipeline> pipeline = _pipeline;
+  if (normals) pipeline = _pipelineNormal;
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+                    pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(_state->getSettings()->getResolution());
@@ -301,32 +330,32 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                               std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  if (_pipeline->getPushConstants().find("control") != _pipeline->getPushConstants().end()) {
+  if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
     LoDConstants pushConstants;
     pushConstants.near = _minDistance;
     pushConstants.far = _maxDistance;
     pushConstants.minTessellationLevel = _minTessellationLevel;
     pushConstants.maxTessellationLevel = _maxTessellationLevel;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(LoDConstants), &pushConstants);
   }
 
-  if (_pipeline->getPushConstants().find("evaluate") != _pipeline->getPushConstants().end()) {
+  if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
     PatchConstants pushConstants;
     pushConstants.patchDimX = _patchNumber.first;
     pushConstants.patchDimY = _patchNumber.second;
     pushConstants.heightScale = _heightScale;
     pushConstants.heightShift = _heightShift;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(LoDConstants), sizeof(PatchConstants),
                        &pushConstants);
   }
 
-  if (_pipeline->getPushConstants().find("fragment") != _pipeline->getPushConstants().end()) {
+  if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     HeightLevels pushConstants;
     int test = sizeof(HeightLevels);
     std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                        sizeof(HeightLevels), &pushConstants);
   }
@@ -347,7 +376,7 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
   VkDeviceSize offsets[] = {0};
   vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  auto pipelineLayout = _pipeline->getDescriptorSetLayout();
+  auto pipelineLayout = pipeline->getDescriptorSetLayout();
   {
     auto cameralLayoutControl = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                              [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
@@ -355,7 +384,7 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                                              });
     if (cameralLayoutControl != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 0, 1,
+                              pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetCameraControl->getDescriptorSets()[currentFrame], 0, nullptr);
     }
   }
@@ -367,8 +396,20 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                                                });
     if (cameraLayoutEvaluation != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 1, 1,
+                              pipeline->getPipelineLayout(), 1, 1,
                               &_descriptorSetCameraEvaluation->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+  }
+
+  {
+    auto cameraLayoutGeometry = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                             [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                               return info.first == std::string("cameraGeometry");
+                                             });
+    if (normals && cameraLayoutGeometry != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 3, 1,
+                              &_descriptorSetCameraGeometry->getDescriptorSets()[currentFrame], 0, nullptr);
     }
   }
 
@@ -379,7 +420,7 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                                      });
     if (heightLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 2, 1,
+                              pipeline->getPipelineLayout(), 2, 1,
                               &_descriptorSetHeight->getDescriptorSets()[currentFrame], 0, nullptr);
     }
   }
@@ -391,7 +432,7 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                                       });
     if (terrainLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              _pipeline->getPipelineLayout(), 3, 1,
+                              pipeline->getPipelineLayout(), 3, 1,
                               &_descriptorSetTerrainTiles->getDescriptorSets()[currentFrame], 0, nullptr);
     }
   }

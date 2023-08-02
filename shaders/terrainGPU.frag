@@ -22,10 +22,10 @@ vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
 
 void main() {
     vec2 line = fract(texCoord);
-    if (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999) {
+    /*if (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999) {
         outColor = vec4(1, 0, 0, 1);
         return;
-    }
+    }*/
 
     float height = fragHeight;
     if (height < push.heightLevels[0]) {

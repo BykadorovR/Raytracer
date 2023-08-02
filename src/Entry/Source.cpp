@@ -608,6 +608,7 @@ void drawFrame() {
 
     loggerGPU->begin("Render terrain", currentFrame);
     terrain->draw(currentFrame, commandBuffer);
+    terrain->draw(currentFrame, commandBuffer, true);
     loggerGPU->end(currentFrame);
 
     updateJoints = pool->submit([&]() {

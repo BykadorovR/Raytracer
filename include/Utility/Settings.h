@@ -8,7 +8,8 @@ struct Settings {
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
   std::tuple<int, int> _depthResolution = {1024, 1024};
-  VkClearColorValue _clearColor = {196.f / 255.f, 233.f / 255.f, 242.f / 255.f, 1.f};
+  // VkClearColorValue _clearColor = {196.f / 255.f, 233.f / 255.f, 242.f / 255.f, 1.f};
+  VkClearColorValue _clearColor = {20.f / 255.f, 20.f / 255.f, 20.f / 255.f, 1.f};
   std::string _name = "default";
   VkFormat _colorFormat = VK_FORMAT_B8G8R8A8_UNORM;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
