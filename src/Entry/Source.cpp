@@ -599,7 +599,7 @@ void drawFrame() {
     lightManager->draw(currentFrame);
     // draw scene here
     loggerGPU->begin("Render sprites", currentFrame);
-    spriteManager->draw(currentFrame, commandBuffer);
+    // spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     loggerGPU->begin("Render models", currentFrame);

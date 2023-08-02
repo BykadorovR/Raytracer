@@ -1,7 +1,7 @@
 // tessellation evaluation shader
 #version 450 core
 
-layout (quads, fractional_odd_spacing, ccw) in;
+layout (quads, equal_spacing, ccw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
@@ -43,23 +43,7 @@ void main()
     vec2 TexCoord = (t1 - t0) * v + t0;
     // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
     vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
-    float heightValue = texture(heightMap, texCoord).y;
-    //
-    float left = textureOffset(heightMap, texCoord, ivec2(-1, 0)).y * push.heightScale - push.heightShift;
-    float right = textureOffset(heightMap, texCoord, ivec2(1, 0)).y * push.heightScale - push.heightShift;
-    float top = textureOffset(heightMap, texCoord, ivec2(0, 1)).y * push.heightScale - push.heightShift;
-    float bottom = textureOffset(heightMap, texCoord, ivec2(0, -1)).y * push.heightScale - push.heightShift;
-    //TODO: change 2.0 to real size
-    //gl_TessLevelInner[0] - x, gl_TessLevelInner[1] - z
-    //12 patches
-    vec2 textureSize = textureSize(heightMap, 0);
-    vec2 stepSize = textureSize / (vec2(push.patchDimX, push.patchDimY) * vec2(gl_TessLevelInner[0], gl_TessLevelInner[1]));
-
-    vec3 tangent = vec3(2.0 * stepSize.x, right - left, 0.0);
-    vec3 bitangent = vec3(0.0, bottom - top, -2.0 * stepSize.y);
-    colorVertex = normalize(cross(tangent, bitangent));
-    normalVertex = normalize(vec3(mvp.view * vec4(colorVertex, 0.0)));
-    //
+    float heightValue = texture(heightMap, texCoord).y;    
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -76,7 +60,7 @@ void main()
     // bilinearly interpolate position coordinate across patch
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
-    vec4 p = (p1 - p0) * v + p0;
+    vec4 p = (p1 - p0) * v + p0;    
 
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
@@ -84,4 +68,25 @@ void main()
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.view * mvp.model * p;
+
+    //
+    vec2 textureSize = textureSize(heightMap, 0);
+    vec2 stepCoords = textureSize / (vec2(push.patchDimX, push.patchDimY) * vec2(gl_TessLevelInner[0], gl_TessLevelInner[1]));
+    vec2 stepTexture = stepCoords / textureSize;
+
+    float left = texture(heightMap, texCoord + vec2(-1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
+    float right = texture(heightMap, texCoord + vec2(1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
+    //in Vulkan 0, 0 is top-left corner
+    float top = texture(heightMap, texCoord + vec2(0, -1 * stepTexture.y)).y * push.heightScale - push.heightShift;
+    float bottom = texture(heightMap, texCoord + vec2(0, 1 * stepTexture.y)).y * push.heightScale - push.heightShift;
+    
+    //here we don't change right - left and top - bottom, it's always it.
+    //direction of cross product is calculated by right hand rule
+    //we don't depend on p
+    vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
+    vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
+    colorVertex = normalize(cross(tangent, bitangent));
+    normalVertex = normalize(vec3(mvp.view * vec4(colorVertex, 0.0)));
+    //
+
 }
