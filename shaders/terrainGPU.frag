@@ -8,6 +8,7 @@ layout(set = 3, binding = 0) uniform sampler2D terrainSampler[4];
 
 layout( push_constant ) uniform constants {
     layout(offset = 32) float heightLevels[4];
+    int patchEdge;
 } push;
 
 //It is important to get the gradients before going into non-uniform flow code.
@@ -23,10 +24,10 @@ vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
 
 void main() {
     vec2 line = fract(texCoord);
-    /*if (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999) {
+    if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {
         outColor = vec4(1, 0, 0, 1);
         return;
-    }*/
+    }
 
     float height = fragHeight;
     if (height < push.heightLevels[0]) {

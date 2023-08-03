@@ -86,7 +86,9 @@ std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
 
 std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
 std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
-
+bool terrainNormals = false;
+bool terrainWireframe = false;
+bool terrainPatch = false;
 bool shouldWork = true;
 
 void directionalLightCalculator(int index) {
@@ -607,8 +609,23 @@ void drawFrame() {
     loggerGPU->end(currentFrame);
 
     loggerGPU->begin("Render terrain", currentFrame);
-    terrain->draw(currentFrame, commandBuffer);
-    terrain->draw(currentFrame, commandBuffer, true);
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["Normals"] = &terrainNormals;
+      terrainGUI["Wireframe"] = &terrainWireframe;
+      gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI);
+    }
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["Patches"] = &terrainPatch;
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI))
+        std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
+    }
+    if (terrainWireframe)
+      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
+    else
+      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
+    if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
     loggerGPU->end(currentFrame);
 
     updateJoints = pool->submit([&]() {

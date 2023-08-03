@@ -71,12 +71,13 @@ class GUI : public InputSubscriber {
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
   bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);
-  void drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
+  bool drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
   void drawListBox(std::string name,
                    std::tuple<int, int> position,
                    std::vector<std::string> list,
                    std::map<std::string, int*> variable);
   bool drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable);
+  bool drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 

@@ -126,15 +126,18 @@ bool GUI::drawButton(std::string name, std::tuple<int, int> position, std::strin
   return result;
 }
 
-void GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
+bool GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
+  bool result = false;
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
     ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Checkbox(key.c_str(), value);
+    if (ImGui::Checkbox(key.c_str(), value)) result = true;
     ImGui::End();
   }
   _calls++;
+
+  return result;
 }
 
 bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable) {
@@ -145,6 +148,22 @@ bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::m
     ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(100);
     if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f)) result = true;
+    ImGui::PopItemWidth();
+    ImGui::End();
+  }
+  _calls++;
+
+  return result;
+}
+
+bool GUI::drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(20);
+    if (ImGui::InputInt(key.c_str(), value, 0)) result = true;
     ImGui::PopItemWidth();
     ImGui::End();
   }

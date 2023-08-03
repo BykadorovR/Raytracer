@@ -75,6 +75,7 @@ void main()
     gl_Position = mvp.proj * mvp.view * mvp.model * p;
 
     //
+    //we sample from full size texture only, because we use stepCoords
     vec2 textureSize = textureSize(heightMap, 0);
     //classic implementation
     //vec2 stepCoords = vec2(1.0, 1.0);
