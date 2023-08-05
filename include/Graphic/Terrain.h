@@ -1,6 +1,7 @@
 #pragma once
 #include "State.h"
 #include "Camera.h"
+#include "LightManager.h"
 
 enum class TerrainPipeline { FILL, WIREFRAME, NORMAL };
 
@@ -50,6 +51,7 @@ class TerrainGPU : public Terrain {
   std::shared_ptr<Texture> _heightMap;
   std::array<std::shared_ptr<Texture>, 4> _terrainTiles;
   std::pair<int, int> _patchNumber;
+  std::shared_ptr<LightManager> _lightManager;
   int _mipMap = 8;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
@@ -59,10 +61,12 @@ class TerrainGPU : public Terrain {
   float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;
   bool _showLoD = false;
+  bool _enableLighting = true;
 
  public:
   TerrainGPU(std::pair<int, int> patchNumber,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<LightManager> lightManager,
              std::shared_ptr<State> state);
   void patchEdge(bool enable);
   void showLoD(bool enable);

@@ -19,6 +19,7 @@ layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 normalVertex;
 layout (location = 3) out vec3 outTessColor;
+layout (location = 4) out vec3 fragPosition;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -86,6 +87,7 @@ void main()
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;
 
+    fragPosition = (mvp.model * p).xyz;
     //
     //we sample from full size texture only, because we use stepCoords
     vec2 textureSize = textureSize(heightMap, 0);
@@ -107,5 +109,5 @@ void main()
     vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
     vec3 colorVertex = normalize(cross(tangent, bitangent));
-    normalVertex = normalize(vec3(mvp.view * mvp.model * vec4(colorVertex, 0.0)));
+    normalVertex = normalize(vec3(mvp.model * vec4(colorVertex, 0.0)));
 }

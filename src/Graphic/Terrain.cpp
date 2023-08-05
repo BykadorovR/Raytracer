@@ -162,9 +162,11 @@ struct PatchConstants {
 };
 
 struct HeightLevels {
-  float heightLevels[4];
-  int patchEdge;
-  int showLOD;
+  alignas(16) float heightLevels[4];
+  alignas(16) int patchEdge;
+  alignas(16) int showLOD;
+  alignas(16) int enableLighting;
+  alignas(16) glm::vec3 cameraPosition;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -179,9 +181,11 @@ struct HeightLevels {
 
 TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<LightManager> lightManager,
                        std::shared_ptr<State> state) {
   _state = state;
   _patchNumber = patchNumber;
+  _lightManager = lightManager;
 
   _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
                                                commandBufferTransfer, state->getDevice());
@@ -295,7 +299,8 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
       {std::pair{std::string("cameraControl"), setCameraControl},
        std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
-       std::pair{std::string("terrainTiles"), setTerrainTiles}},
+       std::pair{std::string("terrainTiles"), setTerrainTiles},
+       std::pair{std::string("light"), lightManager->getDSLLight()}},
       defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 
   _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -319,7 +324,8 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
       {std::pair{std::string("cameraControl"), setCameraControl},
        std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
-       std::pair{std::string("terrainTiles"), setTerrainTiles}},
+       std::pair{std::string("terrainTiles"), setTerrainTiles},
+       std::pair{std::string("light"), lightManager->getDSLLight()}},
       defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 }
 
@@ -375,6 +381,8 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
     std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
     pushConstants.patchEdge = _enableEdge;
     pushConstants.showLOD = _showLoD;
+    pushConstants.enableLighting = _enableLighting;
+    pushConstants.cameraPosition = _camera->getEye();
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                        sizeof(HeightLevels), &pushConstants);
@@ -455,6 +463,15 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
                               pipeline->getPipelineLayout(), 3, 1,
                               &_descriptorSetTerrainTiles->getDescriptorSets()[currentFrame], 0, nullptr);
     }
+  }
+
+  auto lightLayout = std::find_if(
+      pipelineLayout.begin(), pipelineLayout.end(),
+      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "light"; });
+  if (lightLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 4, 1,
+                            &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _vertexNumber, 1, 0, 0);

@@ -269,33 +269,33 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  /* pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
+   pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
+   pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
+   pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+   pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
 
-  pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});
+   pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
+   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
+  directionalLight->createPhong(0.f, 0.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, 1.f});
 
-  directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
+  /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight2->setPosition({15.f, 3.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
-  directionalLight2->setUp({0.f, 1.f, 0.f});
+  directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, device,
                                                   settings);
@@ -414,7 +414,7 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, state);
+  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, lightManager, state);
   auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
   terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
