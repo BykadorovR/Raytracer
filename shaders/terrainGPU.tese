@@ -5,6 +5,7 @@ layout (quads, fractional_odd_spacing, ccw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
+layout (location = 1) in vec3 tessColor[];
 layout(set = 1, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
@@ -17,6 +18,7 @@ layout(set = 2, binding = 0) uniform sampler2D heightMap;
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 normalVertex;
+layout (location = 3) out vec3 outTessColor;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -30,6 +32,16 @@ void main()
     // get patch coordinate (2D)
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
+
+    // debug color
+    vec3 tc00 = tessColor[0];
+    vec3 tc01 = tessColor[1];
+    vec3 tc10 = tessColor[2];
+    vec3 tc11 = tessColor[3];
+    // bilinearly interpolate texture coordinate across patch
+    vec3 tc0 = (tc01 - tc00) * u + tc00;
+    vec3 tc1 = (tc11 - tc10) * u + tc10;
+    outTessColor = (tc1 - tc0) * v + tc0;
 
     // ----------------------------------------------------------------------
     // retrieve control point texture coordinates
@@ -95,5 +107,5 @@ void main()
     vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
     vec3 colorVertex = normalize(cross(tangent, bitangent));
-    normalVertex = normalize(vec3(mvp.view * vec4(colorVertex, 0.0)));
+    normalVertex = normalize(vec3(mvp.view * mvp.model * vec4(colorVertex, 0.0)));
 }

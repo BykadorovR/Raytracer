@@ -50,19 +50,22 @@ class TerrainGPU : public Terrain {
   std::shared_ptr<Texture> _heightMap;
   std::array<std::shared_ptr<Texture>, 4> _terrainTiles;
   std::pair<int, int> _patchNumber;
+  int _mipMap = 8;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   float _heightLevels[4] = {16, 128, 192, 256};
   // TODO: work very strange, don't use not equal values
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
-  float _minDistance = 0.1, _maxDistance = 30;
+  float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;
+  bool _showLoD = false;
 
  public:
   TerrainGPU(std::pair<int, int> patchNumber,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<State> state);
   void patchEdge(bool enable);
+  void showLoD(bool enable);
   void draw(int currentFrame,
             std::shared_ptr<CommandBuffer> commandBuffer,
             TerrainPipeline terrainType = TerrainPipeline::FILL) override;

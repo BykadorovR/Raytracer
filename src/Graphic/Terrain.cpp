@@ -164,6 +164,7 @@ struct PatchConstants {
 struct HeightLevels {
   float heightLevels[4];
   int patchEdge;
+  int showLOD;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -182,13 +183,13 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   _state = state;
   _patchNumber = patchNumber;
 
-  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 4,
+  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
                                                commandBufferTransfer, state->getDevice());
-  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 4,
+  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
                                                commandBufferTransfer, state->getDevice());
-  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 4,
+  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
                                                commandBufferTransfer, state->getDevice());
-  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 4,
+  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
                                                commandBufferTransfer, state->getDevice());
 
   _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
@@ -322,6 +323,8 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
       defaultPushConstants, Vertex3D::getBindingDescription(), Vertex3D::getAttributeDescriptions());
 }
 
+void TerrainGPU::showLoD(bool enable) { _showLoD = enable; }
+
 void TerrainGPU::patchEdge(bool enable) { _enableEdge = enable; }
 
 void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, TerrainPipeline pipelineType) {
@@ -371,6 +374,7 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
     HeightLevels pushConstants;
     std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
     pushConstants.patchEdge = _enableEdge;
+    pushConstants.showLOD = _showLoD;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                        sizeof(HeightLevels), &pushConstants);

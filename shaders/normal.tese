@@ -5,6 +5,7 @@ layout (quads, fractional_odd_spacing, ccw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
+layout (location = 1) in vec3 tessColor[];
 layout(set = 1, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
@@ -89,5 +90,5 @@ void main()
     vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
     colorVertex = normalize(cross(tangent, bitangent));
-    normalVertex = normalize(vec3(mvp.view * vec4(colorVertex, 0.0)));
+    normalVertex = normalize(vec3(mvp.view * mvp.model * vec4(colorVertex, 0.0)));
 }

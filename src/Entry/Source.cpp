@@ -89,6 +89,7 @@ std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
 bool terrainNormals = false;
 bool terrainWireframe = false;
 bool terrainPatch = false;
+bool showLoD = false;
 bool shouldWork = true;
 
 void directionalLightCalculator(int index) {
@@ -414,7 +415,7 @@ void initialize() {
   }
 
   terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, state);
-  auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+  auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
   terrain->setModel(scaleMatrix);
   terrain->setCamera(camera);
 
@@ -620,6 +621,12 @@ void drawFrame() {
       terrainGUI["Patches"] = &terrainPatch;
       if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI))
         std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
+    }
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["LoD"] = &showLoD;
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI))
+        std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
     }
     if (terrainWireframe)
       terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
