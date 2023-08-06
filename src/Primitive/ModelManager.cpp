@@ -187,6 +187,8 @@ void Model3DManager::drawShadow(int currentFrame,
                      ->getResolution();
   }
 
+  // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
+  // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
   VkViewport viewport{};
   if (lightType == LightType::DIRECTIONAL) {
     viewport.x = 0.0f;
