@@ -32,7 +32,7 @@ class Sprite {
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
 
   glm::mat4 _model = glm::mat4(1.f);
-  // we swap Y here because image is going from top to bottom, but Vulkan vice versa
+  // Vulkan image origin (0,0) is left-top corner
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
       {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},

@@ -134,10 +134,13 @@ void directionalLightCalculator(int index) {
   loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
-
   loggerGPU->begin("Models to directional depth buffer", currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
+  loggerGPU->begin("Terrain to directional depth buffer", currentFrame);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
+
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
@@ -161,8 +164,8 @@ void pointLightCalculator(int index, int face) {
   auto id = face + index * 6;
   loggerGPU->initialize("Point " + std::to_string(index) + "x" + std::to_string(face), currentFrame, commandBuffer);
   // record command buffer
-  commandBuffer->beginCommands(currentFrame);
   loggerGPU->begin("Point to depth buffer", currentFrame);
+  commandBuffer->beginCommands(currentFrame);
   auto pointLights = lightManager->getPointLights();
   VkClearValue clearDepth;
   clearDepth.depthStencil = {1.0f, 0};
@@ -208,6 +211,9 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->end(currentFrame);
   loggerGPU->begin("Models to point depth buffer", currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Terrain to point depth buffer", currentFrame);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end(currentFrame);
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
@@ -269,27 +275,27 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  /* pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
-   pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightHorizontal->createPhong(0.f, 0.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  /*
+  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-   pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
-   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
+  pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
 
-   pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
-   pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-   pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
+  pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
-   pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
-   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
-
-  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  /*directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight->createPhong(0.f, 0.f, glm::vec3(1.0f, 1.0f, 1.0f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
-  directionalLight->setUp({0.f, 0.f, 1.f});
+  directionalLight->setUp({0.f, 0.f, -1.f});*/
 
   /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -355,7 +361,7 @@ void initialize() {
       sprite->setModel(model);
     }
 
-    spriteManager->registerSprite(sprite);
+    // spriteManager->registerSprite(sprite);
   }
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
@@ -370,7 +376,7 @@ void initialize() {
   //   model3D->setModel(model);
   // }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTF->setModel(model);
@@ -415,8 +421,11 @@ void initialize() {
   }
 
   terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, lightManager, state);
-  auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
-  terrain->setModel(scaleMatrix);
+  {
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
+    terrain->setModel(translateMatrix);
+  }
   terrain->setCamera(camera);
 
   pool = std::make_shared<BS::thread_pool>(6);

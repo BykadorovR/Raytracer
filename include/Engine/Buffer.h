@@ -60,7 +60,7 @@ struct Vertex2D {
 
 struct DepthConstants {
   alignas(16) glm::vec3 lightPosition;
-  int far;
+  alignas(16) int far;
   static VkPushConstantRange getPushConstant(int offset) {
     VkPushConstantRange pushConstant;
     // this push constant range starts at the beginning

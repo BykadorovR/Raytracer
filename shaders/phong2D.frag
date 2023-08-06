@@ -65,7 +65,10 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     float shadow = 0.0;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
-            float bufferDepth = texture(shadowSampler, vec2(position.x + x * unitSize.x, position.y + y * unitSize.y)).r;
+            //IMPORTANT: we flip viewport for depth texture (OpenGL -> Vulkan) so it's correctly displayed in RenderDoc and on screen
+            //but we can't just use it here as is, because here is left-hand space and texture is in right-hand space
+            //so need to subtract position from 1.0
+            float bufferDepth = texture(shadowSampler, vec2(position.x + x * unitSize.x, 1.0 - (position.y + y * unitSize.y))).r;
             shadow += (currentDepth - bias) > bufferDepth ? 1.0 : 0.0;
         }
     }

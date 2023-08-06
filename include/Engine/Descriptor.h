@@ -16,7 +16,7 @@ class DescriptorSetLayout {
   void createGraphicModel();
   void createJoints();
   void createLight();
-  void createLightVP();
+  void createLightVP(VkShaderStageFlagBits stage);
   void createShadowTexture();
   void createModelAuxilary();
   void createCompute();

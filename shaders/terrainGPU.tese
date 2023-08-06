@@ -20,6 +20,17 @@ layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 normalVertex;
 layout (location = 3) out vec3 outTessColor;
 layout (location = 4) out vec3 fragPosition;
+layout (location = 5) out vec4 fragLightDirectionalCoord[2];
+
+layout(std430, set = 6, binding = 0) readonly buffer LightMatrixDirectional {
+    int lightDirectionalNumber;
+    mat4 lightDirectionalVP[];
+};
+
+layout(std430, set = 6, binding = 1) readonly buffer LightMatrixPoint {
+    int lightPointNumber;
+    mat4 lightPointVP[];
+};
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -110,4 +121,7 @@ void main()
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
     vec3 colorVertex = normalize(cross(tangent, bitangent));
     normalVertex = normalize(vec3(mvp.model * vec4(colorVertex, 0.0)));
+
+    for (int i = 0; i < lightDirectionalNumber; i++)
+        fragLightDirectionalCoord[i] = lightDirectionalVP[i] * mvp.model * p;
 }

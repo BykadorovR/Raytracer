@@ -25,7 +25,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
   { _descriptorSetLayout.push_back({"light", _lightManager->getDSLLight()}); }
 
-  { _descriptorSetLayout.push_back({"lightVP", _lightManager->getDSLViewProjection()}); }
+  { _descriptorSetLayout.push_back({"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)}); }
 
   { _descriptorSetLayout.push_back({"shadowTexture", _lightManager->getDSLShadowTexture()}); }
 
@@ -115,9 +115,10 @@ void SpriteManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comman
       pipelineLayout.begin(), pipelineLayout.end(),
       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
   if (lightVPLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[SpriteRenderMode::FULL]->getPipelineLayout(), 3, 1,
-                            &_lightManager->getDSViewProjection()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+        _pipeline[SpriteRenderMode::FULL]->getPipelineLayout(), 3, 1,
+        &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto shadowTextureLayout = std::find_if(
@@ -143,10 +144,6 @@ void SpriteManager::drawShadow(int currentFrame,
                                int face) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline[(SpriteRenderMode)lightType]->getPipeline());
-  VkViewport viewport{};
-  viewport.x = 0.f;
-  viewport.y = 0.f;
-
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
     resolution = _lightManager->getDirectionalLights()[lightIndex]
@@ -163,8 +160,18 @@ void SpriteManager::drawShadow(int currentFrame,
                      ->getImage()
                      ->getResolution();
   }
-  viewport.width = std::get<0>(resolution);
-  viewport.height = std::get<1>(resolution);
+  VkViewport viewport{};
+  if (lightType == LightType::DIRECTIONAL) {
+    viewport.x = 0.0f;
+    viewport.y = std::get<1>(resolution);
+    viewport.width = std::get<0>(resolution);
+    viewport.height = -std::get<1>(resolution);
+  } else if (lightType == LightType::POINT) {
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = std::get<0>(resolution);
+    viewport.height = std::get<1>(resolution);
+  }
 
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
@@ -180,6 +187,7 @@ void SpriteManager::drawShadow(int currentFrame,
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      // light camera
       pushConstants.far = 100.f;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[SpriteRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,

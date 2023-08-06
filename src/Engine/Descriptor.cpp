@@ -165,19 +165,19 @@ void DescriptorSetLayout::createShadowTexture() {
   }
 }
 
-void DescriptorSetLayout::createLightVP() {
+void DescriptorSetLayout::createLightVP(VkShaderStageFlagBits stage) {
   std::array<VkDescriptorSetLayoutBinding, 2> ssboLayoutBinding{};
   ssboLayoutBinding[0].binding = 0;
   ssboLayoutBinding[0].descriptorCount = 1;
   ssboLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
   ssboLayoutBinding[0].pImmutableSamplers = nullptr;
-  ssboLayoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  ssboLayoutBinding[0].stageFlags = stage;
 
   ssboLayoutBinding[1].binding = 1;
   ssboLayoutBinding[1].descriptorCount = 1;
   ssboLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
   ssboLayoutBinding[1].pImmutableSamplers = nullptr;
-  ssboLayoutBinding[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  ssboLayoutBinding[1].stageFlags = stage;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
