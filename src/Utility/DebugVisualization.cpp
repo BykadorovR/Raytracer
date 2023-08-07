@@ -1,5 +1,6 @@
 #include "DebugVisualization.h"
 #include "Descriptor.h"
+#include <format>
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
@@ -106,7 +107,8 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
         descriptorSet->createTexture({_lightManager->getDirectionalLights()[i]->getDepthTexture()[currentFrame]});
         _descriptorSetDirectional[i] = descriptorSet;
         glm::vec3 pos = _lightManager->getDirectionalLights()[i]->getPosition();
-        _shadowKeys.push_back("Dir: " + std::to_string(pos.x) + "x" + std::to_string(pos.y));
+        _shadowKeys.push_back("Dir " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
+                              std::format("{:.2f}", pos.y));
       }
       _descriptorSetPoint.resize(_lightManager->getPointLights().size());
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
@@ -119,8 +121,8 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
               {_lightManager->getPointLights()[i]->getDepthCubemap()[currentFrame]->getTextureSeparate()[j]});
           cubeDescriptor[j] = descriptorSet;
           glm::vec3 pos = _lightManager->getPointLights()[i]->getPosition();
-          _shadowKeys.push_back("Point: " + std::to_string(pos.x) + "x" + std::to_string(pos.y) + "_" +
-                                std::to_string(j));
+          _shadowKeys.push_back("Point " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
+                                std::format("{:.2f}", pos.y) + "_" + std::to_string(j));
         }
         _descriptorSetPoint[i] = cubeDescriptor;
       }
@@ -214,13 +216,14 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
   auto [resX, resY] = _state->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
-  _gui->drawText("Camera", {resX - 160, 20},
-                 {std::string("eye x: ") + std::to_string(eye.x), std::string("eye y: ") + std::to_string(eye.y),
-                  std::string("eye z: ") + std::to_string(eye.z)});
   _gui->drawText(
       "Camera", {resX - 160, 20},
-      {std::string("dir x: ") + std::to_string(direction.x), std::string("dir y: ") + std::to_string(direction.y),
-       std::string("dir z: ") + std::to_string(direction.z)});
+      {std::string("eye x: ") + std::format("{:.2f}", eye.x), std::string("eye y: ") + std::format("{:.2f}", eye.y),
+       std::string("eye z: ") + std::format("{:.2f}", eye.z)});
+  _gui->drawText("Camera", {resX - 160, 20},
+                 {std::string("dir x: ") + std::format("{:.2f}", direction.x),
+                  std::string("dir y: ") + std::format("{:.2f}", direction.y),
+                  std::string("dir z: ") + std::format("{:.2f}", direction.z)});
 
   std::string buttonText = "Hide frustum";
   if (_frustumDraw == false) {

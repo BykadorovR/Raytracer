@@ -153,7 +153,7 @@ bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::m
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
     ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(100);
-    if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f)) result = true;
+    if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f, "%.2f")) result = true;
     ImGui::PopItemWidth();
     ImGui::End();
   }
