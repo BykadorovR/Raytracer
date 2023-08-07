@@ -130,12 +130,12 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
       _initializedDepth = true;
     }
 
-    std::map<std::string, int*> toggleShadows;
-    toggleShadows["##Shadows"] = &_shadowMapIndex;
-    _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
-                      toggleShadows);
+    if (_lightManager->getDirectionalLights().size() + _lightManager->getPointLights().size() > 0) {
+      std::map<std::string, int*> toggleShadows;
+      toggleShadows["##Shadows"] = &_shadowMapIndex;
+      _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
+                        toggleShadows);
 
-    if (_shadowMapIndex >= 0) {
       // check if directional
       std::shared_ptr<DescriptorSet> shadowDescriptorSet;
       if (_shadowMapIndex < _lightManager->getDirectionalLights().size()) {

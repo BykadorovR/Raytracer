@@ -50,7 +50,7 @@ class DebugVisualization : public InputSubscriber {
   bool _showDepth = true;
   bool _initializedDepth = false;
   int _lightSpheresIndex = -1;
-  int _shadowMapIndex = -1;
+  int _shadowMapIndex = 0;
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
   std::vector<std::string> _shadowKeys;
