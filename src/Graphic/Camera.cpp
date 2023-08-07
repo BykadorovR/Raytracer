@@ -144,3 +144,5 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action,
 }
 
 void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}
+
+void CameraFly::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}

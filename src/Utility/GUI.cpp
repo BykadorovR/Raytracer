@@ -9,6 +9,11 @@ GUI::GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std
   _settings = settings;
   _resolution = settings->getResolution();
 
+  _vertexBuffer.resize(settings->getMaxFramesInFlight());
+  _indexBuffer.resize(settings->getMaxFramesInFlight());
+  _vertexCount.resize(settings->getMaxFramesInFlight(), 0);
+  _indexCount.resize(settings->getMaxFramesInFlight(), 0);
+
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
@@ -75,8 +80,9 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), _device);
-  _descriptorSet = std::make_shared<DescriptorSet>(2, _descriptorSetLayout, _descriptorPool, _device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(_settings->getMaxFramesInFlight(), sizeof(UniformData), _device);
+  _descriptorSet = std::make_shared<DescriptorSet>(_settings->getMaxFramesInFlight(), _descriptorSetLayout,
+                                                   _descriptorPool, _device);
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
   auto shader = std::make_shared<Shader>(_device);
@@ -102,7 +108,7 @@ void GUI::drawListBox(std::string name,
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
-    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 4);
+    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 2);
     ImGui::End();
   }
   _calls++;
@@ -312,6 +318,12 @@ void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
 void GUI::charNotify(GLFWwindow* window, unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
+}
+
+void GUI::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {
+  ImGuiIO& io = ImGui::GetIO();
+  io.MouseWheelH += (float)xOffset;
+  io.MouseWheel += (float)yOffset;
 }
 
 void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {

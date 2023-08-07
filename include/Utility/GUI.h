@@ -52,8 +52,8 @@ class GUI : public InputSubscriber {
   std::shared_ptr<Window> _window;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
-  std::array<std::shared_ptr<Buffer>, 2> _vertexBuffer;
-  std::array<std::shared_ptr<Buffer>, 2> _indexBuffer;
+  std::vector<std::shared_ptr<Buffer>> _vertexBuffer;
+  std::vector<std::shared_ptr<Buffer>> _indexBuffer;
   int _lastBuffer = 0;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSet;
@@ -61,8 +61,8 @@ class GUI : public InputSubscriber {
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Texture> _fontTexture;
   std::shared_ptr<ImageView> _imageView;
-  std::array<int32_t, 2> _vertexCount = {0, 0};
-  std::array<int32_t, 2> _indexCount = {0, 0};
+  std::vector<int32_t> _vertexCount;
+  std::vector<int32_t> _indexCount;
   std::map<std::string, VkDescriptorSet> _textureSet;
   int _calls = 0;
 
@@ -81,9 +81,10 @@ class GUI : public InputSubscriber {
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods);
-  void charNotify(GLFWwindow* window, unsigned int code);
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+  void charNotify(GLFWwindow* window, unsigned int code) override;
+  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
   ~GUI();
 };

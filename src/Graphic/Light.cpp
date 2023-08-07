@@ -103,4 +103,4 @@ void DirectionalLight::setUp(glm::vec3 up) { _up = up; }
 
 glm::mat4 DirectionalLight::getViewMatrix() { return glm::lookAt(_phong->position, _center, _up); }
 
-glm::mat4 DirectionalLight::getProjectionMatrix() { return glm::ortho(-10.f, 10.f, -10.f, 10.f, 0.1f, 40.f); }
+glm::mat4 DirectionalLight::getProjectionMatrix() { return glm::ortho(-20.f, 20.f, -20.f, 20.f, 0.1f, 40.f); }

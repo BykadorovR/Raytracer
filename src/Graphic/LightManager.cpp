@@ -55,7 +55,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
                                                  _state->getDevice());
     depthTexture.push_back(
-        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, imageView, _state->getDevice()));
+        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, imageView, _state->getDevice()));
   }
 
   auto light = std::make_shared<DirectionalLight>();

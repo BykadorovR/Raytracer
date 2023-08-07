@@ -54,13 +54,6 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _far = _camera->getFar();
 }
 
-void DebugVisualization::setTexture(std::shared_ptr<Texture> texture) {
-  _texture = texture;
-  _textureSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _textureSetLayout,
-                                                _state->getDescriptorPool(), _state->getDevice());
-  _textureSet->createTexture({texture});
-}
-
 void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
                                    std::shared_ptr<LightManager> lightManager) {
   _modelManager = modelManager;
@@ -100,6 +93,121 @@ void DebugVisualization::setSpriteManager(std::shared_ptr<SpriteManager> spriteM
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
   _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
+}
+
+void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  if (_showDepth) {
+    if (_initializedDepth == false) {
+      _descriptorSetDirectional.resize(_lightManager->getDirectionalLights().size());
+      for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
+        auto descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                             _textureSetLayout, _state->getDescriptorPool(),
+                                                             _state->getDevice());
+        descriptorSet->createTexture({_lightManager->getDirectionalLights()[i]->getDepthTexture()[currentFrame]});
+        _descriptorSetDirectional[i] = descriptorSet;
+        glm::vec3 pos = _lightManager->getDirectionalLights()[i]->getPosition();
+        _shadowKeys.push_back("Dir: " + std::to_string(pos.x) + "x" + std::to_string(pos.y));
+      }
+      _descriptorSetPoint.resize(_lightManager->getPointLights().size());
+      for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
+        std::vector<std::shared_ptr<DescriptorSet>> cubeDescriptor(6);
+        for (int j = 0; j < 6; j++) {
+          auto descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                               _textureSetLayout, _state->getDescriptorPool(),
+                                                               _state->getDevice());
+          descriptorSet->createTexture(
+              {_lightManager->getPointLights()[i]->getDepthCubemap()[currentFrame]->getTextureSeparate()[j]});
+          cubeDescriptor[j] = descriptorSet;
+          glm::vec3 pos = _lightManager->getPointLights()[i]->getPosition();
+          _shadowKeys.push_back("Point: " + std::to_string(pos.x) + "x" + std::to_string(pos.y) + "_" +
+                                std::to_string(j));
+        }
+        _descriptorSetPoint[i] = cubeDescriptor;
+      }
+
+      _initializedDepth = true;
+    }
+
+    std::map<std::string, int*> toggleShadows;
+    toggleShadows["##Shadows"] = &_shadowMapIndex;
+    _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
+                      toggleShadows);
+
+    if (_shadowMapIndex >= 0) {
+      // check if directional
+      std::shared_ptr<DescriptorSet> shadowDescriptorSet;
+      if (_shadowMapIndex < _lightManager->getDirectionalLights().size()) {
+        shadowDescriptorSet = _descriptorSetDirectional[_shadowMapIndex];
+      } else {
+        int pointIndex = _shadowMapIndex - _lightManager->getDirectionalLights().size();
+        int faceIndex = pointIndex % 6;
+        // find index of point light
+        pointIndex /= 6;
+        shadowDescriptorSet = _descriptorSetPoint[pointIndex][faceIndex];
+      }
+
+      vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        _pipeline->getPipeline());
+
+      VkViewport viewport{};
+      viewport.x = 0.0f;
+      viewport.y = std::get<1>(_state->getSettings()->getResolution());
+      viewport.width = std::get<0>(_state->getSettings()->getResolution());
+      viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+      viewport.minDepth = 0.0f;
+      viewport.maxDepth = 1.0f;
+      vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+      VkRect2D scissor{};
+      scissor.offset = {0, 0};
+      scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
+                                  std::get<1>(_state->getSettings()->getResolution()));
+      vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+      DepthPush pushConstants;
+      pushConstants.near = _camera->getNear();
+      pushConstants.far = _camera->getFar();
+      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
+                         VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
+
+      glm::mat4 model = glm::mat4(1.f);
+      auto [resX, resY] = _state->getSettings()->getResolution();
+      float aspectY = (float)resX / (float)resY;
+      glm::vec3 scale = glm::vec3(0.4f, aspectY * 0.4f, 1.f);
+      // we don't multiple on view / projection so it's raw coords in NDC space (-1, 1)
+      // we shift by x to right and by y to down, that's why -1.f + by Y axis
+      // size of object is 1.0f, scale is 0.5f, so shift by X should be 0.25f so right edge is on right edge of screen
+      // the same with Y
+      model = glm::translate(model, glm::vec3(1.f - (0.5f * scale.x), -1.f + (0.5f * scale.y), 0.f));
+
+      // need to compensate aspect ratio, texture is square but screen resolution is not
+      model = glm::scale(model, scale);
+
+      void* data;
+      vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
+                  sizeof(glm::mat4), 0, &data);
+      memcpy(data, &model, sizeof(glm::mat4));
+      vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+
+      VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
+      VkDeviceSize offsets[] = {0};
+      vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+
+      vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
+                           VK_INDEX_TYPE_UINT32);
+
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              _pipeline->getPipelineLayout(), 0, 1, &_cameraSet->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
+
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              _pipeline->getPipelineLayout(), 1, 1,
+                              &shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
+
+      vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
+                       0);
+    }
+  }
 }
 
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -277,59 +385,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
 
   _drawFrustum(currentFrame, commandBuffer);
 
-  if (_texture != nullptr && _showDepth) {
-    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      _pipeline->getPipeline());
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(_state->getSettings()->getResolution());
-    viewport.width = std::get<0>(_state->getSettings()->getResolution());
-    viewport.height = -std::get<1>(_state->getSettings()->getResolution());
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                                std::get<1>(_state->getSettings()->getResolution()));
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-
-    DepthPush pushConstants;
-    pushConstants.near = _camera->getNear();
-    pushConstants.far = _camera->getFar();
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthPush), &pushConstants);
-
-    glm::mat4 model = glm::mat4(1.f);
-    model = glm::translate(model, glm::vec3(0.75f, -0.75f, 0.f));
-    model = glm::scale(model, glm::vec3(0.5f, 0.5f, 1.f));
-
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(glm::mat4), 0, &data);
-    memcpy(data, &model, sizeof(glm::mat4));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
-
-    VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
-
-    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
-                         VK_INDEX_TYPE_UINT32);
-
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1, &_cameraSet->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
-
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 1, 1, &_textureSet->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
-
-    vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
-                     0);
-  }
+  _drawShadowMaps(currentFrame, commandBuffer);
 }
 
 void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
@@ -349,3 +405,5 @@ void DebugVisualization::keyNotify(GLFWwindow* window, int key, int scancode, in
 }
 
 void DebugVisualization::charNotify(GLFWwindow* window, unsigned int code) {}
+
+void DebugVisualization::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}

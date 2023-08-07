@@ -17,6 +17,10 @@ static void charCallback(GLFWwindow* window, unsigned int code) {
   reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
 }
 
+static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
+}
+
 Input::Input(std::shared_ptr<Window> window) {
   glfwSetWindowUserPointer(window->getWindow(), this);
   glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -24,6 +28,7 @@ Input::Input(std::shared_ptr<Window> window) {
   glfwSetMouseButtonCallback(window->getWindow(), mouseCallback);
   glfwSetCharCallback(window->getWindow(), charCallback);
   glfwSetKeyCallback(window->getWindow(), keyCallback);
+  glfwSetScrollCallback(window->getWindow(), scrollCallback);
 }
 
 void Input::keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -35,6 +40,12 @@ void Input::keyHandler(GLFWwindow* window, int key, int scancode, int action, in
 void Input::charHandler(GLFWwindow* window, unsigned int code) {
   for (auto& sub : _subscribers) {
     sub->charNotify(window, code);
+  }
+}
+
+void Input::scrollHandler(GLFWwindow* window, double xOffset, double yOffset) {
+  for (auto& sub : _subscribers) {
+    sub->scrollNotify(window, xOffset, yOffset);
   }
 }
 

@@ -292,14 +292,14 @@ void initialize() {
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(0.f, 0.f, glm::vec3(1.0f, 1.0f, 1.0f));
+  directionalLight->createPhong(0.2f, 0.f, glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
 
   /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  directionalLight2->setPosition({15.f, 3.f, 0.f});
+  directionalLight2->setPosition({0.f, 15.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
@@ -310,7 +310,6 @@ void initialize() {
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
   debugVisualization->setSpriteManager(spriteManager);
-  if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);
@@ -465,7 +464,7 @@ void drawFrame() {
 
   // update positions
   static float angleHorizontal = 90.f;
-  glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
+  glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 15.f,
                                                 15.f * sin(glm::radians(angleHorizontal)));
   static float angleVertical = 0.f;
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
@@ -623,18 +622,18 @@ void drawFrame() {
       std::map<std::string, bool*> terrainGUI;
       terrainGUI["Normals"] = &terrainNormals;
       terrainGUI["Wireframe"] = &terrainWireframe;
-      gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI);
+      gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
     }
     {
       std::map<std::string, bool*> terrainGUI;
       terrainGUI["Patches"] = &terrainPatch;
-      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI))
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
         std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
     }
     {
       std::map<std::string, bool*> terrainGUI;
       terrainGUI["LoD"] = &showLoD;
-      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 360}, terrainGUI))
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
         std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
     }
     if (terrainWireframe)
