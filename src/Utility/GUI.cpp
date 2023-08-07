@@ -3,10 +3,16 @@
 #include "Descriptor.h"
 #include "Input.h"
 
-GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
+GUI::GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
   _device = device;
   _window = window;
-  _resolution = resolution;
+  _settings = settings;
+  _resolution = settings->getResolution();
+
+  _vertexBuffer.resize(settings->getMaxFramesInFlight());
+  _indexBuffer.resize(settings->getMaxFramesInFlight());
+  _vertexCount.resize(settings->getMaxFramesInFlight(), 0);
+  _indexCount.resize(settings->getMaxFramesInFlight(), 0);
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -21,11 +27,11 @@ GUI::GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::s
   style.Colors[ImGuiCol_Header] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
   style.Colors[ImGuiCol_CheckMark] = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
   // Dimensions
-  io.DisplaySize = ImVec2(std::get<0>(resolution), std::get<1>(resolution));
+  io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
-void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGuiIO& io = ImGui::GetIO();
 
   // Create font texture
@@ -59,57 +65,124 @@ void GUI::initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Com
   vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
   _fontImage = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      std::tuple{texWidth, texHeight}, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, commandBufferTransfer);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                           1, 1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
-  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, _device);
+  _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+                           1, commandBufferTransfer);
+  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                           _device);
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _device);
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(2, sizeof(UniformData), _device);
-  _descriptorSet = std::make_shared<DescriptorSet>(2, _descriptorSetLayout, _descriptorPool, _device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(_settings->getMaxFramesInFlight(), sizeof(UniformData), _device);
+  _descriptorSet = std::make_shared<DescriptorSet>(_settings->getMaxFramesInFlight(), _descriptorSetLayout,
+                                                   _descriptorPool, _device);
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
   auto shader = std::make_shared<Shader>(_device);
   shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  _pipeline = std::make_shared<Pipeline>(_device);
+  _pipeline = std::make_shared<Pipeline>(_settings, _device);
   _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
-                       VertexGUI::getAttributeDescriptions(), renderPass);
+                       VertexGUI::getAttributeDescriptions());
 }
 
-void GUI::drawCheckbox(std::string name,
-                       std::tuple<int, int> position,
-                       std::tuple<int, int> size,
-                       std::map<std::string, bool*> variable) {
+void GUI::drawListBox(std::string name,
+                      std::tuple<int, int> position,
+                      std::vector<std::string> list,
+                      std::map<std::string, int*> variable) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str());
-    ImGui::Checkbox(key.c_str(), value);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    std::vector<const char*> listFormatted;
+    for (auto& item : list) {
+      listFormatted.push_back(item.c_str());
+    }
+    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 2);
     ImGui::End();
   }
   _calls++;
 }
 
-void GUI::drawText(std::string name,
-                   std::tuple<int, int> position,
-                   std::tuple<int, int> size,
-                   std::vector<std::string> text) {
+bool GUI::drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+  ImGuiWindowFlags flags = 0;
+  if (hideWindow) {
+    ImGui::SetNextWindowBgAlpha(0.f);
+    flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground;
+  }
+  ImGui::Begin(name.c_str(), 0, flags);
+  if (ImGui::Button(label.c_str())) {
+    result = true;
+  }
+  ImGui::End();
+  _calls++;
+  return result;
+}
+
+bool GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    if (ImGui::Checkbox(key.c_str(), value)) result = true;
+    ImGui::End();
+  }
+  _calls++;
+
+  return result;
+}
+
+bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(100);
+    if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f, "%.2f")) result = true;
+    ImGui::PopItemWidth();
+    ImGui::End();
+  }
+  _calls++;
+
+  return result;
+}
+
+bool GUI::drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable) {
+  bool result = false;
+  if (_calls == 0) ImGui::NewFrame();
+  for (auto& [key, value] : variable) {
+    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(20);
+    if (ImGui::InputInt(key.c_str(), value, 0)) result = true;
+    ImGui::PopItemWidth();
+    ImGui::End();
+  }
+  _calls++;
+
+  return result;
+}
+
+void GUI::drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text) {
   if (_calls == 0) ImGui::NewFrame();
   for (auto value : text) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str());
+    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text(value.c_str());
     ImGui::End();
   }
@@ -242,4 +315,33 @@ void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   }
 }
 
-void GUI::keyNotify(GLFWwindow* window, int key, int action, int mods) {}
+void GUI::charNotify(GLFWwindow* window, unsigned int code) {
+  ImGuiIO& io = ImGui::GetIO();
+  io.AddInputCharacter(code);
+}
+
+void GUI::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {
+  ImGuiIO& io = ImGui::GetIO();
+  io.MouseWheelH += (float)xOffset;
+  io.MouseWheel += (float)yOffset;
+}
+
+void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  ImGuiIO& io = ImGui::GetIO();
+  if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_Backspace, true);
+    io.AddKeyEvent(ImGuiKey_Backspace, false);
+  }
+  if (key == GLFW_KEY_DELETE && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_Delete, true);
+    io.AddKeyEvent(ImGuiKey_Delete, false);
+  }
+  if (key == GLFW_KEY_LEFT && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_LeftArrow, true);
+    io.AddKeyEvent(ImGuiKey_LeftArrow, false);
+  }
+  if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_RightArrow, true);
+    io.AddKeyEvent(ImGuiKey_RightArrow, false);
+  }
+}

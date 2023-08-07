@@ -10,7 +10,6 @@
 #include "Surface.h"
 #include "Device.h"
 #include "Swapchain.h"
-#include "Render.h"
 #include "Buffer.h"
 #include "Shader.h"
 #include "Pipeline.h"
@@ -24,11 +23,14 @@
 #include "ModelManager.h"
 #include "GUI.h"
 #include "Input.h"
+#include "Line.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Terrain.h"
 #include "DebugVisualization.h"
 #include "State.h"
 #include "Logger.h"
+#include "BS_thread_pool.hpp"
 
 #undef near
 #undef far
@@ -50,14 +52,14 @@ std::shared_ptr<CommandPool> commandPool, commandPoolTransfer;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
+std::shared_ptr<Terrain> terrain;
 std::shared_ptr<State> state;
-std::array<VkClearValue, 2> clearValues{};
 
-std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, directedLightSemaphore;
-std::vector<std::vector<std::shared_ptr<Semaphore>>> pointLightSemaphores;
+std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
+std::vector<std::vector<std::shared_ptr<Semaphore>>> directionalLightSemaphores, pointLightSemaphores;
 
-std::vector<std::shared_ptr<Fence>> inFlightFences, directedLightFences;
-std::vector<std::vector<std::shared_ptr<Fence>>> pointLightFences;
+std::vector<std::shared_ptr<Fence>> inFlightFences;
+std::vector<std::vector<std::shared_ptr<Fence>>> directionalLightFences, pointLightFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
@@ -65,192 +67,180 @@ std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
-std::shared_ptr<RenderPass> renderPass, renderPassDepth;
-std::shared_ptr<Framebuffer> frameBuffer;
-std::vector<std::vector<std::shared_ptr<Framebuffer>>> frameBufferDepth;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
-std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical;
+std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
-std::tuple<int, int> depthResolution = {1024, 1024};
-std::thread directionalThread;
-std::vector<std::thread> pointThread;
-std::mutex directionalMutex;
-std::condition_variable directionalCV;
-std::mutex pointMutex;
-std::condition_variable pointCV;
 std::future<void> updateJoints;
-bool updateDirectional = false;
-std::vector<bool> updatePoint;
 
-std::mutex lightMutex;
-std::condition_variable lightCV;
-std::atomic<int> lightCounter = 0;
+std::shared_ptr<BS::thread_pool> pool;
+std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
+std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
+
+std::vector<std::shared_ptr<CommandBuffer>> commandBufferDirectional;
+std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
+
+std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
+std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
+bool terrainNormals = false;
+bool terrainWireframe = false;
+bool terrainPatch = false;
+bool showLoD = false;
 bool shouldWork = true;
 
-VkRenderPassBeginInfo render(int index,
-                             std::shared_ptr<RenderPass> renderPass,
-                             std::shared_ptr<Framebuffer> framebuffer) {
-  VkRenderPassBeginInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-  renderPassInfo.renderPass = renderPass->getRenderPass();
-  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
-  renderPassInfo.renderArea.offset = {0, 0};
-  auto [width, height] = framebuffer->getResolution();
-  renderPassInfo.renderArea.extent.width = width;
-  renderPassInfo.renderArea.extent.height = height;
+void directionalLightCalculator(int index) {
+  auto commandBuffer = commandBufferDirectional[index];
+  auto loggerGPU = loggerGPUDirectional[index];
 
-  return renderPassInfo;
-}
-
-void directionalLightCalculator() {
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
-  auto loggerGPU = std::make_shared<LoggerGPU>(state);
   loggerGPU->initialize("Directional", currentFrame, commandBuffer);
-  bool start = false;
-  while (shouldWork) {
-    {
-      std::unique_lock<std::mutex> lock(directionalMutex);
-      while (updateDirectional == false) {
-        directionalCV.wait(lock);
-      }
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+  loggerGPU->begin("Directional to depth buffer", currentFrame);
+  auto directionalLights = lightManager->getDirectionalLights();
+  VkClearValue clearDepth;
+  clearDepth.depthStencil = {1.0f, 0};
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = directionalLights[index]->getDepthTexture()[currentFrame]->getImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearDepth,
+  };
 
-      if (shouldWork == false) break;
+  auto [width, height] =
+      directionalLights[index]->getDepthTexture()[currentFrame]->getImageView()->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfoKHR renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
 
-      if (updateDirectional) {
-        updateDirectional = false;
-        start = true;
-      }
-    }
-    if (start) {
-      // record command buffer
-      commandBuffer->beginCommands(currentFrame);
-      updateDirectional = false;
-      loggerGPU->begin("Directional to depth buffer", currentFrame);
-      auto directionalLights = lightManager->getDirectionalLights();
-      for (int i = 0; i < directionalLights.size(); i++) {
-        auto renderPassInfo = render(currentFrame, renderPassDepth, frameBufferDepth[i][0]);
-        clearValues[0].depthStencil = {1.0f, 0};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = clearValues.data();
-        // TODO: only one depth texture?
-        vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                             VK_SUBPASS_CONTENTS_INLINE);
-        // Set depth bias (aka "Polygon offset")
-        // Required to avoid shadow mapping artifacts
-        vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+  // TODO: only one depth texture?
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+  // Set depth bias (aka "Polygon offset")
+  // Required to avoid shadow mapping artifacts
+  vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
-        // draw scene here
-        loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
-        spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, i);
-        loggerGPU->end(currentFrame);
+  // draw scene here
+  loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
+  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Models to directional depth buffer", currentFrame);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Terrain to directional depth buffer", currentFrame);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end(currentFrame);
 
-        loggerGPU->begin("Models to directional depth buffer", currentFrame);
-        modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, i);
-        loggerGPU->end(currentFrame);
-        vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-      }
-      loggerGPU->end(currentFrame);
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+  loggerGPU->end(currentFrame);
 
-      VkSubmitInfo submitInfo{};
-      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-      // no need to wait anything because this thread starts in main thread only when needed
-      submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  // no need to wait anything because this thread starts in main thread only when needed
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
 
-      VkSemaphore signalSemaphores[] = {directedLightSemaphore[currentFrame]->getSemaphore()};
-      submitInfo.signalSemaphoreCount = 1;
-      submitInfo.pSignalSemaphores = signalSemaphores;
-      // record command buffer
-      commandBuffer->endCommands(currentFrame, submitInfo, directedLightFences[currentFrame]);
-      lightCounter++;
-      {
-        std::unique_lock<std::mutex> lock(lightMutex);
-        lightCV.notify_all();
-      }
-    }
-  }
+  VkSemaphore signalSemaphores[] = {directionalLightSemaphores[index][currentFrame]->getSemaphore()};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+  // record command buffer
+  commandBuffer->endCommands(currentFrame, submitInfo, directionalLightFences[index][currentFrame]);
 }
 
 void pointLightCalculator(int index, int face) {
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  auto commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
-  auto loggerGPU = std::make_shared<LoggerGPU>(state);
+  auto commandBuffer = commandBufferPoint[index][face];
+  auto loggerGPU = loggerGPUPoint[index][face];
+
   auto id = face + index * 6;
   loggerGPU->initialize("Point " + std::to_string(index) + "x" + std::to_string(face), currentFrame, commandBuffer);
-  bool start = false;
-  while (shouldWork) {
-    {
-      std::unique_lock<std::mutex> lock(pointMutex);
-      while (updatePoint[id] == false) {
-        pointCV.wait(lock);
-      }
+  // record command buffer
+  loggerGPU->begin("Point to depth buffer", currentFrame);
+  commandBuffer->beginCommands(currentFrame);
+  auto pointLights = lightManager->getPointLights();
+  VkClearValue clearDepth;
+  clearDepth.depthStencil = {1.0f, 0};
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = pointLights[index]
+                       ->getDepthCubemap()[currentFrame]
+                       ->getTextureSeparate()[face]
+                       ->getImageView()
+                       ->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearDepth,
+  };
 
-      if (shouldWork == false) break;
+  auto [width, height] = pointLights[index]
+                             ->getDepthCubemap()[currentFrame]
+                             ->getTextureSeparate()[face]
+                             ->getImageView()
+                             ->getImage()
+                             ->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
 
-      if (updatePoint[id]) {
-        updatePoint[id] = false;
-        start = true;
-      }
-    }
-    if (start) {
-      start = false;
-      // record command buffer
-      commandBuffer->beginCommands(currentFrame);
-      loggerGPU->begin("Point to depth buffer", currentFrame);
-      auto renderPassInfo = render(currentFrame, renderPassDepth,
-                                   frameBufferDepth[index + lightManager->getDirectionalLights().size()][face]);
-      clearValues[0].depthStencil = {1.0f, 0};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = clearValues.data();
+  // TODO: only one depth texture?
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+  // Set depth bias (aka "Polygon offset")
+  // Required to avoid shadow mapping artifacts
+  vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
-      // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                           VK_SUBPASS_CONTENTS_INLINE);
-      // Set depth bias (aka "Polygon offset")
-      // Required to avoid shadow mapping artifacts
-      vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
+  // draw scene here
+  float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
+  loggerGPU->begin("Sprites to point depth buffer", currentFrame);
+  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Models to point depth buffer", currentFrame);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  loggerGPU->begin("Terrain to point depth buffer", currentFrame);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end(currentFrame);
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+  loggerGPU->end(currentFrame);
 
-      // draw scene here
-      float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-      loggerGPU->begin("Sprites to point depth buffer", currentFrame);
-      spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-      loggerGPU->end(currentFrame);
-      loggerGPU->begin("Models to point depth buffer", currentFrame);
-      modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-      loggerGPU->end(currentFrame);
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
-      loggerGPU->end(currentFrame);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  // no need to wait anything because this thread starts in main thread only when needed
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
 
-      VkSubmitInfo submitInfo{};
-      submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-      // no need to wait anything because this thread starts in main thread only when needed
-      submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
-      VkSemaphore signalSemaphores[] = {pointLightSemaphores[id][currentFrame]->getSemaphore()};
-      submitInfo.signalSemaphoreCount = 1;
-      submitInfo.pSignalSemaphores = signalSemaphores;
-      // record command buffer
-      commandBuffer->endCommands(currentFrame, submitInfo, pointLightFences[id][currentFrame]);
-      lightCounter++;
-      {
-        std::unique_lock<std::mutex> lock(lightMutex);
-        lightCV.notify_all();
-      }
-    }
-  }
+  VkSemaphore signalSemaphores[] = {pointLightSemaphores[id][currentFrame]->getSemaphore()};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+  // record command buffer
+  commandBuffer->endCommands(currentFrame, submitInfo, pointLightFences[id][currentFrame]);
 }
 
 void initialize() {
-  state = std::make_shared<State>(
-      std::make_shared<Settings>("Vulkan", std::tuple{1600, 900}, VK_FORMAT_B8G8R8A8_UNORM, 2));
-  settings = state->getSettings();
+  settings = std::make_shared<Settings>();
+  settings->setName("Vulkan");
+  settings->setResolution(std::tuple{1600, 900});
+  settings->setColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
+  settings->setMaxFramesInFlight(2);
+  settings->setThreadsInPool(6);
+
+  state = std::make_shared<State>(settings);
   window = state->getWindow();
   input = state->getInput();
   instance = state->getInstance();
@@ -271,56 +261,55 @@ void initialize() {
     imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
     renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(device));
     inFlightFences.push_back(std::make_shared<Fence>(device));
-
-    directedLightFences.push_back(std::make_shared<Fence>(device));
-    directedLightSemaphore.push_back(std::make_shared<Semaphore>(device));
   }
 
-  renderPass = std::make_shared<RenderPass>(device);
-  renderPass->initialize(swapchain->getImageFormat());
-  renderPassDepth = std::make_shared<RenderPass>(device);
-  renderPassDepth->initializeDepthPass();
+  gui = std::make_shared<GUI>(settings, window, device);
+  gui->initialize(commandBufferTransfer);
 
-  gui = std::make_shared<GUI>(settings->getResolution(), window, device);
-  gui->initialize(renderPass, commandBufferTransfer);
-
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                            commandBufferTransfer, device);
-  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                              commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
+  camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  pointLightHorizontal = lightManager->createPointLight(depthResolution);
-  pointLightHorizontal->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setAttenuation(1.f, 0.09f, 0.032f);
+  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightHorizontal->createPhong(0.f, 0.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
-
-  pointLightVertical = lightManager->createPointLight(depthResolution);
+  /*
+  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical->setAttenuation(1.f, 0.09f, 0.032f);
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
-  directionalLight = lightManager->createDirectionalLight(depthResolution);
-  directionalLight->createPhong(0.f, 1.f, glm::vec3(1.0f, 1.0f, 1.0f));
+  pointLightHorizontal2 = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightHorizontal2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal2->setPosition({3.f, 4.f, 3.f});
+
+  pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
+  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
+
+  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  directionalLight->createPhong(0.2f, 0.f, glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
-  directionalLight->setUp({0.f, 0.f, 1.f});
+  directionalLight->setUp({0.f, 0.f, -1.f});
 
-  /*directionalLight2 = lightManager->createDirectionalLight();
+  /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  directionalLight2->setPosition({15.f, 3.f, 0.f});
+  directionalLight2->setPosition({0.f, 15.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
-                                                  renderPassDepth, device, settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, renderPass,
-                                                  renderPassDepth, device, settings);
+  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, device,
+                                                  settings);
+  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, device,
+                                                  settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(modelManager, lightManager);
-  if (directionalLight) debugVisualization->setTexture(directionalLight->getDepthTexture()[0]);
+  debugVisualization->setSpriteManager(spriteManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);
@@ -371,7 +360,7 @@ void initialize() {
       sprite->setModel(model);
     }
 
-    spriteManager->registerSprite(sprite);
+    // spriteManager->registerSprite(sprite);
   }
   // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
@@ -386,7 +375,7 @@ void initialize() {
   //   model3D->setModel(model);
   // }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTF->setModel(model);
@@ -394,35 +383,26 @@ void initialize() {
 
   modelManager->registerModelGLTF(modelGLTF);
 
-  frameBuffer = std::make_shared<Framebuffer>(swapchain->getImageViews(), swapchain->getDepthImageView(), renderPass,
-                                              device);
-
-  int pointNumber = lightManager->getPointLights().size();
-  int directionalNumber = lightManager->getDirectionalLights().size();
-  frameBufferDepth.resize(pointNumber + directionalNumber);
-  for (int i = 0; i < directionalNumber; i++) {
-    auto textures = lightManager->getDirectionalLights()[i]->getDepthTexture();
-    std::vector<std::shared_ptr<ImageView>> imageViews(settings->getMaxFramesInFlight());
-    for (int j = 0; j < imageViews.size(); j++) imageViews[j] = textures[j]->getImageView();
-    frameBufferDepth[i] = {std::make_shared<Framebuffer>(imageViews, renderPassDepth, device)};
-  }
-
-  for (int i = 0; i < pointNumber; i++) {
-    auto cubemap = lightManager->getPointLights()[i]->getDepthCubemap();
-    std::vector<std::pair<std::shared_ptr<ImageView>, std::shared_ptr<ImageView>>> imageViews(6);
-    frameBufferDepth[i + directionalNumber].resize(imageViews.size());
-    for (int j = 0; j < imageViews.size(); j++) {
-      imageViews[j] = {cubemap[0]->getTextureSeparate()[j]->getImageView(),
-                       cubemap[1]->getTextureSeparate()[j]->getImageView()};
-
-      auto [width, height] = state->getSettings()->getResolution();
-      frameBufferDepth[i + directionalNumber][j] = std::make_shared<Framebuffer>(
-          std::vector{imageViews[j].first, imageViews[j].second}, renderPassDepth, device);
+  directionalLightFences.resize(lightManager->getDirectionalLights().size());
+  directionalLightSemaphores.resize(lightManager->getDirectionalLights().size());
+  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+    for (int k = 0; k < settings->getMaxFramesInFlight(); k++) {
+      directionalLightSemaphores[i].push_back(std::make_shared<Semaphore>(device));
+      directionalLightFences[i].push_back(std::make_shared<Fence>(device));
     }
+
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
+    commandPoolDirectional.push_back(commandPool);
+    commandBufferDirectional.push_back(
+        std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+    loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(state));
   }
 
   pointLightSemaphores.resize(lightManager->getPointLights().size() * 6);
   pointLightFences.resize(lightManager->getPointLights().size() * 6);
+  commandPoolPoint.resize(lightManager->getPointLights().size());
+  commandBufferPoint.resize(lightManager->getPointLights().size());
+  loggerGPUPoint.resize(lightManager->getPointLights().size());
   for (int i = 0; i < lightManager->getPointLights().size(); i++) {
     for (int j = 0; j < 6; j++) {
       int index = j + i * 6;
@@ -430,24 +410,31 @@ void initialize() {
         pointLightSemaphores[index].push_back(std::make_shared<Semaphore>(device));
         pointLightFences[index].push_back(std::make_shared<Fence>(device));
       }
+
+      auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
+      commandPoolPoint[i].push_back(commandPool);
+      commandBufferPoint[i].push_back(
+          std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+      loggerGPUPoint[i].push_back(std::make_shared<LoggerGPU>(state));
     }
   }
 
-  updatePoint.resize(lightManager->getPointLights().size() * 6);
-
-  directionalThread = std::thread(directionalLightCalculator);
-
-  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
-    for (int j = 0; j < 6; j++) {
-      auto thread = std::thread(pointLightCalculator, i, j);
-      pointThread.push_back(std::move(thread));
-    }
+  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, lightManager, state);
+  {
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
+    terrain->setModel(translateMatrix);
   }
+  terrain->setCamera(camera);
+
+  pool = std::make_shared<BS::thread_pool>(6);
 }
 
 void drawFrame() {
-  std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence(),
-                                     directedLightFences[currentFrame]->getFence()};
+  std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
+  for (int i = 0; i < directionalLightFences.size(); i++) {
+    waitFences.push_back(directionalLightFences[i][currentFrame]->getFence());
+  }
   for (int i = 0; i < pointLightFences.size(); i++) {
     waitFences.push_back(pointLightFences[i][currentFrame]->getFence());
   }
@@ -473,15 +460,11 @@ void drawFrame() {
   result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
-  gui->drawText("FPS", {20, 20}, {100, 60}, {std::to_string(fps)});
+  gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
 
-  // record command buffer
-  commandBuffer->beginCommands(currentFrame);
-
-  loggerGPU->initialize("Common", currentFrame, commandBuffer);
   // update positions
   static float angleHorizontal = 90.f;
-  glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 0.f,
+  glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 15.f,
                                                 15.f * sin(glm::radians(angleHorizontal)));
   static float angleVertical = 0.f;
   glm::vec3 lightPositionVertical = glm::vec3(0.f, 15.f * sin(glm::radians(angleVertical)),
@@ -501,25 +484,39 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
-  lightCounter = 0;
-  {
-    std::unique_lock<std::mutex> lock(directionalMutex);
-    updateDirectional = true;
-    directionalCV.notify_all();
-  }
-
-  {
-    std::unique_lock<std::mutex> lock(pointMutex);
-    for (int i = 0; i < pointThread.size(); i++) {
-      updatePoint[i] = true;
+  for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+    for (int j = 0; j < 6; j++) {
+      pool->push_task(pointLightCalculator, i, j);
     }
-    pointCV.notify_all();
   }
 
+  for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
+    pool->push_task(directionalLightCalculator, i);
+  }
+
+  pool->wait_for_tasks();
+
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+  loggerGPU->initialize("Common", currentFrame, commandBuffer);
   {
-    std::unique_lock<std::mutex> lock(lightMutex);
-    // TODO: change directional to the same scheme as point
-    lightCV.wait(lock, []() { return lightCounter == (pointThread.size() + 1); });
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                      .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
   }
 
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -574,14 +571,42 @@ void drawFrame() {
   /////////////////////////////////////////////////////////////////////////////////////////
   {
     loggerGPU->begin("Render to screen", currentFrame);
+    VkClearValue clearColor;
+    clearColor.color = settings->getClearColor();
+    const VkRenderingAttachmentInfo colorAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
 
-    auto renderPassInfo = render(imageIndex, renderPass, frameBuffer);
-    clearValues[0].color = {0.25f, 0.25f, 0.25f, 1.f};
-    clearValues[1].depthStencil = {1.0f, 0};
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    VkClearValue clearDepth;
+    clearDepth.depthStencil = {1.0f, 0};
+    const VkRenderingAttachmentInfo depthAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getDepthImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearDepth,
+    };
 
-    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    auto [width, height] = swapchain->getImageViews()[imageIndex]->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = renderArea,
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentInfo,
+        .pDepthAttachment = &depthAttachmentInfo,
+    };
+
+    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
     lightManager->draw(currentFrame);
     // draw scene here
     loggerGPU->begin("Render sprites", currentFrame);
@@ -592,7 +617,33 @@ void drawFrame() {
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    updateJoints = std::async(std::launch::async, [&]() {
+    loggerGPU->begin("Render terrain", currentFrame);
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["Normals"] = &terrainNormals;
+      terrainGUI["Wireframe"] = &terrainWireframe;
+      gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
+    }
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["Patches"] = &terrainPatch;
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
+        std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
+    }
+    {
+      std::map<std::string, bool*> terrainGUI;
+      terrainGUI["LoD"] = &showLoD;
+      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
+        std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
+    }
+    if (terrainWireframe)
+      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
+    else
+      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
+    if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
+    loggerGPU->end(currentFrame);
+
+    updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation");
       modelManager->updateAnimation(frameTimer);
       loggerCPU->end();
@@ -607,8 +658,27 @@ void drawFrame() {
     gui->drawFrame(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
+    {
+      VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
+                                        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                             .baseMipLevel = 0,
+                                                             .levelCount = 1,
+                                                             .baseArrayLayer = 0,
+                                                             .layerCount = 1}};
+      vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+                           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,           // dstStageMask
+                           0, 0, nullptr, 0, nullptr,
+                           1,             // imageMemoryBarrierCount
+                           &colorBarrier  // pImageMemoryBarriers
+      );
+    }
     loggerGPU->end(currentFrame);
   }
 
@@ -634,8 +704,10 @@ void drawFrame() {
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-  std::vector<VkSemaphore> signalSemaphoresGeneral = {renderFinishedSemaphores[currentFrame]->getSemaphore(),
-                                                      directedLightSemaphore[currentFrame]->getSemaphore()};
+  std::vector<VkSemaphore> signalSemaphoresGeneral = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
+  for (int i = 0; i < directionalLightSemaphores.size(); i++) {
+    signalSemaphoresGeneral.push_back(directionalLightSemaphores[i][currentFrame]->getSemaphore());
+  }
   for (int i = 0; i < pointLightSemaphores.size(); i++) {
     signalSemaphoresGeneral.push_back(pointLightSemaphores[i][currentFrame]->getSemaphore());
   }
@@ -683,20 +755,6 @@ void mainLoop() {
   }
   vkDeviceWaitIdle(device->getLogicalDevice());
   shouldWork = false;
-  {
-    std::unique_lock<std::mutex> lock(directionalMutex);
-    updateDirectional = true;
-    directionalCV.notify_all();
-  }
-  directionalThread.join();
-  {
-    std::unique_lock<std::mutex> lock(pointMutex);
-    for (int i = 0; i < pointThread.size(); i++) {
-      updatePoint[i] = true;
-    }
-    pointCV.notify_all();
-  }
-  for (int i = 0; i < pointThread.size(); i++) pointThread[i].join();
 }
 
 int main() {

@@ -26,8 +26,8 @@ class LightManager {
   std::shared_ptr<Cubemap> _stubCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetLight;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLight;
-  std::shared_ptr<DescriptorSet> _descriptorSetViewProjection;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutViewProjection;
+  std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSet>> _descriptorSetViewProjection;
+  std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayoutViewProjection;
   // for 2 frames
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetDepthTexture;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutDepthTexture;
@@ -41,8 +41,8 @@ class LightManager {
   std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
   std::shared_ptr<DescriptorSetLayout> getDSLLight();
   std::shared_ptr<DescriptorSet> getDSLight();
-  std::shared_ptr<DescriptorSetLayout> getDSLViewProjection();
-  std::shared_ptr<DescriptorSet> getDSViewProjection();
+  std::shared_ptr<DescriptorSetLayout> getDSLViewProjection(VkShaderStageFlagBits stage);
+  std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();
   std::vector<std::shared_ptr<DescriptorSet>> getDSShadowTexture();
   void draw(int frame);

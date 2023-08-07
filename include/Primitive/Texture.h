@@ -15,6 +15,7 @@ class Texture {
  public:
   Texture(std::string path,
           VkSamplerAddressMode mode,
+          int mipMapLevels,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<Device> device);
   Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device);

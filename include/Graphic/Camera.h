@@ -59,8 +59,14 @@ class CameraFly : public Camera, public InputSubscriber {
  public:
   CameraFly(std::shared_ptr<Settings> settings);
   void setProjectionParameters(float fov, float near, float far);
+  void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   glm::mat4 getProjection() override;
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int action, int mods);
+  glm::vec3 getAngles();
+  void setAngles(float yaw, float pitch, float roll);
+  float getFOV();
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+  void charNotify(GLFWwindow* window, unsigned int code) override;
+  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
 };

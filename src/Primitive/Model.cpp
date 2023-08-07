@@ -13,8 +13,8 @@ struct UniformObject {
 
 void Model::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 void Model::setModel(glm::mat4 model) { _model = model; }
-void Model::setDebug(bool debug) { _debug = debug; }
-bool Model::isDebug() { return _debug; }
+void Model::enableDepth(bool enable) { _enableDepth = enable; }
+bool Model::isDepthEnabled() { return _enableDepth; }
 
 struct ModelAuxilary {
   VkBool32 alphaMask;
@@ -24,7 +24,6 @@ struct ModelAuxilary {
 ModelGLTF::ModelGLTF(std::string path,
                      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                      std::shared_ptr<LightManager> lightManager,
-                     std::shared_ptr<RenderPass> renderPass,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<Device> device,
@@ -59,8 +58,10 @@ ModelGLTF::ModelGLTF(std::string path,
   }
 
   //********************************************************************
-  _vertexBuffer = std::make_shared<VertexBuffer3D>(vertexBuffer, commandBufferTransfer, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(indexBuffer, commandBufferTransfer, device);
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertexBuffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(indexBuffer, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, device);
   int lightNumber = settings->getMaxDirectionalLights() + settings->getMaxPointLights();
   for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
     _uniformBufferDepth.push_back(
@@ -97,7 +98,7 @@ ModelGLTF::ModelGLTF(std::string path,
     for (int i = 0; i < settings->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                        descriptorPool, device);
-      cameraSet->createCamera(_uniformBufferDepth[i][0]);
+      cameraSet->createBuffer(_uniformBufferDepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
@@ -107,7 +108,7 @@ ModelGLTF::ModelGLTF(std::string path,
       for (int j = 0; j < 6; j++) {
         facesSet[j] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                       descriptorPool, device);
-        facesSet[j]->createCamera(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
+        facesSet[j]->createBuffer(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -115,14 +116,14 @@ ModelGLTF::ModelGLTF(std::string path,
   {
     auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                      descriptorPool, device);
-    cameraSet->createCamera(_uniformBufferFull);
+    cameraSet->createBuffer(_uniformBufferFull);
     _descriptorSetCameraFull = cameraSet;
   }
 
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                            commandBufferTransfer, device);
   // empty texture with 0, 0, 0 value
-  _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+  _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                                  commandBufferTransfer, device);
 
   std::vector<std::reference_wrapper<MaterialGLTF>> processedMaterialsAlpha;
@@ -204,7 +205,7 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
     tinygltf::Image& glTFImage = model.images[i];
     // TODO: check if such file exists and load it from disk
     if (std::filesystem::exists(glTFImage.uri)) {
-      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                                      _commandBufferTransfer, _device);
     } else {
       // Get the image data from the glTF loader
@@ -239,14 +240,16 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
       vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
       auto image = std::make_shared<Image>(
-          std::tuple{glTFImage.width, glTFImage.height}, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+          std::tuple{glTFImage.width, glTFImage.height}, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
 
-      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, _commandBufferTransfer);
+      image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+                          1, _commandBufferTransfer);
       image->copyFrom(stagingBuffer, 1, _commandBufferTransfer);
-      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, 1, _commandBufferTransfer);
+      image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
+                          1, _commandBufferTransfer);
 
-      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT,
+      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _device);
       auto texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, imageView, _device);
 

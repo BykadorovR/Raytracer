@@ -18,6 +18,7 @@ class Image {
   Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
   Image(std::tuple<int, int> resolution,
         int layers,
+        int mipMapLevels,
         VkFormat format,
         VkImageTiling tiling,
         VkImageUsageFlags usage,
@@ -27,7 +28,9 @@ class Image {
   void copyFrom(std::shared_ptr<Buffer> buffer, int layersNumber, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void changeLayout(VkImageLayout oldLayout,
                     VkImageLayout newLayout,
+                    VkImageAspectFlags aspectMask,
                     int layersNumber,
+                    int mipMapLevels,
                     std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void overrideLayout(VkImageLayout layout);
   std::tuple<int, int> getResolution();
@@ -52,6 +55,7 @@ class ImageView {
             VkImageViewType type,
             int layerCount,
             int baseArrayLayer,
+            int mipMapLevels,
             VkImageAspectFlags aspectFlags,
             std::shared_ptr<Device> device);
   VkImageView& getImageView();

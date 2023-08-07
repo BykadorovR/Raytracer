@@ -2,7 +2,6 @@
 #include "Device.h"
 #include "Buffer.h"
 #include "Shader.h"
-#include "Render.h"
 #include "Pipeline.h"
 #include "Command.h"
 #include "Settings.h"
@@ -26,14 +25,14 @@ class Sprite {
   std::shared_ptr<Camera> _camera;
   bool _enableShadow = true;
   bool _enableLighting = true;
-
-  std::shared_ptr<VertexBuffer2D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  bool _enableDepth = true;
+  std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
 
   glm::mat4 _model = glm::mat4(1.f);
-  // we swap Y here because image is going from top to bottom, but Vulkan vice versa
+  // Vulkan image origin (0,0) is left-top corner
   std::vector<Vertex2D> _vertices = {
       {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
       {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
@@ -52,7 +51,10 @@ class Sprite {
          std::shared_ptr<Settings> settings);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
+  void enableDepth(bool enable);
+  bool isDepthEnabled();
 
+  void setColor(glm::vec3 color);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   void setNormal(glm::vec3 normal);

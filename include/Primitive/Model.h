@@ -2,7 +2,6 @@
 #include "Device.h"
 #include "Buffer.h"
 #include "Shader.h"
-#include "Render.h"
 #include "Pipeline.h"
 #include "Command.h"
 #include "Settings.h"
@@ -17,13 +16,13 @@ class Model {
  protected:
   std::shared_ptr<Camera> _camera;
   glm::mat4 _model = glm::mat4(1.f);
-  bool _debug = false;
+  bool _enableDepth = true;
 
  public:
   void setCamera(std::shared_ptr<Camera> camera);
   void setModel(glm::mat4 model);
-  void setDebug(bool debug);
-  bool isDebug();
+  void enableDepth(bool enable);
+  bool isDepthEnabled();
   virtual void draw(int currentFrame,
                     std::shared_ptr<CommandBuffer> commandBuffer,
                     std::shared_ptr<Pipeline> pipeline,
@@ -147,8 +146,8 @@ class ModelGLTF : public Model {
   std::vector<NodeGLTF*> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
   std::shared_ptr<UniformBuffer> _uniformBufferFull;
-  std::shared_ptr<VertexBuffer3D> _vertexBuffer;
-  std::shared_ptr<IndexBuffer> _indexBuffer;
+  std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
+  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
@@ -197,7 +196,6 @@ class ModelGLTF : public Model {
   ModelGLTF(std::string path,
             std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
             std::shared_ptr<LightManager> lightManager,
-            std::shared_ptr<RenderPass> renderPass,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandBuffer> commandBufferTransfer,
             std::shared_ptr<Device> device,

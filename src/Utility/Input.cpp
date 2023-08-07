@@ -10,7 +10,15 @@ static void mouseCallback(GLFWwindow* window, int button, int action, int mods) 
 }
 
 static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, action, mods);
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, scancode, action, mods);
+}
+
+static void charCallback(GLFWwindow* window, unsigned int code) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
+}
+
+static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
+  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
 }
 
 Input::Input(std::shared_ptr<Window> window) {
@@ -18,12 +26,26 @@ Input::Input(std::shared_ptr<Window> window) {
   glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   glfwSetCursorPosCallback(window->getWindow(), cursorCallback);
   glfwSetMouseButtonCallback(window->getWindow(), mouseCallback);
+  glfwSetCharCallback(window->getWindow(), charCallback);
   glfwSetKeyCallback(window->getWindow(), keyCallback);
+  glfwSetScrollCallback(window->getWindow(), scrollCallback);
 }
 
-void Input::keyHandler(GLFWwindow* window, int key, int action, int mods) {
+void Input::keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods) {
   for (auto& sub : _subscribers) {
-    sub->keyNotify(window, key, action, mods);
+    sub->keyNotify(window, key, scancode, action, mods);
+  }
+}
+
+void Input::charHandler(GLFWwindow* window, unsigned int code) {
+  for (auto& sub : _subscribers) {
+    sub->charNotify(window, code);
+  }
+}
+
+void Input::scrollHandler(GLFWwindow* window, double xOffset, double yOffset) {
+  for (auto& sub : _subscribers) {
+    sub->scrollNotify(window, xOffset, yOffset);
   }
 }
 

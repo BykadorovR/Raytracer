@@ -3,7 +3,7 @@ layout(location = 0) in vec4 modelCoords;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) vec3 lightPosition;
-    int far;
+    layout(offset = 32) int far;
 } PushConstants;
 
 void main() {

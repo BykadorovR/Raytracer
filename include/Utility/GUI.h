@@ -1,7 +1,6 @@
 #pragma once
 #include <imgui.h>
 #include "Device.h"
-#include "Render.h"
 #include "Image.h"
 #include "Pipeline.h"
 #include <chrono>
@@ -49,11 +48,12 @@ class GUI : public InputSubscriber {
   float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
   std::shared_ptr<Device> _device;
+  std::shared_ptr<Settings> _settings;
   std::shared_ptr<Window> _window;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
-  std::array<std::shared_ptr<Buffer>, 2> _vertexBuffer;
-  std::array<std::shared_ptr<Buffer>, 2> _indexBuffer;
+  std::vector<std::shared_ptr<Buffer>> _vertexBuffer;
+  std::vector<std::shared_ptr<Buffer>> _indexBuffer;
   int _lastBuffer = 0;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSet;
@@ -61,28 +61,30 @@ class GUI : public InputSubscriber {
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Texture> _fontTexture;
   std::shared_ptr<ImageView> _imageView;
-  std::array<int32_t, 2> _vertexCount = {0, 0};
-  std::array<int32_t, 2> _indexCount = {0, 0};
+  std::vector<int32_t> _vertexCount;
+  std::vector<int32_t> _indexCount;
   std::map<std::string, VkDescriptorSet> _textureSet;
   int _calls = 0;
 
  public:
-  GUI(std::tuple<int, int> resolution, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
-  void initialize(std::shared_ptr<RenderPass> renderPass, std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void drawText(std::string name,
-                std::tuple<int, int> position,
-                std::tuple<int, int> size,
-                std::vector<std::string> text);
-  void drawCheckbox(std::string name,
-                    std::tuple<int, int> position,
-                    std::tuple<int, int> size,
-                    std::map<std::string, bool*> variable);
+  GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
+  void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
+  bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);
+  bool drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
+  void drawListBox(std::string name,
+                   std::tuple<int, int> position,
+                   std::vector<std::string> list,
+                   std::map<std::string, int*> variable);
+  bool drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable);
+  bool drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos);
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods);
-  void keyNotify(GLFWwindow* window, int key, int action, int mods);
-
+  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
+  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
+  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
+  void charNotify(GLFWwindow* window, unsigned int code) override;
+  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
   ~GUI();
 };

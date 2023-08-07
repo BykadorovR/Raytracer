@@ -15,15 +15,20 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
                std::shared_ptr<Settings> settings) {
   _device = device;
   _settings = settings;
-  _texture = texture;
+  if (texture == nullptr)
+    texture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                        commandBufferTransfer, device);
 
   if (normalMap == nullptr)
-    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    normalMap = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                           commandBufferTransfer, device);
   _normalMap = normalMap;
+  _texture = texture;
 
-  _vertexBuffer = std::make_shared<VertexBuffer2D>(_vertices, commandBufferTransfer, device);
-  _indexBuffer = std::make_shared<IndexBuffer>(_indices, commandBufferTransfer, device);
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(_vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                           commandBufferTransfer, device);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                          commandBufferTransfer, device);
   for (int i = 0; i < _settings->getMaxDirectionalLights(); i++) {
     _uniformBufferDepth.push_back(
         {std::make_shared<UniformBuffer>(settings->getMaxFramesInFlight(), sizeof(UniformObject), device)});
@@ -47,7 +52,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
     for (int i = 0; i < _settings->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                        descriptorPool, device);
-      cameraSet->createCamera(_uniformBufferDepth[i][0]);
+      cameraSet->createBuffer(_uniformBufferDepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
@@ -57,7 +62,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
       for (int j = 0; j < 6; j++) {
         facesSet[j] = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                       descriptorPool, device);
-        facesSet[j]->createCamera(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
+        facesSet[j]->createBuffer(_uniformBufferDepth[i + settings->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -69,7 +74,7 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
                                      });
     auto cameraSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*cameraLayout).second,
                                                      descriptorPool, device);
-    cameraSet->createCamera(_uniformBufferFull);
+    cameraSet->createBuffer(_uniformBufferFull);
     _descriptorSetCameraFull = cameraSet;
   }
 
@@ -82,11 +87,23 @@ Sprite::Sprite(std::shared_ptr<Texture> texture,
     for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
       auto textureSet = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*textureLayout).second,
                                                         descriptorPool, device);
-      textureSet->createGraphicModel(texture, normalMap);
+      textureSet->createGraphicModel(_texture, _normalMap);
       _descriptorSetTextures[i] = textureSet;
     }
   }
 }
+
+void Sprite::setColor(glm::vec3 color) {
+  for (auto& vertex : _vertices) {
+    vertex.color = color;
+  }
+
+  _vertexBuffer->setData(_vertices);
+}
+
+void Sprite::enableDepth(bool enable) { _enableDepth = enable; }
+
+bool Sprite::isDepthEnabled() { return _enableDepth; }
 
 void Sprite::enableShadow(bool enable) { _enableShadow = enable; }
 

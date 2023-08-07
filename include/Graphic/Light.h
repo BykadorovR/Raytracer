@@ -14,6 +14,7 @@ class PointLight {
     float constant = 1.f;
     float linear = 0.f;
     float quadratic = 0.f;
+    int distance;
     // parameters
     float far;
     // if alignment changed need to change implementation, sizeof(glm::vec4) is used in LightManager
@@ -23,6 +24,7 @@ class PointLight {
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<PhongLightFields> _phong = nullptr;
   std::vector<std::shared_ptr<Cubemap>> _depthCubemap;
+  int _attenuationIndex = 4;
 
  public:
   PointLight(std::shared_ptr<Settings> settings);
@@ -33,7 +35,9 @@ class PointLight {
   glm::vec3 getPosition();
   glm::mat4 getViewMatrix(int face);
   glm::mat4 getProjectionMatrix();
-  void setAttenuation(float constant, float linear, float quadratic);
+  void setAttenuationIndex(int index);
+  int getAttenuationIndex();
+  int getDistance();
   int getSize();
   void* getData();
 };

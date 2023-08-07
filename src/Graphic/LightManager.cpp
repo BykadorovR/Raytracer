@@ -10,14 +10,20 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetLayoutLight = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   _descriptorSetLayoutLight->createLight();
 
-  _descriptorSetLayoutViewProjection = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  _descriptorSetLayoutViewProjection->createLightVP();
+  _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_VERTEX_BIT] = std::make_shared<DescriptorSetLayout>(
+      _state->getDevice());
+  _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_VERTEX_BIT]->createLightVP(VK_SHADER_STAGE_VERTEX_BIT);
+
+  _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT] =
+      std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT]->createLightVP(
+      VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
   _descriptorSetLayoutDepthTexture = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   _descriptorSetLayoutDepthTexture->createShadowTexture();
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT,
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                            commandBufferTransfer, _state->getDevice());
   _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", commandBufferTransfer, _state);
 }
@@ -25,7 +31,7 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _state));
+    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _commandBufferTransfer, _state));
   }
 
   auto light = std::make_shared<PointLight>(_state->getSettings());
@@ -41,14 +47,15 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
   std::vector<std::shared_ptr<Texture>> depthTexture;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        resolution, 1, 1, _state->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         _state->getDevice());
-    image->overrideLayout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, VK_IMAGE_ASPECT_DEPTH_BIT,
+    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                        VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, _commandBufferTransfer);
+    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
                                                  _state->getDevice());
     depthTexture.push_back(
-        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, imageView, _state->getDevice()));
+        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, imageView, _state->getDevice()));
   }
 
   auto light = std::make_shared<DirectionalLight>();
@@ -60,9 +67,13 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
 
 std::vector<std::shared_ptr<DirectionalLight>> LightManager::getDirectionalLights() { return _directionalLights; }
 
-std::shared_ptr<DescriptorSetLayout> LightManager::getDSLViewProjection() { return _descriptorSetLayoutViewProjection; }
+std::shared_ptr<DescriptorSetLayout> LightManager::getDSLViewProjection(VkShaderStageFlagBits stage) {
+  return _descriptorSetLayoutViewProjection[stage];
+}
 
-std::shared_ptr<DescriptorSet> LightManager::getDSViewProjection() { return _descriptorSetViewProjection; }
+std::shared_ptr<DescriptorSet> LightManager::getDSViewProjection(VkShaderStageFlagBits stage) {
+  return _descriptorSetViewProjection[stage];
+}
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLight() { return _descriptorSetLayoutLight; }
 
@@ -116,10 +127,19 @@ void LightManager::draw(int frame) {
         _state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutLight, _descriptorPool, _state->getDevice());
     _descriptorSetLight->createLight(_lightDirectionalSSBO, _lightPointSSBO);
 
-    _descriptorSetViewProjection = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                   _descriptorSetLayoutViewProjection, _descriptorPool,
-                                                                   _state->getDevice());
-    _descriptorSetViewProjection->createLight(_lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection);
+    // for models/sprites
+    _descriptorSetViewProjection[VK_SHADER_STAGE_VERTEX_BIT] = std::make_shared<DescriptorSet>(
+        _state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_VERTEX_BIT],
+        _descriptorPool, _state->getDevice());
+    _descriptorSetViewProjection[VK_SHADER_STAGE_VERTEX_BIT]->createLight(_lightDirectionalSSBOViewProjection,
+                                                                          _lightPointSSBOViewProjection);
+    // for terrain
+    _descriptorSetViewProjection[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT] = std::make_shared<DescriptorSet>(
+        _state->getSettings()->getMaxFramesInFlight(),
+        _descriptorSetLayoutViewProjection[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT], _descriptorPool,
+        _state->getDevice());
+    _descriptorSetViewProjection[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT]->createLight(
+        _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection);
 
     _descriptorSetDepthTexture.resize(_state->getSettings()->getMaxFramesInFlight());
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {

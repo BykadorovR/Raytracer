@@ -10,7 +10,6 @@ class Model3DManager {
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
 
-  int _modelsCreated = 0;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<CommandPool> _commandPool;
@@ -19,14 +18,11 @@ class Model3DManager {
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Camera> _camera;
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
-  std::shared_ptr<RenderPass> _renderPass;
 
  public:
   Model3DManager(std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<DescriptorPool> descriptorPool,
-                 std::shared_ptr<RenderPass> render,
-                 std::shared_ptr<RenderPass> renderDepth,
                  std::shared_ptr<Device> device,
                  std::shared_ptr<Settings> settings);
 

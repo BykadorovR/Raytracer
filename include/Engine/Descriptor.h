@@ -10,12 +10,13 @@ class DescriptorSetLayout {
 
  public:
   DescriptorSetLayout(std::shared_ptr<Device> device);
-  void createGraphic();
+  void createTexture(int number = 1, int binding = 0, VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
+  void createBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
+
   void createGraphicModel();
-  void createCamera();
   void createJoints();
   void createLight();
-  void createLightVP();
+  void createLightVP(VkShaderStageFlagBits stage);
   void createShadowTexture();
   void createModelAuxilary();
   void createCompute();
@@ -45,14 +46,16 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
+  void createBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
+
   void createJoints(std::shared_ptr<Buffer> buffer);
   void createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint);
-  void createCamera(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
   void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
                            std::vector<std::shared_ptr<Texture>> point);
-  void createGraphic(std::shared_ptr<Texture> texture);
+
   void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
                      std::shared_ptr<UniformBuffer> uniformBuffer,
                      std::shared_ptr<UniformBuffer> uniformSpheres,

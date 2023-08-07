@@ -30,6 +30,7 @@ struct LightPoint {
     float constant;
     float linear;
     float quadratic;
+    int distance;
     //parameters
     float far;
     //
@@ -64,7 +65,10 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     float shadow = 0.0;
     for (int y = -1; y <= 1; y++) {
         for (int x = -1; x <= 1; x++) {
-            float bufferDepth = texture(shadowSampler, vec2(position.x + x * unitSize.x, position.y + y * unitSize.y)).r;
+            //IMPORTANT: we flip viewport for depth texture (OpenGL -> Vulkan) so it's correctly displayed in RenderDoc and on screen
+            //but we can't just use it here as is, because here is left-hand space and texture is in right-hand space
+            //so need to subtract position from 1.0
+            float bufferDepth = texture(shadowSampler, vec2(position.x + x * unitSize.x, 1.0 - (position.y + y * unitSize.y))).r;
             shadow += (currentDepth - bias) > bufferDepth ? 1.0 : 0.0;
         }
     }
@@ -122,10 +126,12 @@ vec3 directionalLight(vec3 normal) {
 vec3 pointLight(vec3 normal) {
     vec3 lightFactor = vec3(0.f, 0.f, 0.f);
     for (int i = 0; i < lightPointNumber; i++) {
+        float distance = length(lightPoint[i].position - fragPosition);
+        if (distance > lightPoint[i].distance) break;
+
         vec3 lightDir = normalize(lightPoint[i].position - fragPosition);
         float shadow = 0.0;
         if (push.enableShadow > 0) shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, lightPoint[i].position, lightPoint[i].far); 
-        float distance = length(lightPoint[i].position - fragPosition);
         float attenuation = 1.f / (lightPoint[i].constant + lightPoint[i].linear * distance + lightPoint[i].quadratic * distance * distance);
         float ambientFactor = lightPoint[i].ambient;
         //dot product between normal and light ray

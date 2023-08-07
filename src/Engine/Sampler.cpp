@@ -1,6 +1,6 @@
 #include "Sampler.h"
 
-Sampler::Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device) {
+Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, std::shared_ptr<Device> device) {
   _device = device;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
@@ -13,14 +13,14 @@ Sampler::Sampler(VkSamplerAddressMode mode, std::shared_ptr<Device> device) {
   // TODO: request from device capabilities
   samplerInfo.anisotropyEnable = VK_FALSE;
   samplerInfo.maxAnisotropy = 1.f;
-  samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+  samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
   samplerInfo.compareEnable = VK_FALSE;
   samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.mipLodBias = 0.0f;
   samplerInfo.minLod = 0.0f;
-  samplerInfo.maxLod = 0.0f;
+  samplerInfo.maxLod = static_cast<float>(mipMapLevels);
 
   if (vkCreateSampler(device->getLogicalDevice(), &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture sampler!");

@@ -54,6 +54,18 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
   _direction = glm::normalize(_direction);
 }
 
+glm::vec3 CameraFly::getAngles() { return glm::vec3(_yaw, _pitch, _roll); }
+
+void CameraFly::setAngles(float yaw, float pitch, float roll) {
+  _yaw = yaw;
+  _pitch = pitch;
+  _roll = roll;
+}
+
+void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
+  Camera::setViewParameters(eye, direction, up);
+}
+
 void CameraFly::setProjectionParameters(float fov, float near, float far) {
   _fov = fov;
   _near = near;
@@ -66,6 +78,8 @@ glm::mat4 CameraFly::getProjection() {
       (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution()), _near, _far);
   return projection;
 }
+
+float CameraFly::getFOV() { return _fov; }
 
 void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
@@ -101,7 +115,7 @@ void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
 
 void CameraFly::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
 
-void CameraFly::keyNotify(GLFWwindow* window, int key, int action, int mods) {
+void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {
@@ -128,3 +142,7 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int action, int mods) {
     _eye += _sensitivity * _up;
   }
 }
+
+void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}
+
+void CameraFly::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}

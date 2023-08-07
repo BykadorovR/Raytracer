@@ -26,7 +26,8 @@ class Device {
   VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
   VkDevice _logicalDevice;
   // device extension
-  const std::vector<const char*> _deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  const std::vector<const char*> _deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+                                                      VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
   // supported device features
   VkPhysicalDeviceFeatures _supportedFeatures;
   // supported queues
