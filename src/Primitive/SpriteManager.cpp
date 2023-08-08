@@ -191,7 +191,7 @@ void SpriteManager::drawShadow(int currentFrame,
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
       // light camera
-      pushConstants.far = 100.f;
+      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[SpriteRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                          sizeof(DepthConstants), &pushConstants);

@@ -39,6 +39,7 @@ class PointLight {
   int getAttenuationIndex();
   int getDistance();
   int getSize();
+  float getFar();
   void* getData();
 };
 
