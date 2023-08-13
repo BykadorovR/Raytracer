@@ -24,7 +24,7 @@ class CommandBuffer {
  public:
   CommandBuffer(int size, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device);
   void beginCommands(int cmd);
-  void endCommands(int cmd);
+  void endCommands(int cmd, bool blocking = true);
   void endCommands(int cmd, VkSubmitInfo info, std::shared_ptr<Fence> fence);
   std::vector<VkCommandBuffer>& getCommandBuffer();
   ~CommandBuffer();

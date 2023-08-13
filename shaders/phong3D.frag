@@ -88,8 +88,8 @@ void main() {
             lightFactor += directionalLight(lightDirectionalNumber, fragPosition, fragNormal, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.05);
             //calculate point light
-            lightFactor += pointLight(lightPointNumber, fragPosition, fragNormal, 
-                                      push.cameraPosition, push.enableShadow, shadowPointSampler, 0.15);
+            lightFactor += pointLight(lightPointNumber, fragPosition, fragNormal, push.cameraPosition,
+                                      push.enableShadow, shadowPointSampler, 0.15);
             outColor *= vec4(lightFactor, 1.0);
         }
     }
