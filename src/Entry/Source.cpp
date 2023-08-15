@@ -31,6 +31,7 @@
 #include "State.h"
 #include "Logger.h"
 #include "BS_thread_pool.hpp"
+#include "ParticleSystem.h"
 
 #undef near
 #undef far
@@ -47,20 +48,21 @@ float depthBiasSlope = 1.75f;
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer;
-std::shared_ptr<CommandPool> commandPool, commandPoolTransfer;
+std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem;
+std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
 std::shared_ptr<Terrain> terrain;
 std::shared_ptr<State> state;
 
-std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores;
-std::vector<std::shared_ptr<Fence>> inFlightFences;
+std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, particleSystemSemaphore;
+std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ModelGLTF> modelGLTF;
+std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -69,7 +71,7 @@ std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
-std::shared_ptr<LoggerGPU> loggerGPU;
+std::shared_ptr<LoggerGPU> loggerGPU, loggerCompute;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::future<void> updateJoints;
@@ -289,14 +291,22 @@ void initialize() {
   commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
   commandPoolTransfer = std::make_shared<CommandPool>(QueueType::TRANSFER, device);
   commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPool, device);
+  commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
+  commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                commandPoolParticleSystem, device);
   //
   loggerGPU = std::make_shared<LoggerGPU>(state);
+  loggerCompute = std::make_shared<LoggerGPU>(state);
   loggerCPU = std::make_shared<LoggerCPU>();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    // graphic-presentation
     imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
     renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(device));
     inFlightFences.push_back(std::make_shared<Fence>(device));
+    // compute-graphic
+    particleSystemSemaphore.push_back(std::make_shared<Semaphore>(device));
+    particleSystemFences.push_back(std::make_shared<Fence>(device));
   }
 
   gui = std::make_shared<GUI>(settings, window, device);
@@ -314,7 +324,7 @@ void initialize() {
   pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal->createPhong(0.f, 0.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
-  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  /*pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
 
@@ -324,7 +334,7 @@ void initialize() {
 
   pointLightVertical2 = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
-  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});
+  pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight->createPhong(0.2f, 0.f, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -332,11 +342,11 @@ void initialize() {
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
 
-  directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
+  /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   directionalLight2->setPosition({3.f, 15.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
-  directionalLight2->setUp({0.f, 1.f, 0.f});
+  directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
   spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, device,
                                                   settings);
@@ -447,12 +457,49 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
+  particleSystem = std::make_shared<ParticleSystem>(8192, commandBufferTransfer, state);
+  particleSystem->setCamera(camera);
+
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
 void drawFrame() {
+  // process compute
+  std::vector<VkFence> waitParticleSystemFence = {particleSystemFences[currentFrame]->getFence()};
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitParticleSystemFence.size(),
+                                waitParticleSystemFence.data(), VK_TRUE, UINT64_MAX);
+  result = vkResetFences(device->getLogicalDevice(), waitParticleSystemFence.size(), waitParticleSystemFence.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
+  result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
+                                /*VkCommandBufferResetFlagBits*/ 0);
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
+
+  commandBufferParticleSystem->beginCommands(currentFrame);
+  loggerCompute->initialize("Compute", currentFrame, commandBufferParticleSystem);
+
+  loggerCompute->begin("Particle system", currentFrame);
+  particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
+  loggerCompute->end(currentFrame);
+
+  particleSystem->updateTimer(frameTimer);
+
+  VkSubmitInfo submitInfoCompute{};
+  submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore signalComputeSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+  submitInfoCompute.signalSemaphoreCount = 1;
+  submitInfoCompute.pSignalSemaphores = signalComputeSemaphores;
+  submitInfoCompute.commandBufferCount = 1;
+  submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
+
+  // end command buffer
+  commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
+
+  //***************************************************************************************************************
+  // process graphic
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
-  auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
+  result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
   uint32_t imageIndex;
@@ -623,6 +670,10 @@ void drawFrame() {
     vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
     lightManager->draw(currentFrame);
     // draw scene here
+    loggerGPU->begin("Render particles", currentFrame);
+    particleSystem->drawGraphic(currentFrame, commandBuffer);
+    loggerGPU->end(currentFrame);
+
     loggerGPU->begin("Render sprites", currentFrame);
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
@@ -699,10 +750,12 @@ void drawFrame() {
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-  VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]->getSemaphore()};
-  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
-  submitInfo.waitSemaphoreCount = 1;
-  submitInfo.pWaitSemaphores = waitSemaphores;
+  std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore(),
+                                             imageAvailableSemaphores[currentFrame]->getSemaphore()};
+  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+  submitInfo.waitSemaphoreCount = waitSemaphores.size();
+  submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages;
 
   submitInfo.commandBufferCount = 1;

@@ -2,55 +2,30 @@
 
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
-void DescriptorSetLayout::createCompute() {
-  VkDescriptorSetLayoutBinding uboLayoutBinding{};
-  uboLayoutBinding.binding = 0;
-  uboLayoutBinding.descriptorCount = 1;
-  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding.pImmutableSamplers = nullptr;
-  uboLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+void DescriptorSetLayout::createParticleComputeBuffer() {
+  std::array<VkDescriptorSetLayoutBinding, 3> layoutBinding{};
+  layoutBinding[0].binding = 0;
+  layoutBinding[0].descriptorCount = 1;
+  layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  layoutBinding[0].pImmutableSamplers = nullptr;
+  layoutBinding[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-  VkDescriptorSetLayoutBinding imageLayoutBinding{};
-  imageLayoutBinding.binding = 1;
-  imageLayoutBinding.descriptorCount = 1;
-  imageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  imageLayoutBinding.pImmutableSamplers = nullptr;
-  imageLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+  layoutBinding[1].binding = 1;
+  layoutBinding[1].descriptorCount = 1;
+  layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  layoutBinding[1].pImmutableSamplers = nullptr;
+  layoutBinding[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-  VkDescriptorSetLayoutBinding uboLayoutBinding2{};
-  uboLayoutBinding2.binding = 2;
-  uboLayoutBinding2.descriptorCount = 1;
-  uboLayoutBinding2.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding2.pImmutableSamplers = nullptr;
-  uboLayoutBinding2.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+  layoutBinding[2].binding = 2;
+  layoutBinding[2].descriptorCount = 1;
+  layoutBinding[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  layoutBinding[2].pImmutableSamplers = nullptr;
+  layoutBinding[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-  VkDescriptorSetLayoutBinding uboLayoutBinding3{};
-  uboLayoutBinding3.binding = 3;
-  uboLayoutBinding3.descriptorCount = 1;
-  uboLayoutBinding3.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding3.pImmutableSamplers = nullptr;
-  uboLayoutBinding3.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-  VkDescriptorSetLayoutBinding uboLayoutBinding4{};
-  uboLayoutBinding4.binding = 4;
-  uboLayoutBinding4.descriptorCount = 1;
-  uboLayoutBinding4.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding4.pImmutableSamplers = nullptr;
-  uboLayoutBinding4.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-  VkDescriptorSetLayoutBinding uboLayoutBinding5{};
-  uboLayoutBinding5.binding = 5;
-  uboLayoutBinding5.descriptorCount = 1;
-  uboLayoutBinding5.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding5.pImmutableSamplers = nullptr;
-  uboLayoutBinding5.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-  std::array<VkDescriptorSetLayoutBinding, 6> bindings = {uboLayoutBinding,  imageLayoutBinding, uboLayoutBinding2,
-                                                          uboLayoutBinding3, uboLayoutBinding4,  uboLayoutBinding5};
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-  layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-  layoutInfo.pBindings = bindings.data();
+  layoutInfo.bindingCount = layoutBinding.size();
+  layoutInfo.pBindings = layoutBinding.data();
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -58,18 +33,18 @@ void DescriptorSetLayout::createCompute() {
   }
 }
 
-void DescriptorSetLayout::createBuffer(VkShaderStageFlags stage) {
-  VkDescriptorSetLayoutBinding uboLayoutBinding{};
-  uboLayoutBinding.binding = 0;
-  uboLayoutBinding.descriptorCount = 1;
-  uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  uboLayoutBinding.pImmutableSamplers = nullptr;
-  uboLayoutBinding.stageFlags = stage;
+void DescriptorSetLayout::createUniformBuffer(VkShaderStageFlags stage) {
+  VkDescriptorSetLayoutBinding layoutBinding{};
+  layoutBinding.binding = 0;
+  layoutBinding.descriptorCount = 1;
+  layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  layoutBinding.pImmutableSamplers = nullptr;
+  layoutBinding.stageFlags = stage;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
   layoutInfo.bindingCount = 1;
-  layoutInfo.pBindings = &uboLayoutBinding;
+  layoutInfo.pBindings = &layoutBinding;
 
   if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
       VK_SUCCESS) {
@@ -436,7 +411,55 @@ void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createParticleComputeBuffer(std::shared_ptr<UniformBuffer> uniformBuffer,
+                                                std::shared_ptr<Buffer> bufferIn,
+                                                std::shared_ptr<Buffer> bufferOut) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorBufferInfo bufferUniformInfo{};
+    bufferUniformInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferUniformInfo.offset = 0;
+    bufferUniformInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+
+    VkDescriptorBufferInfo bufferInInfo{};
+    bufferInInfo.buffer = bufferIn->getData();
+    bufferInInfo.offset = 0;
+    bufferInInfo.range = bufferIn->getSize();
+
+    VkDescriptorBufferInfo bufferOutInfo{};
+    bufferOutInfo.buffer = bufferOut->getData();
+    bufferOutInfo.offset = 0;
+    bufferOutInfo.range = bufferOut->getSize();
+
+    std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferUniformInfo;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pBufferInfo = &bufferInInfo;
+
+    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[2].dstSet = _descriptorSets[i];
+    descriptorWrites[2].dstBinding = 2;
+    descriptorWrites[2].dstArrayElement = 0;
+    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[2].descriptorCount = 1;
+    descriptorWrites[2].pBufferInfo = &bufferOutInfo;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+  }
+}
+
+void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
@@ -538,96 +561,6 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
     descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[1].descriptorCount = 1;
     descriptorWrites[1].pImageInfo = &imageInfo;
-
-    vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
-                           descriptorWrites.data(), 0, nullptr);
-  }
-}
-
-void DescriptorSet::createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
-                                  std::shared_ptr<UniformBuffer> uniformBuffer,
-                                  std::shared_ptr<UniformBuffer> uniformSpheres,
-                                  std::shared_ptr<UniformBuffer> uniformRectangles,
-                                  std::shared_ptr<UniformBuffer> uniformHitboxes,
-                                  std::shared_ptr<UniformBuffer> uniformSettings) {
-  for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
-    bufferInfo.offset = 0;
-    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
-
-    VkDescriptorBufferInfo bufferInfo2{};
-    bufferInfo2.buffer = uniformSpheres->getBuffer()[i]->getData();
-    bufferInfo2.offset = 0;
-    bufferInfo2.range = uniformSpheres->getBuffer()[i]->getSize();
-
-    VkDescriptorBufferInfo bufferInfo3{};
-    bufferInfo3.buffer = uniformRectangles->getBuffer()[i]->getData();
-    bufferInfo3.offset = 0;
-    bufferInfo3.range = uniformRectangles->getBuffer()[i]->getSize();
-
-    VkDescriptorBufferInfo bufferInfo4{};
-    bufferInfo4.buffer = uniformHitboxes->getBuffer()[i]->getData();
-    bufferInfo4.offset = 0;
-    bufferInfo4.range = uniformHitboxes->getBuffer()[i]->getSize();
-
-    VkDescriptorBufferInfo bufferInfo5{};
-    bufferInfo5.buffer = uniformSettings->getBuffer()[i]->getData();
-    bufferInfo5.offset = 0;
-    bufferInfo5.range = uniformSettings->getBuffer()[i]->getSize();
-
-    VkDescriptorImageInfo imageInfoOut{};
-    imageInfoOut.imageLayout = textureOut[i]->getImageView()->getImage()->getImageLayout();
-    imageInfoOut.imageView = textureOut[i]->getImageView()->getImageView();
-
-    std::array<VkWriteDescriptorSet, 6> descriptorWrites{};
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = _descriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = _descriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pImageInfo = &imageInfoOut;
-
-    descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[2].dstSet = _descriptorSets[i];
-    descriptorWrites[2].dstBinding = 2;
-    descriptorWrites[2].dstArrayElement = 0;
-    descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[2].descriptorCount = 1;
-    descriptorWrites[2].pBufferInfo = &bufferInfo2;
-
-    descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[3].dstSet = _descriptorSets[i];
-    descriptorWrites[3].dstBinding = 3;
-    descriptorWrites[3].dstArrayElement = 0;
-    descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[3].descriptorCount = 1;
-    descriptorWrites[3].pBufferInfo = &bufferInfo3;
-
-    descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[4].dstSet = _descriptorSets[i];
-    descriptorWrites[4].dstBinding = 4;
-    descriptorWrites[4].dstArrayElement = 0;
-    descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[4].descriptorCount = 1;
-    descriptorWrites[4].pBufferInfo = &bufferInfo4;
-
-    descriptorWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[5].dstSet = _descriptorSets[i];
-    descriptorWrites[5].dstBinding = 5;
-    descriptorWrites[5].dstArrayElement = 0;
-    descriptorWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorWrites[5].descriptorCount = 1;
-    descriptorWrites[5].pBufferInfo = &bufferInfo5;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);

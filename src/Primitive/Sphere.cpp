@@ -85,10 +85,10 @@ Sphere::Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createBuffer();
+  setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
                                                          state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createBuffer(_uniformBuffer);
+  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);

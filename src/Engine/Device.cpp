@@ -53,6 +53,14 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
     i++;
   }
 
+  // find compute queue != graphic queue
+  for (int i = 0; i < queueFamilies.size(); i++) {
+    auto queueFamily = queueFamilies[i];
+    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT && i != _family[QueueType::GRAPHIC]) {
+      _family[QueueType::COMPUTE] = i;
+    }
+  }
+
   // find transfer queue != graphic queue
   for (int i = 0; i < queueFamilies.size(); i++) {
     auto queueFamily = queueFamilies[i];

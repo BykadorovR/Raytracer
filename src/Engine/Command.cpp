@@ -62,7 +62,9 @@ void CommandBuffer::endCommands(int cmd, VkSubmitInfo info, std::shared_ptr<Fenc
   vkEndCommandBuffer(_buffer[cmd]);
   auto queue = _device->getQueue(_pool->getType());
   std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
-  vkQueueSubmit(queue, 1, &info, fence->getFence());
+  VkFence currentFence = VK_NULL_HANDLE;
+  if (fence) currentFence = fence->getFence();
+  vkQueueSubmit(queue, 1, &info, currentFence);
 }
 
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }

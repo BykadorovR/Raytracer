@@ -22,11 +22,11 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                                           commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraLayout->createBuffer();
+  cameraLayout->createUniformBuffer();
 
   _cameraSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                state->getDescriptorPool(), state->getDevice());
-  _cameraSet->createBuffer(_uniformBuffer);
+  _cameraSet->createUniformBuffer(_uniformBuffer);
 
   _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   _textureSetLayout->createTexture();

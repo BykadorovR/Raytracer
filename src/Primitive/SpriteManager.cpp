@@ -14,7 +14,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createBuffer();
+    setLayout->createUniformBuffer();
     _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {
