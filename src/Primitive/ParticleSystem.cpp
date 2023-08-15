@@ -1,6 +1,12 @@
 #include "ParticleSystem.h"
 #include <random>
 
+struct CameraObject {
+  alignas(16) glm::mat4 model;
+  alignas(16) glm::mat4 view;
+  alignas(16) glm::mat4 projection;
+};
+
 ParticleSystem::ParticleSystem(int particlesNumber,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
@@ -16,11 +22,22 @@ void ParticleSystem::_initializeGraphic() {
   auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("../shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto cameraLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  cameraLayout->createUniformBuffer();
+
+  _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
+                                                         sizeof(CameraObject), _state->getDevice());
+
+  _descriptorSetCamera = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), cameraLayout,
+                                                         _state->getDescriptorPool(), _state->getDevice());
+  _descriptorSetCamera->createUniformBuffer(_cameraUniformBuffer);
+
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _graphicPipeline->createParticleSystemGraphic(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
                                                 {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                  shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                {}, {}, Particle::getBindingDescription(),
+                                                {std::pair{std::string("camera"), cameraLayout}}, {},
+                                                Particle::getBindingDescription(),
                                                 Particle::getAttributeDescriptions());
 }
 
@@ -35,8 +52,8 @@ void ParticleSystem::_initializeCompute() {
     float theta = rndDist(rndEngine) * 2 * 3.14159265358979323846;
     float x = r * cos(theta) * 800 / 600;
     float y = r * sin(theta);
-    particle.position = glm::vec3(x, y, 0.1f);
-    particle.velocity = glm::normalize(glm::vec3(x, y, 0));
+    particle.position = glm::vec3(x, y, 0.f);
+    particle.velocity = glm::normalize(glm::vec3(x, y, 0.f));
     particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
   }
 
@@ -134,9 +151,31 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
                               std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  CameraObject cameraUBO{};
+  cameraUBO.model = _model;
+  cameraUBO.view = _camera->getView();
+  cameraUBO.projection = _camera->getProjection();
+
+  void* data;
+  vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
+              sizeof(cameraUBO), 0, &data);
+  memcpy(data, &cameraUBO, sizeof(cameraUBO));
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _cameraUniformBuffer->getBuffer()[currentFrame]->getMemory());
+
   VkBuffer vertexBuffers[] = {_particlesBuffer[currentFrame]->getData()};
   VkDeviceSize offsets[] = {0};
   vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+
+  auto pipelineLayout = _graphicPipeline->getDescriptorSetLayout();
+  auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                     return info.first == std::string("camera");
+                                   });
+  if (cameraLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _graphicPipeline->getPipelineLayout(), 0, 1,
+                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particlesNumber, 1, 0, 0);
 }

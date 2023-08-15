@@ -778,6 +778,9 @@ void Pipeline::createParticleSystemGraphic(
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
     std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions) {
+  _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {

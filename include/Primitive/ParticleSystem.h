@@ -38,11 +38,12 @@ class ParticleSystem {
   int _particlesNumber;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  glm::mat4 _model;
+  glm::mat4 _model = glm::mat4(1.f);
   std::shared_ptr<Camera> _camera;
-  std::shared_ptr<UniformBuffer> _deltaUniformBuffer;
+  std::shared_ptr<UniformBuffer> _deltaUniformBuffer, _cameraUniformBuffer;
   std::vector<std::shared_ptr<Buffer>> _particlesBuffer;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCompute;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _computePipeline, _graphicPipeline;
   float _frameTimer = 0.f;
 
