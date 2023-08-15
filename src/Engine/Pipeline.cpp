@@ -819,6 +819,9 @@ void Pipeline::createParticleSystemGraphic(
   _rasterizer.rasterizerDiscardEnable = VK_FALSE;
   _rasterizer.lineWidth = 1.0f;
   _rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+  _depthStencil.depthTestEnable = VK_TRUE;
+  _depthStencil.depthWriteEnable = VK_TRUE;
 
   std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,

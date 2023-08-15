@@ -3,9 +3,9 @@
 #include "Camera.h"
 
 struct Particle {
-  glm::vec2 position;
-  glm::vec2 velocity;
-  glm::vec4 color;
+  alignas(16) glm::vec3 position;
+  alignas(16) glm::vec3 velocity;
+  alignas(16) glm::vec4 color;
 
   static VkVertexInputBindingDescription getBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
@@ -21,7 +21,7 @@ struct Particle {
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[0].offset = offsetof(Particle, position);
 
     attributeDescriptions[1].binding = 0;

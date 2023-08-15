@@ -457,7 +457,7 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  particleSystem = std::make_shared<ParticleSystem>(8192, commandBufferTransfer, state);
+  particleSystem = std::make_shared<ParticleSystem>(10, commandBufferTransfer, state);
   particleSystem->setCamera(camera);
 
   pool = std::make_shared<BS::thread_pool>(6);
@@ -670,10 +670,6 @@ void drawFrame() {
     vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
     lightManager->draw(currentFrame);
     // draw scene here
-    loggerGPU->begin("Render particles", currentFrame);
-    particleSystem->drawGraphic(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
-
     loggerGPU->begin("Render sprites", currentFrame);
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
@@ -706,6 +702,11 @@ void drawFrame() {
     else
       terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
     if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
+    loggerGPU->end(currentFrame);
+
+    // contains transparency, should be drawn last
+    loggerGPU->begin("Render particles", currentFrame);
+    particleSystem->drawGraphic(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     updateJoints = pool->submit([&]() {

@@ -35,8 +35,8 @@ void ParticleSystem::_initializeCompute() {
     float theta = rndDist(rndEngine) * 2 * 3.14159265358979323846;
     float x = r * cos(theta) * 800 / 600;
     float y = r * sin(theta);
-    particle.position = glm::vec2(x, y);
-    particle.velocity = glm::normalize(glm::vec2(x, y));
+    particle.position = glm::vec3(x, y, 0.1f);
+    particle.velocity = glm::normalize(glm::vec3(x, y, 0));
     particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
   }
 
@@ -113,7 +113,7 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], _particlesNumber / 256, 1, 1);
+  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, _particlesNumber / 256), 1, 1);
 }
 
 void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
