@@ -64,11 +64,15 @@ void ParticleSystem::_initializeCompute() {
     float z = rndDist(rndEngine);
     particle.startPosition = r * glm::normalize(glm::vec3(x, y, z));
     particle.position = particle.startPosition;
-    particle.velocity = glm::vec3(0.f, rndDist(rndEngine), 0.f);
+    particle.velocity = rndDist(rndEngine);
+    particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
+    particle.velocityMin = 0.f;
+    particle.velocityMax = 1.f;
     particle.startColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
     particle.color = particle.startColor;
-    particle.startLife = rndDist(rndEngine);
-    particle.life = particle.startLife;
+    particle.minLife = 0.f;
+    particle.maxLife = 1.f;
+    particle.life = rndDist(rndEngine);
   }
 
   // TODO: change to VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT

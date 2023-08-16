@@ -3,11 +3,15 @@
 struct Particle {
     vec3 startPosition;
 	vec3 position;
-	vec3 velocity;
     vec4 startColor;
     vec4 color;
-    float startLife;
+    float minLife;
+    float maxLife;
     float life;
+	vec3 velocityDirection;
+    float velocity;
+    float velocityMin;
+    float velocityMax;
 };
 
 layout (std140, set = 0, binding = 0) uniform ParameterUBO {
@@ -24,20 +28,28 @@ layout(std140, set = 0, binding = 2) buffer ParticleSSBOOut {
 
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 
+#include "utility.glsl"
+
+void recalculate(inout Particle particle) {
+    particle.position = particle.startPosition;
+    particle.life = randomFloat(particle.minLife, particle.maxLife, vec2(particle.life, gl_GlobalInvocationID.x));
+    particle.velocity = randomFloat(particle.velocityMin, particle.velocityMax, vec2(particle.life, particle.velocity));
+}
+
 void main() {
     uint index = gl_GlobalInvocationID.x;
     Particle particleIn = particlesIn[index];
     if (particleIn.life <= 0) {
-        particleIn.position = particleIn.startPosition;
-        particleIn.life = particleIn.startLife;
+        recalculate(particleIn);
     }
     
-    particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime;
+    particlesOut[index].position = particleIn.position + (particleIn.velocity * particleIn.velocityDirection) * ubo.deltaTime;
     particlesOut[index].startPosition = particleIn.startPosition;
     particlesOut[index].velocity = particleIn.velocity;
     particlesOut[index].life = particleIn.life - ubo.deltaTime;
-    particlesOut[index].startLife = particleIn.startLife;
-    float colorMultiplier = 1.0 - (particleIn.startLife - particleIn.life) / particleIn.startLife;
+    particlesOut[index].minLife = particleIn.minLife;
+    particlesOut[index].maxLife = particleIn.maxLife;
+    float colorMultiplier = particleIn.life / (particleIn.maxLife - particleIn.minLife);
     particlesOut[index].color = vec4(particleIn.color.rgb, particleIn.startColor.a * colorMultiplier);
     particlesOut[index].startColor = particleIn.startColor;
 }

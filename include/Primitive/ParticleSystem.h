@@ -5,11 +5,15 @@
 struct Particle {
   alignas(16) glm::vec3 startPosition;
   alignas(16) glm::vec3 position;
-  alignas(16) glm::vec3 velocity;
   alignas(16) glm::vec4 startColor;
   alignas(16) glm::vec4 color;
-  alignas(16) float startLife;
+  alignas(16) float minLife;
+  float maxLife;
   float life;
+  alignas(16) glm::vec3 velocityDirection;
+  float velocity;
+  alignas(16) float velocityMin;
+  float velocityMax;
 
   static VkVertexInputBindingDescription getBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
