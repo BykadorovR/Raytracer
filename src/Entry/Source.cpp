@@ -459,9 +459,9 @@ void initialize() {
 
   auto particleTexture = std::make_shared<Texture>("../data/Particles/explosion.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                                    commandBufferTransfer, device);
-  particleSystem = std::make_shared<ParticleSystem>(10, particleTexture, commandBufferTransfer, state);
+  particleSystem = std::make_shared<ParticleSystem>(300, particleTexture, commandBufferTransfer, state);
   {
-    auto tranlsateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+    auto tranlsateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
     particleSystem->setModel(tranlsateMatrix);
   }
   particleSystem->setCamera(camera);

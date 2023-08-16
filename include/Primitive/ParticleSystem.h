@@ -3,9 +3,13 @@
 #include "Camera.h"
 
 struct Particle {
+  alignas(16) glm::vec3 startPosition;
   alignas(16) glm::vec3 position;
   alignas(16) glm::vec3 velocity;
+  alignas(16) glm::vec4 startColor;
   alignas(16) glm::vec4 color;
+  alignas(16) float startLife;
+  float life;
 
   static VkVertexInputBindingDescription getBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};

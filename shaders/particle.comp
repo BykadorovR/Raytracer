@@ -1,12 +1,16 @@
 #version 450
 
 struct Particle {
+    vec3 startPosition;
 	vec3 position;
 	vec3 velocity;
+    vec4 startColor;
     vec4 color;
+    float startLife;
+    float life;
 };
 
-layout (set = 0, binding = 0) uniform ParameterUBO {
+layout (std140, set = 0, binding = 0) uniform ParameterUBO {
     float deltaTime;
 } ubo;
 
@@ -18,22 +22,22 @@ layout(std140, set = 0, binding = 2) buffer ParticleSSBOOut {
    Particle particlesOut[ ];
 };
 
-layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
     uint index = gl_GlobalInvocationID.x;
-
     Particle particleIn = particlesIn[index];
-
-    particlesOut[index].position = particleIn.position + particleIn.velocity.xyz * ubo.deltaTime;
+    if (particleIn.life <= 0) {
+        particleIn.position = particleIn.startPosition;
+        particleIn.life = particleIn.startLife;
+    }
+    
+    particlesOut[index].position = particleIn.position + particleIn.velocity * ubo.deltaTime;
+    particlesOut[index].startPosition = particleIn.startPosition;
     particlesOut[index].velocity = particleIn.velocity;
-
-    // Flip movement at window border
-    if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) {
-        particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
-    }
-    if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) {
-        particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
-    }
-
+    particlesOut[index].life = particleIn.life - ubo.deltaTime;
+    particlesOut[index].startLife = particleIn.startLife;
+    float colorMultiplier = 1.0 - (particleIn.startLife - particleIn.life) / particleIn.startLife;
+    particlesOut[index].color = vec4(particleIn.color.rgb, particleIn.startColor.a * colorMultiplier);
+    particlesOut[index].startColor = particleIn.startColor;
 }

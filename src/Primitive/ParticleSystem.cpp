@@ -2,9 +2,9 @@
 #include <random>
 
 struct CameraObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
@@ -59,12 +59,16 @@ void ParticleSystem::_initializeCompute() {
   std::vector<Particle> particles(_particlesNumber);
   for (auto& particle : particles) {
     float r = 0.25f * sqrt(rndDist(rndEngine));
-    float theta = rndDist(rndEngine) * 2 * 3.14159265358979323846;
-    float x = r * cos(theta) * 800 / 600;
-    float y = r * sin(theta);
-    particle.position = glm::vec3(x, y, 0.f);
-    particle.velocity = glm::normalize(glm::vec3(x, y, 0.f));
-    particle.color = glm::vec4(rndDist(rndEngine), rndDist(rndEngine), rndDist(rndEngine), 1.0f);
+    float x = rndDist(rndEngine);
+    float y = rndDist(rndEngine);
+    float z = rndDist(rndEngine);
+    particle.startPosition = r * glm::normalize(glm::vec3(x, y, z));
+    particle.position = particle.startPosition;
+    particle.velocity = glm::vec3(0.f, rndDist(rndEngine), 0.f);
+    particle.startColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
+    particle.color = particle.startColor;
+    particle.startLife = rndDist(rndEngine);
+    particle.life = particle.startLife;
   }
 
   // TODO: change to VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
@@ -140,7 +144,8 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, _particlesNumber / 256), 1, 1);
+  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particlesNumber / 16.f)),
+                1, 1);
 }
 
 void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
