@@ -8,11 +8,13 @@ struct CameraObject {
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
+                               std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
   _particlesNumber = particlesNumber;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
+  _texture = texture;
 
   _initializeCompute();
   _initializeGraphic();
@@ -32,13 +34,21 @@ void ParticleSystem::_initializeGraphic() {
                                                          _state->getDescriptorPool(), _state->getDevice());
   _descriptorSetCamera->createUniformBuffer(_cameraUniformBuffer);
 
+  auto textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  textureLayout->createTexture();
+
+  // TODO: what's the point to use max frames in flight for static textures?
+  _descriptorSetTexture = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
+                                                          _state->getDevice());
+  _descriptorSetTexture->createTexture({_texture});
+
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _graphicPipeline->createParticleSystemGraphic(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                 shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                {std::pair{std::string("camera"), cameraLayout}}, {},
-                                                Particle::getBindingDescription(),
-                                                Particle::getAttributeDescriptions());
+  _graphicPipeline->createParticleSystemGraphic(
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+      {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}}, {},
+      Particle::getBindingDescription(), Particle::getAttributeDescriptions());
 }
 
 void ParticleSystem::_initializeCompute() {
@@ -175,6 +185,16 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _graphicPipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
+  auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("texture");
+                                    });
+  if (textureLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _graphicPipeline->getPipelineLayout(), 1, 1, &_descriptorSetTexture->getDescriptorSets()[0],
+                            0, nullptr);
   }
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particlesNumber, 1, 0, 0);

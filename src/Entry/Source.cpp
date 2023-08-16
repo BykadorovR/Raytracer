@@ -457,7 +457,13 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  particleSystem = std::make_shared<ParticleSystem>(10, commandBufferTransfer, state);
+  auto particleTexture = std::make_shared<Texture>("../data/Particles/explosion.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                                   commandBufferTransfer, device);
+  particleSystem = std::make_shared<ParticleSystem>(10, particleTexture, commandBufferTransfer, state);
+  {
+    auto tranlsateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+    particleSystem->setModel(tranlsateMatrix);
+  }
   particleSystem->setCamera(camera);
 
   pool = std::make_shared<BS::thread_pool>(6);
