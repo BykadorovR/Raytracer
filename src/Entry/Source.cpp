@@ -457,12 +457,14 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../data/Particles/explosion.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                                    commandBufferTransfer, device);
   particleSystem = std::make_shared<ParticleSystem>(300, particleTexture, commandBufferTransfer, state);
   {
-    auto tranlsateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
-    particleSystem->setModel(tranlsateMatrix);
+    auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
+    matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
+
+    particleSystem->setModel(matrix);
   }
   particleSystem->setCamera(camera);
 

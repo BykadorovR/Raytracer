@@ -3,17 +3,18 @@
 #include "Camera.h"
 
 struct Particle {
-  alignas(16) glm::vec3 startPosition;
   alignas(16) glm::vec3 position;
-  alignas(16) glm::vec4 startColor;
+  float radius;
   alignas(16) glm::vec4 color;
-  alignas(16) float minLife;
+  alignas(16) glm::vec4 minColor;
+  alignas(16) glm::vec4 maxColor;
+  alignas(16) float life;
+  float minLife;
   float maxLife;
-  float life;
-  alignas(16) glm::vec3 velocityDirection;
   float velocity;
-  alignas(16) float velocityMin;
-  float velocityMax;
+  alignas(16) float minVelocity;
+  float maxVelocity;
+  alignas(16) glm::vec3 velocityDirection;
 
   static VkVertexInputBindingDescription getBindingDescription() {
     VkVertexInputBindingDescription bindingDescription{};
@@ -24,8 +25,8 @@ struct Particle {
     return bindingDescription;
   }
 
-  static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+  static std::array<VkVertexInputAttributeDescription, 5> getAttributeDescriptions() {
+    std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions{};
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -36,6 +37,21 @@ struct Particle {
     attributeDescriptions[1].location = 1;
     attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     attributeDescriptions[1].offset = offsetof(Particle, color);
+
+    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].location = 2;
+    attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(Particle, maxLife);
+
+    attributeDescriptions[3].binding = 0;
+    attributeDescriptions[3].location = 3;
+    attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
+    attributeDescriptions[3].offset = offsetof(Particle, maxVelocity);
+
+    attributeDescriptions[4].binding = 0;
+    attributeDescriptions[4].location = 4;
+    attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[4].offset = offsetof(Particle, velocityDirection);
 
     return attributeDescriptions;
   }
@@ -55,6 +71,7 @@ class ParticleSystem {
   std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetTexture;
   std::shared_ptr<Pipeline> _computePipeline, _graphicPipeline;
   float _frameTimer = 0.f;
+  float _pointScale = 60.f;
 
   void _initializeCompute();
   void _initializeGraphic();
@@ -66,6 +83,7 @@ class ParticleSystem {
                  std::shared_ptr<State> state);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
+  void setPointScale(float pointScale);
   void updateTimer(float frameTimer);
 
   void drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);

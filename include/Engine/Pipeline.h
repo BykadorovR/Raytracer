@@ -102,7 +102,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions);
+      std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions);
 
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>& getDescriptorSetLayout();
   std::map<std::string, VkPushConstantRange>& getPushConstants();

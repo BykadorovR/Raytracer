@@ -1,10 +1,22 @@
 #include "ParticleSystem.h"
 #include <random>
+#include <glm/gtc/random.hpp>
 
 struct CameraObject {
   glm::mat4 model;
   glm::mat4 view;
   glm::mat4 projection;
+};
+
+struct VertexConstants {
+  float pointScale;  // nominator of gl_PointSize
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant;
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(VertexConstants);
+    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    return pushConstant;
+  }
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
@@ -47,7 +59,8 @@ void ParticleSystem::_initializeGraphic() {
       VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-      {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}}, {},
+      {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}},
+      std::map<std::string, VkPushConstantRange>{{std::string("vertex"), VertexConstants::getPushConstant()}},
       Particle::getBindingDescription(), Particle::getAttributeDescriptions());
 }
 
@@ -57,22 +70,24 @@ void ParticleSystem::_initializeCompute() {
 
   // Initial particle positions on a circle
   std::vector<Particle> particles(_particlesNumber);
+  float r = 0.1f;
   for (auto& particle : particles) {
-    float r = 0.25f * sqrt(rndDist(rndEngine));
-    float x = rndDist(rndEngine);
-    float y = rndDist(rndEngine);
-    float z = rndDist(rndEngine);
-    particle.startPosition = r * glm::normalize(glm::vec3(x, y, z));
-    particle.position = particle.startPosition;
-    particle.velocity = rndDist(rndEngine);
-    particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
-    particle.velocityMin = 0.f;
-    particle.velocityMax = 1.f;
-    particle.startColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
-    particle.color = particle.startColor;
+    particle.position = glm::sphericalRand(r);
+    particle.radius = r;
+
+    particle.color = glm::vec4(0.9f + 0.1f * rndDist(rndEngine), 0.4f + 0.1f * rndDist(rndEngine),
+                               0.2f + 0.1f * rndDist(rndEngine), 1.f + 0.f * rndDist(rndEngine));
+    particle.minColor = glm::vec4(0.9f, 0.4f, 0.2f, 1.f);
+    particle.maxColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
+
+    particle.life = rndDist(rndEngine);
     particle.minLife = 0.f;
     particle.maxLife = 1.f;
-    particle.life = rndDist(rndEngine);
+
+    particle.velocity = rndDist(rndEngine);
+    particle.minVelocity = 0.f;
+    particle.maxVelocity = 1.f;
+    particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
   }
 
   // TODO: change to VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
@@ -113,6 +128,8 @@ void ParticleSystem::_initializeCompute() {
 void ParticleSystem::setModel(glm::mat4 model) { _model = model; }
 
 void ParticleSystem::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+
+void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale; }
 
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
 
@@ -169,6 +186,13 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
   scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
                               std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+  if (_graphicPipeline->getPushConstants().find("vertex") != _graphicPipeline->getPushConstants().end()) {
+    VertexConstants pushConstants;
+    pushConstants.pointScale = _pointScale;
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _graphicPipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexConstants), &pushConstants);
+  }
 
   CameraObject cameraUBO{};
   cameraUBO.model = _model;
