@@ -3,16 +3,16 @@
 #include "Camera.h"
 
 struct Particle {
-  alignas(16) glm::vec3 position;
+  glm::vec3 position;
   float radius;
-  alignas(16) glm::vec4 color;
-  alignas(16) glm::vec4 minColor;
-  alignas(16) glm::vec4 maxColor;
-  alignas(16) float life;
+  glm::vec4 color;
+  glm::vec4 minColor;
+  glm::vec4 maxColor;
+  float life;
   float minLife;
   float maxLife;
   float velocity;
-  alignas(16) float minVelocity;
+  float minVelocity;
   float maxVelocity;
   alignas(16) glm::vec3 velocityDirection;
 

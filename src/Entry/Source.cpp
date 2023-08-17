@@ -563,8 +563,6 @@ void drawFrame() {
     }
   }
 
-  pool->wait_for_tasks();
-
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
   loggerGPU->initialize("Common", currentFrame, commandBuffer);
@@ -635,6 +633,10 @@ void drawFrame() {
                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
+
+  // wait for shadow to complete before render
+  pool->wait_for_tasks();
+
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
