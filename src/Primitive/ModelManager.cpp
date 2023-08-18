@@ -156,9 +156,9 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
   }
 }
 
-void Model3DManager::updateAnimation(float deltaTime) {
+void Model3DManager::updateAnimation(int currentFrame, float deltaTime) {
   for (auto model : _modelsGLTF) {
-    if (model) model->updateAnimation(deltaTime);
+    if (model) model->updateAnimation(currentFrame, deltaTime);
   }
 }
 

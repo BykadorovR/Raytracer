@@ -1,9 +1,9 @@
 #include "Sprite.h"
 
 struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
 };
 
 Sprite::Sprite(std::shared_ptr<Texture> texture,

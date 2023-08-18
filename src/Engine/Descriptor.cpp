@@ -479,17 +479,18 @@ void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint) {
+void DescriptorSet::createLight(std::vector<std::shared_ptr<Buffer>> bufferDirectional,
+                                std::vector<std::shared_ptr<Buffer>> bufferPoint) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = bufferDirectional->getData();
+    bufferDirectionalInfo.buffer = bufferDirectional[i]->getData();
     bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = bufferDirectional->getSize();
+    bufferDirectionalInfo.range = bufferDirectional[i]->getSize();
 
     VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = bufferPoint->getData();
+    bufferPointInfo.buffer = bufferPoint[i]->getData();
     bufferPointInfo.offset = 0;
-    bufferPointInfo.range = bufferPoint->getSize();
+    bufferPointInfo.range = bufferPoint[i]->getSize();
 
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -512,12 +513,12 @@ void DescriptorSet::createLight(std::shared_ptr<Buffer> bufferDirectional, std::
   }
 }
 
-void DescriptorSet::createJoints(std::shared_ptr<Buffer> buffer) {
+void DescriptorSet::createJoints(std::vector<std::shared_ptr<Buffer>> buffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = buffer->getData();
+    bufferInfo.buffer = buffer[i]->getData();
     bufferInfo.offset = 0;
-    bufferInfo.range = buffer->getSize();
+    bufferInfo.range = buffer[i]->getSize();
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

@@ -721,7 +721,7 @@ void drawFrame() {
 
     updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation");
-      modelManager->updateAnimation(frameTimer);
+      modelManager->updateAnimation(currentFrame, frameTimer);
       loggerCPU->end();
     });
 

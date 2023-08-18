@@ -36,5 +36,5 @@ class Model3DManager {
                   LightType lightType,
                   int lightIndex,
                   int face = 0);
-  void updateAnimation(float deltaTime);
+  void updateAnimation(int currentFrame, float deltaTime);
 };

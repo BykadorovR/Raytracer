@@ -45,13 +45,11 @@ struct LightPoint {
     vec3 position;
 };
 
-layout(std430, set = 4, binding = 0) readonly buffer LightBufferDirectional {
-    int lightDirectionalNumber;
+layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
     LightDirectional lightDirectional[];
 };
 
-layout(std430, set = 4, binding = 1) readonly buffer LightBufferPoint {
-    int lightPointNumber;
+layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
@@ -90,10 +88,10 @@ void main() {
         if (push.enableLighting > 0) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectionalNumber, fragPosition, fragNormal, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
             //calculate point light
-            lightFactor += pointLight(lightPointNumber, fragPosition, fragNormal, 
+            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 
                                       push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
             outColor *= vec4(lightFactor, 1.0);
         } 

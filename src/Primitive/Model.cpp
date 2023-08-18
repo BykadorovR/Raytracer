@@ -6,9 +6,9 @@
 #include "glm/gtc/type_ptr.hpp"
 
 struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
 };
 
 void Model::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
@@ -32,7 +32,7 @@ ModelGLTF::ModelGLTF(std::string path,
   _descriptorPool = descriptorPool;
   _commandBufferTransfer = commandBufferTransfer;
   _lightManager = lightManager;
-
+  _settings = settings;
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;
   std::string err;
@@ -54,7 +54,7 @@ ModelGLTF::ModelGLTF(std::string path,
   _loadAnimations(model);
   // Calculate initial pose
   for (auto node : _nodes) {
-    _updateJoints(node);
+    _updateJoints(0, node);
   }
 
   //********************************************************************
@@ -180,15 +180,18 @@ ModelGLTF::ModelGLTF(std::string path,
 
   _descriptorSetJointsDefault = std::make_shared<DescriptorSet>(settings->getMaxFramesInFlight(), (*jointLayout).second,
                                                                 _descriptorPool, _device);
-  _defaultSSBO = std::make_shared<Buffer>(sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                          _device);
+  _defaultSSBO.resize(settings->getMaxFramesInFlight());
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    _defaultSSBO[i] = std::make_shared<Buffer>(
+        sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
 
-  _defaultSSBO->map();
-  auto m1 = glm::mat4(1.f);
-  // we pass inverse bind matrices to shader via SSBO
-  memcpy(_defaultSSBO->getMappedMemory(), &m1, sizeof(glm::mat4));
-  _defaultSSBO->unmap();
+    _defaultSSBO[i]->map();
+    auto m1 = glm::mat4(1.f);
+    // Initialize with default value
+    memcpy(_defaultSSBO[i]->getMappedMemory(), &m1, sizeof(glm::mat4));
+    _defaultSSBO[i]->unmap();
+  }
   _descriptorSetJointsDefault->createJoints(_defaultSSBO);
 
   // TODO: create descriptor set layout and set for skin->descriptorSet
@@ -317,13 +320,17 @@ void ModelGLTF::_loadSkins(tinygltf::Model& model) {
       memcpy(_skins[i].inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
              accessor.count * sizeof(glm::mat4));
 
-      _skins[i].ssbo = std::make_shared<Buffer>(
-          sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
-      _skins[i].ssbo->map();
-      // we pass inverse bind matrices to shader via SSBO
-      memcpy(_skins[i].ssbo->getMappedMemory(), _skins[i].inverseBindMatrices.data(),
-             sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size());
+      _skins[i].ssbo.resize(_settings->getMaxFramesInFlight());
+      for (int j = 0; j < _settings->getMaxFramesInFlight(); j++) {
+        _skins[i].ssbo[j] = std::make_shared<Buffer>(
+            sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
+        _skins[i].ssbo[j]->map();
+        // we pass inverse bind matrices to shader via SSBO
+        memcpy(_skins[i].ssbo[j]->getMappedMemory(), _skins[i].inverseBindMatrices.data(),
+               sizeof(glm::mat4) * _skins[i].inverseBindMatrices.size());
+        _skins[i].ssbo[j]->unmap();
+      }
     }
   }
 }
@@ -663,7 +670,7 @@ glm::mat4 ModelGLTF::_getNodeMatrix(NodeGLTF* node) {
   return nodeMatrix;
 }
 
-void ModelGLTF::_updateJoints(NodeGLTF* node) {
+void ModelGLTF::_updateJoints(int frame, NodeGLTF* node) {
   if (node->skin > -1) {
     // Update the joint matrices
     glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
@@ -675,16 +682,18 @@ void ModelGLTF::_updateJoints(NodeGLTF* node) {
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
 
-    memcpy(skin.ssbo->getMappedMemory(), jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
+    skin.ssbo[frame]->map();
+    memcpy(skin.ssbo[frame]->getMappedMemory(), jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
+    skin.ssbo[frame]->unmap();
   }
 
   for (auto& child : node->children) {
-    _updateJoints(child);
+    _updateJoints(frame, child);
   }
 }
 
 // Update the current animation
-void ModelGLTF::updateAnimation(float deltaTime) {
+void ModelGLTF::updateAnimation(int frame, float deltaTime) {
   if (_animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
@@ -730,7 +739,7 @@ void ModelGLTF::updateAnimation(float deltaTime) {
     }
   }
   for (auto& node : _nodes) {
-    _updateJoints(node);
+    _updateJoints(frame, node);
   }
 }
 
