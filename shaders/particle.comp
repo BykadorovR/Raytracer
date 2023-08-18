@@ -47,7 +47,7 @@ void main() {
     
     uint index = gl_GlobalInvocationID.x;
     Particle particleIn = particlesIn[index];
-    if (particleIn.life <= 0) {
+    if (particleIn.life <= particleIn.minLife) {
         recalculate(particleIn);
     }
     
@@ -67,6 +67,4 @@ void main() {
     particlesOut[index].minVelocity = particleIn.minVelocity;
     particlesOut[index].maxVelocity = particleIn.maxVelocity;
     particlesOut[index].velocityDirection = particleIn.velocityDirection;
-
-    
 }

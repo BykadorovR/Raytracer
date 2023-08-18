@@ -39,6 +39,7 @@
 float fps = 0;
 float frameTimer = 0.f;
 uint64_t currentFrame = 0;
+uint64_t globalFrame = 0;
 // Depth bias (and slope) are used to avoid shadowing artifacts
 // Constant depth bias factor (always applied)
 float depthBiasConstant = 1.25f;
@@ -95,11 +96,11 @@ void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
   auto loggerGPU = loggerGPUDirectional[index];
 
-  loggerGPU->initialize("Directional", currentFrame, commandBuffer);
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
-  loggerGPU->begin("Directional to depth buffer", currentFrame);
+  loggerGPU->setCommandBufferName("Directional command buffer", currentFrame, commandBuffer);
 
+  loggerGPU->begin("Directional to depth buffer " + std::to_string(globalFrame), currentFrame);
   // change layout to write one
   VkImageMemoryBarrier imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -152,13 +153,13 @@ void directionalLightCalculator(int index) {
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
   // draw scene here
-  loggerGPU->begin("Sprites to directional depth buffer", currentFrame);
+  loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
-  loggerGPU->begin("Models to directional depth buffer", currentFrame);
+  loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
-  loggerGPU->begin("Terrain to directional depth buffer", currentFrame);
+  loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end(currentFrame);
 
@@ -178,11 +179,11 @@ void directionalLightCalculator(int index) {
 void pointLightCalculator(int index, int face) {
   auto commandBuffer = commandBufferPoint[index][face];
   auto loggerGPU = loggerGPUPoint[index][face];
-
-  loggerGPU->initialize("Point " + std::to_string(index) + "x" + std::to_string(face), currentFrame, commandBuffer);
   // record command buffer
+  loggerGPU->setCommandBufferName("Point " + std::to_string(index) + "x" + std::to_string(face) + " command buffer",
+                                  currentFrame, commandBuffer);
   commandBuffer->beginCommands(currentFrame);
-  loggerGPU->begin("Point to depth buffer", currentFrame);
+  loggerGPU->begin("Point to depth buffer " + std::to_string(globalFrame), currentFrame);
   // cubemap is the only image, rest is image views, so we need to perform change only once
   if (face == 0) {
     // change layout to write one
@@ -247,13 +248,13 @@ void pointLightCalculator(int index, int face) {
 
   // draw scene here
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-  loggerGPU->begin("Sprites to point depth buffer", currentFrame);
+  loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end(currentFrame);
-  loggerGPU->begin("Models to point depth buffer", currentFrame);
+  loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame), currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end(currentFrame);
-  loggerGPU->begin("Terrain to point depth buffer", currentFrame);
+  loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end(currentFrame);
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -484,9 +485,9 @@ void drawFrame() {
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   commandBufferParticleSystem->beginCommands(currentFrame);
-  loggerCompute->initialize("Compute", currentFrame, commandBufferParticleSystem);
+  loggerCompute->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
 
-  loggerCompute->begin("Particle system", currentFrame);
+  loggerCompute->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
   particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
   loggerCompute->end(currentFrame);
 
@@ -565,7 +566,7 @@ void drawFrame() {
 
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
-  loggerGPU->initialize("Common", currentFrame, commandBuffer);
+  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBuffer);
   // Need to change layout of swapchain, without renderpass it's undefined
   {
     VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -641,7 +642,7 @@ void drawFrame() {
   // render to screen
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    loggerGPU->begin("Render to screen", currentFrame);
+    loggerGPU->begin("Render to screen " + std::to_string(globalFrame), currentFrame);
     VkClearValue clearColor;
     clearColor.color = settings->getClearColor();
     const VkRenderingAttachmentInfo colorAttachmentInfo{
@@ -678,17 +679,19 @@ void drawFrame() {
     };
 
     vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+    loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
     lightManager->draw(currentFrame);
+    loggerGPU->end(currentFrame);
     // draw scene here
-    loggerGPU->begin("Render sprites", currentFrame);
+    loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    loggerGPU->begin("Render models", currentFrame);
+    loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    loggerGPU->begin("Render terrain", currentFrame);
+    loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
     {
       std::map<std::string, bool*> terrainGUI;
       terrainGUI["Normals"] = &terrainNormals;
@@ -715,21 +718,21 @@ void drawFrame() {
     loggerGPU->end(currentFrame);
 
     // contains transparency, should be drawn last
-    loggerGPU->begin("Render particles", currentFrame);
+    loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
     particleSystem->drawGraphic(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
     updateJoints = pool->submit([&]() {
-      loggerCPU->begin("Update animation");
+      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
       modelManager->updateAnimation(currentFrame, frameTimer);
       loggerCPU->end();
     });
 
-    loggerGPU->begin("Render debug visualization", currentFrame);
+    loggerGPU->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
     debugVisualization->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    loggerGPU->begin("Render GUI", currentFrame);
+    loggerGPU->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
     gui->updateBuffers(currentFrame);
     gui->drawFrame(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
@@ -780,7 +783,6 @@ void drawFrame() {
   // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
   // signal inFlightFences once all commands on GPU finish execution
   commandBuffer->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
-
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -805,7 +807,8 @@ void drawFrame() {
     throw std::runtime_error("failed to present swap chain image!");
   }
 
-  currentFrame = (currentFrame + 1) % settings->getMaxFramesInFlight();
+  globalFrame += 1;
+  currentFrame = globalFrame % settings->getMaxFramesInFlight();
 }
 
 void mainLoop() {

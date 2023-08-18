@@ -20,15 +20,14 @@ LoggerGPU::LoggerGPU(std::shared_ptr<State> state) {
       state->getInstance()->getInstance(), "vkSetDebugUtilsObjectNameEXT");
 }
 
-void LoggerGPU::initialize(std::string name, int currentFrame, std::shared_ptr<CommandBuffer> buffer) {
+void LoggerGPU::setCommandBufferName(std::string name, int currentFrame, std::shared_ptr<CommandBuffer> buffer) {
   _buffer = buffer;
-  VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {
-      .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
-      .pNext = NULL,
-      .objectType = VK_OBJECT_TYPE_COMMAND_BUFFER,
-      .objectHandle = (uint64_t)_buffer->getCommandBuffer()[currentFrame],
-      .pObjectName = name.c_str(),
-  };
+  VkDebugUtilsObjectNameInfoEXT cmdBufInfo = {};
+  cmdBufInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+  cmdBufInfo.pNext = nullptr;
+  cmdBufInfo.objectType = VK_OBJECT_TYPE_COMMAND_BUFFER;
+  cmdBufInfo.objectHandle = (uint64_t)_buffer->getCommandBuffer()[currentFrame];
+  cmdBufInfo.pObjectName = name.c_str();
   _setDebugUtilsObjectNameEXT(_state->getDevice()->getLogicalDevice(), &cmdBufInfo);
 }
 
