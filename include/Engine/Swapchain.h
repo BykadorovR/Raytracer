@@ -14,7 +14,8 @@ class Swapchain {
   VkExtent2D _swapchainExtent;
 
  public:
-  Swapchain(VkFormat format,
+  Swapchain(VkFormat imageFormat,
+            VkFormat depthFormat,
             std::shared_ptr<Window> window,
             std::shared_ptr<Surface> surface,
             std::shared_ptr<Device> device);

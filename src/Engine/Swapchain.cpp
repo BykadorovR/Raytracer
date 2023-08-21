@@ -1,7 +1,8 @@
 #include "Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(VkFormat format,
+Swapchain::Swapchain(VkFormat imageFormat,
+                     VkFormat depthFormat,
                      std::shared_ptr<Window> window,
                      std::shared_ptr<Surface> surface,
                      std::shared_ptr<Device> device) {
@@ -11,7 +12,7 @@ Swapchain::Swapchain(VkFormat format,
   // pick surface format
   VkSurfaceFormatKHR surfaceFormat = device->getSupportedSurfaceFormats()[0];
   for (const auto& availableFormat : device->getSupportedSurfaceFormats()) {
-    if (availableFormat.format == format && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+    if (availableFormat.format == imageFormat && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       surfaceFormat = availableFormat;
     }
   }
@@ -97,7 +98,6 @@ Swapchain::Swapchain(VkFormat format,
     _swapchainImageViews[i] = imageView;
   }
 
-  VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
   _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, 1, 1, depthFormat,
                                         VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
