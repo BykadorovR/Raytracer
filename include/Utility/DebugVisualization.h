@@ -79,8 +79,7 @@ class DebugVisualization : public InputSubscriber {
                      std::shared_ptr<GUI> gui,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<State> state);
-  void setSpriteManager(std::shared_ptr<SpriteManager> spriteManager);
-  void setLights(std::shared_ptr<Model3DManager> modelManager, std::shared_ptr<LightManager> lightManager);
+  void setLights(std::shared_ptr<LightManager> lightManager);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;

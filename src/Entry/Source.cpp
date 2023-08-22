@@ -383,8 +383,7 @@ void initialize() {
   modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, device,
                                                   settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
-  debugVisualization->setLights(modelManager, lightManager);
-  debugVisualization->setSpriteManager(spriteManager);
+  debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite(texture, normalMap);
@@ -498,7 +497,7 @@ void initialize() {
   }
   particleSystem->setCamera(camera);
 
-  swapchain->changeImageLayout(commandBufferTransfer);
+  swapchain->changeImageLayout(VK_IMAGE_LAYOUT_GENERAL, commandBufferTransfer);
   postprocessing = std::make_shared<Postprocessing>(graphicTexture, swapchain->getImageViews(), state);
 
   pool = std::make_shared<BS::thread_pool>(6);
@@ -907,10 +906,10 @@ void drawFrame() {
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
-  std::vector<VkSemaphore> signalSemaphoresGeneral = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
+  std::vector<VkSemaphore> waitSemaphoresPresent = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
 
-  presentInfo.waitSemaphoreCount = signalSemaphoresGeneral.size();
-  presentInfo.pWaitSemaphores = signalSemaphoresGeneral.data();
+  presentInfo.waitSemaphoreCount = waitSemaphoresPresent.size();
+  presentInfo.pWaitSemaphores = waitSemaphoresPresent.data();
 
   VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
   presentInfo.swapchainCount = 1;

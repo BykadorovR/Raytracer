@@ -111,10 +111,10 @@ std::vector<std::shared_ptr<ImageView>>& Swapchain::getImageViews() { return _sw
 
 std::shared_ptr<ImageView> Swapchain::getDepthImageView() { return _depthImageView; }
 
-void Swapchain::changeImageLayout(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+void Swapchain::changeImageLayout(VkImageLayout imageLayout, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   for (int i = 0; i < _swapchainImageViews.size(); i++) {
-    _swapchainImageViews[i]->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-                                                      VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
+    _swapchainImageViews[i]->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, imageLayout, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                      1, 1, commandBufferTransfer);
   }
 }
 

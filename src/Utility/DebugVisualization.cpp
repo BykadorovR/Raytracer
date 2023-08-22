@@ -55,10 +55,23 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _far = _camera->getFar();
 }
 
-void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
-                                   std::shared_ptr<LightManager> lightManager) {
-  _modelManager = modelManager;
+void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
+  _spriteManager = std::make_shared<SpriteManager>(lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
+                                                   _state->getDevice(), _state->getSettings());
+  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCW->enableLighting(false);
+  _farPlaneCW->enableShadow(false);
+  _farPlaneCW->enableDepth(false);
+  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
+  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCCW->enableLighting(false);
+  _farPlaneCCW->enableShadow(false);
+  _farPlaneCCW->enableDepth(false);
+  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
+
+  _modelManager = std::make_shared<Model3DManager>(lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
+                                                   _state->getDevice(), _state->getSettings());
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     model->enableDepth(false);
@@ -80,20 +93,6 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     _modelManager->registerModelGLTF(model);
     _directionalLightModels.push_back(model);
   }
-}
-
-void DebugVisualization::setSpriteManager(std::shared_ptr<SpriteManager> spriteManager) {
-  _spriteManager = spriteManager;
-  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
-  _farPlaneCW->enableLighting(false);
-  _farPlaneCW->enableShadow(false);
-  _farPlaneCW->enableDepth(false);
-  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
-  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
-  _farPlaneCCW->enableLighting(false);
-  _farPlaneCCW->enableShadow(false);
-  _farPlaneCCW->enableDepth(false);
-  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 }
 
 void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -385,6 +384,12 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       }
     }
   }
+
+  _modelManager->setCamera(_camera);
+  _modelManager->draw(currentFrame, commandBuffer);
+
+  _spriteManager->setCamera(_camera);
+  _spriteManager->draw(currentFrame, commandBuffer);
 
   _drawFrustum(currentFrame, commandBuffer);
 
