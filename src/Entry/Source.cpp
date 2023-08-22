@@ -32,6 +32,7 @@
 #include "Logger.h"
 #include "BS_thread_pool.hpp"
 #include "ParticleSystem.h"
+#include "Postprocessing.h"
 
 #undef near
 #undef far
@@ -49,21 +50,25 @@ float depthBiasSlope = 1.75f;
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem;
-std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem;
+std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem,
+    commandBufferPostprocessing, commandBufferGUI;
+std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem, commandPoolPostprocessing,
+    commandPoolGUI;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
 std::shared_ptr<Terrain> terrain;
 std::shared_ptr<State> state;
 
-std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, particleSystemSemaphore;
+std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, particleSystemSemaphore,
+    semaphorePostprocessing, semaphoreGUI;
 std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<ParticleSystem> particleSystem;
+std::shared_ptr<Postprocessing> postprocessing;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -76,6 +81,8 @@ std::shared_ptr<LoggerGPU> loggerGPU, loggerCompute;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::future<void> updateJoints;
+
+std::vector<std::shared_ptr<Texture>> graphicTexture;
 
 std::shared_ptr<BS::thread_pool> pool;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -91,6 +98,7 @@ bool terrainWireframe = false;
 bool terrainPatch = false;
 bool showLoD = false;
 bool shouldWork = true;
+std::map<int, bool> layoutChanged;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -295,6 +303,11 @@ void initialize() {
   commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
   commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                 commandPoolParticleSystem, device);
+  commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
+  commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                commandPoolPostprocessing, device);
+  commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, device);
   //
   loggerGPU = std::make_shared<LoggerGPU>(state);
   loggerCompute = std::make_shared<LoggerGPU>(state);
@@ -308,6 +321,22 @@ void initialize() {
     // compute-graphic
     particleSystemSemaphore.push_back(std::make_shared<Semaphore>(device));
     particleSystemFences.push_back(std::make_shared<Fence>(device));
+    semaphorePostprocessing.push_back(std::make_shared<Semaphore>(device));
+    semaphoreGUI.push_back(std::make_shared<Semaphore>(device));
+  }
+
+  graphicTexture.resize(settings->getMaxFramesInFlight());
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    auto graphicImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getColorFormat(),
+                                                VK_IMAGE_TILING_OPTIMAL,
+                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+    graphicImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                               commandBufferTransfer);
+    auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+    graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, graphicImageView,
+                                                  state->getDevice());
   }
 
   gui = std::make_shared<GUI>(settings, window, device);
@@ -469,11 +498,15 @@ void initialize() {
   }
   particleSystem->setCamera(camera);
 
+  swapchain->changeImageLayout(commandBufferTransfer);
+  postprocessing = std::make_shared<Postprocessing>(graphicTexture, swapchain->getImageViews(), state);
+
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
 void drawFrame() {
-  // process compute
+  //***************************************************************************************************************
+  // process particle system
   std::vector<VkFence> waitParticleSystemFence = {particleSystemFences[currentFrame]->getFence()};
   auto result = vkWaitForFences(device->getLogicalDevice(), waitParticleSystemFence.size(),
                                 waitParticleSystemFence.data(), VK_TRUE, UINT64_MAX);
@@ -506,7 +539,7 @@ void drawFrame() {
   commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
 
   //***************************************************************************************************************
-  // process graphic
+  // process shadows
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
@@ -567,26 +600,6 @@ void drawFrame() {
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
   loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBuffer);
-  // Need to change layout of swapchain, without renderpass it's undefined
-  {
-    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                      .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                      .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                                      .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                      .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
-                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                           .baseMipLevel = 0,
-                                                           .levelCount = 1,
-                                                           .baseArrayLayer = 0,
-                                                           .layerCount = 1}};
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // dstStageMask
-                         0, 0, nullptr, 0, nullptr,
-                         1,             // imageMemoryBarrierCount
-                         &colorBarrier  // pImageMemoryBarriers
-    );
-  }
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
@@ -639,15 +652,14 @@ void drawFrame() {
   pool->wait_for_tasks();
 
   /////////////////////////////////////////////////////////////////////////////////////////
-  // render to screen
+  // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
   {
-    loggerGPU->begin("Render to screen " + std::to_string(globalFrame), currentFrame);
     VkClearValue clearColor;
     clearColor.color = settings->getClearColor();
     const VkRenderingAttachmentInfo colorAttachmentInfo{
         .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
+        .imageView = graphicTexture[currentFrame]->getImageView()->getImageView(),
         .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -665,7 +677,7 @@ void drawFrame() {
         .clearValue = clearDepth,
     };
 
-    auto [width, height] = swapchain->getImageViews()[imageIndex]->getImage()->getResolution();
+    auto [width, height] = graphicTexture[currentFrame]->getImageView()->getImage()->getResolution();
     VkRect2D renderArea{};
     renderArea.extent.width = width;
     renderArea.extent.height = height;
@@ -722,67 +734,176 @@ void drawFrame() {
     particleSystem->drawGraphic(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
+    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+
     updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation " + std::to_string(globalFrame));
       modelManager->updateAnimation(currentFrame, frameTimer);
       loggerCPU->end();
     });
 
-    loggerGPU->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
-    debugVisualization->draw(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    loggerGPU->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
-    gui->updateBuffers(currentFrame);
-    gui->drawFrame(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
+    std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
 
-    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-    // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
-    {
+    submitInfo.waitSemaphoreCount = waitSemaphores.size();
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+
+    VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    commandBuffer->endCommands(currentFrame, submitInfo, nullptr);
+  }
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Render compute postprocessing
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  {
+    commandBufferPostprocessing->beginCommands(currentFrame);
+    loggerCompute->setCommandBufferName("Postprocessing command buffer", currentFrame, commandBufferPostprocessing);
+    if (layoutChanged.contains(imageIndex) && layoutChanged[imageIndex] == true) {
+      // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
       VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                                        .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
                                         .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
                                         .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                                                              .baseMipLevel = 0,
                                                              .levelCount = 1,
                                                              .baseArrayLayer = 0,
                                                              .layerCount = 1}};
-      vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
-                           VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
-                           VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,           // dstStageMask
+      vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
+                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                            0, 0, nullptr, 0, nullptr,
                            1,             // imageMemoryBarrierCount
                            &colorBarrier  // pImageMemoryBarriers
       );
     }
-    loggerGPU->end(currentFrame);
+    loggerCompute->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
+    postprocessing->drawCompute(currentFrame, imageIndex, commandBufferPostprocessing);
+    loggerCompute->end(currentFrame);
+
+    VkSubmitInfo submitInfoPostprocessing{};
+    submitInfoPostprocessing.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    std::vector<VkSemaphore> waitSemaphores = {imageAvailableSemaphores[currentFrame]->getSemaphore(),
+                                               semaphorePostprocessing[currentFrame]->getSemaphore()};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
+    submitInfoPostprocessing.waitSemaphoreCount = waitSemaphores.size();
+    submitInfoPostprocessing.pWaitSemaphores = waitSemaphores.data();
+    submitInfoPostprocessing.pWaitDstStageMask = waitStages;
+
+    VkSemaphore signalComputeSemaphores[] = {semaphoreGUI[currentFrame]->getSemaphore()};
+    submitInfoPostprocessing.signalSemaphoreCount = 1;
+    submitInfoPostprocessing.pSignalSemaphores = signalComputeSemaphores;
+    submitInfoPostprocessing.commandBufferCount = 1;
+    submitInfoPostprocessing.pCommandBuffers = &commandBufferPostprocessing->getCommandBuffer()[currentFrame];
+
+    // end command buffer
+    commandBufferPostprocessing->endCommands(currentFrame, submitInfoPostprocessing, nullptr);
   }
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  // Render debug visualization
+  //////////////////////////////////////////////////////////////////////////////////////////////////
+  {
+    commandBufferGUI->beginCommands(currentFrame);
+    loggerGPU->setCommandBufferName("GUI command buffer", currentFrame, commandBufferGUI);
 
-  std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore(),
-                                             imageAvailableSemaphores[currentFrame]->getSemaphore()};
-  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
-                                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-  submitInfo.waitSemaphoreCount = waitSemaphores.size();
-  submitInfo.pWaitSemaphores = waitSemaphores.data();
-  submitInfo.pWaitDstStageMask = waitStages;
+    VkClearValue clearColor;
+    clearColor.color = settings->getClearColor();
+    const VkRenderingAttachmentInfo colorAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
 
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+    const VkRenderingAttachmentInfo depthAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = swapchain->getDepthImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+    };
 
-  VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
-  submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = signalSemaphores;
+    auto [width, height] = swapchain->getImageViews()[imageIndex]->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea = renderArea,
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentInfo,
+        .pDepthAttachment = &depthAttachmentInfo,
+    };
 
-  // end command buffer
-  // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
-  // signal inFlightFences once all commands on GPU finish execution
-  commandBuffer->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
+    vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
+    loggerGPU->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
+    debugVisualization->draw(currentFrame, commandBufferGUI);
+    loggerGPU->end(currentFrame);
+
+    loggerGPU->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
+    gui->updateBuffers(currentFrame);
+    gui->drawFrame(currentFrame, commandBufferGUI);
+    loggerGPU->end(currentFrame);
+
+    vkCmdEndRendering(commandBufferGUI->getCommandBuffer()[currentFrame]);
+
+    // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                      .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                      .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                      .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBufferGUI->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
+
+    layoutChanged[imageIndex] = true;
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    std::vector<VkSemaphore> waitSemaphores = {semaphoreGUI[currentFrame]->getSemaphore()};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
+    submitInfo.waitSemaphoreCount = waitSemaphores.size();
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferGUI->getCommandBuffer()[currentFrame];
+
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    // end command buffer
+    // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
+    // signal inFlightFences once all commands on GPU finish execution
+    commandBufferGUI->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
+  }
+
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 

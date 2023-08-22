@@ -2,6 +2,31 @@
 
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
+void DescriptorSetLayout::createPostprocessing() {
+  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  bindings[0].binding = 0;
+  bindings[0].descriptorCount = 1;
+  bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  bindings[0].pImmutableSamplers = nullptr;
+  bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  bindings[1].binding = 1;
+  bindings[1].descriptorCount = 1;
+  bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  bindings[1].pImmutableSamplers = nullptr;
+  bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = bindings.size();
+  layoutInfo.pBindings = bindings.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
 void DescriptorSetLayout::createParticleComputeBuffer() {
   std::array<VkDescriptorSetLayoutBinding, 3> layoutBinding{};
   layoutBinding[0].binding = 0;
@@ -325,6 +350,37 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
     vkUpdateDescriptorSets(_device->getLogicalDevice(), static_cast<uint32_t>(descriptorWrites.size()),
                            descriptorWrites.data(), 0, nullptr);
   }
+}
+
+void DescriptorSet::createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst) {
+  VkDescriptorImageInfo imageInfoSrc{};
+  imageInfoSrc.imageLayout = src->getImage()->getImageLayout();
+  // TODO: make appropriate name
+  imageInfoSrc.imageView = src->getImageView();
+
+  VkDescriptorImageInfo imageInfoDst{};
+  imageInfoDst.imageLayout = dst->getImage()->getImageLayout();
+  // TODO: make appropriate name
+  imageInfoDst.imageView = dst->getImageView();
+
+  std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+  descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrites[0].dstSet = _descriptorSets[0];
+  descriptorWrites[0].dstBinding = 0;
+  descriptorWrites[0].dstArrayElement = 0;
+  descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  descriptorWrites[0].descriptorCount = 1;
+  descriptorWrites[0].pImageInfo = &imageInfoSrc;
+
+  descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrites[1].dstSet = _descriptorSets[0];
+  descriptorWrites[1].dstBinding = 1;
+  descriptorWrites[1].dstArrayElement = 0;
+  descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  descriptorWrites[1].descriptorCount = 1;
+  descriptorWrites[1].pImageInfo = &imageInfoDst;
+
+  vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
 void DescriptorSet::createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding) {

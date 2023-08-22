@@ -13,6 +13,7 @@ class DescriptorSetLayout {
   void createTexture(int number = 1, int binding = 0, VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
   void createUniformBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
   void createParticleComputeBuffer();
+  void createPostprocessing();
   void createGraphicModel();
   void createJoints();
   void createLight();
@@ -50,7 +51,7 @@ class DescriptorSet {
                                    std::shared_ptr<Buffer> bufferIn,
                                    std::shared_ptr<Buffer> bufferOut);
   void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
-
+  void createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst);
   void createJoints(std::vector<std::shared_ptr<Buffer>> buffer);
   void createLight(std::vector<std::shared_ptr<Buffer>> bufferDirectional,
                    std::vector<std::shared_ptr<Buffer>> bufferPoint);

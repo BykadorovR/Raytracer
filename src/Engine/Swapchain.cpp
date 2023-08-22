@@ -57,7 +57,7 @@ Swapchain::Swapchain(VkFormat imageFormat,
   createInfo.imageColorSpace = surfaceFormat.colorSpace;
   createInfo.imageExtent = extent;
   createInfo.imageArrayLayers = 1;
-  createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+  createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
   uint32_t queueFamilyIndices[] = {device->getSupportedFamilyIndex(QueueType::GRAPHIC).value(),
                                    device->getSupportedFamilyIndex(QueueType::PRESENT).value()};
@@ -110,6 +110,13 @@ VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }
 std::vector<std::shared_ptr<ImageView>>& Swapchain::getImageViews() { return _swapchainImageViews; }
 
 std::shared_ptr<ImageView> Swapchain::getDepthImageView() { return _depthImageView; }
+
+void Swapchain::changeImageLayout(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  for (int i = 0; i < _swapchainImageViews.size(); i++) {
+    _swapchainImageViews[i]->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+                                                      VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
+  }
+}
 
 VkSwapchainKHR& Swapchain::getSwapchain() { return _swapchain; }
 
