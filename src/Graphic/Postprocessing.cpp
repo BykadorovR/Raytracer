@@ -1,5 +1,16 @@
 #include "Postprocessing.h"
 
+struct ComputeConstants {
+  float gamma;
+  static VkPushConstantRange getPushConstant() {
+    VkPushConstantRange pushConstant;
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(ComputeConstants);
+    pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    return pushConstant;
+  }
+};
+
 Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
                                std::vector<std::shared_ptr<ImageView>> dst,
                                std::shared_ptr<State> state) {
@@ -20,13 +31,25 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
   }
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
-                                                {std::pair{std::string("texture"), textureLayout}});
+  _computePipeline->createParticleSystemCompute(
+      shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), textureLayout}},
+      std::map<std::string, VkPushConstantRange>{{std::string("compute"), ComputeConstants::getPushConstant()}});
 }
+
+void Postprocessing::setGamma(float gamma) { _gamma = gamma; }
+
+float Postprocessing::getGamma() { return _gamma; }
 
 void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                     _computePipeline->getPipeline());
+
+  if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
+    ComputeConstants pushConstants;
+    pushConstants.gamma = _gamma;
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
+  }
 
   auto pipelineLayout = _computePipeline->getDescriptorSetLayout();
   auto computeLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),

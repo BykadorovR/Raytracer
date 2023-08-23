@@ -328,6 +328,11 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
   }
 }
 
+void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
+  _postprocessing = postprocessing;
+  _gamma = _postprocessing->getGamma();
+}
+
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
@@ -382,6 +387,11 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
           _modelManager->unregisterModelGLTF(_directionalLightModels[i]);
         }
       }
+    }
+
+    if (_postprocessing) {
+      _gui->drawInputFloat("Postprocessing", {20, 320}, {{"gamma", &_gamma}});
+      _postprocessing->setGamma(_gamma);
     }
   }
 

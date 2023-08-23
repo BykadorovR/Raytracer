@@ -94,7 +94,8 @@ class Pipeline {
                  std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
   void createParticleSystemCompute(
       VkPipelineShaderStageCreateInfo shaderStage,
-      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout);
+      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+      std::map<std::string, VkPushConstantRange> pushConstants);
   void createParticleSystemGraphic(
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,

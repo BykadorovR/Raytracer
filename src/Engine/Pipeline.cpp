@@ -857,8 +857,11 @@ void Pipeline::createParticleSystemGraphic(
 
 void Pipeline::createParticleSystemCompute(
     VkPipelineShaderStageCreateInfo shaderStage,
-    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout) {
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants) {
   _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
@@ -868,6 +871,13 @@ void Pipeline::createParticleSystemCompute(
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
+  if (pushConstants.size() > 0) {
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
+  }
 
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {

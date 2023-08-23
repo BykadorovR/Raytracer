@@ -7,6 +7,7 @@
 #include "Line.h"
 #include "Sprite.h"
 #include "SpriteManager.h"
+#include "Postprocessing.h"
 #undef near
 #undef far
 
@@ -47,6 +48,7 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
   std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<Postprocessing> _postprocessing;
   bool _showDepth = true;
   bool _initializedDepth = false;
   int _lightSpheresIndex = -1;
@@ -59,6 +61,7 @@ class DebugVisualization : public InputSubscriber {
   bool _showPlanes = false;
   bool _planesRegistered = false;
   float _near, _far;
+  float _gamma;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
   std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;
   glm::vec3 _eyeSave = {0, 0, 3}, _dirSave = {0, 0, -1}, _upSave = {0, 1, 0}, _angles = {-90, 0, 0};
@@ -80,6 +83,7 @@ class DebugVisualization : public InputSubscriber {
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<State> state);
   void setLights(std::shared_ptr<LightManager> lightManager);
+  void setPostprocessing(std::shared_ptr<Postprocessing> postprocessing);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;

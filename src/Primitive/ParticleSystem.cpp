@@ -122,7 +122,7 @@ void ParticleSystem::_initializeCompute() {
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
-                                                {{"computeSSBO", setLayoutSSBOCompute}});
+                                                {{"computeSSBO", setLayoutSSBOCompute}}, {});
 }
 
 void ParticleSystem::setModel(glm::mat4 model) { _model = model; }
