@@ -23,9 +23,11 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetLayoutDepthTexture->createShadowTexture();
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                           commandBufferTransfer, _state->getDevice());
-  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", commandBufferTransfer, _state);
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_FORMAT_R8G8B8A8_UNORM,
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer,
+                                           _state->getDevice());
+  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", VK_FORMAT_R8G8B8A8_UNORM, commandBufferTransfer,
+                                           _state);
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
@@ -90,11 +92,13 @@ void LightManager::draw(int frame) {
       size += _directionalLights[i]->getSize();
     }
 
-    _lightDirectionalSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      _lightDirectionalSSBO[i] = std::make_shared<Buffer>(
-          size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+    if (_directionalLights.size() > 0) {
+      _lightDirectionalSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
+      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+        _lightDirectionalSSBO[i] = std::make_shared<Buffer>(
+            size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      }
     }
 
     size = 0;
@@ -102,11 +106,13 @@ void LightManager::draw(int frame) {
       size += _pointLights[i]->getSize();
     }
 
-    _lightPointSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      _lightPointSSBO[i] = std::make_shared<Buffer>(
-          size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+    if (_pointLights.size() > 0) {
+      _lightPointSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
+      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+        _lightPointSSBO[i] = std::make_shared<Buffer>(
+            size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      }
     }
 
     size = 0;
@@ -114,11 +120,13 @@ void LightManager::draw(int frame) {
       size += sizeof(glm::mat4);
     }
 
-    _lightDirectionalSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      _lightDirectionalSSBOViewProjection[i] = std::make_shared<Buffer>(
-          size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+    if (_directionalLights.size() > 0) {
+      _lightDirectionalSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
+      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+        _lightDirectionalSSBOViewProjection[i] = std::make_shared<Buffer>(
+            size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      }
     }
 
     size = 0;
@@ -126,11 +134,13 @@ void LightManager::draw(int frame) {
       size += sizeof(glm::mat4);
     }
 
-    _lightPointSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      _lightPointSSBOViewProjection[i] = std::make_shared<Buffer>(
-          size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+    if (_pointLights.size() > 0) {
+      _lightPointSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
+      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+        _lightPointSSBOViewProjection[i] = std::make_shared<Buffer>(
+            size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      }
     }
 
     _descriptorSetLight = std::make_shared<DescriptorSet>(
@@ -177,45 +187,53 @@ void LightManager::draw(int frame) {
     _changed = false;
   }
 
-  _lightDirectionalSSBO[frame]->map();
   int offset = 0;
-  for (int i = 0; i < _directionalLights.size(); i++) {
-    // we pass inverse bind matrices to shader via SSBO
-    memcpy((uint8_t*)(_lightDirectionalSSBO[frame]->getMappedMemory()) + offset, _directionalLights[i]->getData(),
-           _directionalLights[i]->getSize());
-    offset += _directionalLights[i]->getSize();
+  if (_directionalLights.size() > 0) {
+    _lightDirectionalSSBO[frame]->map();
+    for (int i = 0; i < _directionalLights.size(); i++) {
+      // we pass inverse bind matrices to shader via SSBO
+      memcpy((uint8_t*)(_lightDirectionalSSBO[frame]->getMappedMemory()) + offset, _directionalLights[i]->getData(),
+             _directionalLights[i]->getSize());
+      offset += _directionalLights[i]->getSize();
+    }
+    _lightDirectionalSSBO[frame]->unmap();
   }
-  _lightDirectionalSSBO[frame]->unmap();
 
-  _lightPointSSBO[frame]->map();
-  offset = 0;
-  for (int i = 0; i < _pointLights.size(); i++) {
-    // we pass inverse bind matrices to shader via SSBO
-    memcpy((uint8_t*)(_lightPointSSBO[frame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
-           _pointLights[i]->getSize());
-    offset += _pointLights[i]->getSize();
+  if (_pointLights.size() > 0) {
+    _lightPointSSBO[frame]->map();
+    offset = 0;
+    for (int i = 0; i < _pointLights.size(); i++) {
+      // we pass inverse bind matrices to shader via SSBO
+      memcpy((uint8_t*)(_lightPointSSBO[frame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
+             _pointLights[i]->getSize());
+      offset += _pointLights[i]->getSize();
+    }
+    _lightPointSSBO[frame]->unmap();
   }
-  _lightPointSSBO[frame]->unmap();
 
-  _lightDirectionalSSBOViewProjection[frame]->map();
-  std::vector<glm::mat4> directionalVP;
-  for (int i = 0; i < _directionalLights.size(); i++) {
-    glm::mat4 viewProjection = _directionalLights[i]->getProjectionMatrix() * _directionalLights[i]->getViewMatrix();
-    directionalVP.push_back(viewProjection);
+  if (_directionalLights.size() > 0) {
+    _lightDirectionalSSBOViewProjection[frame]->map();
+    std::vector<glm::mat4> directionalVP;
+    for (int i = 0; i < _directionalLights.size(); i++) {
+      glm::mat4 viewProjection = _directionalLights[i]->getProjectionMatrix() * _directionalLights[i]->getViewMatrix();
+      directionalVP.push_back(viewProjection);
+    }
+    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[frame]->getMappedMemory()), directionalVP.data(),
+           directionalVP.size() * sizeof(glm::mat4));
+    _lightDirectionalSSBOViewProjection[frame]->unmap();
   }
-  memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[frame]->getMappedMemory()), directionalVP.data(),
-         directionalVP.size() * sizeof(glm::mat4));
-  _lightDirectionalSSBOViewProjection[frame]->unmap();
 
-  _lightPointSSBOViewProjection[frame]->map();
-  std::vector<glm::mat4> pointVP;
-  float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
-                 (float)std::get<1>(_state->getSettings()->getResolution());
-  for (int i = 0; i < _pointLights.size(); i++) {
-    glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix() * _pointLights[i]->getViewMatrix(0);
-    pointVP.push_back(viewProjection);
+  if (_pointLights.size() > 0) {
+    _lightPointSSBOViewProjection[frame]->map();
+    std::vector<glm::mat4> pointVP;
+    float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
+                   (float)std::get<1>(_state->getSettings()->getResolution());
+    for (int i = 0; i < _pointLights.size(); i++) {
+      glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix() * _pointLights[i]->getViewMatrix(0);
+      pointVP.push_back(viewProjection);
+    }
+    memcpy((uint8_t*)(_lightPointSSBOViewProjection[frame]->getMappedMemory()), pointVP.data(),
+           pointVP.size() * sizeof(glm::mat4));
+    _lightPointSSBOViewProjection[frame]->unmap();
   }
-  memcpy((uint8_t*)(_lightPointSSBOViewProjection[frame]->getMappedMemory()), pointVP.data(),
-         pointVP.size() * sizeof(glm::mat4));
-  _lightPointSSBOViewProjection[frame]->unmap();
 }

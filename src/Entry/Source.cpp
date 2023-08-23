@@ -295,6 +295,10 @@ void initialize() {
   device = state->getDevice();
   swapchain = state->getSwapchain();
   descriptorPool = state->getDescriptorPool();
+
+  auto nullHandle = vkGetDeviceProcAddr(state->getDevice()->getLogicalDevice(),
+                                        "VkPhysicalDeviceRobustness2FeaturesEXT");
+
   // allocate commands
   commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
@@ -342,10 +346,10 @@ void initialize() {
   gui = std::make_shared<GUI>(settings, window, device);
   gui->initialize(commandBufferTransfer);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                           commandBufferTransfer, device);
-  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                             commandBufferTransfer, device);
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_FORMAT_R8G8B8A8_SRGB,
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_FORMAT_R8G8B8A8_UNORM,
+                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
@@ -486,8 +490,8 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                                   commandBufferTransfer, device);
+  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png", VK_FORMAT_R8G8B8A8_UNORM,
+                                                   VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
   particleSystem = std::make_shared<ParticleSystem>(300, particleTexture, commandBufferTransfer, state);
   {
     auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));

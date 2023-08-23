@@ -5,9 +5,7 @@ layout (set = 0, binding = 0, rgba8) uniform readonly image2D inputImage;
 layout (set = 0, binding = 1, rgba8) uniform image2D resultImage;
 
 void main() {   
-    vec4 rgb = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
-    float gray = (rgb.r + rgb.g + rgb.b) / 3;
-    vec4 res = vec4(gray, gray, gray, 1.0);
-
-    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), res);
+    vec4 color = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));    
+    color = vec4(pow(color.rgb, vec3(1 / 2.2)), color.a);
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), color);
 }

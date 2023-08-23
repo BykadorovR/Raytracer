@@ -120,11 +120,11 @@ ModelGLTF::ModelGLTF(std::string path,
     _descriptorSetCameraFull = cameraSet;
   }
 
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                           commandBufferTransfer, device);
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_FORMAT_R8G8B8A8_UNORM,
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
   // empty texture with 0, 0, 0 value
-  _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                                 commandBufferTransfer, device);
+  _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", VK_FORMAT_R8G8B8A8_UNORM,
+                                                 VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
 
   std::vector<std::reference_wrapper<MaterialGLTF>> processedMaterialsAlpha;
   for (auto& material : _materials) {
@@ -208,8 +208,8 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
     tinygltf::Image& glTFImage = model.images[i];
     // TODO: check if such file exists and load it from disk
     if (std::filesystem::exists(glTFImage.uri)) {
-      _images[i].texture = std::make_shared<Texture>(glTFImage.uri, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                                     _commandBufferTransfer, _device);
+      _images[i].texture = std::make_shared<Texture>(
+          glTFImage.uri, VK_FORMAT_R8G8B8A8_SRGB, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer, _device);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -243,7 +243,7 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
       vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
       auto image = std::make_shared<Image>(
-          std::tuple{glTFImage.width, glTFImage.height}, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+          std::tuple{glTFImage.width, glTFImage.height}, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
 
       image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,

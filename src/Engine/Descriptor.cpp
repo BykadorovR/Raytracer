@@ -539,15 +539,22 @@ void DescriptorSet::createLight(std::vector<std::shared_ptr<Buffer>> bufferDirec
                                 std::vector<std::shared_ptr<Buffer>> bufferPoint) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = bufferDirectional[i]->getData();
+    bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
     bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = bufferDirectional[i]->getSize();
+    bufferDirectionalInfo.range = VK_WHOLE_SIZE;
+    if (bufferDirectional.size() > i) {
+      bufferDirectionalInfo.buffer = bufferDirectional[i]->getData();
+      bufferDirectionalInfo.range = bufferDirectional[i]->getSize();
+    }
 
     VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = bufferPoint[i]->getData();
+    bufferPointInfo.buffer = VK_NULL_HANDLE;
     bufferPointInfo.offset = 0;
-    bufferPointInfo.range = bufferPoint[i]->getSize();
-
+    bufferPointInfo.range = VK_WHOLE_SIZE;
+    if (bufferPoint.size() > i) {
+      bufferPointInfo.buffer = bufferPoint[i]->getData();
+      bufferPointInfo.range = bufferPoint[i]->getSize();
+    }
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = _descriptorSets[i];

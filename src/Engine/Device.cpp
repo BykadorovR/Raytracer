@@ -164,12 +164,18 @@ void Device::_createLogicalDevice() {
 
   constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-      .dynamicRendering = VK_TRUE,
-  };
+      .dynamicRendering = VK_TRUE};
+
+  VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
+      .pNext = (void*)&dynamicRenderingFeature,
+      .robustBufferAccess2 = VK_FALSE,
+      .robustImageAccess2 = VK_FALSE,
+      .nullDescriptor = VK_TRUE};
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.pNext = &dynamicRenderingFeature;
+  createInfo.pNext = &robustnessFeature;
 
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();
