@@ -53,6 +53,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
   _near = _camera->getNear();
   _far = _camera->getFar();
+  auto [r, g, b, a] = _state->getSettings()->getClearColor().float32;
+  _R = r;
+  _G = g;
+  _B = b;
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
@@ -389,10 +393,19 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       }
     }
 
-    if (_postprocessing) {
-      _gui->drawInputFloat("Postprocessing", {20, 320}, {{"gamma", &_gamma}});
-      _postprocessing->setGamma(_gamma);
-    }
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"gamma", &_gamma}});
+    _postprocessing->setGamma(_gamma);
+
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"R", &_R}});
+    _R = std::min(_R, 1.f);
+    _R = std::max(_R, 0.f);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"G", &_G}});
+    _G = std::min(_G, 1.f);
+    _G = std::max(_G, 0.f);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"B", &_B}});
+    _B = std::min(_B, 1.f);
+    _B = std::max(_B, 0.f);
+    _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
   }
 
   _modelManager->setCamera(_camera);

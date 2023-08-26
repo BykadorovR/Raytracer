@@ -62,6 +62,7 @@ class DebugVisualization : public InputSubscriber {
   bool _planesRegistered = false;
   float _near, _far;
   float _gamma;
+  float _R, _G, _B;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
   std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;
   glm::vec3 _eyeSave = {0, 0, 3}, _dirSave = {0, 0, -1}, _upSave = {0, 1, 0}, _angles = {-90, 0, 0};

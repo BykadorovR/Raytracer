@@ -12,6 +12,8 @@ void Settings::setDepthFormat(VkFormat format) { _depthFormat = format; }
 
 void Settings::setMaxFramesInFlight(int maxFramesInFlight) { _maxFramesInFlight = maxFramesInFlight; }
 
+void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
+
 void Settings::setThreadsInPool(int threadsInPool) { _threadsInPool = threadsInPool; }
 
 std::string Settings::getName() { return _name; }
