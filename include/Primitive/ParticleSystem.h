@@ -74,10 +74,11 @@ class ParticleSystem {
   float _pointScale = 60.f;
 
   void _initializeCompute();
-  void _initializeGraphic();
+  void _initializeGraphic(VkFormat renderFormat);
 
  public:
   ParticleSystem(int particlesNumber,
+                 VkFormat renderFormat,
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state);

@@ -34,8 +34,6 @@ struct LightPoint {
     float ambient;
     float specular;
     //attenuation
-    float constant;
-    float linear;
     float quadratic;
     int distance;
     //parameters

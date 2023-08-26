@@ -70,9 +70,7 @@ int PointLight::getAttenuationIndex() { return _attenuationIndex; }
 void PointLight::setAttenuationIndex(int index) {
   _attenuationIndex = index;
   _phong->distance = std::get<0>(_settings->getAttenuations()[index]);
-  _phong->constant = std::get<1>(_settings->getAttenuations()[index]);
-  _phong->linear = std::get<2>(_settings->getAttenuations()[index]);
-  _phong->quadratic = std::get<3>(_settings->getAttenuations()[index]);
+  _phong->quadratic = std::get<1>(_settings->getAttenuations()[index]);
 }
 
 int PointLight::getDistance() { return _phong->distance; }

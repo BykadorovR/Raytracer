@@ -2,6 +2,7 @@
 
 struct ComputeConstants {
   float gamma;
+  float exposure;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
     pushConstant.offset = 0;
@@ -36,9 +37,13 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
       std::map<std::string, VkPushConstantRange>{{std::string("compute"), ComputeConstants::getPushConstant()}});
 }
 
+void Postprocessing::setExposure(float exposure) { _exposure = exposure; }
+
 void Postprocessing::setGamma(float gamma) { _gamma = gamma; }
 
 float Postprocessing::getGamma() { return _gamma; }
+
+float Postprocessing::getExposure() { return _exposure; }
 
 void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -47,6 +52,7 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
   if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
     ComputeConstants pushConstants;
     pushConstants.gamma = _gamma;
+    pushConstants.exposure = _exposure;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
   }

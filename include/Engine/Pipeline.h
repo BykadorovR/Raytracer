@@ -25,7 +25,8 @@ class Pipeline {
 
  public:
   Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
-  void createGraphic2D(VkCullModeFlags cullMode,
+  void createGraphic2D(VkFormat renderFormat,
+                       VkCullModeFlags cullMode,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
@@ -38,14 +39,16 @@ class Pipeline {
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
       std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
-  void createGraphic3D(VkCullModeFlags cullMode,
+  void createGraphic3D(VkFormat renderFormat,
+                       VkCullModeFlags cullMode,
                        VkPolygonMode polygonMode,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
                        std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
-  void createLine(VkCullModeFlags cullMode,
+  void createLine(VkFormat renderFormat,
+                  VkCullModeFlags cullMode,
                   VkPolygonMode polygonMode,
                   int thick,
                   std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -54,6 +57,7 @@ class Pipeline {
                   VkVertexInputBindingDescription bindingDescription,
                   std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
   void createGraphicTerrainCPU(
+      VkFormat renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -63,6 +67,7 @@ class Pipeline {
       std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
 
   void createGraphicTerrainGPU(
+      VkFormat renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -87,7 +92,8 @@ class Pipeline {
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
       std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
-  void createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+  void createHUD(VkFormat renderFormat,
+                 std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                  std::map<std::string, VkPushConstantRange> pushConstants,
                  VkVertexInputBindingDescription bindingDescription,
@@ -97,6 +103,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants);
   void createParticleSystemGraphic(
+      VkFormat renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,

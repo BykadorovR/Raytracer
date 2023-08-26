@@ -61,7 +61,7 @@ class DebugVisualization : public InputSubscriber {
   bool _showPlanes = false;
   bool _planesRegistered = false;
   float _near, _far;
-  float _gamma;
+  float _gamma, _exposure;
   float _R, _G, _B;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
   std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;

@@ -282,7 +282,11 @@ void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
   settings->setResolution(std::tuple{1600, 900});
-  settings->setColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+  settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
+  settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
+
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
@@ -331,7 +335,7 @@ void initialize() {
 
   graphicTexture.resize(settings->getMaxFramesInFlight());
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    auto graphicImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getColorFormat(),
+    auto graphicImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
                                                 VK_IMAGE_TILING_OPTIMAL,
                                                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
@@ -346,9 +350,9 @@ void initialize() {
   gui = std::make_shared<GUI>(settings, window, device);
   gui->initialize(commandBufferTransfer);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", VK_FORMAT_R8G8B8A8_SRGB,
+  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", settings->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
-  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", VK_FORMAT_R8G8B8A8_UNORM,
+  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
   camera = std::make_shared<CameraFly>(settings);
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
@@ -382,10 +386,10 @@ void initialize() {
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
-  spriteManager = std::make_shared<SpriteManager>(lightManager, commandBufferTransfer, descriptorPool, device,
-                                                  settings);
-  modelManager = std::make_shared<Model3DManager>(lightManager, commandBufferTransfer, descriptorPool, device,
-                                                  settings);
+  spriteManager = std::make_shared<SpriteManager>(settings->getGraphicColorFormat(), lightManager,
+                                                  commandBufferTransfer, descriptorPool, device, settings);
+  modelManager = std::make_shared<Model3DManager>(settings->getGraphicColorFormat(), lightManager,
+                                                  commandBufferTransfer, descriptorPool, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -482,7 +486,8 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, commandBufferTransfer, lightManager, state);
+  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, settings->getGraphicColorFormat(), commandBufferTransfer,
+                                         lightManager, state);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
@@ -490,9 +495,11 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png", VK_FORMAT_R8G8B8A8_UNORM,
+  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png",
+                                                   settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
-  particleSystem = std::make_shared<ParticleSystem>(300, particleTexture, commandBufferTransfer, state);
+  particleSystem = std::make_shared<ParticleSystem>(300, state->getSettings()->getGraphicColorFormat(), particleTexture,
+                                                    commandBufferTransfer, state);
   {
     auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
     matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));

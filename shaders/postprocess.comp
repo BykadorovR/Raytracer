@@ -6,10 +6,14 @@ layout (set = 0, binding = 1, rgba8) uniform image2D resultImage;
 
 layout( push_constant ) uniform constants {
     float gamma;
+    float exposure;
 } push;
 
 void main() {   
-    vec4 color = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));    
-    color = vec4(pow(color.rgb, vec3(1 / push.gamma)), color.a);
+    vec4 color = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
+    // exposure tone mapping
+    vec3 corrected = vec3(1.0) - exp(-color.rgb * push.exposure);
+    // gamma correction
+    color = vec4(pow(corrected, vec3(1 / push.gamma)), color.a);
     imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), color);
 }

@@ -1,6 +1,7 @@
 #include "ModelManager.h"
 
-Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
+Model3DManager::Model3DManager(VkFormat renderFormat,
+                               std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,
                                std::shared_ptr<Device> device,
@@ -46,7 +47,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(sizeof(LightPush));
     defaultPushConstants["fragment"] = LightPush::getPushConstant();
 
-    _pipeline[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+    _pipeline[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
                                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                       _descriptorSetLayout, defaultPushConstants,
@@ -54,7 +55,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                       Vertex3D::getAttributeDescriptions());
 
     _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
-    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              _descriptorSetLayout, defaultPushConstants,

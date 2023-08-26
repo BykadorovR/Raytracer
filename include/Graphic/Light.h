@@ -11,8 +11,6 @@ class PointLight {
     float ambient;
     float specular;
     // attenuation
-    float constant = 1.f;
-    float linear = 0.f;
     float quadratic = 0.f;
     int distance;
     // parameters

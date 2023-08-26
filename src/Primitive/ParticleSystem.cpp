@@ -20,6 +20,7 @@ struct VertexConstants {
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
+                               VkFormat renderFormat,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
@@ -29,10 +30,10 @@ ParticleSystem::ParticleSystem(int particlesNumber,
   _texture = texture;
 
   _initializeCompute();
-  _initializeGraphic();
+  _initializeGraphic(renderFormat);
 }
 
-void ParticleSystem::_initializeGraphic() {
+void ParticleSystem::_initializeGraphic(VkFormat renderFormat) {
   auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("../shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -56,7 +57,7 @@ void ParticleSystem::_initializeGraphic() {
 
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _graphicPipeline->createParticleSystemGraphic(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}},

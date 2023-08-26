@@ -10,7 +10,9 @@ void Terrain::setModel(glm::mat4 model) { _model = model; }
 
 void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+TerrainCPU::TerrainCPU(VkFormat renderFormat,
+                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<State> state) {
   _state = state;
 
   int width, height, channels;
@@ -68,7 +70,7 @@ TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   shader->add("../shaders/terrainCPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/terrainCPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphicTerrainCPU(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+  _pipeline->createGraphicTerrainCPU(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                      {std::pair{std::string("camera"), setLayout}}, {},
@@ -189,6 +191,7 @@ struct HeightLevels {
 };
 
 TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
+                       VkFormat renderFormat,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<LightManager> lightManager,
                        std::shared_ptr<State> state) {
@@ -196,20 +199,21 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   _patchNumber = patchNumber;
   _lightManager = lightManager;
 
-  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_FORMAT_R8G8B8A8_SRGB,
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer,
-                                               state->getDevice());
-  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg", VK_FORMAT_R8G8B8A8_SRGB,
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer,
-                                               state->getDevice());
-  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png", VK_FORMAT_R8G8B8A8_SRGB,
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer,
-                                               state->getDevice());
-  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png", VK_FORMAT_R8G8B8A8_SRGB,
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer,
-                                               state->getDevice());
+  _terrainTiles[0] = std::make_shared<Texture>(
+      "../data/Terrain/dirt.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[1] = std::make_shared<Texture>(
+      "../data/Terrain/grass.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[2] = std::make_shared<Texture>(
+      "../data/Terrain/rock_gray.png", _state->getSettings()->getLoadTextureColorFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[3] = std::make_shared<Texture>(
+      "../data/Terrain/snow.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
 
-  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png", VK_FORMAT_R8G8B8A8_UNORM,
+  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png",
+                                         _state->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state->getDevice());
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
@@ -358,7 +362,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipeline[TerrainRenderMode::FULL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline[TerrainRenderMode::FULL]->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -376,7 +380,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineNormal->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -389,7 +393,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineWireframe->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},

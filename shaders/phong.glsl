@@ -79,7 +79,7 @@ vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, vec3 camer
         float shadow = 0.0;
         if (enableShadow > 0)
             shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, bias); 
-        float attenuation = 1.0 / (getLightPoint(i).constant + getLightPoint(i).linear * distance + getLightPoint(i).quadratic * distance * distance);
+        float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
         float ambientFactor = getLightPoint(i).ambient;
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);

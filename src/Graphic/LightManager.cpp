@@ -23,11 +23,11 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetLayoutDepthTexture->createShadowTexture();
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", VK_FORMAT_R8G8B8A8_UNORM,
+  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer,
                                            _state->getDevice());
-  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", VK_FORMAT_R8G8B8A8_UNORM, commandBufferTransfer,
-                                           _state);
+  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
+                                           commandBufferTransfer, _state);
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {

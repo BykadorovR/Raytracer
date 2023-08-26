@@ -65,7 +65,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
 
   _fontImage = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      std::tuple{texWidth, texHeight}, 1, 1, _settings->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
@@ -90,7 +90,8 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   _pipeline = std::make_shared<Pipeline>(_settings, _device);
-  _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+  _pipeline->createHUD(_settings->getSwapchainColorFormat(),
+                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
                        VertexGUI::getAttributeDescriptions());

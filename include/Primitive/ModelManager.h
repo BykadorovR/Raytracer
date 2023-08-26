@@ -20,7 +20,8 @@ class Model3DManager {
   std::vector<std::shared_ptr<Model>> _modelsGLTF;
 
  public:
-  Model3DManager(std::shared_ptr<LightManager> lightManager,
+  Model3DManager(VkFormat renderFormat,
+                 std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<DescriptorPool> descriptorPool,
                  std::shared_ptr<Device> device,
