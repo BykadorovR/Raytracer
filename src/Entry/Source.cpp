@@ -84,7 +84,7 @@ std::future<void> updateJoints;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture;
 
-std::shared_ptr<BS::thread_pool> pool;
+std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
 std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
 
@@ -374,11 +374,11 @@ void initialize() {
   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
-  /*directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight->createPhong(0.2f, 0.f, glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
-  directionalLight->setUp({0.f, 0.f, -1.f});*/
+  directionalLight->setUp({0.f, 0.f, -1.f});
 
   /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -513,6 +513,7 @@ void initialize() {
 
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
+  pool2 = std::make_shared<BS::thread_pool>(1);
 }
 
 void drawFrame() {
@@ -659,9 +660,6 @@ void drawFrame() {
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
 
-  // wait for shadow to complete before render
-  pool->wait_for_tasks();
-
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -710,9 +708,17 @@ void drawFrame() {
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
+    pool2->wait_for_tasks();
+
     loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
+
+    updateJoints = pool2->submit([&]() {
+      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
+      modelManager->updateAnimation(currentFrame, frameTimer);
+      loggerCPU->end();
+    });
 
     loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
     {
@@ -747,11 +753,8 @@ void drawFrame() {
 
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
-    updateJoints = pool->submit([&]() {
-      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
-      modelManager->updateAnimation(currentFrame, frameTimer);
-      loggerCPU->end();
-    });
+    // wait for shadow to complete before render
+    pool->wait_for_tasks();
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
