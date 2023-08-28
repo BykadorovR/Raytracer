@@ -104,12 +104,9 @@ bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::vector<std::shared_ptr<Semaphore>> shadowSemaphore, particleSemaphore;
 std::array<std::atomic<int>, 2> shadowIndex;
-std::ofstream myfile;
 
 void directionalLightCalculator(int index) {
   std::vector<VkFence> waitShadowFence = {shadowFences[index][currentFrame]->getFence()};
-  myfile << "Direct, wait: " + std::to_string(index) + " current frame: " + std::to_string(currentFrame) + "\n";
-  myfile.flush();
 
   auto result = vkWaitForFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data(), VK_TRUE,
                                 UINT64_MAX);
@@ -189,6 +186,28 @@ void directionalLightCalculator(int index) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
+  {
+    VkImageMemoryBarrier imageMemoryBarrier{};
+    imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier.image = lightManager->getDirectionalLights()[index]
+                                   ->getDepthTexture()[currentFrame]
+                                   ->getImageView()
+                                   ->getImage()
+                                   ->getImage();
+    imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+  }
+
   uint64_t signalValue = ++shadowIndex[currentFrame];
   if (signalValue == lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6) {
     VkTimelineSemaphoreSubmitInfo timelineInfo{};
@@ -210,16 +229,11 @@ void directionalLightCalculator(int index) {
   } else {
     commandBuffer->endCommands(currentFrame, 1, false, shadowFences[index][currentFrame]);
   }
-  myfile << "Direct, submit: " + std::to_string(index) + " current frame: " + std::to_string(currentFrame) + "\n";
-  myfile.flush();
 }
 
 void pointLightCalculator(int index, int face) {
   std::vector<VkFence> waitShadowFence = {
       shadowFences[lightManager->getDirectionalLights().size() + index * 6 + face][currentFrame]->getFence()};
-  myfile << "Point, wait: " + std::to_string(lightManager->getDirectionalLights().size() + index * 6 + face) +
-                " current frame: " + std::to_string(currentFrame) + "\n";
-  myfile.flush();
 
   auto result = vkWaitForFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data(), VK_TRUE,
                                 UINT64_MAX);
@@ -309,6 +323,30 @@ void pointLightCalculator(int index, int face) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
+  if (face == 0) {
+    VkImageMemoryBarrier imageMemoryBarrier{};
+
+    imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier.image = lightManager->getPointLights()[index]
+                                   ->getDepthCubemap()[currentFrame]
+                                   ->getTexture()
+                                   ->getImageView()
+                                   ->getImage()
+                                   ->getImage();
+    imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+  }
+
   uint64_t signalValue = ++shadowIndex[currentFrame];
   if (signalValue == lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6) {
     VkTimelineSemaphoreSubmitInfo timelineInfo{};
@@ -335,10 +373,6 @@ void pointLightCalculator(int index, int face) {
         currentFrame, 1, false,
         shadowFences[lightManager->getDirectionalLights().size() + index * 6 + face][currentFrame]);
   }
-
-  myfile << "Point, submit: " + std::to_string(lightManager->getDirectionalLights().size() + index * 6 + face) +
-                " current frame: " + std::to_string(currentFrame) + "\n";
-  myfile.flush();
 }
 
 void initialize() {
@@ -591,8 +625,6 @@ void initialize() {
     }
   }
 
-  myfile.open("example.txt");
-
   pool = std::make_shared<BS::thread_pool>(6);
   pool2 = std::make_shared<BS::thread_pool>(1);
 }
@@ -709,48 +741,6 @@ void drawFrame() {
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
   // Image memory barrier to make sure that writes are finished before sampling from the texture
-  int directionalNum = lightManager->getDirectionalLights().size();
-  int pointNum = lightManager->getPointLights().size();
-  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum);
-  for (int i = 0; i < directionalNum; i++) {
-    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].image = lightManager->getDirectionalLights()[i]
-                                      ->getDepthTexture()[currentFrame]
-                                      ->getImageView()
-                                      ->getImage()
-                                      ->getImage();
-    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  }
-
-  for (int i = 0; i < pointNum; i++) {
-    int id = directionalNum + i;
-    imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[id].image = lightManager->getPointLights()[i]
-                                       ->getDepthCubemap()[currentFrame]
-                                       ->getTexture()
-                                       ->getImageView()
-                                       ->getImage()
-                                       ->getImage();
-    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  }
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
-                       imageMemoryBarrier.data());
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
@@ -804,6 +794,11 @@ void drawFrame() {
     loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
+    updateJoints = pool2->submit([&]() {
+      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
+      modelManager->updateAnimation(currentFrame, frameTimer);
+      loggerCPU->end();
+    });
 
     loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
     {
@@ -837,12 +832,6 @@ void drawFrame() {
     loggerGPU->end(currentFrame);
 
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-
-    updateJoints = pool2->submit([&]() {
-      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
-      modelManager->updateAnimation(currentFrame, frameTimer);
-      loggerCPU->end();
-    });
 
     std::vector<VkSemaphore> waitSemaphores = {particleSemaphore[currentFrame]->getSemaphore(),
                                                shadowSemaphore[currentFrame]->getSemaphore()};
