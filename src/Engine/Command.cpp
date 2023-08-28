@@ -44,26 +44,28 @@ void CommandBuffer::beginCommands(int cmd) {
   vkBeginCommandBuffer(_buffer[cmd], &beginInfo);
 }
 
-void CommandBuffer::endCommands(int cmd, bool blocking) {
+void CommandBuffer::endCommands(int cmd, int queueIndex, bool blocking, std::shared_ptr<Fence> fence) {
   vkEndCommandBuffer(_buffer[cmd]);
 
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &_buffer[cmd];
-  auto queue = _device->getQueue(_pool->getType());
-  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
-  vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  auto queue = _device->getQueue(_pool->getType(), queueIndex);
+  VkFence currentFence = VK_NULL_HANDLE;
+  if (fence) currentFence = fence->getFence();
+  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType(), queueIndex));
+  vkQueueSubmit(queue, 1, &submitInfo, currentFence);
   // instead of fence
   if (blocking) vkQueueWaitIdle(queue);
 }
 
-void CommandBuffer::endCommands(int cmd, VkSubmitInfo info, std::shared_ptr<Fence> fence) {
+void CommandBuffer::endCommands(int cmd, int queueIndex, VkSubmitInfo info, std::shared_ptr<Fence> fence) {
   vkEndCommandBuffer(_buffer[cmd]);
-  auto queue = _device->getQueue(_pool->getType());
+  auto queue = _device->getQueue(_pool->getType(), queueIndex);
   VkFence currentFence = VK_NULL_HANDLE;
   if (fence) currentFence = fence->getFence();
-  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
+  std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType(), queueIndex));
   vkQueueSubmit(queue, 1, &info, currentFence);
 }
 

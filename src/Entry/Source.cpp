@@ -1,4 +1,6 @@
 #include <iostream>
+#include <ostream>
+#include <fstream>
 #include <chrono>
 #include <future>
 #include <windows.h>
@@ -63,6 +65,7 @@ std::shared_ptr<State> state;
 std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinishedSemaphores, particleSystemSemaphore,
     semaphorePostprocessing, semaphoreGUI;
 std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
+std::vector<std::vector<std::shared_ptr<Fence>>> shadowFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
@@ -84,7 +87,7 @@ std::future<void> updateJoints;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture;
 
-std::shared_ptr<BS::thread_pool> pool;
+std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
 std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
 
@@ -99,8 +102,20 @@ bool terrainPatch = false;
 bool showLoD = false;
 bool shouldWork = true;
 std::map<int, bool> layoutChanged;
+std::vector<std::shared_ptr<Semaphore>> shadowSemaphore, particleSemaphore;
+std::array<std::atomic<int>, 2> shadowIndex;
+std::ofstream myfile;
 
 void directionalLightCalculator(int index) {
+  std::vector<VkFence> waitShadowFence = {shadowFences[index][currentFrame]->getFence()};
+  myfile << "Direct, wait: " + std::to_string(index) + " current frame: " + std::to_string(currentFrame) + "\n";
+  myfile.flush();
+
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data(), VK_TRUE,
+                                UINT64_MAX);
+  result = vkResetFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
   auto commandBuffer = commandBufferDirectional[index];
   auto loggerGPU = loggerGPUDirectional[index];
 
@@ -174,17 +189,43 @@ void directionalLightCalculator(int index) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  // no need to wait anything because this thread starts in main thread only when needed
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  uint64_t signalValue = ++shadowIndex[currentFrame];
+  if (signalValue == lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6) {
+    VkTimelineSemaphoreSubmitInfo timelineInfo{};
+    timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timelineInfo.pNext = NULL;
+    timelineInfo.signalSemaphoreValueCount = 1;
+    timelineInfo.pSignalSemaphoreValues = &signalValue;
 
-  // record command buffer
-  commandBuffer->endCommands(currentFrame, false);
+    VkSubmitInfo submitInfoShadow{};
+    submitInfoShadow.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfoShadow.pNext = &timelineInfo;
+    VkSemaphore signalShadowSemaphores[] = {shadowSemaphore[currentFrame]->getSemaphore()};
+    submitInfoShadow.signalSemaphoreCount = 1;
+    submitInfoShadow.pSignalSemaphores = signalShadowSemaphores;
+    submitInfoShadow.commandBufferCount = 1;
+    submitInfoShadow.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+    // record command buffer
+    commandBuffer->endCommands(currentFrame, 1, submitInfoShadow, shadowFences[index][currentFrame]);
+  } else {
+    commandBuffer->endCommands(currentFrame, 1, false, shadowFences[index][currentFrame]);
+  }
+  myfile << "Direct, submit: " + std::to_string(index) + " current frame: " + std::to_string(currentFrame) + "\n";
+  myfile.flush();
 }
 
 void pointLightCalculator(int index, int face) {
+  std::vector<VkFence> waitShadowFence = {
+      shadowFences[lightManager->getDirectionalLights().size() + index * 6 + face][currentFrame]->getFence()};
+  myfile << "Point, wait: " + std::to_string(lightManager->getDirectionalLights().size() + index * 6 + face) +
+                " current frame: " + std::to_string(currentFrame) + "\n";
+  myfile.flush();
+
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data(), VK_TRUE,
+                                UINT64_MAX);
+  result = vkResetFences(device->getLogicalDevice(), waitShadowFence.size(), waitShadowFence.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
   auto commandBuffer = commandBufferPoint[index][face];
   auto loggerGPU = loggerGPUPoint[index][face];
   // record command buffer
@@ -268,14 +309,36 @@ void pointLightCalculator(int index, int face) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  // no need to wait anything because this thread starts in main thread only when needed
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  uint64_t signalValue = ++shadowIndex[currentFrame];
+  if (signalValue == lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6) {
+    VkTimelineSemaphoreSubmitInfo timelineInfo{};
+    timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timelineInfo.pNext = NULL;
+    timelineInfo.signalSemaphoreValueCount = 1;
+    timelineInfo.pSignalSemaphoreValues = &signalValue;
 
-  // record command buffer
-  commandBuffer->endCommands(currentFrame, false);
+    VkSubmitInfo submitInfoShadow{};
+    submitInfoShadow.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfoShadow.pNext = &timelineInfo;
+    VkSemaphore signalShadowSemaphores[] = {shadowSemaphore[currentFrame]->getSemaphore()};
+    submitInfoShadow.signalSemaphoreCount = 1;
+    submitInfoShadow.pSignalSemaphores = signalShadowSemaphores;
+    submitInfoShadow.commandBufferCount = 1;
+    submitInfoShadow.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+
+    // record command buffer
+    commandBuffer->endCommands(
+        currentFrame, 1, submitInfoShadow,
+        shadowFences[lightManager->getDirectionalLights().size() + index * 6 + face][currentFrame]);
+  } else {
+    commandBuffer->endCommands(
+        currentFrame, 1, false,
+        shadowFences[lightManager->getDirectionalLights().size() + index * 6 + face][currentFrame]);
+  }
+
+  myfile << "Point, submit: " + std::to_string(lightManager->getDirectionalLights().size() + index * 6 + face) +
+                " current frame: " + std::to_string(currentFrame) + "\n";
+  myfile.flush();
 }
 
 void initialize() {
@@ -323,14 +386,14 @@ void initialize() {
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
-    imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
-    renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(device));
+    imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
+    renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
     inFlightFences.push_back(std::make_shared<Fence>(device));
     // compute-graphic
-    particleSystemSemaphore.push_back(std::make_shared<Semaphore>(device));
+    particleSystemSemaphore.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
     particleSystemFences.push_back(std::make_shared<Fence>(device));
-    semaphorePostprocessing.push_back(std::make_shared<Semaphore>(device));
-    semaphoreGUI.push_back(std::make_shared<Semaphore>(device));
+    semaphorePostprocessing.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
+    semaphoreGUI.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
   }
 
   graphicTexture.resize(settings->getMaxFramesInFlight());
@@ -374,11 +437,11 @@ void initialize() {
   pointLightVertical2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
-  /*directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight->createPhong(0.2f, 0.f, glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
-  directionalLight->setUp({0.f, 0.f, -1.f});*/
+  directionalLight->setUp({0.f, 0.f, -1.f});
 
   /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(0.f, 1.f, glm::vec3(1.f, 1.f, 1.f));
@@ -512,7 +575,26 @@ void initialize() {
   postprocessing = std::make_shared<Postprocessing>(graphicTexture, swapchain->getImageViews(), state);
 
   debugVisualization->setPostprocessing(postprocessing);
+
+  shadowSemaphore.resize(settings->getMaxFramesInFlight());
+  particleSemaphore.resize(settings->getMaxFramesInFlight());
+  for (int i = 0; i < shadowSemaphore.size(); i++) {
+    shadowSemaphore[i] = std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, device);
+    particleSemaphore[i] = std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, device);
+  }
+
+  shadowFences.resize(lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6);
+  for (int i = 0; i < lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6; i++) {
+    shadowFences[i].resize(settings->getMaxFramesInFlight());
+    for (int j = 0; j < settings->getMaxFramesInFlight(); j++) {
+      shadowFences[i][j] = std::make_shared<Fence>(device);
+    }
+  }
+
+  myfile.open("example.txt");
+
   pool = std::make_shared<BS::thread_pool>(6);
+  pool2 = std::make_shared<BS::thread_pool>(1);
 }
 
 void drawFrame() {
@@ -524,9 +606,9 @@ void drawFrame() {
   result = vkResetFences(device->getLogicalDevice(), waitParticleSystemFence.size(), waitParticleSystemFence.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
 
-  result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
-                                /*VkCommandBufferResetFlagBits*/ 0);
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
+  // result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
+  //                               /*VkCommandBufferResetFlagBits*/ 0);
+  // if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   commandBufferParticleSystem->beginCommands(currentFrame);
   loggerCompute->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
@@ -537,23 +619,33 @@ void drawFrame() {
 
   particleSystem->updateTimer(frameTimer);
 
+  uint64_t particleSignal = globalFrame + 1;
+  VkTimelineSemaphoreSubmitInfo timelineInfo{};
+  timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+  timelineInfo.pNext = NULL;
+  timelineInfo.signalSemaphoreValueCount = 1;
+  timelineInfo.pSignalSemaphoreValues = &particleSignal;
+
   VkSubmitInfo submitInfoCompute{};
   submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-  VkSemaphore signalComputeSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+  submitInfoCompute.pNext = &timelineInfo;
+  VkSemaphore signalParticleSemaphores[] = {particleSemaphore[currentFrame]->getSemaphore()};
   submitInfoCompute.signalSemaphoreCount = 1;
-  submitInfoCompute.pSignalSemaphores = signalComputeSemaphores;
+  submitInfoCompute.pSignalSemaphores = signalParticleSemaphores;
   submitInfoCompute.commandBufferCount = 1;
   submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
 
   // end command buffer
-  commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
+  commandBufferParticleSystem->endCommands(currentFrame, 0, submitInfoCompute, particleSystemFences[currentFrame]);
 
   //***************************************************************************************************************
   // process shadows
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
+
+  shadowIndex[currentFrame] = 0;
+  shadowSemaphore[currentFrame]->reset();
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
@@ -571,8 +663,8 @@ void drawFrame() {
   result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
 
-  result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
+  // result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+  // if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
 
   gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
 
@@ -595,6 +687,7 @@ void drawFrame() {
   if (updateJoints.valid()) {
     updateJoints.get();
   }
+
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -659,9 +752,6 @@ void drawFrame() {
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
 
-  // wait for shadow to complete before render
-  pool->wait_for_tasks();
-
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -710,6 +800,7 @@ void drawFrame() {
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
+    pool2->wait_for_tasks();
     loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
@@ -747,21 +838,33 @@ void drawFrame() {
 
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
-    updateJoints = pool->submit([&]() {
+    updateJoints = pool2->submit([&]() {
       loggerCPU->begin("Update animation " + std::to_string(globalFrame));
       modelManager->updateAnimation(currentFrame, frameTimer);
       loggerCPU->end();
     });
 
+    std::vector<VkSemaphore> waitSemaphores = {particleSemaphore[currentFrame]->getSemaphore(),
+                                               shadowSemaphore[currentFrame]->getSemaphore()};
+
+    uint64_t shadowWait = (lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() * 6);
+    std::vector<uint64_t> waitSemaphoreValues = {particleSignal, shadowWait};
+    VkTimelineSemaphoreSubmitInfo waitShadowTimeline{};
+    waitShadowTimeline.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    waitShadowTimeline.pNext = NULL;
+    waitShadowTimeline.waitSemaphoreValueCount = waitSemaphores.size();
+    waitShadowTimeline.pWaitSemaphoreValues = waitSemaphoreValues.data();
+
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = &waitShadowTimeline;
 
-    std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
+    std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                                                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
 
     submitInfo.waitSemaphoreCount = waitSemaphores.size();
     submitInfo.pWaitSemaphores = waitSemaphores.data();
-    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.pWaitDstStageMask = waitStages.data();
 
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
@@ -770,8 +873,9 @@ void drawFrame() {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    commandBuffer->endCommands(currentFrame, submitInfo, nullptr);
+    commandBuffer->endCommands(currentFrame, 0, submitInfo, nullptr);
   }
+
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -801,6 +905,8 @@ void drawFrame() {
     postprocessing->drawCompute(currentFrame, imageIndex, commandBufferPostprocessing);
     loggerCompute->end(currentFrame);
 
+    pool->wait_for_tasks();
+
     VkSubmitInfo submitInfoPostprocessing{};
     submitInfoPostprocessing.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -818,9 +924,8 @@ void drawFrame() {
     submitInfoPostprocessing.pCommandBuffers = &commandBufferPostprocessing->getCommandBuffer()[currentFrame];
 
     // end command buffer
-    commandBufferPostprocessing->endCommands(currentFrame, submitInfoPostprocessing, nullptr);
+    commandBufferPostprocessing->endCommands(currentFrame, 0, submitInfoPostprocessing, nullptr);
   }
-
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render debug visualization
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -912,7 +1017,7 @@ void drawFrame() {
     // end command buffer
     // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
     // signal inFlightFences once all commands on GPU finish execution
-    commandBufferGUI->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
+    commandBufferGUI->endCommands(currentFrame, 0, submitInfo, inFlightFences[currentFrame]);
   }
 
   VkPresentInfoKHR presentInfo{};
@@ -938,7 +1043,6 @@ void drawFrame() {
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }
-
   globalFrame += 1;
   currentFrame = globalFrame % settings->getMaxFramesInFlight();
 }

@@ -8,15 +8,15 @@ VkSurfaceCapabilitiesKHR& Device::getSupportedSurfaceCapabilities() { return _su
 
 std::optional<uint32_t> Device::getSupportedFamilyIndex(QueueType type) { return _family[type]; }
 
-VkQueue Device::getQueue(QueueType type) {
+VkQueue Device::getQueue(QueueType type, int index) {
   VkQueue queue;
-  vkGetDeviceQueue(getLogicalDevice(), getSupportedFamilyIndex(type).value(), 0, &queue);
+  vkGetDeviceQueue(getLogicalDevice(), getSupportedFamilyIndex(type).value(), index, &queue);
   return queue;
 }
 
-std::mutex& Device::getQueueMutex(QueueType type) {
+std::mutex& Device::getQueueMutex(QueueType type, int index) {
   std::unique_lock<std::mutex> lock(_mapMutex);
-  return _queueMutex[type];
+  return _queueMutex[{type, index}];
 }
 
 bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
@@ -145,13 +145,18 @@ void Device::_createLogicalDevice() {
   std::set<uint32_t> uniqueQueueFamilies = {_family[QueueType::PRESENT].value(), _family[QueueType::GRAPHIC].value(),
                                             _family[QueueType::COMPUTE].value(), _family[QueueType::TRANSFER].value()};
 
-  float queuePriority = 1.0f;
+  std::vector<float> queuePriority = {1.f, 1.f};
   for (uint32_t queueFamily : uniqueQueueFamilies) {
     VkDeviceQueueCreateInfo queueCreateInfo{};
     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queueCreateInfo.queueFamilyIndex = queueFamily;
     queueCreateInfo.queueCount = 1;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    queueCreateInfo.pQueuePriorities = queuePriority.data();
+    if (queueFamily == _family[QueueType::GRAPHIC].value()) {
+      queueCreateInfo.queueCount = 2;
+      queueCreateInfo.pQueuePriorities = queuePriority.data();
+    }
+
     queueCreateInfos.push_back(queueCreateInfo);
   }
 
@@ -162,8 +167,13 @@ void Device::_createLogicalDevice() {
   deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
 
-  constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
+  VkPhysicalDeviceVulkan12Features dynamicDeviceFeatures12{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      .timelineSemaphore = VK_TRUE};
+
+  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+      .pNext = &dynamicDeviceFeatures12,
       .dynamicRendering = VK_TRUE};
 
   VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{
