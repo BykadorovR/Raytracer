@@ -77,7 +77,7 @@ std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<DebugVisualization> debugVisualization;
-std::shared_ptr<LoggerGPU> loggerGPU, loggerCompute;
+std::shared_ptr<LoggerGPU> loggerGPU, loggerPostprocessing, loggerParticles, loggerGPUDebug;
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::future<void> updateJoints;
@@ -99,6 +99,7 @@ bool terrainPatch = false;
 bool showLoD = false;
 bool shouldWork = true;
 std::map<int, bool> layoutChanged;
+std::mutex debugVisualizationMutex;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -278,6 +279,164 @@ void pointLightCalculator(int index, int face) {
   commandBuffer->endCommands(currentFrame, false);
 }
 
+void computeParticles() {
+  //***************************************************************************************************************
+  // process particle system
+  std::vector<VkFence> waitParticleSystemFence = {particleSystemFences[currentFrame]->getFence()};
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitParticleSystemFence.size(),
+                                waitParticleSystemFence.data(), VK_TRUE, UINT64_MAX);
+  result = vkResetFences(device->getLogicalDevice(), waitParticleSystemFence.size(), waitParticleSystemFence.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
+  result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
+                                /*VkCommandBufferResetFlagBits*/ 0);
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
+
+  commandBufferParticleSystem->beginCommands(currentFrame);
+  loggerParticles->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
+
+  loggerParticles->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
+  particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
+  loggerParticles->end(currentFrame);
+
+  particleSystem->updateTimer(frameTimer);
+
+  VkSubmitInfo submitInfoCompute{};
+  submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  VkSemaphore signalComputeSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+  submitInfoCompute.signalSemaphoreCount = 1;
+  submitInfoCompute.pSignalSemaphores = signalComputeSemaphores;
+  submitInfoCompute.commandBufferCount = 1;
+  submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
+
+  // end command buffer
+  commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
+}
+
+void computePostprocessing(int swapchainImageIndex) {
+  commandBufferPostprocessing->beginCommands(currentFrame);
+  loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
+                                             commandBufferPostprocessing);
+  {
+    std::unique_lock<std::mutex> debugLock(debugVisualizationMutex);
+    if (layoutChanged.contains(swapchainImageIndex) && layoutChanged[swapchainImageIndex] == true) {
+      // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
+      VkImageMemoryBarrier colorBarrier{
+          .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+          .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+          .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+          .image = swapchain->getImageViews()[swapchainImageIndex]->getImage()->getImage(),
+          .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                               .baseMipLevel = 0,
+                               .levelCount = 1,
+                               .baseArrayLayer = 0,
+                               .layerCount = 1}};
+      vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
+                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
+                           0, 0, nullptr, 0, nullptr,
+                           1,             // imageMemoryBarrierCount
+                           &colorBarrier  // pImageMemoryBarriers
+      );
+    }
+  }
+  loggerPostprocessing->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
+  postprocessing->drawCompute(currentFrame, swapchainImageIndex, commandBufferPostprocessing);
+  loggerPostprocessing->end(currentFrame);
+}
+
+void debugVisualizations(int swapchainImageIndex) {
+  commandBufferGUI->beginCommands(currentFrame);
+  loggerGPUDebug->setCommandBufferName("GUI command buffer", currentFrame, commandBufferGUI);
+
+  VkClearValue clearColor;
+  clearColor.color = settings->getClearColor();
+  const VkRenderingAttachmentInfo colorAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = swapchain->getImageViews()[swapchainImageIndex]->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearColor,
+  };
+
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = swapchain->getDepthImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+  };
+
+  auto [width, height] = swapchain->getImageViews()[swapchainImageIndex]->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &colorAttachmentInfo,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
+
+  vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
+  loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
+  debugVisualization->draw(currentFrame, commandBufferGUI);
+  loggerGPUDebug->end(currentFrame);
+
+  loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
+  // TODO: move to beginning and separate thread?
+  gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
+  {
+    std::map<std::string, bool*> terrainGUI;
+    terrainGUI["Normals"] = &terrainNormals;
+    terrainGUI["Wireframe"] = &terrainWireframe;
+    gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
+  }
+  {
+    std::map<std::string, bool*> terrainGUI;
+    terrainGUI["Patches"] = &terrainPatch;
+    if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
+      std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
+  }
+  {
+    std::map<std::string, bool*> terrainGUI;
+    terrainGUI["LoD"] = &showLoD;
+    if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
+      std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
+  }
+  gui->updateBuffers(currentFrame);
+  gui->drawFrame(currentFrame, commandBufferGUI);
+  loggerGPUDebug->end(currentFrame);
+
+  vkCmdEndRendering(commandBufferGUI->getCommandBuffer()[currentFrame]);
+
+  // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
+  VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                    .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                    .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                    .image = swapchain->getImageViews()[swapchainImageIndex]->getImage()->getImage(),
+                                    .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                         .baseMipLevel = 0,
+                                                         .levelCount = 1,
+                                                         .baseArrayLayer = 0,
+                                                         .layerCount = 1}};
+  vkCmdPipelineBarrier(commandBufferGUI->getCommandBuffer()[currentFrame],
+                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
+                       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // dstStageMask
+                       0, 0, nullptr, 0, nullptr,
+                       1,             // imageMemoryBarrierCount
+                       &colorBarrier  // pImageMemoryBarriers
+  );
+
+  std::unique_lock<std::mutex> debugLock(debugVisualizationMutex);
+  layoutChanged[swapchainImageIndex] = true;
+}
+
 void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
@@ -318,7 +477,9 @@ void initialize() {
   commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, device);
   //
   loggerGPU = std::make_shared<LoggerGPU>(state);
-  loggerCompute = std::make_shared<LoggerGPU>(state);
+  loggerPostprocessing = std::make_shared<LoggerGPU>(state);
+  loggerParticles = std::make_shared<LoggerGPU>(state);
+  loggerGPUDebug = std::make_shared<LoggerGPU>(state);
   loggerCPU = std::make_shared<LoggerCPU>();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
@@ -516,44 +677,12 @@ void initialize() {
 }
 
 void drawFrame() {
-  //***************************************************************************************************************
-  // process particle system
-  std::vector<VkFence> waitParticleSystemFence = {particleSystemFences[currentFrame]->getFence()};
-  auto result = vkWaitForFences(device->getLogicalDevice(), waitParticleSystemFence.size(),
-                                waitParticleSystemFence.data(), VK_TRUE, UINT64_MAX);
-  result = vkResetFences(device->getLogicalDevice(), waitParticleSystemFence.size(), waitParticleSystemFence.data());
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
-
-  result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
-                                /*VkCommandBufferResetFlagBits*/ 0);
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
-
-  commandBufferParticleSystem->beginCommands(currentFrame);
-  loggerCompute->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
-
-  loggerCompute->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
-  particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
-  loggerCompute->end(currentFrame);
-
-  particleSystem->updateTimer(frameTimer);
-
-  VkSubmitInfo submitInfoCompute{};
-  submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-  VkSemaphore signalComputeSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
-  submitInfoCompute.signalSemaphoreCount = 1;
-  submitInfoCompute.pSignalSemaphores = signalComputeSemaphores;
-  submitInfoCompute.commandBufferCount = 1;
-  submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
-
-  // end command buffer
-  commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
-
-  //***************************************************************************************************************
-  // process shadows
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
-  result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
+  auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
+
+  result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
 
   uint32_t imageIndex;
   // RETURNS ONLY INDEX, NOT IMAGE
@@ -567,14 +696,6 @@ void drawFrame() {
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
-
-  result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
-
-  result = vkResetCommandBuffer(commandBuffer->getCommandBuffer()[currentFrame], /*VkCommandBufferResetFlagBits*/ 0);
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
-
-  gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
 
   // update positions
   static float angleHorizontal = 90.f;
@@ -590,6 +711,10 @@ void drawFrame() {
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);
   modelManager->setCamera(camera);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  // compute particles
+  ////////////////////////////////////////////////////////////////////////////////////////
+  auto particlesFuture = pool->submit(computeParticles);
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
@@ -604,6 +729,8 @@ void drawFrame() {
       shadowFutures.push_back(pool->submit(pointLightCalculator, i, j));
     }
   }
+
+  auto postprocessingFuture = pool->submit(computePostprocessing, imageIndex);
 
   // record command buffer
   commandBuffer->beginCommands(currentFrame);
@@ -656,6 +783,7 @@ void drawFrame() {
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
 
+  std::future<void> debugVisualizationFuture;
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -699,6 +827,10 @@ void drawFrame() {
     loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
     lightManager->draw(currentFrame);
     loggerGPU->end(currentFrame);
+
+    // Light DS is used inside debug visualizations
+    debugVisualizationFuture = pool->submit(debugVisualizations, imageIndex);
+
     // draw scene here
     loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
     spriteManager->draw(currentFrame, commandBuffer);
@@ -721,24 +853,6 @@ void drawFrame() {
     });
 
     loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
-    {
-      std::map<std::string, bool*> terrainGUI;
-      terrainGUI["Normals"] = &terrainNormals;
-      terrainGUI["Wireframe"] = &terrainWireframe;
-      gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
-    }
-    {
-      std::map<std::string, bool*> terrainGUI;
-      terrainGUI["Patches"] = &terrainPatch;
-      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-        std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
-    }
-    {
-      std::map<std::string, bool*> terrainGUI;
-      terrainGUI["LoD"] = &showLoD;
-      if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-        std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
-    }
     if (terrainWireframe)
       terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
     else
@@ -759,6 +873,9 @@ void drawFrame() {
         shadowFuture.get();
       }
     }
+
+    // wait for particles to complete before render
+    if (particlesFuture.valid()) particlesFuture.get();
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -783,30 +900,7 @@ void drawFrame() {
   // Render compute postprocessing
   //////////////////////////////////////////////////////////////////////////////////////////////////
   {
-    commandBufferPostprocessing->beginCommands(currentFrame);
-    loggerCompute->setCommandBufferName("Postprocessing command buffer", currentFrame, commandBufferPostprocessing);
-    if (layoutChanged.contains(imageIndex) && layoutChanged[imageIndex] == true) {
-      // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
-      VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                        .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                        .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
-                                        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                             .baseMipLevel = 0,
-                                                             .levelCount = 1,
-                                                             .baseArrayLayer = 0,
-                                                             .layerCount = 1}};
-      vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
-                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
-                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
-                           0, 0, nullptr, 0, nullptr,
-                           1,             // imageMemoryBarrierCount
-                           &colorBarrier  // pImageMemoryBarriers
-      );
-    }
-    loggerCompute->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
-    postprocessing->drawCompute(currentFrame, imageIndex, commandBufferPostprocessing);
-    loggerCompute->end(currentFrame);
+    if (postprocessingFuture.valid()) postprocessingFuture.get();
 
     VkSubmitInfo submitInfoPostprocessing{};
     submitInfoPostprocessing.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -832,73 +926,7 @@ void drawFrame() {
   // Render debug visualization
   //////////////////////////////////////////////////////////////////////////////////////////////////
   {
-    commandBufferGUI->beginCommands(currentFrame);
-    loggerGPU->setCommandBufferName("GUI command buffer", currentFrame, commandBufferGUI);
-
-    VkClearValue clearColor;
-    clearColor.color = settings->getClearColor();
-    const VkRenderingAttachmentInfo colorAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchain->getImageViews()[imageIndex]->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearColor,
-    };
-
-    const VkRenderingAttachmentInfo depthAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchain->getDepthImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-    };
-
-    auto [width, height] = swapchain->getImageViews()[imageIndex]->getImage()->getResolution();
-    VkRect2D renderArea{};
-    renderArea.extent.width = width;
-    renderArea.extent.height = height;
-    const VkRenderingInfo renderInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .renderArea = renderArea,
-        .layerCount = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &colorAttachmentInfo,
-        .pDepthAttachment = &depthAttachmentInfo,
-    };
-
-    vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
-    loggerGPU->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
-    debugVisualization->draw(currentFrame, commandBufferGUI);
-    loggerGPU->end(currentFrame);
-
-    loggerGPU->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
-    gui->updateBuffers(currentFrame);
-    gui->drawFrame(currentFrame, commandBufferGUI);
-    loggerGPU->end(currentFrame);
-
-    vkCmdEndRendering(commandBufferGUI->getCommandBuffer()[currentFrame]);
-
-    // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
-    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                      .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                                      .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                      .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                      .image = swapchain->getImageViews()[imageIndex]->getImage()->getImage(),
-                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                           .baseMipLevel = 0,
-                                                           .levelCount = 1,
-                                                           .baseArrayLayer = 0,
-                                                           .layerCount = 1}};
-    vkCmdPipelineBarrier(commandBufferGUI->getCommandBuffer()[currentFrame],
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
-                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // dstStageMask
-                         0, 0, nullptr, 0, nullptr,
-                         1,             // imageMemoryBarrierCount
-                         &colorBarrier  // pImageMemoryBarriers
-    );
-
-    layoutChanged[imageIndex] = true;
+    if (debugVisualizationFuture.valid()) debugVisualizationFuture.get();
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
