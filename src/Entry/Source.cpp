@@ -513,7 +513,6 @@ void initialize() {
 
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
-  pool2 = std::make_shared<BS::thread_pool>(1);
 }
 
 void drawFrame() {
@@ -592,20 +591,17 @@ void drawFrame() {
   spriteManager->setCamera(camera);
   modelManager->setCamera(camera);
 
-  // TODO: find the better way this one is too long
-  if (updateJoints.valid()) {
-    updateJoints.get();
-  }
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
+  std::vector<std::future<void>> shadowFutures;
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
-    pool->push_task(directionalLightCalculator, i);
+    shadowFutures.push_back(pool->submit(directionalLightCalculator, i));
   }
 
   for (int i = 0; i < lightManager->getPointLights().size(); i++) {
     for (int j = 0; j < 6; j++) {
-      pool->push_task(pointLightCalculator, i, j);
+      shadowFutures.push_back(pool->submit(pointLightCalculator, i, j));
     }
   }
 
@@ -708,13 +704,17 @@ void drawFrame() {
     spriteManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    pool2->wait_for_tasks();
+    // wait model3D update
+    if (updateJoints.valid()) {
+      updateJoints.get();
+    }
 
     loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
     loggerGPU->end(currentFrame);
 
-    updateJoints = pool2->submit([&]() {
+    // submit model3D update
+    updateJoints = pool->submit([&]() {
       loggerCPU->begin("Update animation " + std::to_string(globalFrame));
       modelManager->updateAnimation(currentFrame, frameTimer);
       loggerCPU->end();
@@ -754,7 +754,11 @@ void drawFrame() {
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
     // wait for shadow to complete before render
-    pool->wait_for_tasks();
+    for (auto& shadowFuture : shadowFutures) {
+      if (shadowFuture.valid()) {
+        shadowFuture.get();
+      }
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
