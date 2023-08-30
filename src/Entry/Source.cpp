@@ -175,14 +175,9 @@ void directionalLightCalculator(int index) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  // no need to wait anything because this thread starts in main thread only when needed
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
   // record command buffer
-  commandBuffer->endCommands(currentFrame, false);
+  commandBuffer->endCommands(currentFrame);
+  commandBuffer->submitToQueue(currentFrame, false);
 }
 
 void pointLightCalculator(int index, int face) {
@@ -269,14 +264,9 @@ void pointLightCalculator(int index, int face) {
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end(currentFrame);
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  // no need to wait anything because this thread starts in main thread only when needed
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
   // record command buffer
-  commandBuffer->endCommands(currentFrame, false);
+  commandBuffer->endCommands(currentFrame);
+  commandBuffer->submitToQueue(currentFrame, false);
 }
 
 void computeParticles() {
@@ -311,7 +301,8 @@ void computeParticles() {
   submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
 
   // end command buffer
-  commandBufferParticleSystem->endCommands(currentFrame, submitInfoCompute, particleSystemFences[currentFrame]);
+  commandBufferParticleSystem->endCommands(currentFrame);
+  commandBufferParticleSystem->submitToQueue(submitInfoCompute, particleSystemFences[currentFrame]);
 }
 
 void computePostprocessing(int swapchainImageIndex) {
@@ -344,6 +335,7 @@ void computePostprocessing(int swapchainImageIndex) {
   loggerPostprocessing->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
   postprocessing->drawCompute(currentFrame, swapchainImageIndex, commandBufferPostprocessing);
   loggerPostprocessing->end(currentFrame);
+  commandBufferPostprocessing->endCommands(currentFrame);
 }
 
 void debugVisualizations(int swapchainImageIndex) {
@@ -435,6 +427,8 @@ void debugVisualizations(int swapchainImageIndex) {
 
   std::unique_lock<std::mutex> debugLock(debugVisualizationMutex);
   layoutChanged[swapchainImageIndex] = true;
+
+  commandBufferGUI->endCommands(currentFrame);
 }
 
 void initialize() {
@@ -894,7 +888,8 @@ void drawFrame() {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    commandBuffer->endCommands(currentFrame, submitInfo, nullptr);
+    commandBuffer->endCommands(currentFrame);
+    commandBuffer->submitToQueue(submitInfo, nullptr);
   }
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
@@ -919,7 +914,7 @@ void drawFrame() {
     submitInfoPostprocessing.pCommandBuffers = &commandBufferPostprocessing->getCommandBuffer()[currentFrame];
 
     // end command buffer
-    commandBufferPostprocessing->endCommands(currentFrame, submitInfoPostprocessing, nullptr);
+    commandBufferPostprocessing->submitToQueue(submitInfoPostprocessing, nullptr);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -947,7 +942,7 @@ void drawFrame() {
     // end command buffer
     // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
     // signal inFlightFences once all commands on GPU finish execution
-    commandBufferGUI->endCommands(currentFrame, submitInfo, inFlightFences[currentFrame]);
+    commandBufferGUI->submitToQueue(submitInfo, inFlightFences[currentFrame]);
   }
 
   VkPresentInfoKHR presentInfo{};

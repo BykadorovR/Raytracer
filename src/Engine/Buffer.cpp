@@ -53,6 +53,7 @@ void Buffer::copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandBuf
   vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _data, 1, &copyRegion);
 
   commandBufferTransfer->endCommands(0);
+  commandBufferTransfer->submitToQueue(0);
 }
 
 VkDeviceSize& Buffer::getSize() { return _size; }
