@@ -118,6 +118,12 @@ void Swapchain::changeImageLayout(VkImageLayout imageLayout, std::shared_ptr<Com
   }
 }
 
+void Swapchain::overrideImageLayout(VkImageLayout imageLayout) {
+  for (int i = 0; i < _swapchainImageViews.size(); i++) {
+    _swapchainImageViews[i]->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
+  }
+}
+
 VkSwapchainKHR& Swapchain::getSwapchain() { return _swapchain; }
 
 VkExtent2D& Swapchain::getSwapchainExtent() { return _swapchainExtent; }

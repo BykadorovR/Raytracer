@@ -32,10 +32,12 @@ void LoggerGPU::setCommandBufferName(std::string name, int currentFrame, std::sh
 }
 
 void LoggerGPU::begin(std::string name, int currentFrame) {
+  _currentFrame = currentFrame;
+
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = name.c_str();
   _cmdBeginDebugUtilsLabelEXT(_buffer->getCommandBuffer()[currentFrame], &markerInfo);
 }
 
-void LoggerGPU::end(int currentFrame) { _cmdEndDebugUtilsLabelEXT(_buffer->getCommandBuffer()[currentFrame]); }
+void LoggerGPU::end() { _cmdEndDebugUtilsLabelEXT(_buffer->getCommandBuffer()[_currentFrame]); }

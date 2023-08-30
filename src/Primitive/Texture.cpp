@@ -68,8 +68,8 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-  commandBuffer->endCommands(0);
-  commandBuffer->submitToQueue(0);
+  commandBuffer->endCommands();
+  commandBuffer->submitToQueue(true);
   // we changed real image layout above, need to override imageLayout internal field
   image->overrideLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

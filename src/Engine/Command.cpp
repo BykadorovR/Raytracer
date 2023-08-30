@@ -37,6 +37,8 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
 }
 
 void CommandBuffer::beginCommands(int currentFrame) {
+  _currentFrame = currentFrame;
+
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -44,13 +46,13 @@ void CommandBuffer::beginCommands(int currentFrame) {
   vkBeginCommandBuffer(_buffer[currentFrame], &beginInfo);
 }
 
-void CommandBuffer::endCommands(int currentFrame) { vkEndCommandBuffer(_buffer[currentFrame]); }
+void CommandBuffer::endCommands() { vkEndCommandBuffer(_buffer[_currentFrame]); }
 
-void CommandBuffer::submitToQueue(int currentFrame, bool blocking) {
+void CommandBuffer::submitToQueue(bool blocking) {
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &_buffer[currentFrame];
+  submitInfo.pCommandBuffers = &_buffer[_currentFrame];
   auto queue = _device->getQueue(_pool->getType());
   std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
   vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);

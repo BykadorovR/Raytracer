@@ -197,8 +197,8 @@ void Image::changeLayout(VkImageLayout oldLayout,
   vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[0], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-  commandBufferTransfer->endCommands(0);
-  commandBufferTransfer->submitToQueue(0);
+  commandBufferTransfer->endCommands();
+  commandBufferTransfer->submitToQueue(true);
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
@@ -224,8 +224,8 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
   vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 
-  commandBufferTransfer->endCommands(0);
-  commandBufferTransfer->submitToQueue(0);
+  commandBufferTransfer->endCommands();
+  commandBufferTransfer->submitToQueue(true);
 }
 
 VkImageLayout& Image::getImageLayout() { return _imageLayout; }

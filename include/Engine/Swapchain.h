@@ -19,6 +19,7 @@ class Swapchain {
             std::shared_ptr<Window> window,
             std::shared_ptr<Surface> surface,
             std::shared_ptr<Device> device);
+  void overrideImageLayout(VkImageLayout imageLayout);
   void changeImageLayout(VkImageLayout imageLayout, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   VkSwapchainKHR& getSwapchain();
   VkExtent2D& getSwapchainExtent();

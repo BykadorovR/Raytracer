@@ -164,20 +164,20 @@ void directionalLightCalculator(int index) {
   // draw scene here
   loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
   loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
 
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
 
   // record command buffer
-  commandBuffer->endCommands(currentFrame);
-  commandBuffer->submitToQueue(currentFrame, false);
+  commandBuffer->endCommands();
+  commandBuffer->submitToQueue(false);
 }
 
 void pointLightCalculator(int index, int face) {
@@ -254,19 +254,19 @@ void pointLightCalculator(int index, int face) {
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
   loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
   loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame), currentFrame);
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-  loggerGPU->end(currentFrame);
+  loggerGPU->end();
 
   // record command buffer
-  commandBuffer->endCommands(currentFrame);
-  commandBuffer->submitToQueue(currentFrame, false);
+  commandBuffer->endCommands();
+  commandBuffer->submitToQueue(false);
 }
 
 void computeParticles() {
@@ -287,7 +287,7 @@ void computeParticles() {
 
   loggerParticles->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
   particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
-  loggerParticles->end(currentFrame);
+  loggerParticles->end();
 
   particleSystem->updateTimer(frameTimer);
 
@@ -301,7 +301,7 @@ void computeParticles() {
   submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
 
   // end command buffer
-  commandBufferParticleSystem->endCommands(currentFrame);
+  commandBufferParticleSystem->endCommands();
   commandBufferParticleSystem->submitToQueue(submitInfoCompute, particleSystemFences[currentFrame]);
 }
 
@@ -310,32 +310,27 @@ void computePostprocessing(int swapchainImageIndex) {
   loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
                                              commandBufferPostprocessing);
   {
-    std::unique_lock<std::mutex> debugLock(debugVisualizationMutex);
-    if (layoutChanged.contains(swapchainImageIndex) && layoutChanged[swapchainImageIndex] == true) {
-      // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
-      VkImageMemoryBarrier colorBarrier{
-          .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-          .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-          .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-          .image = swapchain->getImageViews()[swapchainImageIndex]->getImage()->getImage(),
-          .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                               .baseMipLevel = 0,
-                               .levelCount = 1,
-                               .baseArrayLayer = 0,
-                               .layerCount = 1}};
-      vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
-                           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
-                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
-                           0, 0, nullptr, 0, nullptr,
-                           1,             // imageMemoryBarrierCount
-                           &colorBarrier  // pImageMemoryBarriers
-      );
-    }
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                      .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                      .image = swapchain->getImageViews()[swapchainImageIndex]->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
   }
   loggerPostprocessing->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
   postprocessing->drawCompute(currentFrame, swapchainImageIndex, commandBufferPostprocessing);
-  loggerPostprocessing->end(currentFrame);
-  commandBufferPostprocessing->endCommands(currentFrame);
+  loggerPostprocessing->end();
+  commandBufferPostprocessing->endCommands();
 }
 
 void debugVisualizations(int swapchainImageIndex) {
@@ -377,7 +372,7 @@ void debugVisualizations(int swapchainImageIndex) {
   vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
   loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
   debugVisualization->draw(currentFrame, commandBufferGUI);
-  loggerGPUDebug->end(currentFrame);
+  loggerGPUDebug->end();
 
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
   // TODO: move to beginning and separate thread?
@@ -402,11 +397,10 @@ void debugVisualizations(int swapchainImageIndex) {
   }
   gui->updateBuffers(currentFrame);
   gui->drawFrame(currentFrame, commandBufferGUI);
-  loggerGPUDebug->end(currentFrame);
+  loggerGPUDebug->end();
 
   vkCmdEndRendering(commandBufferGUI->getCommandBuffer()[currentFrame]);
 
-  // Change layout from COLOR_ATTACHMENT to PRESENT_SRC_KHR
   VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                     .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
                                     .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
@@ -425,10 +419,7 @@ void debugVisualizations(int swapchainImageIndex) {
                        &colorBarrier  // pImageMemoryBarriers
   );
 
-  std::unique_lock<std::mutex> debugLock(debugVisualizationMutex);
-  layoutChanged[swapchainImageIndex] = true;
-
-  commandBufferGUI->endCommands(currentFrame);
+  commandBufferGUI->endCommands();
 }
 
 void initialize() {
@@ -663,8 +654,11 @@ void initialize() {
   }
   particleSystem->setCamera(camera);
 
-  swapchain->changeImageLayout(VK_IMAGE_LAYOUT_GENERAL, commandBufferTransfer);
+  // for postprocessing descriptors GENERAL is needed
+  swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
   postprocessing = std::make_shared<Postprocessing>(graphicTexture, swapchain->getImageViews(), state);
+  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
+  swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
@@ -820,7 +814,7 @@ void drawFrame() {
     vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
     loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
     lightManager->draw(currentFrame);
-    loggerGPU->end(currentFrame);
+    loggerGPU->end();
 
     // Light DS is used inside debug visualizations
     debugVisualizationFuture = pool->submit(debugVisualizations, imageIndex);
@@ -828,7 +822,7 @@ void drawFrame() {
     // draw scene here
     loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
     spriteManager->draw(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
+    loggerGPU->end();
 
     // wait model3D update
     if (updateJoints.valid()) {
@@ -837,7 +831,7 @@ void drawFrame() {
 
     loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
     modelManager->draw(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
+    loggerGPU->end();
 
     // submit model3D update
     updateJoints = pool->submit([&]() {
@@ -852,12 +846,12 @@ void drawFrame() {
     else
       terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
     if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
-    loggerGPU->end(currentFrame);
+    loggerGPU->end();
 
     // contains transparency, should be drawn last
     loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
     particleSystem->drawGraphic(currentFrame, commandBuffer);
-    loggerGPU->end(currentFrame);
+    loggerGPU->end();
 
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 
@@ -888,7 +882,7 @@ void drawFrame() {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    commandBuffer->endCommands(currentFrame);
+    commandBuffer->endCommands();
     commandBuffer->submitToQueue(submitInfo, nullptr);
   }
   //////////////////////////////////////////////////////////////////////////////////////////////////
