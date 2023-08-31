@@ -91,8 +91,8 @@ Model3DManager::Model3DManager(VkFormat renderFormat,
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _descriptorPool, _commandBufferTransfer,
-                                     _device, _settings);
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _descriptorPool, _commandBufferTransfer, _device,
+                                     _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
 

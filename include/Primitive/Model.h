@@ -196,7 +196,6 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-            std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandBuffer> commandBufferTransfer,
             std::shared_ptr<Device> device,

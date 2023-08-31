@@ -535,45 +535,44 @@ void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createLight(std::vector<std::shared_ptr<Buffer>> bufferDirectional,
+void DescriptorSet::createLight(int currentFrame,
+                                std::vector<std::shared_ptr<Buffer>> bufferDirectional,
                                 std::vector<std::shared_ptr<Buffer>> bufferPoint) {
-  for (size_t i = 0; i < _descriptorSets.size(); i++) {
-    VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
-    bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = VK_WHOLE_SIZE;
-    if (bufferDirectional.size() > i) {
-      bufferDirectionalInfo.buffer = bufferDirectional[i]->getData();
-      bufferDirectionalInfo.range = bufferDirectional[i]->getSize();
-    }
-
-    VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = VK_NULL_HANDLE;
-    bufferPointInfo.offset = 0;
-    bufferPointInfo.range = VK_WHOLE_SIZE;
-    if (bufferPoint.size() > i) {
-      bufferPointInfo.buffer = bufferPoint[i]->getData();
-      bufferPointInfo.range = bufferPoint[i]->getSize();
-    }
-    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = _descriptorSets[i];
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = 0;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pBufferInfo = &bufferDirectionalInfo;
-
-    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[1].dstSet = _descriptorSets[i];
-    descriptorWrites[1].dstBinding = 1;
-    descriptorWrites[1].dstArrayElement = 0;
-    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    descriptorWrites[1].descriptorCount = 1;
-    descriptorWrites[1].pBufferInfo = &bufferPointInfo;
-
-    vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+  VkDescriptorBufferInfo bufferDirectionalInfo{};
+  bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
+  bufferDirectionalInfo.offset = 0;
+  bufferDirectionalInfo.range = VK_WHOLE_SIZE;
+  if (bufferDirectional.size() > currentFrame && bufferDirectional[currentFrame]) {
+    bufferDirectionalInfo.buffer = bufferDirectional[currentFrame]->getData();
+    bufferDirectionalInfo.range = bufferDirectional[currentFrame]->getSize();
   }
+
+  VkDescriptorBufferInfo bufferPointInfo{};
+  bufferPointInfo.buffer = VK_NULL_HANDLE;
+  bufferPointInfo.offset = 0;
+  bufferPointInfo.range = VK_WHOLE_SIZE;
+  if (bufferPoint.size() > currentFrame && bufferPoint[currentFrame]) {
+    bufferPointInfo.buffer = bufferPoint[currentFrame]->getData();
+    bufferPointInfo.range = bufferPoint[currentFrame]->getSize();
+  }
+  std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+  descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrites[0].dstSet = _descriptorSets[currentFrame];
+  descriptorWrites[0].dstBinding = 0;
+  descriptorWrites[0].dstArrayElement = 0;
+  descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  descriptorWrites[0].descriptorCount = 1;
+  descriptorWrites[0].pBufferInfo = &bufferDirectionalInfo;
+
+  descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrites[1].dstSet = _descriptorSets[currentFrame];
+  descriptorWrites[1].dstBinding = 1;
+  descriptorWrites[1].dstArrayElement = 0;
+  descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  descriptorWrites[1].descriptorCount = 1;
+  descriptorWrites[1].pBufferInfo = &bufferPointInfo;
+
+  vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
 void DescriptorSet::createJoints(std::vector<std::shared_ptr<Buffer>> buffer) {

@@ -23,7 +23,6 @@ struct ModelAuxilary {
 
 ModelGLTF::ModelGLTF(std::string path,
                      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-                     std::shared_ptr<LightManager> lightManager,
                      std::shared_ptr<DescriptorPool> descriptorPool,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<Device> device,
@@ -31,7 +30,6 @@ ModelGLTF::ModelGLTF(std::string path,
   _device = device;
   _descriptorPool = descriptorPool;
   _commandBufferTransfer = commandBufferTransfer;
-  _lightManager = lightManager;
   _settings = settings;
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;

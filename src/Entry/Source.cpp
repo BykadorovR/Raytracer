@@ -422,6 +422,139 @@ void debugVisualizations(int swapchainImageIndex) {
   commandBufferGUI->endCommands();
 }
 
+void renderGraphic() {
+  // record command buffer
+  commandBuffer->beginCommands(currentFrame);
+  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBuffer);
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // depth to screne barrier
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // Image memory barrier to make sure that writes are finished before sampling from the texture
+  int directionalNum = lightManager->getDirectionalLights().size();
+  int pointNum = lightManager->getPointLights().size();
+  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum);
+  for (int i = 0; i < directionalNum; i++) {
+    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].image = lightManager->getDirectionalLights()[i]
+                                      ->getDepthTexture()[currentFrame]
+                                      ->getImageView()
+                                      ->getImage()
+                                      ->getImage();
+    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  }
+
+  for (int i = 0; i < pointNum; i++) {
+    int id = directionalNum + i;
+    imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // We won't be changing the layout of the image
+    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[id].image = lightManager->getPointLights()[i]
+                                       ->getDepthCubemap()[currentFrame]
+                                       ->getTexture()
+                                       ->getImageView()
+                                       ->getImage()
+                                       ->getImage();
+    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  }
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
+                       imageMemoryBarrier.data());
+
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // render graphic
+  /////////////////////////////////////////////////////////////////////////////////////////
+  VkClearValue clearColor;
+  clearColor.color = settings->getClearColor();
+  const VkRenderingAttachmentInfo colorAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = graphicTexture[currentFrame]->getImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearColor,
+  };
+
+  VkClearValue clearDepth;
+  clearDepth.depthStencil = {1.0f, 0};
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = swapchain->getDepthImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearDepth,
+  };
+
+  auto [width, height] = graphicTexture[currentFrame]->getImageView()->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &colorAttachmentInfo,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
+
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+  loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
+  lightManager->draw(currentFrame);
+  loggerGPU->end();
+
+  // draw scene here
+  loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
+  spriteManager->draw(currentFrame, commandBuffer);
+  loggerGPU->end();
+
+  // wait model3D update
+  if (updateJoints.valid()) {
+    updateJoints.get();
+  }
+
+  loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
+  modelManager->draw(currentFrame, commandBuffer);
+  loggerGPU->end();
+
+  // submit model3D update
+  updateJoints = pool->submit([&]() {
+    loggerCPU->begin("Update animation " + std::to_string(globalFrame));
+    modelManager->updateAnimation(currentFrame, frameTimer);
+    loggerCPU->end();
+  });
+
+  loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
+  if (terrainWireframe)
+    terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
+  else
+    terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
+  if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
+  loggerGPU->end();
+
+  // contains transparency, should be drawn last
+  loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
+  particleSystem->drawGraphic(currentFrame, commandBuffer);
+  loggerGPU->end();
+
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+  commandBuffer->endCommands();
+}
+
 void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
@@ -719,172 +852,42 @@ void drawFrame() {
   }
 
   auto postprocessingFuture = pool->submit(computePostprocessing, imageIndex);
+  auto debugVisualizationFuture = pool->submit(debugVisualizations, imageIndex);
 
-  // record command buffer
-  commandBuffer->beginCommands(currentFrame);
-  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBuffer);
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  // Render graphics
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  renderGraphic();
 
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // depth to screne barrier
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // Image memory barrier to make sure that writes are finished before sampling from the texture
-  int directionalNum = lightManager->getDirectionalLights().size();
-  int pointNum = lightManager->getPointLights().size();
-  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum);
-  for (int i = 0; i < directionalNum; i++) {
-    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].image = lightManager->getDirectionalLights()[i]
-                                      ->getDepthTexture()[currentFrame]
-                                      ->getImageView()
-                                      ->getImage()
-                                      ->getImage();
-    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  }
-
-  for (int i = 0; i < pointNum; i++) {
-    int id = directionalNum + i;
-    imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[id].image = lightManager->getPointLights()[i]
-                                       ->getDepthCubemap()[currentFrame]
-                                       ->getTexture()
-                                       ->getImageView()
-                                       ->getImage()
-                                       ->getImage();
-    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  }
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
-                       imageMemoryBarrier.data());
-
-  std::future<void> debugVisualizationFuture;
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // render graphic
-  /////////////////////////////////////////////////////////////////////////////////////////
-  {
-    VkClearValue clearColor;
-    clearColor.color = settings->getClearColor();
-    const VkRenderingAttachmentInfo colorAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = graphicTexture[currentFrame]->getImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearColor,
-    };
-
-    VkClearValue clearDepth;
-    clearDepth.depthStencil = {1.0f, 0};
-    const VkRenderingAttachmentInfo depthAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = swapchain->getDepthImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearDepth,
-    };
-
-    auto [width, height] = graphicTexture[currentFrame]->getImageView()->getImage()->getResolution();
-    VkRect2D renderArea{};
-    renderArea.extent.width = width;
-    renderArea.extent.height = height;
-    const VkRenderingInfo renderInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-        .renderArea = renderArea,
-        .layerCount = 1,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &colorAttachmentInfo,
-        .pDepthAttachment = &depthAttachmentInfo,
-    };
-
-    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
-    loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
-    lightManager->draw(currentFrame);
-    loggerGPU->end();
-
-    // Light DS is used inside debug visualizations
-    debugVisualizationFuture = pool->submit(debugVisualizations, imageIndex);
-
-    // draw scene here
-    loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
-    spriteManager->draw(currentFrame, commandBuffer);
-    loggerGPU->end();
-
-    // wait model3D update
-    if (updateJoints.valid()) {
-      updateJoints.get();
+  // wait for shadow to complete before render
+  for (auto& shadowFuture : shadowFutures) {
+    if (shadowFuture.valid()) {
+      shadowFuture.get();
     }
-
-    loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
-    modelManager->draw(currentFrame, commandBuffer);
-    loggerGPU->end();
-
-    // submit model3D update
-    updateJoints = pool->submit([&]() {
-      loggerCPU->begin("Update animation " + std::to_string(globalFrame));
-      modelManager->updateAnimation(currentFrame, frameTimer);
-      loggerCPU->end();
-    });
-
-    loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
-    if (terrainWireframe)
-      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
-    else
-      terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
-    if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
-    loggerGPU->end();
-
-    // contains transparency, should be drawn last
-    loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
-    particleSystem->drawGraphic(currentFrame, commandBuffer);
-    loggerGPU->end();
-
-    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-
-    // wait for shadow to complete before render
-    for (auto& shadowFuture : shadowFutures) {
-      if (shadowFuture.valid()) {
-        shadowFuture.get();
-      }
-    }
-
-    // wait for particles to complete before render
-    if (particlesFuture.valid()) particlesFuture.get();
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
-
-    submitInfo.waitSemaphoreCount = waitSemaphores.size();
-    submitInfo.pWaitSemaphores = waitSemaphores.data();
-    submitInfo.pWaitDstStageMask = waitStages;
-
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
-    VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    commandBuffer->endCommands();
-    commandBuffer->submitToQueue(submitInfo, nullptr);
   }
+
+  // wait for particles to complete before render
+  if (particlesFuture.valid()) particlesFuture.get();
+
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+  std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
+
+  submitInfo.waitSemaphoreCount = waitSemaphores.size();
+  submitInfo.pWaitSemaphores = waitSemaphores.data();
+  submitInfo.pWaitDstStageMask = waitStages;
+
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+
+  VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
+  submitInfo.signalSemaphoreCount = 1;
+  submitInfo.pSignalSemaphores = signalSemaphores;
+
+  commandBuffer->submitToQueue(submitInfo, nullptr);
+
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
   //////////////////////////////////////////////////////////////////////////////////////////////////

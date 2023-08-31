@@ -53,7 +53,8 @@ class DescriptorSet {
   void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
   void createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst);
   void createJoints(std::vector<std::shared_ptr<Buffer>> buffer);
-  void createLight(std::vector<std::shared_ptr<Buffer>> bufferDirectional,
+  void createLight(int currentFrame,
+                   std::vector<std::shared_ptr<Buffer>> bufferDirectional,
                    std::vector<std::shared_ptr<Buffer>> bufferPoint);
   void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
