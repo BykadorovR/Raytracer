@@ -271,17 +271,27 @@ void pointLightCalculator(int index, int face) {
 }
 
 void computeParticles() {
+  /* wait: max(0, frame + 1 - maxFramesInFlight), signal: frame + 1
+    0: wait 0, signal 1, current 0
+    1: wait 0, signal 2, current 1
+    2: wait 1, signal 3, current 0
+    3: wait 2, signal 4, current 1
+    4: wait 3, signal 5, current 0
+  */
+  uint64_t waitValue = 0;
+  if (globalFrame + 1 > settings->getMaxFramesInFlight())
+    waitValue = globalFrame + 1 - settings->getMaxFramesInFlight();
   //***************************************************************************************************************
   // process particle system
-  std::vector<VkFence> waitParticleSystemFence = {particleSystemFences[currentFrame]->getFence()};
-  auto result = vkWaitForFences(device->getLogicalDevice(), waitParticleSystemFence.size(),
-                                waitParticleSystemFence.data(), VK_TRUE, UINT64_MAX);
-  result = vkResetFences(device->getLogicalDevice(), waitParticleSystemFence.size(), waitParticleSystemFence.data());
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+  VkSemaphoreWaitInfo waitInfo{};
+  waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+  waitInfo.pNext = NULL;
+  waitInfo.flags = 0;
+  waitInfo.semaphoreCount = 1;
+  waitInfo.pSemaphores = &particleSystemSemaphore[currentFrame]->getSemaphore();
+  waitInfo.pValues = &waitValue;
 
-  result = vkResetCommandBuffer(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
-                                /*VkCommandBufferResetFlagBits*/ 0);
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset cmd buffer");
+  vkWaitSemaphores(device->getLogicalDevice(), &waitInfo, UINT64_MAX);
 
   commandBufferParticleSystem->beginCommands(currentFrame);
   loggerParticles->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
@@ -310,7 +320,7 @@ void computeParticles() {
 
   // end command buffer
   commandBufferParticleSystem->endCommands();
-  commandBufferParticleSystem->submitToQueue(submitInfoCompute, particleSystemFences[currentFrame]);
+  commandBufferParticleSystem->submitToQueue(submitInfoCompute, nullptr);
 }
 
 void computePostprocessing(int swapchainImageIndex) {
