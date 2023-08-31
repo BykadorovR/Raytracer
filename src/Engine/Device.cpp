@@ -162,8 +162,13 @@ void Device::_createLogicalDevice() {
   deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
 
-  constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
+  VkPhysicalDeviceVulkan12Features dynamicDeviceFeatures12{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      .timelineSemaphore = VK_TRUE};
+
+  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+      .pNext = &dynamicDeviceFeatures12,
       .dynamicRendering = VK_TRUE};
 
   VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{

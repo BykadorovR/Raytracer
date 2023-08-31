@@ -6,9 +6,10 @@ class Semaphore {
  private:
   std::shared_ptr<Device> _device;
   VkSemaphore _semaphore;
+  VkSemaphoreType _type;
 
  public:
-  Semaphore(std::shared_ptr<Device> device);
+  Semaphore(VkSemaphoreType type, std::shared_ptr<Device> device);
   VkSemaphore& getSemaphore();
   ~Semaphore();
 };

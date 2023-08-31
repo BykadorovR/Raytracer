@@ -100,6 +100,7 @@ bool showLoD = false;
 bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
+uint64_t particleSignal;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -291,12 +292,19 @@ void computeParticles() {
 
   particleSystem->updateTimer(frameTimer);
 
+  particleSignal = globalFrame + 1;
+  VkTimelineSemaphoreSubmitInfo timelineInfo{};
+  timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+  timelineInfo.pNext = NULL;
+  timelineInfo.signalSemaphoreValueCount = 1;
+  timelineInfo.pSignalSemaphoreValues = &particleSignal;
+
   VkSubmitInfo submitInfoCompute{};
   submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-  VkSemaphore signalComputeSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
+  submitInfoCompute.pNext = &timelineInfo;
+  VkSemaphore signalParticleSemaphores[] = {particleSystemSemaphore[currentFrame]->getSemaphore()};
   submitInfoCompute.signalSemaphoreCount = 1;
-  submitInfoCompute.pSignalSemaphores = signalComputeSemaphores;
+  submitInfoCompute.pSignalSemaphores = signalParticleSemaphores;
   submitInfoCompute.commandBufferCount = 1;
   submitInfoCompute.pCommandBuffers = &commandBufferParticleSystem->getCommandBuffer()[currentFrame];
 
@@ -602,14 +610,14 @@ void initialize() {
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
-    imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(device));
-    renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(device));
+    imageAvailableSemaphores.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
+    renderFinishedSemaphores.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
     inFlightFences.push_back(std::make_shared<Fence>(device));
     // compute-graphic
-    particleSystemSemaphore.push_back(std::make_shared<Semaphore>(device));
+    particleSystemSemaphore.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, device));
     particleSystemFences.push_back(std::make_shared<Fence>(device));
-    semaphorePostprocessing.push_back(std::make_shared<Semaphore>(device));
-    semaphoreGUI.push_back(std::make_shared<Semaphore>(device));
+    semaphorePostprocessing.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
+    semaphoreGUI.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, device));
   }
 
   graphicTexture.resize(settings->getMaxFramesInFlight());
@@ -869,20 +877,25 @@ void drawFrame() {
   // wait for particles to complete before render
   if (particlesFuture.valid()) particlesFuture.get();
 
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
+  VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
   std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
   VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
+  std::vector<uint64_t> waitSemaphoreValues = {particleSignal};
 
+  VkTimelineSemaphoreSubmitInfo waitParticlesSemaphore{};
+  waitParticlesSemaphore.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+  waitParticlesSemaphore.pNext = NULL;
+  waitParticlesSemaphore.waitSemaphoreValueCount = waitSemaphores.size();
+  waitParticlesSemaphore.pWaitSemaphoreValues = waitSemaphoreValues.data();
+
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.pNext = &waitParticlesSemaphore;
   submitInfo.waitSemaphoreCount = waitSemaphores.size();
   submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages;
-
   submitInfo.commandBufferCount = 1;
   submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
-
-  VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
