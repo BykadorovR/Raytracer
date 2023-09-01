@@ -169,8 +169,8 @@ bool GUI::drawInputInt(std::string name, std::tuple<int, int> position, std::map
   for (auto& [key, value] : variable) {
     ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
     ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::PushItemWidth(20);
-    if (ImGui::InputInt(key.c_str(), value, 0)) result = true;
+    ImGui::PushItemWidth(100);
+    if (ImGui::InputInt(key.c_str(), value, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) result = true;
     ImGui::PopItemWidth();
     ImGui::End();
   }
@@ -344,5 +344,9 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
   if (key == GLFW_KEY_RIGHT && action == GLFW_PRESS) {
     io.AddKeyEvent(ImGuiKey_RightArrow, true);
     io.AddKeyEvent(ImGuiKey_RightArrow, false);
+  }
+  if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    io.AddKeyEvent(ImGuiKey_Enter, false);
   }
 }

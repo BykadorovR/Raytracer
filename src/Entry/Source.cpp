@@ -41,6 +41,8 @@ float fps = 0;
 float frameTimer = 0.f;
 uint64_t currentFrame = 0;
 uint64_t globalFrame = 0;
+uint64_t sleepFrame = 0;
+
 // Depth bias (and slope) are used to avoid shadowing artifacts
 // Constant depth bias factor (always applied)
 float depthBiasConstant = 1.25f;
@@ -101,6 +103,8 @@ bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
+int desiredFPS = 1000;
+bool FPSChanged = false;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -395,6 +399,9 @@ void debugVisualizations(int swapchainImageIndex) {
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
   // TODO: move to beginning and separate thread?
   gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
+  if (gui->drawInputInt("FPS", {20, 20}, {{"##current", &desiredFPS}})) {
+    FPSChanged = true;
+  }
   {
     std::map<std::string, bool*> terrainGUI;
     terrainGUI["Normals"] = &terrainNormals;
@@ -816,6 +823,8 @@ void initialize() {
 }
 
 void drawFrame() {
+  currentFrame = globalFrame % settings->getMaxFramesInFlight();
+
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
@@ -988,28 +997,42 @@ void drawFrame() {
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }
-
-  globalFrame += 1;
-  currentFrame = globalFrame % settings->getMaxFramesInFlight();
 }
 
 void mainLoop() {
-  auto startTime = std::chrono::high_resolution_clock::now();
+  auto startTimeFPS = std::chrono::high_resolution_clock::now();
+  auto globalStartTimeFPS = std::chrono::high_resolution_clock::now();
   int frameFPS = 0;
   while (!glfwWindowShouldClose(window->getWindow())) {
     auto startTimeCurrent = std::chrono::high_resolution_clock::now();
     glfwPollEvents();
     drawFrame();
+    if (FPSChanged) {
+      FPSChanged = false;
+      sleepFrame = 0;
+      globalStartTimeFPS = std::chrono::high_resolution_clock::now();
+    }
+    globalFrame++;
+    sleepFrame++;
     frameFPS++;
     auto end = std::chrono::high_resolution_clock::now();
+    auto elapsedSleep = std::chrono::duration_cast<std::chrono::milliseconds>(end - globalStartTimeFPS).count();
+    uint64_t expected = (1000.f / desiredFPS) * sleepFrame;
+    if (elapsedSleep < expected) {
+      loggerCPU->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
+      std::this_thread::sleep_for(std::chrono::milliseconds(expected - elapsedSleep));
+      loggerCPU->end();
+    }
+    // calculate FPS and model timings
+    end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsedCurrent = end - startTimeCurrent;
     frameTimer = elapsedCurrent.count();
-    std::chrono::duration<double> elapsed = end - startTime;
+    std::chrono::duration<double> elapsed = end - startTimeFPS;
     // calculate frames per second
     if (elapsed.count() > 1.f) {
       fps = frameFPS;
       frameFPS = 0;
-      startTime = std::chrono::high_resolution_clock::now();
+      startTimeFPS = std::chrono::high_resolution_clock::now();
     }
   }
   vkDeviceWaitIdle(device->getLogicalDevice());
