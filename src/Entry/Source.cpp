@@ -300,6 +300,16 @@ void computeParticles() {
   commandBufferParticleSystem->beginCommands(currentFrame);
   loggerParticles->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
 
+  // any read from SSBO should wait for write to SSBO
+  // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer.
+  VkMemoryBarrier memoryBarrier{.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
+  vkCmdPipelineBarrier(commandBufferParticleSystem->getCommandBuffer()[currentFrame],
+                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
+                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
+                       0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+
   loggerParticles->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
   particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
   loggerParticles->end();

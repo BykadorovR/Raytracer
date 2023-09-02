@@ -156,16 +156,6 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
                             &_descriptorSetCompute[currentFrame]->getDescriptorSets()[0], 0, nullptr);
   }
 
-  // any read from SSBO should wait for write to SSBO
-  // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer.
-  VkMemoryBarrier memoryBarrier{.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
-                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
-                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
-                       0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
-
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particlesNumber / 16.f)),
                 1, 1);
 }
