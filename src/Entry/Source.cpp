@@ -103,7 +103,7 @@ bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
-int desiredFPS = 1000;
+int desiredFPS = 30;
 bool FPSChanged = false;
 
 void directionalLightCalculator(int index) {
@@ -559,7 +559,8 @@ void renderGraphic() {
   // submit model3D update
   updateJoints = pool->submit([&]() {
     loggerCPU->begin("Update animation " + std::to_string(globalFrame));
-    modelManager->updateAnimation(currentFrame, frameTimer);
+    // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
+    modelManager->updateAnimation(1 - currentFrame, frameTimer);
     loggerCPU->end();
   });
 
