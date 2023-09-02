@@ -31,6 +31,7 @@ ModelGLTF::ModelGLTF(std::string path,
   _descriptorPool = descriptorPool;
   _commandBufferTransfer = commandBufferTransfer;
   _settings = settings;
+  _loggerCPU = std::make_shared<LoggerCPU>();
   tinygltf::Model model;
   tinygltf::TinyGLTF loader;
   std::string err;
@@ -659,7 +660,6 @@ void ModelGLTF::_loadNode(tinygltf::Node& input,
   }
 }
 
-// TODO: do it once?
 // Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
 glm::mat4 ModelGLTF::_getNodeMatrix(NodeGLTF* node) {
   glm::mat4 nodeMatrix = node->getLocalMatrix();
@@ -698,6 +698,8 @@ void ModelGLTF::updateAnimation(int frame, float deltaTime) {
   if (_animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
+
+  _loggerCPU->begin("Update translate/scale/rotation");
   AnimationGLTF& animation = _animations[_animationIndex];
   animation.currentTime += deltaTime;
   animation.currentTime = fmod(animation.currentTime, animation.end);
@@ -737,9 +739,13 @@ void ModelGLTF::updateAnimation(int frame, float deltaTime) {
       }
     }
   }
+  _loggerCPU->end();
+
+  _loggerCPU->begin("Update matrixes");
   for (auto& node : _nodes) {
     _updateJoints(frame, node);
   }
+  _loggerCPU->end();
 }
 
 void ModelGLTF::_drawNode(int currentFrame,

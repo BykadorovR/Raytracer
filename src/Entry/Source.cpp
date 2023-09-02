@@ -103,7 +103,7 @@ bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
-int desiredFPS = 30;
+int desiredFPS = 1000;
 bool FPSChanged = false;
 
 void directionalLightCalculator(int index) {

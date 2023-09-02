@@ -9,6 +9,7 @@
 #include "tiny_gltf.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Logger.h"
 
 enum class ModelRenderMode { DIRECTIONAL, POINT, FULL };
 
@@ -143,6 +144,7 @@ class ModelGLTF : public Model {
   std::vector<SkinGLTF> _skins;
   std::vector<AnimationGLTF> _animations;
   std::shared_ptr<Settings> _settings;
+  std::shared_ptr<LoggerCPU> _loggerCPU;
 
   std::vector<NodeGLTF*> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;

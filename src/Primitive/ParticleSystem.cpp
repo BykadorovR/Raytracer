@@ -135,7 +135,6 @@ void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale;
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
 
 void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
-  // TODO: add image barrier
   float timeDelta = _frameTimer * 2.f;
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _deltaUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
@@ -158,6 +157,7 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
   }
 
   // any read from SSBO should wait for write to SSBO
+  // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer.
   VkMemoryBarrier memoryBarrier{.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                                 .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
                                 .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
