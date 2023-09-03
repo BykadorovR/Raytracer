@@ -275,28 +275,6 @@ void pointLightCalculator(int index, int face) {
 }
 
 void computeParticles() {
-  /* wait: max(0, frame + 1 - maxFramesInFlight), signal: frame + 1
-    0: wait 0, signal 1, current 0
-    1: wait 0, signal 2, current 1
-    2: wait 1, signal 3, current 0
-    3: wait 2, signal 4, current 1
-    4: wait 3, signal 5, current 0
-  */
-  uint64_t waitValue = 0;
-  if (globalFrame + 1 > settings->getMaxFramesInFlight())
-    waitValue = globalFrame + 1 - settings->getMaxFramesInFlight();
-  //***************************************************************************************************************
-  // process particle system
-  VkSemaphoreWaitInfo waitInfo{};
-  waitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-  waitInfo.pNext = NULL;
-  waitInfo.flags = 0;
-  waitInfo.semaphoreCount = 1;
-  waitInfo.pSemaphores = &particleSystemSemaphore[currentFrame]->getSemaphore();
-  waitInfo.pValues = &waitValue;
-
-  vkWaitSemaphores(device->getLogicalDevice(), &waitInfo, UINT64_MAX);
-
   commandBufferParticleSystem->beginCommands(currentFrame);
   loggerParticles->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
 
@@ -835,26 +813,15 @@ void initialize() {
 
 void drawFrame() {
   currentFrame = globalFrame % settings->getMaxFramesInFlight();
-
+  ////////////////////////////////////////////////////////////////////////////////////////
+  // compute particles
+  ////////////////////////////////////////////////////////////////////////////////////////
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
   result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
-
-  uint32_t imageIndex;
-  // RETURNS ONLY INDEX, NOT IMAGE
-  // semaphore to signal, once image is available
-  result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
-                                 imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
-
-  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    // TODO: recreate swapchain
-    return;
-  } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-    throw std::runtime_error("failed to acquire swap chain image!");
-  }
 
   // update positions
   static float angleHorizontal = 90.f;
@@ -870,9 +837,8 @@ void drawFrame() {
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);
   modelManager->setCamera(camera);
-  ////////////////////////////////////////////////////////////////////////////////////////
-  // compute particles
-  ////////////////////////////////////////////////////////////////////////////////////////
+
+  // submit compute particles
   auto particlesFuture = pool->submit(computeParticles);
 
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -887,6 +853,19 @@ void drawFrame() {
     for (int j = 0; j < 6; j++) {
       shadowFutures.push_back(pool->submit(pointLightCalculator, i, j));
     }
+  }
+
+  uint32_t imageIndex;
+  // RETURNS ONLY INDEX, NOT IMAGE
+  // semaphore to signal, once image is available
+  result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
+                                 imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
+
+  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    // TODO: recreate swapchain
+    return;
+  } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    throw std::runtime_error("failed to acquire swap chain image!");
   }
 
   auto postprocessingFuture = pool->submit(computePostprocessing, imageIndex);
