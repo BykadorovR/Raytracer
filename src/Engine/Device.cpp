@@ -53,6 +53,14 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
     i++;
   }
 
+  // find compute queue != graphic queue
+  for (int i = 0; i < queueFamilies.size(); i++) {
+    auto queueFamily = queueFamilies[i];
+    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT && i != _family[QueueType::GRAPHIC]) {
+      _family[QueueType::COMPUTE] = i;
+    }
+  }
+
   // find transfer queue != graphic queue
   for (int i = 0; i < queueFamilies.size(); i++) {
     auto queueFamily = queueFamilies[i];
@@ -154,14 +162,25 @@ void Device::_createLogicalDevice() {
   deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
 
-  constexpr VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
+  VkPhysicalDeviceVulkan12Features dynamicDeviceFeatures12{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      .timelineSemaphore = VK_TRUE};
+
+  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-      .dynamicRendering = VK_TRUE,
-  };
+      .pNext = &dynamicDeviceFeatures12,
+      .dynamicRendering = VK_TRUE};
+
+  VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
+      .pNext = (void*)&dynamicRenderingFeature,
+      .robustBufferAccess2 = VK_FALSE,
+      .robustImageAccess2 = VK_FALSE,
+      .nullDescriptor = VK_TRUE};
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.pNext = &dynamicRenderingFeature;
+  createInfo.pNext = &robustnessFeature;
 
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();

@@ -1,7 +1,10 @@
 #include "Cubemap.h"
 #include "Buffer.h"
 
-Cubemap::Cubemap(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Cubemap::Cubemap(std::string path,
+                 VkFormat format,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<State> state) {
   _state = state;
   // load texture
   int texWidth, texHeight, texChannels;
@@ -23,8 +26,7 @@ Cubemap::Cubemap(std::string path, std::shared_ptr<CommandBuffer> commandBufferT
   stbi_image_free(pixels);
   // image
   auto [width, height] = state->getSettings()->getResolution();
-  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 6, 1, VK_FORMAT_R8G8B8A8_UNORM,
-                                   VK_IMAGE_TILING_OPTIMAL,
+  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 6, 1, format, VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 6, 1,

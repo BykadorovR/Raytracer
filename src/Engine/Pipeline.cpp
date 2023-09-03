@@ -72,7 +72,8 @@ Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> d
   _dynamicState.pDynamicStates = _dynamicStates.data();
 }
 
-void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+void Pipeline::createHUD(VkFormat renderFormat,
+                         std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                          std::map<std::string, VkPushConstantRange> pushConstants,
                          VkVertexInputBindingDescription bindingDescription,
@@ -88,7 +89,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   auto pushConstantsView = std::views::values(pushConstants);
   auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
@@ -111,7 +112,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -141,6 +142,7 @@ void Pipeline::createHUD(std::vector<VkPipelineShaderStageCreateInfo> shaderStag
 }
 
 void Pipeline::createGraphic3D(
+    VkFormat renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -159,7 +161,7 @@ void Pipeline::createGraphic3D(
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   auto pushConstantsView = std::views::values(pushConstants);
   auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
@@ -188,7 +190,7 @@ void Pipeline::createGraphic3D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -218,6 +220,7 @@ void Pipeline::createGraphic3D(
 }
 
 void Pipeline::createGraphicTerrainCPU(
+    VkFormat renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -236,7 +239,7 @@ void Pipeline::createGraphicTerrainCPU(
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 
@@ -267,7 +270,7 @@ void Pipeline::createGraphicTerrainCPU(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -296,7 +299,8 @@ void Pipeline::createGraphicTerrainCPU(
   }
 }
 
-void Pipeline::createLine(VkCullModeFlags cullMode,
+void Pipeline::createLine(VkFormat renderFormat,
+                          VkCullModeFlags cullMode,
                           VkPolygonMode polygonMode,
                           int thick,
                           std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -315,7 +319,7 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   auto pushConstantsView = std::views::values(pushConstants);
   auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
@@ -347,7 +351,7 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -395,7 +399,7 @@ void Pipeline::createGraphicTerrainShadowGPU(
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 
@@ -463,6 +467,7 @@ void Pipeline::createGraphicTerrainShadowGPU(
 }
 
 void Pipeline::createGraphicTerrainGPU(
+    VkFormat renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -481,7 +486,7 @@ void Pipeline::createGraphicTerrainGPU(
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
 
@@ -518,7 +523,7 @@ void Pipeline::createGraphicTerrainGPU(
   tessellationState.flags = 0;
   tessellationState.patchControlPoints = 4;
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -566,7 +571,7 @@ void Pipeline::createGraphic3DShadow(
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
-  pipelineLayoutInfo.pSetLayouts = &descriptorSetLayoutRaw[0];
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
   auto pushConstantsView = std::views::values(pushConstants);
   auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
@@ -623,6 +628,7 @@ void Pipeline::createGraphic3DShadow(
 }
 
 void Pipeline::createGraphic2D(
+    VkFormat renderFormat,
     VkCullModeFlags cullMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
@@ -667,7 +673,7 @@ void Pipeline::createGraphic2D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
-  std::vector<VkFormat> colorFormat = {_settings->getColorFormat()};
+  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)colorFormat.size(),
                                                         .pColorAttachmentFormats = colorFormat.data(),
@@ -770,10 +776,99 @@ void Pipeline::createGraphic2DShadow(
   }
 }
 
-void Pipeline::createCompute(
-    VkPipelineShaderStageCreateInfo shaderStage,
-    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout) {
+void Pipeline::createParticleSystemGraphic(
+    VkFormat renderFormat,
+    VkCullModeFlags cullMode,
+    VkPolygonMode polygonMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants,
+    VkVertexInputBindingDescription bindingDescription,
+    std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
+  // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
+  }
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
+  if (pushConstants.size() > 0) {
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
+  }
+
+  if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create pipeline layout!");
+  }
+
+  // create pipeline
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+  vertexInputInfo.vertexBindingDescriptionCount = 1;
+  vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+  _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+  _inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+  _rasterizer.cullMode = cullMode;
+  _rasterizer.polygonMode = polygonMode;
+  _rasterizer.depthClampEnable = VK_FALSE;
+  _rasterizer.depthBiasEnable = VK_FALSE;
+  _rasterizer.rasterizerDiscardEnable = VK_FALSE;
+  _rasterizer.lineWidth = 1.0f;
+  _rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+  _depthStencil.depthTestEnable = VK_TRUE;
+  _depthStencil.depthWriteEnable = VK_FALSE;
+
+  std::vector<VkFormat> colorFormat = {renderFormat};
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
+                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &_inputAssembly;
+  pipelineInfo.pViewportState = &_viewportState;
+  pipelineInfo.pDepthStencilState = &_depthStencil;
+  pipelineInfo.pRasterizationState = &_rasterizer;
+  pipelineInfo.pMultisampleState = &_multisampling;
+  pipelineInfo.pColorBlendState = &_colorBlending;
+  pipelineInfo.pDynamicState = &_dynamicState;
+  pipelineInfo.layout = _pipelineLayout;
+  pipelineInfo.subpass = 0;
+  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+  if (vkCreateGraphicsPipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create graphics pipeline!");
+  }
+}
+
+void Pipeline::createParticleSystemCompute(
+    VkPipelineShaderStageCreateInfo shaderStage,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants) {
+  _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
   // create pipeline layout
   std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
   for (auto& layout : _descriptorSetLayout) {
@@ -784,6 +879,13 @@ void Pipeline::createCompute(
   pipelineLayoutInfo.setLayoutCount = descriptorSetLayout.size();
   pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
 
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
+  if (pushConstants.size() > 0) {
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
+  }
+
   if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create pipeline layout!");
@@ -793,7 +895,7 @@ void Pipeline::createCompute(
   computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
   computePipelineCreateInfo.layout = _pipelineLayout;
   computePipelineCreateInfo.flags = 0;
-  // VK_SHADER_STAGE_COMPUTE_BIT
+  //
   computePipelineCreateInfo.stage = shaderStage;
   vkCreateComputePipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr,
                            &_pipeline);

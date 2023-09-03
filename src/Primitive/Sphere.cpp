@@ -8,7 +8,9 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
-Sphere::Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Sphere::Sphere(VkFormat renderFormat,
+               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<State> state) {
   _state = state;
 
   std::vector<Vertex3D> vertices;
@@ -85,16 +87,16 @@ Sphere::Sphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createBuffer();
+  setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
                                                          state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createBuffer(_uniformBuffer);
+  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+  _pipeline->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                              {std::pair{std::string("camera"), setLayout}}, {}, Vertex3D::getBindingDescription(),

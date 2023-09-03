@@ -12,6 +12,8 @@ PointLight::PointLight(std::shared_ptr<Settings> settings) {
 
 void* PointLight::getData() { return _phong.get(); }
 
+float PointLight::getFar() { return _phong->far; }
+
 void PointLight::createPhong(float ambient, float specular, glm::vec3 color) {
   _phong->ambient = ambient;
   _phong->specular = specular;
@@ -23,8 +25,8 @@ void PointLight::setPosition(glm::vec3 position) { _phong->position = position; 
 glm::vec3 PointLight::getPosition() { return _phong->position; }
 
 glm::mat4 PointLight::getViewMatrix(int face) {
-  glm::mat4 viewMatrix = glm::mat4(1.0f);
   // up is inverted because of some specific cubemap Y coordinate stuff
+  auto viewMatrix = glm::mat4(1.f);
   switch (face) {
     case 0:  // POSITIVE_X / right
       viewMatrix = glm::lookAt(_phong->position, _phong->position + glm::vec3(1.0, 0.0, 0.0),
@@ -68,9 +70,7 @@ int PointLight::getAttenuationIndex() { return _attenuationIndex; }
 void PointLight::setAttenuationIndex(int index) {
   _attenuationIndex = index;
   _phong->distance = std::get<0>(_settings->getAttenuations()[index]);
-  _phong->constant = std::get<1>(_settings->getAttenuations()[index]);
-  _phong->linear = std::get<2>(_settings->getAttenuations()[index]);
-  _phong->quadratic = std::get<3>(_settings->getAttenuations()[index]);
+  _phong->quadratic = std::get<1>(_settings->getAttenuations()[index]);
 }
 
 int PointLight::getDistance() { return _phong->distance; }

@@ -22,17 +22,18 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                                           commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraLayout->createBuffer();
+  cameraLayout->createUniformBuffer();
 
   _cameraSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                state->getDescriptorPool(), state->getDevice());
-  _cameraSet->createBuffer(_uniformBuffer);
+  _cameraSet->createUniformBuffer(_uniformBuffer);
 
   _textureSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   _textureSetLayout->createTexture();
 
   _pipeline = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
   _pipeline->createHUD(
+      _state->getSettings()->getSwapchainColorFormat(),
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {{"camera", cameraLayout}, {"texture", _textureSetLayout}},
@@ -45,7 +46,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = std::make_shared<Line>(3, commandBufferTransfer, state);
+    auto line = std::make_shared<Line>(3, _state->getSettings()->getSwapchainColorFormat(), commandBufferTransfer,
+                                       state);
     line->setCamera(camera);
     line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
     _lineFrustum[i] = line;
@@ -53,12 +55,31 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
   _near = _camera->getNear();
   _far = _camera->getFar();
+  auto [r, g, b, a] = _state->getSettings()->getClearColor().float32;
+  _R = r;
+  _G = g;
+  _B = b;
 }
 
-void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
-                                   std::shared_ptr<LightManager> lightManager) {
-  _modelManager = modelManager;
+void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
+  _spriteManager = std::make_shared<SpriteManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
+                                                   _commandBufferTransfer, _state->getDescriptorPool(),
+                                                   _state->getDevice(), _state->getSettings());
+  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCW->enableLighting(false);
+  _farPlaneCW->enableShadow(false);
+  _farPlaneCW->enableDepth(false);
+  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
+  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCCW->enableLighting(false);
+  _farPlaneCCW->enableShadow(false);
+  _farPlaneCCW->enableDepth(false);
+  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
+
+  _modelManager = std::make_shared<Model3DManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
+                                                   _commandBufferTransfer, _state->getDescriptorPool(),
+                                                   _state->getDevice(), _state->getSettings());
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
     model->enableDepth(false);
@@ -67,7 +88,8 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     _modelManager->registerModelGLTF(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(_commandBufferTransfer, _state);
+    auto sphere = std::make_shared<Sphere>(_state->getSettings()->getSwapchainColorFormat(), _commandBufferTransfer,
+                                           _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }
@@ -80,20 +102,6 @@ void DebugVisualization::setLights(std::shared_ptr<Model3DManager> modelManager,
     _modelManager->registerModelGLTF(model);
     _directionalLightModels.push_back(model);
   }
-}
-
-void DebugVisualization::setSpriteManager(std::shared_ptr<SpriteManager> spriteManager) {
-  _spriteManager = spriteManager;
-  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
-  _farPlaneCW->enableLighting(false);
-  _farPlaneCW->enableShadow(false);
-  _farPlaneCW->enableDepth(false);
-  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
-  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
-  _farPlaneCCW->enableLighting(false);
-  _farPlaneCCW->enableShadow(false);
-  _farPlaneCCW->enableDepth(false);
-  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 }
 
 void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -130,12 +138,12 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
       _initializedDepth = true;
     }
 
-    std::map<std::string, int*> toggleShadows;
-    toggleShadows["##Shadows"] = &_shadowMapIndex;
-    _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
-                      toggleShadows);
+    if (_lightManager->getDirectionalLights().size() + _lightManager->getPointLights().size() > 0) {
+      std::map<std::string, int*> toggleShadows;
+      toggleShadows["##Shadows"] = &_shadowMapIndex;
+      _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
+                        toggleShadows);
 
-    if (_shadowMapIndex >= 0) {
       // check if directional
       std::shared_ptr<DescriptorSet> shadowDescriptorSet;
       if (_shadowMapIndex < _lightManager->getDirectionalLights().size()) {
@@ -329,6 +337,12 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
   }
 }
 
+void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
+  _postprocessing = postprocessing;
+  _gamma = _postprocessing->getGamma();
+  _exposure = _postprocessing->getExposure();
+}
+
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
@@ -384,7 +398,28 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
         }
       }
     }
+
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"gamma", &_gamma}});
+    _postprocessing->setGamma(_gamma);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"exposure", &_exposure}});
+    _postprocessing->setExposure(_exposure);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"R", &_R}});
+    _R = std::min(_R, 1.f);
+    _R = std::max(_R, 0.f);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"G", &_G}});
+    _G = std::min(_G, 1.f);
+    _G = std::max(_G, 0.f);
+    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"B", &_B}});
+    _B = std::min(_B, 1.f);
+    _B = std::max(_B, 0.f);
+    _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
   }
+
+  _modelManager->setCamera(_camera);
+  _modelManager->draw(currentFrame, commandBuffer);
+
+  _spriteManager->setCamera(_camera);
+  _spriteManager->draw(currentFrame, commandBuffer);
 
   _drawFrustum(currentFrame, commandBuffer);
 

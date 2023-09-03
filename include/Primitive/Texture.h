@@ -14,6 +14,7 @@ class Texture {
 
  public:
   Texture(std::string path,
+          VkFormat format,
           VkSamplerAddressMode mode,
           int mipMapLevels,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,

@@ -6,7 +6,10 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
-Line::Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Line::Line(int thick,
+           VkFormat renderFormat,
+           std::shared_ptr<CommandBuffer> commandBufferTransfer,
+           std::shared_ptr<State> state) {
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
 
@@ -26,16 +29,16 @@ Line::Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std:
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createBuffer();
+  setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
                                                          state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createBuffer(_uniformBuffer);
+  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, thick,
+  _pipeline->createLine(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, thick,
                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                         {std::pair{std::string("camera"), setLayout}}, {}, Vertex3D::getBindingDescription(),

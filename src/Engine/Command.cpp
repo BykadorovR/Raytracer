@@ -36,33 +36,36 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
   }
 }
 
-void CommandBuffer::beginCommands(int cmd) {
+void CommandBuffer::beginCommands(int currentFrame) {
+  _currentFrame = currentFrame;
+
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-  vkBeginCommandBuffer(_buffer[cmd], &beginInfo);
+  vkBeginCommandBuffer(_buffer[currentFrame], &beginInfo);
 }
 
-void CommandBuffer::endCommands(int cmd) {
-  vkEndCommandBuffer(_buffer[cmd]);
+void CommandBuffer::endCommands() { vkEndCommandBuffer(_buffer[_currentFrame]); }
 
+void CommandBuffer::submitToQueue(bool blocking) {
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &_buffer[cmd];
+  submitInfo.pCommandBuffers = &_buffer[_currentFrame];
   auto queue = _device->getQueue(_pool->getType());
   std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
   vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
   // instead of fence
-  vkQueueWaitIdle(queue);
+  if (blocking) vkQueueWaitIdle(queue);
 }
 
-void CommandBuffer::endCommands(int cmd, VkSubmitInfo info, std::shared_ptr<Fence> fence) {
-  vkEndCommandBuffer(_buffer[cmd]);
+void CommandBuffer::submitToQueue(VkSubmitInfo info, std::shared_ptr<Fence> fence) {
   auto queue = _device->getQueue(_pool->getType());
+  VkFence currentFence = VK_NULL_HANDLE;
+  if (fence) currentFence = fence->getFence();
   std::unique_lock<std::mutex> lock(_device->getQueueMutex(_pool->getType()));
-  vkQueueSubmit(queue, 1, &info, fence->getFence());
+  vkQueueSubmit(queue, 1, &info, currentFence);
 }
 
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }

@@ -10,7 +10,9 @@ void Terrain::setModel(glm::mat4 model) { _model = model; }
 
 void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+TerrainCPU::TerrainCPU(VkFormat renderFormat,
+                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<State> state) {
   _state = state;
 
   int width, height, channels;
@@ -59,16 +61,16 @@ TerrainCPU::TerrainCPU(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(CameraObject),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createBuffer();
+  setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
                                                          state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createBuffer(_uniformBuffer);
+  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/terrainCPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/terrainCPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphicTerrainCPU(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+  _pipeline->createGraphicTerrainCPU(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                      {std::pair{std::string("camera"), setLayout}}, {},
@@ -189,6 +191,7 @@ struct HeightLevels {
 };
 
 TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
+                       VkFormat renderFormat,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<LightManager> lightManager,
                        std::shared_ptr<State> state) {
@@ -196,17 +199,22 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   _patchNumber = patchNumber;
   _lightManager = lightManager;
 
-  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
-                                               commandBufferTransfer, state->getDevice());
-  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
-                                               commandBufferTransfer, state->getDevice());
-  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
-                                               commandBufferTransfer, state->getDevice());
-  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap,
-                                               commandBufferTransfer, state->getDevice());
+  _terrainTiles[0] = std::make_shared<Texture>(
+      "../data/Terrain/dirt.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[1] = std::make_shared<Texture>(
+      "../data/Terrain/grass.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[2] = std::make_shared<Texture>(
+      "../data/Terrain/rock_gray.png", _state->getSettings()->getLoadTextureColorFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state->getDevice());
+  _terrainTiles[3] = std::make_shared<Texture>(
+      "../data/Terrain/snow.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+      _mipMap, commandBufferTransfer, state->getDevice());
 
-  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png", VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                         commandBufferTransfer, state->getDevice());
+  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png",
+                                         _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state->getDevice());
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
   std::vector<Vertex3D> vertices;
@@ -260,13 +268,13 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   }
 
   auto setCameraControl = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraControl->createBuffer(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  setCameraControl->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
 
   auto setCameraEvaluation = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraEvaluation->createBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  setCameraEvaluation->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
   auto setCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraGeometry->createBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
+  setCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
 
   auto setHeight = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setHeight->createTexture(1, 0, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
@@ -276,16 +284,16 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _descriptorSetCameraControl = std::make_shared<DescriptorSet>(
       state->getSettings()->getMaxFramesInFlight(), setCameraControl, state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCameraControl->createBuffer(_cameraBuffer);
+  _descriptorSetCameraControl->createUniformBuffer(_cameraBuffer);
 
   _descriptorSetCameraEvaluation = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                    setCameraEvaluation, state->getDescriptorPool(),
                                                                    state->getDevice());
-  _descriptorSetCameraEvaluation->createBuffer(_cameraBuffer);
+  _descriptorSetCameraEvaluation->createUniformBuffer(_cameraBuffer);
 
   _descriptorSetCameraGeometry = std::make_shared<DescriptorSet>(
       state->getSettings()->getMaxFramesInFlight(), setCameraGeometry, state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCameraGeometry->createBuffer(_cameraBuffer);
+  _descriptorSetCameraGeometry->createUniformBuffer(_cameraBuffer);
 
   _descriptorSetHeight = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setHeight,
                                                          state->getDescriptorPool(), state->getDevice());
@@ -300,7 +308,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
     {
       auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), setCameraControl,
                                                        _state->getDescriptorPool(), _state->getDevice());
-      cameraSet->createBuffer(_cameraBufferDepth[i][0]);
+      cameraSet->createUniformBuffer(_cameraBufferDepth[i][0]);
 
       _descriptorSetCameraDepthControl.push_back({cameraSet});
     }
@@ -308,7 +316,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
       auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                        setCameraEvaluation, _state->getDescriptorPool(),
                                                        _state->getDevice());
-      cameraSet->createBuffer(_cameraBufferDepth[i][0]);
+      cameraSet->createUniformBuffer(_cameraBufferDepth[i][0]);
 
       _descriptorSetCameraDepthEvaluation.push_back({cameraSet});
     }
@@ -321,12 +329,14 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
       facesSetControl[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                            setCameraControl, _state->getDescriptorPool(),
                                                            _state->getDevice());
-      facesSetControl[j]->createBuffer(_cameraBufferDepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
+      facesSetControl[j]->createUniformBuffer(
+          _cameraBufferDepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
 
       facesSetEvaluation[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                               setCameraEvaluation, _state->getDescriptorPool(),
                                                               _state->getDevice());
-      facesSetEvaluation[j]->createBuffer(_cameraBufferDepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
+      facesSetEvaluation[j]->createUniformBuffer(
+          _cameraBufferDepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
     }
     _descriptorSetCameraDepthControl.push_back(facesSetControl);
     _descriptorSetCameraDepthEvaluation.push_back(facesSetEvaluation);
@@ -352,7 +362,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipeline[TerrainRenderMode::FULL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline[TerrainRenderMode::FULL]->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -370,7 +380,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineNormal->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -383,7 +393,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineWireframe->createGraphicTerrainGPU(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},

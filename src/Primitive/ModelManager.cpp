@@ -1,6 +1,7 @@
 #include "ModelManager.h"
 
-Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
+Model3DManager::Model3DManager(VkFormat renderFormat,
+                               std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,
                                std::shared_ptr<Device> device,
@@ -12,7 +13,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
   _descriptorPool = descriptorPool;
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createBuffer();
+    setLayout->createUniformBuffer();
     _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {
@@ -46,7 +47,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
     defaultPushConstants["vertex"] = PushConstants::getPushConstant(sizeof(LightPush));
     defaultPushConstants["fragment"] = LightPush::getPushConstant();
 
-    _pipeline[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+    _pipeline[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
                                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                       _descriptorSetLayout, defaultPushConstants,
@@ -54,7 +55,7 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
                                                       Vertex3D::getAttributeDescriptions());
 
     _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
-    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              _descriptorSetLayout, defaultPushConstants,
@@ -90,8 +91,8 @@ Model3DManager::Model3DManager(std::shared_ptr<LightManager> lightManager,
 }
 
 std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _lightManager, _descriptorPool, _commandBufferTransfer,
-                                     _device, _settings);
+  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _descriptorPool, _commandBufferTransfer, _device,
+                                     _settings);
 }
 void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
 
@@ -156,9 +157,9 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
   }
 }
 
-void Model3DManager::updateAnimation(float deltaTime) {
+void Model3DManager::updateAnimation(int currentFrame, float deltaTime) {
   for (auto model : _modelsGLTF) {
-    if (model) model->updateAnimation(deltaTime);
+    if (model) model->updateAnimation(currentFrame, deltaTime);
   }
 }
 
@@ -217,7 +218,7 @@ void Model3DManager::drawShadow(int currentFrame,
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
       // light camera
-      pushConstants.far = 100.f;
+      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[ModelRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
                          sizeof(PushConstants), sizeof(DepthConstants), &pushConstants);

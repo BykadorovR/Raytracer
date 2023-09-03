@@ -1,5 +1,6 @@
 data/
 TODO.txt
+*.vs
 *.spv
 *.bat
 *.h264

@@ -1,7 +1,8 @@
 #include "SpriteManager.h"
 #include <ranges>
 
-SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
+SpriteManager::SpriteManager(VkFormat renderFormat,
+                             std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                              std::shared_ptr<DescriptorPool> descriptorPool,
                              std::shared_ptr<Device> device,
@@ -14,7 +15,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
   {
     auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createBuffer();
+    setLayout->createUniformBuffer();
     _descriptorSetLayout.push_back({"camera", setLayout});
   }
   {
@@ -36,7 +37,7 @@ SpriteManager::SpriteManager(std::shared_ptr<LightManager> lightManager,
 
     _pipeline[SpriteRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
     _pipeline[SpriteRenderMode::FULL]->createGraphic2D(
-        VK_CULL_MODE_BACK_BIT,
+        renderFormat, VK_CULL_MODE_BACK_BIT,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout,
@@ -191,7 +192,7 @@ void SpriteManager::drawShadow(int currentFrame,
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
       // light camera
-      pushConstants.far = 100.f;
+      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
                          _pipeline[SpriteRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                          sizeof(DepthConstants), &pushConstants);

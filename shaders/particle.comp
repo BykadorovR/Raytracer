@@ -1,0 +1,70 @@
+#version 450
+
+struct Particle {
+    vec3 position;
+    float radius;
+    vec4 color;
+    vec4 minColor;
+    vec4 maxColor;
+    float life;
+    float minLife;
+    float maxLife;	
+    float velocity;
+    float minVelocity;
+    float maxVelocity;
+    vec3 velocityDirection;
+};
+
+layout (std140, set = 0, binding = 0) uniform ParameterUBO {
+    float deltaTime;
+} ubo;
+
+layout(std140, set = 0, binding = 1) readonly buffer ParticleSSBOIn {
+   Particle particlesIn[ ];
+};
+
+layout(std140, set = 0, binding = 2) buffer ParticleSSBOOut {
+   Particle particlesOut[ ];
+};
+
+layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+
+#include "utility.glsl"
+
+void recalculate(inout Particle particle) {
+    particle.position = particle.radius * randomInUnitSphere();
+
+    particle.color.r = randomFloat(particle.minColor.r, particle.maxColor.r);
+    particle.color.g = randomFloat(particle.minColor.g, particle.maxColor.g);
+    particle.color.b = randomFloat(particle.minColor.b, particle.maxColor.b);
+    
+    particle.life = randomFloat(particle.minLife, particle.maxLife);
+    particle.velocity = randomFloat(particle.minVelocity, particle.maxVelocity);
+}
+
+void main() {
+    seed = initRandomSeed(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+    
+    uint index = gl_GlobalInvocationID.x;
+    Particle particleIn = particlesIn[index];
+    if (particleIn.life <= particleIn.minLife) {
+        recalculate(particleIn);
+    }
+    
+    particlesOut[index].position = particleIn.position + (particleIn.velocity * particleIn.velocityDirection) * ubo.deltaTime;
+    particlesOut[index].radius = particleIn.radius;
+    
+    float colorMultiplier = particleIn.life / (particleIn.maxLife - particleIn.minLife);
+    particlesOut[index].color = vec4(particleIn.color.rgb, particleIn.maxColor.a * colorMultiplier);
+    particlesOut[index].minColor = particleIn.minColor;
+    particlesOut[index].maxColor = particleIn.maxColor;
+
+    particlesOut[index].life = particleIn.life - ubo.deltaTime;
+    particlesOut[index].minLife = particleIn.minLife;
+    particlesOut[index].maxLife = particleIn.maxLife;
+    
+    particlesOut[index].velocity = particleIn.velocity;
+    particlesOut[index].minVelocity = particleIn.minVelocity;
+    particlesOut[index].maxVelocity = particleIn.maxVelocity;
+    particlesOut[index].velocityDirection = particleIn.velocityDirection;
+}

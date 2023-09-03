@@ -11,8 +11,6 @@ class PointLight {
     float ambient;
     float specular;
     // attenuation
-    float constant = 1.f;
-    float linear = 0.f;
     float quadratic = 0.f;
     int distance;
     // parameters
@@ -39,6 +37,7 @@ class PointLight {
   int getAttenuationIndex();
   int getDistance();
   int getSize();
+  float getFar();
   void* getData();
 };
 

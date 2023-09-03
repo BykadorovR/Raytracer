@@ -9,6 +9,7 @@
 #include "tiny_gltf.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Logger.h"
 
 enum class ModelRenderMode { DIRECTIONAL, POINT, FULL };
 
@@ -37,7 +38,7 @@ class Model {
                           glm::mat4 projection,
                           int face) = 0;
 
-  virtual void updateAnimation(float deltaTime) = 0;
+  virtual void updateAnimation(int currentFrame, float deltaTime) = 0;
 };
 
 class ModelGLTF : public Model {
@@ -112,7 +113,7 @@ class ModelGLTF : public Model {
     NodeGLTF* skeletonRoot = nullptr;
     std::vector<glm::mat4> inverseBindMatrices;
     std::vector<NodeGLTF*> joints;
-    std::shared_ptr<Buffer> ssbo;
+    std::vector<std::shared_ptr<Buffer>> ssbo;
     std::shared_ptr<DescriptorSet> descriptorSet;
   };
 
@@ -142,6 +143,8 @@ class ModelGLTF : public Model {
   std::vector<MaterialGLTF> _materials;
   std::vector<SkinGLTF> _skins;
   std::vector<AnimationGLTF> _animations;
+  std::shared_ptr<Settings> _settings;
+  std::shared_ptr<LoggerCPU> _loggerCPU;
 
   std::vector<NodeGLTF*> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _uniformBufferDepth;
@@ -158,7 +161,7 @@ class ModelGLTF : public Model {
   // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Texture> _stubTextureNormal;
-  std::shared_ptr<Buffer> _defaultSSBO;
+  std::vector<std::shared_ptr<Buffer>> _defaultSSBO;
   int _jointsNum = 0;
   int _animationIndex = 0;
 
@@ -166,7 +169,7 @@ class ModelGLTF : public Model {
   bool _enableLighting = true;
   std::shared_ptr<LightManager> _lightManager;
 
-  void _updateJoints(NodeGLTF* node);
+  void _updateJoints(int frame, NodeGLTF* node);
   glm::mat4 _getNodeMatrix(NodeGLTF* node);
   void _loadAnimations(tinygltf::Model& model);
   void _loadSkins(tinygltf::Model& model);
@@ -195,7 +198,6 @@ class ModelGLTF : public Model {
  public:
   ModelGLTF(std::string path,
             std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-            std::shared_ptr<LightManager> lightManager,
             std::shared_ptr<DescriptorPool> descriptorPool,
             std::shared_ptr<CommandBuffer> commandBufferTransfer,
             std::shared_ptr<Device> device,
@@ -216,5 +218,5 @@ class ModelGLTF : public Model {
                   glm::mat4 projection,
                   int face);
 
-  void updateAnimation(float deltaTime);
+  void updateAnimation(int frame, float deltaTime);
 };

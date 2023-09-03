@@ -11,15 +11,15 @@ class DescriptorSetLayout {
  public:
   DescriptorSetLayout(std::shared_ptr<Device> device);
   void createTexture(int number = 1, int binding = 0, VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
-  void createBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
-
+  void createUniformBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
+  void createParticleComputeBuffer();
+  void createPostprocessing();
   void createGraphicModel();
   void createJoints();
   void createLight();
   void createLightVP(VkShaderStageFlagBits stage);
   void createShadowTexture();
   void createModelAuxilary();
-  void createCompute();
   void createGUI();
   VkDescriptorSetLayout& getDescriptorSetLayout();
   ~DescriptorSetLayout();
@@ -46,22 +46,21 @@ class DescriptorSet {
                 std::shared_ptr<DescriptorSetLayout> layout,
                 std::shared_ptr<DescriptorPool> pool,
                 std::shared_ptr<Device> device);
-  void createBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createParticleComputeBuffer(std::shared_ptr<UniformBuffer> uniformBuffer,
+                                   std::shared_ptr<Buffer> bufferIn,
+                                   std::shared_ptr<Buffer> bufferOut);
   void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
-
-  void createJoints(std::shared_ptr<Buffer> buffer);
-  void createLight(std::shared_ptr<Buffer> bufferDirectional, std::shared_ptr<Buffer> bufferPoint);
+  void createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst);
+  void createJoints(std::vector<std::shared_ptr<Buffer>> buffer);
+  void createLight(int currentFrame,
+                   std::vector<std::shared_ptr<Buffer>> bufferDirectional,
+                   std::vector<std::shared_ptr<Buffer>> bufferPoint);
   void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
   void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
                            std::vector<std::shared_ptr<Texture>> point);
 
-  void createCompute(std::vector<std::shared_ptr<Texture>> textureOut,
-                     std::shared_ptr<UniformBuffer> uniformBuffer,
-                     std::shared_ptr<UniformBuffer> uniformSpheres,
-                     std::shared_ptr<UniformBuffer> uniformRectangles,
-                     std::shared_ptr<UniformBuffer> uniformHitboxes,
-                     std::shared_ptr<UniformBuffer> uniformSettings);
   void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
   std::vector<VkDescriptorSet>& getDescriptorSets();
 };

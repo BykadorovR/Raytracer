@@ -20,8 +20,8 @@ class LightManager {
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::shared_ptr<Buffer> _lightDirectionalSSBO = nullptr, _lightPointSSBO = nullptr;
-  std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjection = nullptr, _lightPointSSBOViewProjection = nullptr;
+  std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO;
+  std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetLight;
@@ -31,10 +31,21 @@ class LightManager {
   // for 2 frames
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetDepthTexture;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutDepthTexture;
-  bool _changed = true;
+  std::mutex _accessMutex;
+
+  std::map<LightType, std::vector<bool>> _changed;
+  std::vector<std::shared_ptr<Texture>> _directionalTextures;
+  std::vector<std::shared_ptr<Texture>> _pointTextures;
+  void _updateDirectionalDescriptors(int currentFrame);
+  void _updateDirectionalTexture(int currentFrame);
+  void _updatePointDescriptors(int currentFrame);
+  void _updatePointTexture(int currentFrame);
+  void _setLightDescriptors(int currentFrame);
 
  public:
   LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+
+  // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
   std::vector<std::shared_ptr<PointLight>> getPointLights();
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
@@ -45,5 +56,5 @@ class LightManager {
   std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();
   std::vector<std::shared_ptr<DescriptorSet>> getDSShadowTexture();
-  void draw(int frame);
+  void draw(int currentFrame);
 };

@@ -68,12 +68,14 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
   vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-  commandBuffer->endCommands(0);
+  commandBuffer->endCommands();
+  commandBuffer->submitToQueue(true);
   // we changed real image layout above, need to override imageLayout internal field
   image->overrideLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
 Texture::Texture(std::string path,
+                 VkFormat format,
                  VkSamplerAddressMode mode,
                  int mipMapLevels,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -99,7 +101,7 @@ Texture::Texture(std::string path,
   stbi_image_free(pixels);
   // image
   auto image = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, 1, mipMapLevels, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL,
+      std::tuple{texWidth, texHeight}, 1, mipMapLevels, format, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
   image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
