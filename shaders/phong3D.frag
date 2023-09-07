@@ -10,7 +10,7 @@ layout(location = 4) in mat3 fragTBN;
 layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outColor2;
+layout(location = 1) out vec4 outColorBloom;
 layout(set = 2, binding = 0) uniform sampler2D texSampler;
 layout(set = 2, binding = 1) uniform sampler2D normalSampler;
 layout(set = 6, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
@@ -91,5 +91,5 @@ void main() {
         }
     }
 
-    outColor2 = outColor;
+    outColorBloom = outColor;
 }
