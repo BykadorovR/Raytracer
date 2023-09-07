@@ -1,6 +1,6 @@
 #include "ModelManager.h"
 
-Model3DManager::Model3DManager(VkFormat renderFormat,
+Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<DescriptorPool> descriptorPool,

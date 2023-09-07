@@ -21,7 +21,7 @@ class Line {
 
  public:
   Line(int thick,
-       VkFormat renderFormat,
+       std::vector<VkFormat> renderFormat,
        std::shared_ptr<CommandBuffer> commandBufferTransfer,
        std::shared_ptr<State> state);
   void setPosition(glm::vec3 p0, glm::vec3 p1);

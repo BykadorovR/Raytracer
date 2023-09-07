@@ -3,7 +3,7 @@
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
 void DescriptorSetLayout::createPostprocessing() {
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  std::array<VkDescriptorSetLayoutBinding, 3> bindings;
   bindings[0].binding = 0;
   bindings[0].descriptorCount = 1;
   bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -15,6 +15,12 @@ void DescriptorSetLayout::createPostprocessing() {
   bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   bindings[1].pImmutableSamplers = nullptr;
   bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+  bindings[2].binding = 2;
+  bindings[2].descriptorCount = 1;
+  bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  bindings[2].pImmutableSamplers = nullptr;
+  bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
   VkDescriptorSetLayoutCreateInfo layoutInfo{};
   layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -352,18 +358,22 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
   }
 }
 
-void DescriptorSet::createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst) {
+void DescriptorSet::createPostprocessing(std::shared_ptr<ImageView> src,
+                                         std::shared_ptr<ImageView> blur,
+                                         std::shared_ptr<ImageView> dst) {
   VkDescriptorImageInfo imageInfoSrc{};
   imageInfoSrc.imageLayout = src->getImage()->getImageLayout();
-  // TODO: make appropriate name
   imageInfoSrc.imageView = src->getImageView();
+
+  VkDescriptorImageInfo imageInfoBlur{};
+  imageInfoBlur.imageLayout = blur->getImage()->getImageLayout();
+  imageInfoBlur.imageView = blur->getImageView();
 
   VkDescriptorImageInfo imageInfoDst{};
   imageInfoDst.imageLayout = dst->getImage()->getImageLayout();
-  // TODO: make appropriate name
   imageInfoDst.imageView = dst->getImageView();
 
-  std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+  std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
   descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
   descriptorWrites[0].dstSet = _descriptorSets[0];
   descriptorWrites[0].dstBinding = 0;
@@ -378,7 +388,15 @@ void DescriptorSet::createPostprocessing(std::shared_ptr<ImageView> src, std::sh
   descriptorWrites[1].dstArrayElement = 0;
   descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
   descriptorWrites[1].descriptorCount = 1;
-  descriptorWrites[1].pImageInfo = &imageInfoDst;
+  descriptorWrites[1].pImageInfo = &imageInfoBlur;
+
+  descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+  descriptorWrites[2].dstSet = _descriptorSets[0];
+  descriptorWrites[2].dstBinding = 2;
+  descriptorWrites[2].dstArrayElement = 0;
+  descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  descriptorWrites[2].descriptorCount = 1;
+  descriptorWrites[2].pImageInfo = &imageInfoDst;
 
   vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
@@ -464,6 +482,39 @@ void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBu
     descriptorWrites.pBufferInfo = &bufferInfo;
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
+  }
+}
+
+void DescriptorSet::createBloom(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
+  for (size_t i = 0; i < _descriptorSets.size(); i++) {
+    VkDescriptorImageInfo imageInfoSrc{};
+    imageInfoSrc.imageLayout = src[i]->getImageView()->getImage()->getImageLayout();
+    // TODO: make appropriate name
+    imageInfoSrc.imageView = src[i]->getImageView()->getImageView();
+
+    VkDescriptorImageInfo imageInfoDst{};
+    imageInfoDst.imageLayout = dst[i]->getImageView()->getImage()->getImageLayout();
+    // TODO: make appropriate name
+    imageInfoDst.imageView = dst[i]->getImageView()->getImageView();
+
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = _descriptorSets[i];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pImageInfo = &imageInfoSrc;
+
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = _descriptorSets[i];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pImageInfo = &imageInfoDst;
+
+    vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
   }
 }
 

@@ -15,7 +15,12 @@ class Sphere {
   std::vector<uint32_t> _indices;
 
  public:
-  Sphere(VkFormat renderFormat, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Sphere(std::vector<VkFormat> renderFormat,
+         VkCullModeFlags cullMode,
+         VkPolygonMode polygonMode,
+         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<State> state);
+  void setColor(glm::vec4 color);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
 

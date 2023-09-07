@@ -213,6 +213,7 @@ class VertexBuffer {
   std::shared_ptr<Buffer> _buffer, _stagingBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Device> _device;
+  std::vector<T> _vertices;
 
  public:
   VertexBuffer(std::vector<T> vertices,
@@ -221,6 +222,7 @@ class VertexBuffer {
                std::shared_ptr<Device> device) {
     _device = device;
     _commandBufferTransfer = commandBufferTransfer;
+    _vertices = vertices;
 
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 
@@ -238,6 +240,8 @@ class VertexBuffer {
 
     _buffer->copyFrom(_stagingBuffer, commandBufferTransfer);
   }
+
+  std::vector<T> getData() { return _vertices; }
 
   void setData(std::vector<T> vertices) {
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();

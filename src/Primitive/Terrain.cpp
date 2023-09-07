@@ -10,7 +10,7 @@ void Terrain::setModel(glm::mat4 model) { _model = model; }
 
 void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-TerrainCPU::TerrainCPU(VkFormat renderFormat,
+TerrainCPU::TerrainCPU(std::vector<VkFormat> renderFormat,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<State> state) {
   _state = state;
@@ -191,7 +191,7 @@ struct HeightLevels {
 };
 
 TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
-                       VkFormat renderFormat,
+                       std::vector<VkFormat> renderFormat,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<LightManager> lightManager,
                        std::shared_ptr<State> state) {

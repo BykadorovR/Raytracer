@@ -1,7 +1,7 @@
 #include "SpriteManager.h"
 #include <ranges>
 
-SpriteManager::SpriteManager(VkFormat renderFormat,
+SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
                              std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                              std::shared_ptr<DescriptorPool> descriptorPool,

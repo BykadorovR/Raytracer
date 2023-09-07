@@ -37,7 +37,9 @@ class TerrainCPU : public Terrain {
   int _numStrips, _numVertsPerStrip;
 
  public:
-  TerrainCPU(VkFormat renderFormat, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  TerrainCPU(std::vector<VkFormat> renderFormat,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
 
   void draw(int currentFrame,
             std::shared_ptr<CommandBuffer> commandBuffer,
@@ -83,7 +85,7 @@ class TerrainGPU : public Terrain {
 
  public:
   TerrainGPU(std::pair<int, int> patchNumber,
-             VkFormat renderFormat,
+             std::vector<VkFormat> renderFormat,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<LightManager> lightManager,
              std::shared_ptr<State> state);

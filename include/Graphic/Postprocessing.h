@@ -12,6 +12,7 @@ class Postprocessing {
 
  public:
   Postprocessing(std::vector<std::shared_ptr<Texture>> src,
+                 std::vector<std::shared_ptr<Texture>> blur,
                  std::vector<std::shared_ptr<ImageView>> dst,
                  std::shared_ptr<State> state);
   void setExposure(float exposure);

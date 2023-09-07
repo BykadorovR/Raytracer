@@ -33,6 +33,7 @@
 #include "BS_thread_pool.hpp"
 #include "ParticleSystem.h"
 #include "Postprocessing.h"
+#include "Bloom.h"
 
 #undef near
 #undef far
@@ -53,7 +54,7 @@ std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
 std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem,
-    commandBufferPostprocessing, commandBufferGUI;
+    commandBufferPostprocessing, commandBufferBloom, commandBufferGUI;
 std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem, commandPoolPostprocessing,
     commandPoolGUI;
 std::shared_ptr<DescriptorPool> descriptorPool;
@@ -71,6 +72,7 @@ std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
+std::shared_ptr<Bloom> bloom;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -84,7 +86,7 @@ std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::future<void> updateJoints;
 
-std::vector<std::shared_ptr<Texture>> graphicTexture;
+std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
 
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -105,6 +107,8 @@ std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
 int desiredFPS = 1000;
 bool FPSChanged = false;
+
+std::vector<std::shared_ptr<Sphere>> spheres;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -319,6 +323,12 @@ void computePostprocessing(int swapchainImageIndex) {
   commandBufferPostprocessing->beginCommands(currentFrame);
   loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
                                              commandBufferPostprocessing);
+
+  loggerPostprocessing->begin("Bloom compute " + std::to_string(globalFrame), currentFrame);
+  bloom->drawCompute(currentFrame, commandBufferPostprocessing);
+  loggerPostprocessing->end();
+
+  // wait dst image to be ready
   {
     VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                       .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -331,6 +341,27 @@ void computePostprocessing(int swapchainImageIndex) {
                                                            .layerCount = 1}};
     vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
                          VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,     // srcStageMask
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
+  }
+  // wait blur image to be ready
+  {
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                      .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                                      .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                      .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                      .image = blurTextureOut[currentFrame]->getImageView()->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                          0, 0, nullptr, 0, nullptr,
                          1,             // imageMemoryBarrierCount
@@ -492,9 +523,18 @@ void renderGraphic() {
   /////////////////////////////////////////////////////////////////////////////////////////
   VkClearValue clearColor;
   clearColor.color = settings->getClearColor();
-  const VkRenderingAttachmentInfo colorAttachmentInfo{
+  std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(2);
+  colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView = graphicTexture[currentFrame]->getImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearColor,
+  };
+  colorAttachmentInfo[1] = VkRenderingAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = blurTextureIn[currentFrame]->getImageView()->getImageView(),
       .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
       .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
       .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -520,8 +560,8 @@ void renderGraphic() {
       .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
       .renderArea = renderArea,
       .layerCount = 1,
-      .colorAttachmentCount = 1,
-      .pColorAttachments = &colorAttachmentInfo,
+      .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+      .pColorAttachments = colorAttachmentInfo.data(),
       .pDepthAttachment = &depthAttachmentInfo,
   };
 
@@ -560,6 +600,12 @@ void renderGraphic() {
   if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);
   loggerGPU->end();
 
+  loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
+  for (auto sphere : spheres) {
+    sphere->draw(currentFrame, commandBuffer);
+  }
+  loggerGPU->end();
+
   // contains transparency, should be drawn last
   loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
   particleSystem->drawGraphic(currentFrame, commandBuffer);
@@ -573,6 +619,7 @@ void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
   settings->setResolution(std::tuple{1600, 900});
+  // for HDR, it's not SRGB, it's linear
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
@@ -627,6 +674,8 @@ void initialize() {
   }
 
   graphicTexture.resize(settings->getMaxFramesInFlight());
+  blurTextureIn.resize(settings->getMaxFramesInFlight());
+  blurTextureOut.resize(settings->getMaxFramesInFlight());
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     auto graphicImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
                                                 VK_IMAGE_TILING_OPTIMAL,
@@ -638,6 +687,30 @@ void initialize() {
                                                         VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
     graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, graphicImageView,
                                                   state->getDevice());
+    {
+      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
+                                               VK_IMAGE_TILING_OPTIMAL,
+                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                              commandBufferTransfer);
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+      blurTextureIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, blurImageView,
+                                                   state->getDevice());
+    }
+    {
+      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
+                                               VK_IMAGE_TILING_OPTIMAL,
+                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                              commandBufferTransfer);
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+      blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, blurImageView,
+                                                    state->getDevice());
+    }
   }
 
   gui = std::make_shared<GUI>(settings, window, device);
@@ -679,10 +752,12 @@ void initialize() {
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
 
-  spriteManager = std::make_shared<SpriteManager>(settings->getGraphicColorFormat(), lightManager,
-                                                  commandBufferTransfer, descriptorPool, device, settings);
-  modelManager = std::make_shared<Model3DManager>(settings->getGraphicColorFormat(), lightManager,
-                                                  commandBufferTransfer, descriptorPool, device, settings);
+  spriteManager = std::make_shared<SpriteManager>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+      commandBufferTransfer, descriptorPool, device, settings);
+  modelManager = std::make_shared<Model3DManager>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+      commandBufferTransfer, descriptorPool, device, settings);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -779,8 +854,9 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<TerrainGPU>(std::pair{12, 12}, settings->getGraphicColorFormat(), commandBufferTransfer,
-                                         lightManager, state);
+  terrain = std::make_shared<TerrainGPU>(
+      std::pair{12, 12}, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      commandBufferTransfer, lightManager, state);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
@@ -791,8 +867,9 @@ void initialize() {
   auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png",
                                                    settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
-  particleSystem = std::make_shared<ParticleSystem>(300, state->getSettings()->getGraphicColorFormat(), particleTexture,
-                                                    commandBufferTransfer, state);
+  particleSystem = std::make_shared<ParticleSystem>(
+      300, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+      particleTexture, commandBufferTransfer, state);
   {
     auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
     matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -801,12 +878,71 @@ void initialize() {
   }
   particleSystem->setCamera(camera);
 
+  spheres.resize(6);
+  // non HDR
+  spheres[0] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[0]->setColor({0.f, 0.f, 0.1f, 1.f});
+  spheres[0]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
+    spheres[0]->setModel(model);
+  }
+  spheres[1] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[1]->setColor({0.f, 0.f, 0.5f, 1.f});
+  spheres[1]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -5.f, 0.f));
+    spheres[1]->setModel(model);
+  }
+  spheres[2] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[2]->setColor({0.f, 0.f, 1.f, 1.f});
+  spheres[2]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -5.f, 0.f));
+    spheres[2]->setModel(model);
+  }
+  // HDR
+  spheres[3] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[3]->setColor({0.f, 0.f, 2.f, 1.f});
+  spheres[3]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 2.f));
+    spheres[3]->setModel(model);
+  }
+  spheres[4] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[4]->setColor({0.f, 0.f, 5.f, 1.f});
+  spheres[4]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, -2.f));
+    spheres[4]->setModel(model);
+  }
+  spheres[5] = std::make_shared<Sphere>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
+      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  spheres[5]->setColor({0.f, 0.f, 10.f, 1.f});
+  spheres[5]->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
+    spheres[5]->setModel(model);
+  }
+
   // for postprocessing descriptors GENERAL is needed
   swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
-  postprocessing = std::make_shared<Postprocessing>(graphicTexture, swapchain->getImageViews(), state);
+  postprocessing = std::make_shared<Postprocessing>(graphicTexture, blurTextureOut, swapchain->getImageViews(), state);
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
+  bloom = std::make_shared<Bloom>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
 }
@@ -868,7 +1004,7 @@ void drawFrame() {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
 
-  auto postprocessingFuture = pool->submit(computePostprocessing, imageIndex);
+  auto postprocessingFuture = pool->submit([imageIndex]() { computePostprocessing(imageIndex); });
   auto debugVisualizationFuture = pool->submit(debugVisualizations, imageIndex);
 
   /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -896,7 +1032,6 @@ void drawFrame() {
   waitParticlesSemaphore.pNext = NULL;
   waitParticlesSemaphore.waitSemaphoreValueCount = waitSemaphores.size();
   waitParticlesSemaphore.pWaitSemaphoreValues = waitSemaphoreValues.data();
-
   VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.pNext = &waitParticlesSemaphore;

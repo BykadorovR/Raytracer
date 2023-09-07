@@ -51,7 +51,9 @@ class DescriptorSet {
                                    std::shared_ptr<Buffer> bufferIn,
                                    std::shared_ptr<Buffer> bufferOut);
   void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
-  void createPostprocessing(std::shared_ptr<ImageView> src, std::shared_ptr<ImageView> dst);
+  void createPostprocessing(std::shared_ptr<ImageView> src,
+                            std::shared_ptr<ImageView> blur,
+                            std::shared_ptr<ImageView> dst);
   void createJoints(std::vector<std::shared_ptr<Buffer>> buffer);
   void createLight(int currentFrame,
                    std::vector<std::shared_ptr<Buffer>> bufferDirectional,
@@ -60,7 +62,7 @@ class DescriptorSet {
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
   void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
                            std::vector<std::shared_ptr<Texture>> point);
-
+  void createBloom(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
   void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
   std::vector<VkDescriptorSet>& getDescriptorSets();
 };

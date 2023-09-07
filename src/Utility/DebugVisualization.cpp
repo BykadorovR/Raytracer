@@ -46,8 +46,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = std::make_shared<Line>(3, _state->getSettings()->getSwapchainColorFormat(), commandBufferTransfer,
-                                       state);
+    auto line = std::make_shared<Line>(3, std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                       commandBufferTransfer, state);
     line->setCamera(camera);
     line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
     _lineFrustum[i] = line;
@@ -63,8 +63,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
-  _spriteManager = std::make_shared<SpriteManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
-                                                   _commandBufferTransfer, _state->getDescriptorPool(),
+  _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                                   lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
                                                    _state->getDevice(), _state->getSettings());
   _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
   _farPlaneCW->enableLighting(false);
@@ -77,8 +77,8 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _farPlaneCCW->enableDepth(false);
   _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 
-  _modelManager = std::make_shared<Model3DManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
-                                                   _commandBufferTransfer, _state->getDescriptorPool(),
+  _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                                   lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
                                                    _state->getDevice(), _state->getSettings());
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
@@ -88,8 +88,8 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
     _modelManager->registerModelGLTF(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(_state->getSettings()->getSwapchainColorFormat(), _commandBufferTransfer,
-                                           _state);
+    auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, _commandBufferTransfer, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }

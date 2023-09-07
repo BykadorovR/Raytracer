@@ -142,7 +142,7 @@ void Pipeline::createHUD(VkFormat renderFormat,
 }
 
 void Pipeline::createGraphic3D(
-    VkFormat renderFormat,
+    std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -189,11 +189,13 @@ void Pipeline::createGraphic3D(
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -220,7 +222,7 @@ void Pipeline::createGraphic3D(
 }
 
 void Pipeline::createGraphicTerrainCPU(
-    VkFormat renderFormat,
+    std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -269,11 +271,13 @@ void Pipeline::createGraphicTerrainCPU(
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -299,7 +303,7 @@ void Pipeline::createGraphicTerrainCPU(
   }
 }
 
-void Pipeline::createLine(VkFormat renderFormat,
+void Pipeline::createLine(std::vector<VkFormat> renderFormat,
                           VkCullModeFlags cullMode,
                           VkPolygonMode polygonMode,
                           int thick,
@@ -351,10 +355,9 @@ void Pipeline::createLine(VkFormat renderFormat,
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -467,7 +470,7 @@ void Pipeline::createGraphicTerrainShadowGPU(
 }
 
 void Pipeline::createGraphicTerrainGPU(
-    VkFormat renderFormat,
+    std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -522,11 +525,13 @@ void Pipeline::createGraphicTerrainGPU(
   tessellationState.pNext = nullptr;
   tessellationState.flags = 0;
   tessellationState.patchControlPoints = 4;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -628,7 +633,7 @@ void Pipeline::createGraphic3DShadow(
 }
 
 void Pipeline::createGraphic2D(
-    VkFormat renderFormat,
+    std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
@@ -672,11 +677,13 @@ void Pipeline::createGraphic2D(
   _rasterizer.cullMode = cullMode;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -777,7 +784,7 @@ void Pipeline::createGraphic2DShadow(
 }
 
 void Pipeline::createParticleSystemGraphic(
-    VkFormat renderFormat,
+    std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
@@ -832,11 +839,13 @@ void Pipeline::createParticleSystemGraphic(
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_FALSE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
-  std::vector<VkFormat> colorFormat = {renderFormat};
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .colorAttachmentCount = (uint32_t)colorFormat.size(),
-                                                        .pColorAttachmentFormats = colorFormat.data(),
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
                                                         .depthAttachmentFormat = _settings->getDepthFormat()};
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};

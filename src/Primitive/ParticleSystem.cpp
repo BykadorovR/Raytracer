@@ -20,7 +20,7 @@ struct VertexConstants {
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
-                               VkFormat renderFormat,
+                               std::vector<VkFormat> renderFormat,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
@@ -33,7 +33,7 @@ ParticleSystem::ParticleSystem(int particlesNumber,
   _initializeGraphic(renderFormat);
 }
 
-void ParticleSystem::_initializeGraphic(VkFormat renderFormat) {
+void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
   auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("../shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);

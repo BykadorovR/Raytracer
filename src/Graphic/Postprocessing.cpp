@@ -13,6 +13,7 @@ struct ComputeConstants {
 };
 
 Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
+                               std::vector<std::shared_ptr<Texture>> blur,
                                std::vector<std::shared_ptr<ImageView>> dst,
                                std::shared_ptr<State> state) {
   _state = state;
@@ -27,7 +28,7 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
     for (int j = 0; j < dst.size(); j++) {
       _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
                                                                         _state->getDevice());
-      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), dst[j]);
+      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
     }
   }
 

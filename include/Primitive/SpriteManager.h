@@ -18,7 +18,7 @@ class SpriteManager {
   std::vector<std::shared_ptr<Sprite>> _sprites;
 
  public:
-  SpriteManager(VkFormat renderFormat,
+  SpriteManager(std::vector<VkFormat> renderFormat,
                 std::shared_ptr<LightManager> lightManager,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                 std::shared_ptr<DescriptorPool> descriptorPool,

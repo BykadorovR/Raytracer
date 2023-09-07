@@ -8,7 +8,9 @@ struct UniformObject {
   alignas(16) glm::mat4 projection;
 };
 
-Sphere::Sphere(VkFormat renderFormat,
+Sphere::Sphere(std::vector<VkFormat> renderFormat,
+               VkCullModeFlags cullMode,
+               VkPolygonMode polygonMode,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<State> state) {
   _state = state;
@@ -96,11 +98,19 @@ Sphere::Sphere(VkFormat renderFormat,
   shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+  _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                              {std::pair{std::string("camera"), setLayout}}, {}, Vertex3D::getBindingDescription(),
                              Vertex3D::getAttributeDescriptions());
+}
+
+void Sphere::setColor(glm::vec4 color) {
+  auto vertices = _vertexBuffer->getData();
+  for (auto& vertex : vertices) {
+    vertex.color = color;
+  }
+  _vertexBuffer->setData(vertices);
 }
 
 void Sphere::setModel(glm::mat4 model) { _model = model; }

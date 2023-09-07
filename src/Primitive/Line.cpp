@@ -7,7 +7,7 @@ struct UniformObject {
 };
 
 Line::Line(int thick,
-           VkFormat renderFormat,
+           std::vector<VkFormat> renderFormat,
            std::shared_ptr<CommandBuffer> commandBufferTransfer,
            std::shared_ptr<State> state) {
   _state = state;

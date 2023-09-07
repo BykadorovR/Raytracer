@@ -9,6 +9,7 @@ layout(location = 4) in vec3 fragPosition;
 layout(location = 5) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec4 outColor2;
 layout(set = 3, binding = 0) uniform sampler2D terrainSampler[4];
 layout(set = 5, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 5, binding = 1) uniform samplerCube shadowPointSampler[4];
@@ -99,4 +100,6 @@ void main() {
     if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {
         outColor = vec4(1, 1, 0, 1);
     }
+
+    outColor2 = outColor;
 }
