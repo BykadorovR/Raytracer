@@ -33,7 +33,7 @@
 #include "BS_thread_pool.hpp"
 #include "ParticleSystem.h"
 #include "Postprocessing.h"
-#include "Bloom.h"
+#include "Blur.h"
 
 #undef near
 #undef far
@@ -54,7 +54,7 @@ std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
 std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem,
-    commandBufferPostprocessing, commandBufferBloom, commandBufferGUI;
+    commandBufferPostprocessing, commandBufferBlur, commandBufferGUI;
 std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem, commandPoolPostprocessing,
     commandPoolGUI;
 std::shared_ptr<DescriptorPool> descriptorPool;
@@ -72,7 +72,7 @@ std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ModelGLTF> modelGLTF;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
-std::shared_ptr<Bloom> bloom;
+std::shared_ptr<Blur> blur;
 std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
@@ -324,8 +324,8 @@ void computePostprocessing(int swapchainImageIndex) {
   loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
                                              commandBufferPostprocessing);
 
-  loggerPostprocessing->begin("Bloom compute " + std::to_string(globalFrame), currentFrame);
-  bloom->drawCompute(currentFrame, commandBufferPostprocessing);
+  loggerPostprocessing->begin("Blur compute " + std::to_string(globalFrame), currentFrame);
+  blur->drawCompute(currentFrame, commandBufferPostprocessing);
   loggerPostprocessing->end();
 
   // wait dst image to be ready
@@ -901,7 +901,7 @@ void initialize() {
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[2]->setColor({0.f, 0.f, 1.f, 1.f});
+  spheres[2]->setColor({0.f, 0.f, 10.f, 1.f});
   spheres[2]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -5.f, 0.f));
@@ -911,7 +911,7 @@ void initialize() {
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[3]->setColor({0.f, 0.f, 2.f, 1.f});
+  spheres[3]->setColor({5.f, 0.f, 0.f, 1.f});
   spheres[3]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 2.f));
@@ -920,7 +920,7 @@ void initialize() {
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[4]->setColor({0.f, 0.f, 5.f, 1.f});
+  spheres[4]->setColor({0.f, 5.f, 0.f, 1.f});
   spheres[4]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, -2.f));
@@ -929,7 +929,7 @@ void initialize() {
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[5]->setColor({0.f, 0.f, 10.f, 1.f});
+  spheres[5]->setColor({0.f, 0.f, 20.f, 1.f});
   spheres[5]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
@@ -942,7 +942,7 @@ void initialize() {
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
-  bloom = std::make_shared<Bloom>(blurTextureIn, blurTextureOut, state);
+  blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
 }

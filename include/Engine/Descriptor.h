@@ -62,7 +62,7 @@ class DescriptorSet {
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
   void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,
                            std::vector<std::shared_ptr<Texture>> point);
-  void createBloom(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
+  void createBlur(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
   void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
   std::vector<VkDescriptorSet>& getDescriptorSets();
 };

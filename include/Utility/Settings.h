@@ -9,7 +9,7 @@ struct Settings {
   std::tuple<int, int> _resolution = {1920, 1080};
   std::tuple<int, int> _depthResolution = {1024, 1024};
   // VkClearColorValue _clearColor = {196.f / 255.f, 233.f / 255.f, 242.f / 255.f, 1.f};
-  VkClearColorValue _clearColor = {0.2f, 0.2f, 0.2f, 1.f};
+  VkClearColorValue _clearColor = {0.0f, 0.0f, 0.0f, 1.f};
   std::string _name = "default";
   VkFormat _swapchainColorFormat;
   VkFormat _graphicColorFormat;

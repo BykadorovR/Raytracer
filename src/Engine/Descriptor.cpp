@@ -485,7 +485,7 @@ void DescriptorSet::createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createBloom(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
+void DescriptorSet::createBlur(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorImageInfo imageInfoSrc{};
     imageInfoSrc.imageLayout = src[i]->getImageView()->getImage()->getImageLayout();
