@@ -20,6 +20,7 @@ struct Settings {
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
+  int _bloomPasses = 4;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},
                                                        {200, 0.0019}, {325, 0.0007}, {600, 0.0002}, {3250, 0.000007}};
@@ -52,5 +53,6 @@ struct Settings {
   VkFormat getLoadTextureColorFormat();
   VkFormat getLoadTextureAuxilaryFormat();
   VkFormat getDepthFormat();
+  int getBloomPasses();
   VkClearColorValue getClearColor();
 };

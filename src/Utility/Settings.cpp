@@ -40,6 +40,8 @@ VkFormat Settings::getLoadTextureAuxilaryFormat() { return _loadTextureAuxilaryF
 
 VkFormat Settings::getDepthFormat() { return _depthFormat; }
 
+int Settings::getBloomPasses() { return _bloomPasses; }
+
 int Settings::getMaxDirectionalLights() { return _maxDirectionalLights; }
 
 int Settings::getMaxPointLights() { return _maxPointLights; }

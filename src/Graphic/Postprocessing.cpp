@@ -71,6 +71,6 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
   }
 
   auto [width, height] = _state->getSettings()->getResolution();
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / 16.f)),
-                std::max(1, (int)std::ceil(height / 16.f)), 1);
+  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / 32.f)),
+                std::max(1, (int)std::ceil(height / 32.f)), 1);
 }
