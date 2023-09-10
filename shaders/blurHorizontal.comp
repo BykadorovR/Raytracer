@@ -1,24 +1,89 @@
 #version 450
 
+const int GROUP_SIZE = 64;
 layout (local_size_x = 64, local_size_y = 1) in;
 layout (set = 0, binding = 0, rgba8) uniform readonly mediump image2D inputImage;
 layout (set = 0, binding = 1, rgba8) uniform writeonly mediump image2D resultImage;
 
-float weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+const int M = 16;
+const int N = 2 * M + 1;
+
+const float weight[N] = float[N] (
+    0.012318109844189502,
+    0.014381474814203989,
+    0.016623532195728208,
+    0.019024086115486723,
+    0.02155484948872149,
+    0.02417948052890078,
+    0.02685404941667096,
+    0.0295279624870386,
+    0.03214534135442581,
+    0.03464682117793548,
+    0.0369716985390341,
+    0.039060328279673276,
+    0.040856643282313365,
+    0.04231065439216247,
+    0.043380781642569775,
+    0.044035873841196206,
+    0.04425662519949865,
+    0.044035873841196206,
+    0.043380781642569775,
+    0.04231065439216247,
+    0.040856643282313365,
+    0.039060328279673276,
+    0.0369716985390341,
+    0.03464682117793548,
+    0.03214534135442581,
+    0.0295279624870386,
+    0.02685404941667096,
+    0.02417948052890078,
+    0.02155484948872149,
+    0.019024086115486723,
+    0.016623532195728208,
+    0.014381474814203989,
+    0.012318109844189502
+);
+
+const int CACHE_SIZE = GROUP_SIZE + 2 * M;
+//ceil(cache size / group size)
+const int LOAD = (CACHE_SIZE + (GROUP_SIZE - 1)) / GROUP_SIZE;
+shared vec4 cache[CACHE_SIZE];
+
 void main() {
     ivec2 size = imageSize(inputImage);
-    vec4 current = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y)); 
-    // current fragment's contribution
-    vec3 result = current.rgb * weight[0];
-    //do horizontal blur
-    for (int i = 1; i < 5; i++) {
-        ivec2 pc = ivec2(gl_GlobalInvocationID.x + i, gl_GlobalInvocationID.y);
-        if (pc.x >= 0 && pc.x < size.x)
-            result += imageLoad(inputImage, pc).rgb * weight[i];
-        pc = ivec2(gl_GlobalInvocationID.x - i, gl_GlobalInvocationID.y);
-        if (pc.x >= 0 && pc.x < size.x)
-            result += imageLoad(inputImage, pc).rgb * weight[i];
+    ivec2 textureCoords = ivec2(gl_GlobalInvocationID.xy);
+    //int(gl_WorkGroupID.x) * GROUP_SIZE - starting position of current block within image
+    int origin = int(gl_WorkGroupID.x) * GROUP_SIZE - M; //starting position of first sample for blur
+    //every run should load LOAD number of pixels
+    for (int i = 0; i < LOAD; ++i) {
+        int local = int(gl_LocalInvocationID.x) * LOAD + i;
+        if (local < CACHE_SIZE) {
+            //global position of current pixel
+            int pc = origin + local;
+
+            if (pc >= 0 && pc < size.x)
+                cache[local] = imageLoad(inputImage, ivec2(pc, textureCoords.y));
+        }
     }
 
-    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), vec4(result, current.a));
+    memoryBarrierShared();
+    barrier();
+
+    if (textureCoords.x < size.x && textureCoords.y < size.y) {
+        vec4 sum = vec4(0.0);
+        //-M:N - M
+        //N = 5, M = 2, [-2, 3)
+        for (int i = 0; i < N; ++i) {
+            //current pixel in global coords
+            ivec2 pc = textureCoords + ivec2(i - M, 0);
+            if (pc.x < 0) pc.x = 0;
+            if (pc.x >= size.x) pc.x = size.x - 1;
+            //convert global current pixel to local position in cache
+            int local = pc.x - origin;
+
+            sum += weight[i] * cache[local];
+        }
+
+        imageStore(resultImage, textureCoords, sum);
+    }
 }

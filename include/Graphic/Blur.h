@@ -8,6 +8,8 @@ class Blur {
   std::shared_ptr<Pipeline> _computePipelineVertical, _computePipelineHorizontal;
   std::shared_ptr<DescriptorSet> _descriptorSetVertical, _descriptorSetHorizontal;
 
+  std::vector<float> _generateWeights(int kernelSize, float variance);
+
  public:
   Blur(std::vector<std::shared_ptr<Texture>> src,
        std::vector<std::shared_ptr<Texture>> dst,

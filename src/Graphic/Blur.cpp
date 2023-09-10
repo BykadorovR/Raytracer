@@ -1,9 +1,23 @@
 #include "Blur.h"
+#include <numbers>
+
+std::vector<float> Blur::_generateWeights(int kernelSize, float variance) {
+  float expectedValue = 0;
+  std::vector<float> coeffs;
+  for (int i = -kernelSize / 2; i <= kernelSize / 2; i++) {
+    float value = (1 / (sqrt(variance) * sqrt(2 * std::numbers::pi))) *
+                  std::exp(-pow(i - expectedValue, 2) / (2 * variance));
+    coeffs.push_back(value);
+  }
+
+  return coeffs;
+}
 
 Blur::Blur(std::vector<std::shared_ptr<Texture>> src,
            std::vector<std::shared_ptr<Texture>> dst,
            std::shared_ptr<State> state) {
   _state = state;
+  auto weights = _generateWeights(11, 1);
 
   auto shaderVertical = std::make_shared<Shader>(_state->getDevice());
   shaderVertical->add("../shaders/blurVertical_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
