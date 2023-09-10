@@ -33,6 +33,27 @@ void DescriptorSetLayout::createPostprocessing() {
   }
 }
 
+void DescriptorSetLayout::createShaderStorageBuffer(std::vector<int> bindings, std::vector<VkShaderStageFlags> stage) {
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding(bindings.size());
+  for (int i = 0; i < layoutBinding.size(); i++) {
+    layoutBinding[i].binding = i;
+    layoutBinding[i].descriptorCount = 1;
+    layoutBinding[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutBinding[i].pImmutableSamplers = nullptr;
+    layoutBinding[i].stageFlags = stage[i];
+  }
+
+  VkDescriptorSetLayoutCreateInfo layoutInfo{};
+  layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+  layoutInfo.bindingCount = layoutBinding.size();
+  layoutInfo.pBindings = layoutBinding.data();
+
+  if (vkCreateDescriptorSetLayout(_device->getLogicalDevice(), &layoutInfo, nullptr, &_descriptorSetLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create descriptor set layout!");
+  }
+}
+
 void DescriptorSetLayout::createParticleComputeBuffer() {
   std::array<VkDescriptorSetLayoutBinding, 3> layoutBinding{};
   layoutBinding[0].binding = 0;
@@ -564,6 +585,28 @@ void DescriptorSet::createParticleComputeBuffer(std::shared_ptr<UniformBuffer> u
 
     vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
   }
+}
+
+void DescriptorSet::createShaderStorageBuffer(int currentFrame,
+                                              std::vector<int> bindings,
+                                              std::vector<std::vector<std::shared_ptr<Buffer>>> buffer) {
+  std::vector<VkDescriptorBufferInfo> bufferInfo(buffer.size());
+  std::vector<VkWriteDescriptorSet> descriptorWrites(buffer.size());
+  for (int j = 0; j < buffer.size(); j++) {
+    bufferInfo[j].buffer = buffer[j][currentFrame]->getData();
+    bufferInfo[j].offset = 0;
+    bufferInfo[j].range = buffer[j][currentFrame]->getSize();
+
+    descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[j].dstSet = _descriptorSets[currentFrame];
+    descriptorWrites[j].dstBinding = bindings[j];
+    descriptorWrites[j].dstArrayElement = 0;
+    descriptorWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorWrites[j].descriptorCount = 1;
+    descriptorWrites[j].pBufferInfo = &bufferInfo[j];
+  }
+
+  vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
 void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {

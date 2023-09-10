@@ -12,6 +12,7 @@ class DescriptorSetLayout {
   DescriptorSetLayout(std::shared_ptr<Device> device);
   void createTexture(int number = 1, int binding = 0, VkShaderStageFlags stage = VK_SHADER_STAGE_FRAGMENT_BIT);
   void createUniformBuffer(VkShaderStageFlags stage = VK_SHADER_STAGE_VERTEX_BIT);
+  void createShaderStorageBuffer(std::vector<int> bindings, std::vector<VkShaderStageFlags> stage);
   void createParticleComputeBuffer();
   void createPostprocessing();
   void createGraphicModel();
@@ -51,6 +52,9 @@ class DescriptorSet {
                                    std::shared_ptr<Buffer> bufferIn,
                                    std::shared_ptr<Buffer> bufferOut);
   void createTexture(std::vector<std::shared_ptr<Texture>> texture, int binding = 0);
+  void createShaderStorageBuffer(int currentFrame,
+                                 std::vector<int> bindings,
+                                 std::vector<std::vector<std::shared_ptr<Buffer>>> buffer);
   void createPostprocessing(std::shared_ptr<ImageView> src,
                             std::shared_ptr<ImageView> blur,
                             std::shared_ptr<ImageView> dst);

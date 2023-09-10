@@ -39,6 +39,7 @@ struct Settings {
   void setMaxFramesInFlight(int maxFramesInFlight);
   void setThreadsInPool(int threadsInPool);
   void setClearColor(VkClearColorValue clearColor);
+  void setBloomPasses(int number);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getDepthResolution();
