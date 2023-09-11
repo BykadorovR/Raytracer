@@ -1,7 +1,7 @@
 #version 450
 
 //local_size_y
-const int GROUP_SIZE = 64;
+const int GROUP_SIZE = 128;
 //kernel size is limitied by MAXIMUM_KERNEL_HEIGHT * 2 + 1
 const int MAXIMUM_KERNEL_HEIGHT = 32;
 layout (local_size_x = 1, local_size_y = GROUP_SIZE) in;

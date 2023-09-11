@@ -95,11 +95,11 @@ void Blur::drawCompute(int currentFrame, bool horizontal, std::shared_ptr<Comman
   std::shared_ptr<Pipeline> pipeline = _computePipelineVertical;
   std::shared_ptr<DescriptorSet> descriptorSet = _descriptorSetVertical;
   float groupCountX = 1.f;
-  float groupCountY = 64.f;
+  float groupCountY = 128.f;
   if (horizontal) {
     pipeline = _computePipelineHorizontal;
     descriptorSet = _descriptorSetHorizontal;
-    groupCountX = 64.f;
+    groupCountX = 128.f;
     groupCountY = 1.f;
   }
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
