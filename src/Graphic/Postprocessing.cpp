@@ -3,6 +3,7 @@
 struct ComputeConstants {
   float gamma;
   float exposure;
+  int enableBloom;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
     pushConstant.offset = 0;
@@ -54,6 +55,7 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
     ComputeConstants pushConstants;
     pushConstants.gamma = _gamma;
     pushConstants.exposure = _exposure;
+    pushConstants.enableBloom = _state->getSettings()->getBloomPasses();
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
   }

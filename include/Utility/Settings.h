@@ -20,6 +20,7 @@ struct Settings {
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
+  // TODO: protect by mutex?
   int _bloomPasses = 1;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},

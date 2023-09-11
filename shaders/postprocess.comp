@@ -8,12 +8,15 @@ layout (set = 0, binding = 2, rgba8) uniform writeonly mediump image2D resultIma
 layout( push_constant ) uniform constants {
     float gamma;
     float exposure;
+    int enableBloom;
 } push;
 
 void main() {   
     vec4 color = imageLoad(inputImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
-    vec4 colorBlur = imageLoad(blurImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
-    color.rgb += colorBlur.rgb;
+    if (push.enableBloom > 0) {
+        vec4 colorBlur = imageLoad(blurImage, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
+        color.rgb += colorBlur.rgb;
+    }
     // exposure tone mapping
     vec3 corrected = vec3(1.0) - exp(-color.rgb * push.exposure);
     // gamma correction

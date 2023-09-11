@@ -101,7 +101,6 @@ bool terrainNormals = false;
 bool terrainWireframe = false;
 bool terrainPatch = false;
 bool showLoD = false;
-bool enableBloom = true;
 bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
@@ -324,68 +323,41 @@ void computePostprocessing(int swapchainImageIndex) {
   commandBufferPostprocessing->beginCommands(currentFrame);
   loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
                                              commandBufferPostprocessing);
+  int bloomPasses = settings->getBloomPasses();
+  // blur cycle:
+  // in - out - horizontal
+  // out - in - vertical
+  for (int i = 0; i < bloomPasses; i++) {
+    loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(globalFrame), currentFrame);
+    blur->drawCompute(currentFrame, true, commandBufferPostprocessing);
+    loggerPostprocessing->end();
 
-  if (enableBloom) {
-    // blur cycle:
-    // in - out - horizontal
-    // out - in - vertical
-    for (int i = 0; i < settings->getBloomPasses(); i++) {
-      if (i > 0) {
-        // wait src (textureIn) to be written
-        {
-          VkImageMemoryBarrier colorBarrier{
-              .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-              .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-              .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-              .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-              .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-              .image = blurTextureIn[currentFrame]->getImageView()->getImage()->getImage(),
-              .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                   .baseMipLevel = 0,
-                                   .levelCount = 1,
-                                   .baseArrayLayer = 0,
-                                   .layerCount = 1}};
-          vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
-                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
-                               VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
-                               0, 0, nullptr, 0, nullptr,
-                               1,             // imageMemoryBarrierCount
-                               &colorBarrier  // pImageMemoryBarriers
-          );
-        }
-      }
-
-      loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(globalFrame), currentFrame);
-      blur->drawCompute(currentFrame, true, commandBufferPostprocessing);
-      loggerPostprocessing->end();
-
-      // sync between horizontal and vertical
-      // wait dst (textureOut) to be written
-      {
-        VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                          .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                                          .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                                          .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                          .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                          .image = blurTextureOut[currentFrame]->getImageView()->getImage()->getImage(),
-                                          .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                               .baseMipLevel = 0,
-                                                               .levelCount = 1,
-                                                               .baseArrayLayer = 0,
-                                                               .layerCount = 1}};
-        vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
-                             0, 0, nullptr, 0, nullptr,
-                             1,             // imageMemoryBarrierCount
-                             &colorBarrier  // pImageMemoryBarriers
-        );
-      }
-
-      loggerPostprocessing->begin("Blur vertical compute " + std::to_string(globalFrame), currentFrame);
-      blur->drawCompute(currentFrame, false, commandBufferPostprocessing);
-      loggerPostprocessing->end();
+    // sync between horizontal and vertical
+    // wait dst (textureOut) to be written
+    {
+      VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                        .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                                        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                                        .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                        .image = blurTextureOut[currentFrame]->getImageView()->getImage()->getImage(),
+                                        .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                             .baseMipLevel = 0,
+                                                             .levelCount = 1,
+                                                             .baseArrayLayer = 0,
+                                                             .layerCount = 1}};
+      vkCmdPipelineBarrier(commandBufferPostprocessing->getCommandBuffer()[currentFrame],
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
+                           VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
+                           0, 0, nullptr, 0, nullptr,
+                           1,             // imageMemoryBarrierCount
+                           &colorBarrier  // pImageMemoryBarriers
+      );
     }
+
+    loggerPostprocessing->begin("Blur vertical compute " + std::to_string(globalFrame), currentFrame);
+    blur->drawCompute(currentFrame, false, commandBufferPostprocessing);
+    loggerPostprocessing->end();
 
     // wait blur image to be ready
     // blurTextureIn stores result after blur (vertical part, out - in)
@@ -479,7 +451,6 @@ void debugVisualizations(int swapchainImageIndex) {
 
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
   // TODO: move to debug visualization
-  gui->drawCheckbox("Bloom", {20, 480}, {{"Enable", &enableBloom}});
   int blurKernelSize = blur->getKernelSize();
   if (gui->drawInputInt("Bloom", {20, 480}, {{"Kernel", &blurKernelSize}})) {
     blur->setKernelSize(blurKernelSize);
