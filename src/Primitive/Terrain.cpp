@@ -201,20 +201,20 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _terrainTiles[0] = std::make_shared<Texture>(
       "../data/Terrain/dirt.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      _mipMap, commandBufferTransfer, state->getDevice());
+      _mipMap, commandBufferTransfer, _state->getSettings(), state->getDevice());
   _terrainTiles[1] = std::make_shared<Texture>(
       "../data/Terrain/grass.jpg", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      _mipMap, commandBufferTransfer, state->getDevice());
+      _mipMap, commandBufferTransfer, _state->getSettings(), state->getDevice());
   _terrainTiles[2] = std::make_shared<Texture>(
       "../data/Terrain/rock_gray.png", _state->getSettings()->getLoadTextureColorFormat(),
-      VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state->getDevice());
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, _state->getSettings(), state->getDevice());
   _terrainTiles[3] = std::make_shared<Texture>(
       "../data/Terrain/snow.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      _mipMap, commandBufferTransfer, state->getDevice());
+      _mipMap, commandBufferTransfer, _state->getSettings(), state->getDevice());
 
-  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png",
-                                         _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state->getDevice());
+  _heightMap = std::make_shared<Texture>(
+      "../data/Terrain/heightmap.png", _state->getSettings()->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state->getSettings(), state->getDevice());
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
   std::vector<Vertex3D> vertices;

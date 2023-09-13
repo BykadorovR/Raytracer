@@ -6,7 +6,7 @@ void Blur::_updateWeights() {
   float expectedValue = 0;
   float sum = 0;
   for (int i = -_kernelSize / 2; i <= _kernelSize / 2; i++) {
-    float value = std::exp(-pow(i, 2) / pow(_sigma, 2));
+    float value = std::exp(-pow(i, 2) / (2 * pow(_sigma, 2)));
     _blurWeights.push_back(value);
     sum += value;
   }

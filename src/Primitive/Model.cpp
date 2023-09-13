@@ -120,10 +120,11 @@ ModelGLTF::ModelGLTF(std::string path,
   }
 
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _settings->getLoadTextureColorFormat(),
-                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings, device);
   // empty texture with 0, 0, 0 value
   _stubTextureNormal = std::make_shared<Texture>("../data/Texture1x1Black.png", _settings->getLoadTextureColorFormat(),
-                                                 VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+                                                 VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings,
+                                                 device);
 
   std::vector<std::reference_wrapper<MaterialGLTF>> processedMaterialsAlpha;
   for (auto& material : _materials) {
@@ -209,7 +210,7 @@ void ModelGLTF::_loadImages(tinygltf::Model& model) {
     if (std::filesystem::exists(glTFImage.uri)) {
       _images[i].texture = std::make_shared<Texture>(glTFImage.uri, _settings->getLoadTextureColorFormat(),
                                                      VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
-                                                     _device);
+                                                     _settings, _device);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;

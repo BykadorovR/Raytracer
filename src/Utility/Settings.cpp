@@ -18,6 +18,8 @@ void Settings::setDepthFormat(VkFormat format) { _depthFormat = format; }
 
 void Settings::setMaxFramesInFlight(int maxFramesInFlight) { _maxFramesInFlight = maxFramesInFlight; }
 
+void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number; }
+
 void Settings::setBloomPasses(int number) { _bloomPasses = number; }
 
 void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
@@ -53,3 +55,5 @@ std::vector<std::tuple<int, float>> Settings::getAttenuations() { return _attenu
 int Settings::getThreadsInPool() { return _threadsInPool; }
 
 VkClearColorValue Settings::getClearColor() { return _clearColor; }
+
+int Settings::getAnisotropicSamples() { return _anisotropicSamples; }

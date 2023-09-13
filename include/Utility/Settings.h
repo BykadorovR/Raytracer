@@ -20,6 +20,7 @@ struct Settings {
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
+  int _anisotropicSamples = 0;
   // TODO: protect by mutex?
   int _bloomPasses = 1;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
@@ -41,6 +42,7 @@ struct Settings {
   void setThreadsInPool(int threadsInPool);
   void setClearColor(VkClearColorValue clearColor);
   void setBloomPasses(int number);
+  void setAnisotropicSamples(int number);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getDepthResolution();
@@ -57,4 +59,5 @@ struct Settings {
   VkFormat getDepthFormat();
   int getBloomPasses();
   VkClearColorValue getClearColor();
+  int getAnisotropicSamples();
 };

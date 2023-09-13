@@ -2,6 +2,7 @@
 #include "Device.h"
 #include "Image.h"
 #include "Sampler.h"
+#include "Settings.h"
 #include <string>
 #include "stb_image.h"
 
@@ -18,6 +19,7 @@ class Texture {
           VkSamplerAddressMode mode,
           int mipMapLevels,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
+          std::shared_ptr<Settings> settings,
           std::shared_ptr<Device> device);
   Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device);
   std::shared_ptr<ImageView> getImageView();

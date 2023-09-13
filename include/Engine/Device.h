@@ -24,6 +24,7 @@ class Device {
   std::shared_ptr<Instance> _instance;
   std::shared_ptr<Surface> _surface;
   VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
+  VkPhysicalDeviceLimits _deviceLimits;
   VkDevice _logicalDevice;
   // device extension
   const std::vector<const char*> _deviceExtensions = {
@@ -53,7 +54,7 @@ class Device {
   std::optional<uint32_t> getSupportedFamilyIndex(QueueType type);
   VkQueue getQueue(QueueType type);
   std::mutex& getQueueMutex(QueueType type);
-
+  VkPhysicalDeviceLimits getDeviceLimits();
   VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
                                           VkImageTiling tiling,
                                           VkFormatFeatureFlags features);

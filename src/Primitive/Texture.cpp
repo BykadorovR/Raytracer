@@ -79,6 +79,7 @@ Texture::Texture(std::string path,
                  VkSamplerAddressMode mode,
                  int mipMapLevels,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<Settings> settings,
                  std::shared_ptr<Device> device) {
   _device = device;
   // load texture
@@ -114,13 +115,13 @@ Texture::Texture(std::string path,
   // image view
   _imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
                                            device);
-  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, device);
+  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, settings->getAnisotropicSamples(), device);
 }
 
 Texture::Texture(VkSamplerAddressMode mode, std::shared_ptr<ImageView> imageView, std::shared_ptr<Device> device) {
   _device = device;
   _imageView = imageView;
-  _sampler = std::make_shared<Sampler>(mode, 1, device);
+  _sampler = std::make_shared<Sampler>(mode, 1, 0, device);
 }
 
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }

@@ -671,7 +671,7 @@ void initialize() {
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
   settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
-
+  settings->setAnisotropicSamples(0);
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
@@ -764,9 +764,10 @@ void initialize() {
   gui->initialize(commandBufferTransfer);
 
   auto texture = std::make_shared<Texture>("../data/brickwall.jpg", settings->getLoadTextureColorFormat(),
-                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings, device);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
-                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings,
+                                             device);
   camera = std::make_shared<CameraFly>(settings);
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
@@ -911,9 +912,9 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png",
-                                                   settings->getLoadTextureAuxilaryFormat(),
-                                                   VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, device);
+  auto particleTexture = std::make_shared<Texture>(
+      "../data/Particles/gradient.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+      commandBufferTransfer, settings, device);
   particleSystem = std::make_shared<ParticleSystem>(
       300, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
       particleTexture, commandBufferTransfer, state);
