@@ -61,8 +61,13 @@ vec3 directionalLight(int lightDirectionalNumber, vec3 fragPosition, vec3 normal
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
         //dot product between reflected ray and light ray
-        float specularFactor = getLightDir(i).specular * 
-                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(cameraPosition - fragPosition)), 0), 32);
+        //Phong implementation
+        /*float specularFactor = getLightDir(i).specular * 
+                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(cameraPosition - fragPosition)), 0), 32);*/
+        //Blinn-Phong implementation
+        vec3 viewDir = normalize(cameraPosition - fragPosition);
+        vec3 halfwayDir = normalize(viewDir + lightDir);
+        float specularFactor = getLightDir(i).specular * pow(max(dot(normal, halfwayDir), 0), 32);
         lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * getLightDir(i).color; 
     }
     return lightFactor;
@@ -84,8 +89,13 @@ vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, vec3 camer
         //dot product between normal and light ray
         float diffuseFactor = max(dot(lightDir, normal), 0);
         //dot product between reflected ray and light ray
-        float specularFactor = getLightPoint(i).specular * 
-                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(cameraPosition - fragPosition)), 0), 32);
+        //Phong implementation
+        /*float specularFactor = getLightPoint(i).specular * 
+                               pow(max(dot(normalize(reflect(-lightDir, normal)), normalize(cameraPosition - fragPosition)), 0), 32);*/
+        //Blinn-Phong implementation
+        vec3 viewDir = normalize(cameraPosition - fragPosition);
+        vec3 halfwayDir = normalize(viewDir + lightDir);
+        float specularFactor = getLightPoint(i).specular * pow(max(dot(normal, halfwayDir), 0), 32);
         lightFactor += (ambientFactor + (1 - shadow) * (diffuseFactor + specularFactor)) * attenuation * getLightPoint(i).color; 
     }
 
