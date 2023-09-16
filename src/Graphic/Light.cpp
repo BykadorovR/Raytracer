@@ -14,8 +14,9 @@ void* PointLight::getData() { return _phong.get(); }
 
 float PointLight::getFar() { return _phong->far; }
 
-void PointLight::createPhong(float ambient, float specular, glm::vec3 color) {
+void PointLight::createPhong(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, glm::vec3 color) {
   _phong->ambient = ambient;
+  _phong->diffuse = diffuse;
   _phong->specular = specular;
   _phong->color = color;
 }
@@ -81,8 +82,9 @@ int DirectionalLight::getSize() { return sizeof(PhongLightFields); }
 
 void* DirectionalLight::getData() { return _phong.get(); }
 
-void DirectionalLight::createPhong(float ambient, float specular, glm::vec3 color) {
+void DirectionalLight::createPhong(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, glm::vec3 color) {
   _phong->ambient = ambient;
+  _phong->diffuse = diffuse;
   _phong->specular = specular;
   _phong->color = color;
 }

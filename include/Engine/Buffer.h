@@ -5,6 +5,12 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
+struct BufferMVP {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
+};
+
 struct Vertex2D {
   glm::vec3 pos;
   glm::vec3 normal;

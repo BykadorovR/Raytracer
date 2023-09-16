@@ -24,16 +24,20 @@ layout( push_constant ) uniform constants {
 } push;
 
 struct LightDirectional {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    //it's not "native" for light source to vary specular
+    //it's here for simplification of changing light propery for bulk of objects
+    vec3 diffuse;
+    vec3 specular;
     //
     vec3 color;
     vec3 position;
 };
 
 struct LightPoint {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
     //attenuation
     float quadratic;
     int distance;
@@ -52,6 +56,14 @@ layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
+//coefficients from base color
+layout(set = 7, binding = 0) uniform Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} material;
+
 //It is important to get the gradients before going into non-uniform flow code.
 vec2 dx = dFdx(texCoord);
 vec2 dy = dFdy(texCoord);
@@ -65,6 +77,7 @@ vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getMaterial() material
 #include "phong.glsl"
 
 void main() {

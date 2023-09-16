@@ -17,16 +17,20 @@ layout(set = 4, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 4, binding = 1) uniform samplerCube shadowPointSampler[4];
 
 struct LightDirectional {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    //it's not "native" for light source to vary specular
+    //it's here for simplification of changing light propery for bulk of objects
+    vec3 diffuse;
+    vec3 specular;
     //
     vec3 color;
     vec3 position;
 };
 
 struct LightPoint {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
     //attenuation
     float quadratic;
     int distance;
@@ -45,6 +49,14 @@ layout(std140, set = 2, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
+//coefficients from base color
+layout(set = 5, binding = 0) uniform Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} material;
+
 layout( push_constant ) uniform constants {
     layout(offset = 0) int enableShadow;
     layout(offset = 16) int enableLighting;
@@ -53,9 +65,11 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getMaterial() material
 #include "phong.glsl"
 
 void main() {
+    //base color
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
 
     if (push.enableLighting > 0) {
@@ -71,10 +85,10 @@ void main() {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
             lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
-                                            push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
+                                            push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.05);
             //calculate point light
             lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 
-                                      push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
+                                      push.cameraPosition, push.enableShadow, shadowPointSampler, 0.15);
             outColor *= vec4(lightFactor, 1.0);
         }
     }

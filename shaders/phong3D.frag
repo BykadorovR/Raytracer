@@ -22,16 +22,20 @@ layout(set = 3, binding = 0) uniform AlphaMask {
 } alphaMask;
 
 struct LightDirectional {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    //it's not "native" for light source to vary specular
+    //it's here for simplification of changing light propery for bulk of objects
+    vec3 diffuse;
+    vec3 specular;
     //
     vec3 color;
     vec3 position;
 };
 
 struct LightPoint {
-    float ambient;
-    float specular;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
     //attenuation
     float quadratic;
     int distance;
@@ -50,6 +54,14 @@ layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
+//coefficients from base color
+layout(set = 6, binding = 0) uniform Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} material;
+
 //change offset in vertex shader if change values here
 layout( push_constant ) uniform constants {
     layout(offset = 0) int enableShadow;
@@ -60,6 +72,7 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getMaterial() material
 #include "phong.glsl"
 
 void main() {

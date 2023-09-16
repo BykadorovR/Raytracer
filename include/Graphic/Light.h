@@ -8,8 +8,9 @@
 class PointLight {
  private:
   struct PhongLightFields {
-    float ambient;
-    float specular;
+    alignas(16) glm::vec3 ambient;
+    alignas(16) glm::vec3 diffuse;
+    alignas(16) glm::vec3 specular;
     // attenuation
     float quadratic = 0.f;
     int distance;
@@ -26,7 +27,7 @@ class PointLight {
 
  public:
   PointLight(std::shared_ptr<Settings> settings);
-  void createPhong(float ambient, float specular, glm::vec3 color);
+  void createPhong(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, glm::vec3 color);
   void setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap);
   std::vector<std::shared_ptr<Cubemap>> getDepthCubemap();
   void setPosition(glm::vec3 position);
@@ -44,8 +45,9 @@ class PointLight {
 class DirectionalLight {
  private:
   struct PhongLightFields {
-    float ambient;
-    float specular;
+    alignas(16) glm::vec3 ambient;
+    alignas(16) glm::vec3 diffuse;
+    alignas(16) glm::vec3 specular;
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;
   };
@@ -55,7 +57,7 @@ class DirectionalLight {
 
  public:
   DirectionalLight();
-  void createPhong(float ambient, float specular, glm::vec3 color);
+  void createPhong(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, glm::vec3 color);
   void setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture);
   std::vector<std::shared_ptr<Texture>> getDepthTexture();
   void setPosition(glm::vec3 position);

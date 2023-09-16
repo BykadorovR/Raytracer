@@ -64,18 +64,15 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
   _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
-                                                   _state->getDevice(), _state->getSettings());
-  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
+                                                   lightManager, _commandBufferTransfer, _state);
+  _farPlaneCW = _spriteManager->createSprite();
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
-  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
-  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCCW = _spriteManager->createSprite();
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
-  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 
   _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
                                                    lightManager, _commandBufferTransfer, _state->getDescriptorPool(),
