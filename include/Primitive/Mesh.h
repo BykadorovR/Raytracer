@@ -45,15 +45,11 @@ class Mesh3D : public Mesh {
   std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
   std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<MeshPrimitive> _primitives;
-  bool _changedIndex = false;
-  bool _changedVertex = false;
 
  public:
   Mesh3D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
 
-  void addVertex(Vertex3D vertex);
   void setVertices(std::vector<Vertex3D> vertices);
-  void addIndex(uint32_t index);
   void setIndexes(std::vector<uint32_t> indexes);
   void setColor(std::vector<glm::vec3> color);
   void setNormal(std::vector<glm::vec3> normal);
@@ -81,9 +77,9 @@ class Mesh2D : public Mesh {
 
  public:
   Mesh2D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
-  void addVertex(Vertex2D vertex);
   void setVertices(std::vector<Vertex2D> vertices);
-  void addIndex(uint32_t index);
+  // TODO: allow to set only during creation time, during runtime material/matrixes should suit well enough
+  // otherwise multithreading use of commandBufferTransfer can happen
   void setIndexes(std::vector<uint32_t> indexes);
   void setColor(glm::vec3 color);
   void setNormal(glm::vec3 normal);

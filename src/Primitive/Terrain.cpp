@@ -86,6 +86,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
   // TODO: replace Vertex3D and Mesh3D with Terrain mesh without redundant fields
+  std::vector<Vertex3D> vertices;
   _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
   for (unsigned y = 0; y < patchNumber.second; y++) {
     for (unsigned x = 0; x < patchNumber.first; x++) {
@@ -94,27 +95,28 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
       vertex1.pos = glm::vec3(-width / 2.0f + width * x / (float)patchNumber.first, 0.f,
                               -height / 2.0f + height * y / (float)patchNumber.second);
       vertex1.texCoord = glm::vec2(x, y);
-      _mesh->addVertex(vertex1);
+      vertices.push_back(vertex1);
 
       Vertex3D vertex2{};
       vertex2.pos = glm::vec3(-width / 2.0f + width * (x + 1) / (float)patchNumber.first, 0.f,
                               -height / 2.0f + height * y / (float)patchNumber.second);
       vertex2.texCoord = glm::vec2(x + 1, y);
-      _mesh->addVertex(vertex2);
+      vertices.push_back(vertex2);
 
       Vertex3D vertex3{};
       vertex3.pos = glm::vec3(-width / 2.0f + width * x / (float)patchNumber.first, 0.f,
                               -height / 2.0f + height * (y + 1) / (float)patchNumber.second);
       vertex3.texCoord = glm::vec2(x, y + 1);
-      _mesh->addVertex(vertex3);
+      vertices.push_back(vertex3);
 
       Vertex3D vertex4{};
       vertex4.pos = glm::vec3(-width / 2.0f + width * (x + 1) / (float)patchNumber.first, 0.f,
                               -height / 2.0f + height * (y + 1) / (float)patchNumber.second);
       vertex4.texCoord = glm::vec2(x + 1, y + 1);
-      _mesh->addVertex(vertex4);
+      vertices.push_back(vertex4);
     }
   }
+  _mesh->setVertices(vertices);
 
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                   state->getDevice());

@@ -22,6 +22,7 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
   float stackStep = M_PI / stackCount;
   float sectorAngle, stackAngle;
 
+  std::vector<Vertex3D> vertices;
   for (int i = 0; i <= stackCount; ++i) {
     Vertex3D vertex;
     stackAngle = M_PI / 2 - i * stackStep;  // starting from pi/2 to -pi/2
@@ -48,10 +49,11 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
       s = (float)j / sectorCount;
       t = (float)i / stackCount;
       vertex.texCoord = glm::vec2(s, t);
-      _mesh->addVertex(vertex);
+      vertices.push_back(vertex);
     }
   }
 
+  std::vector<uint32_t> indexes;
   int k1, k2;
   for (int i = 0; i < stackCount; ++i) {
     k1 = i * (sectorCount + 1);  // beginning of current stack
@@ -61,19 +63,21 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
       // 2 triangles per sector excluding first and last stacks
       // k1 => k2 => k1+1
       if (i != 0) {
-        _mesh->addIndex(k1);
-        _mesh->addIndex(k2);
-        _mesh->addIndex(k1 + 1);
+        indexes.push_back(k1);
+        indexes.push_back(k2);
+        indexes.push_back(k1 + 1);
       }
 
       // k1+1 => k2 => k2+1
       if (i != (stackCount - 1)) {
-        _mesh->addIndex(k1 + 1);
-        _mesh->addIndex(k2);
-        _mesh->addIndex(k2 + 1);
+        indexes.push_back(k1 + 1);
+        indexes.push_back(k2);
+        indexes.push_back(k2 + 1);
       }
     }
   }
+  _mesh->setVertices(vertices);
+  _mesh->setIndexes(indexes);
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state->getDevice());

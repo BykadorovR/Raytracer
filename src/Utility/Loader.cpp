@@ -181,13 +181,13 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
     const tinygltf::Mesh meshGLTF = _model.meshes[input.mesh];
     // internal engine mesh
     auto mesh = _meshes[input.mesh];
+    std::vector<uint32_t> indexes;
+    std::vector<Vertex3D> vertices;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {
       const tinygltf::Primitive& glTFPrimitive = meshGLTF.primitives[i];
-      uint32_t firstIndex = 0;
-      if (mesh->getIndexData().size() > 0) firstIndex = mesh->getIndexData().size();
-      uint32_t vertexStart = 0;
-      if (mesh->getVertexData().size() > 0) vertexStart = mesh->getVertexData().size();
+      uint32_t firstIndex = indexes.size();
+      uint32_t vertexStart = vertices.size();
       uint32_t indexCount = 0;
       bool hasSkin = false;
       // Vertices
@@ -306,7 +306,7 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
           vertex.tangent = glm::vec4(0.0f);
           if (tangentsBuffer) vertex.tangent = glm::make_vec4(&tangentsBuffer[v * tangentByteStride]);
 
-          mesh->addVertex(vertex);
+          vertices.push_back(vertex);
         }
       }
       // Indices
@@ -324,7 +324,7 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
             const uint32_t* buf = reinterpret_cast<const uint32_t*>(
                 &buffer.data[accessor.byteOffset + bufferView.byteOffset]);
             for (size_t index = 0; index < accessor.count; index++) {
-              mesh->addIndex(buf[index] + vertexStart);
+              indexes.push_back(buf[index] + vertexStart);
             }
             break;
           }
@@ -332,7 +332,7 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
             const uint16_t* buf = reinterpret_cast<const uint16_t*>(
                 &buffer.data[accessor.byteOffset + bufferView.byteOffset]);
             for (size_t index = 0; index < accessor.count; index++) {
-              mesh->addIndex(buf[index] + vertexStart);
+              indexes.push_back(buf[index] + vertexStart);
             }
             break;
           }
@@ -340,7 +340,7 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
             const uint8_t* buf = reinterpret_cast<const uint8_t*>(
                 &buffer.data[accessor.byteOffset + bufferView.byteOffset]);
             for (size_t index = 0; index < accessor.count; index++) {
-              mesh->addIndex(buf[index] + vertexStart);
+              indexes.push_back(buf[index] + vertexStart);
             }
             break;
           }
@@ -355,6 +355,9 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
       primitive.materialIndex = glTFPrimitive.material;
       mesh->addPrimitive(primitive);
     }
+
+    mesh->setIndexes(indexes);
+    mesh->setVertices(vertices);
   }
 
   // we store all node's heads in _nodes array

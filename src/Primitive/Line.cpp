@@ -7,12 +7,8 @@ Line::Line(int thick,
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
   _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
-
-  _mesh->addIndex(0);
-  _mesh->addIndex(1);
-
-  _mesh->addVertex(Vertex3D{});
-  _mesh->addVertex(Vertex3D{});
+  _mesh->setIndexes({0, 1});
+  _mesh->setVertices({Vertex3D{}, Vertex3D{}});
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
