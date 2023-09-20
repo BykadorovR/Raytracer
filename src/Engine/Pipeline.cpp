@@ -149,7 +149,7 @@ void Pipeline::createGraphic3D(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -229,7 +229,7 @@ void Pipeline::createGraphicTerrainCPU(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -311,7 +311,7 @@ void Pipeline::createLine(std::vector<VkFormat> renderFormat,
                           std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                           std::map<std::string, VkPushConstantRange> pushConstants,
                           VkVertexInputBindingDescription bindingDescription,
-                          std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+                          std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -390,7 +390,7 @@ void Pipeline::createGraphicTerrainShadowGPU(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -477,7 +477,7 @@ void Pipeline::createGraphicTerrainGPU(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -564,7 +564,7 @@ void Pipeline::createGraphic3DShadow(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -791,7 +791,7 @@ void Pipeline::createParticleSystemGraphic(
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
     VkVertexInputBindingDescription bindingDescription,
-    std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions) {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 

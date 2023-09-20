@@ -2,12 +2,6 @@
 #include <random>
 #include <glm/gtc/random.hpp>
 
-struct CameraObject {
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 projection;
-};
-
 struct VertexConstants {
   float pointScale;  // nominator of gl_PointSize
   static VkPushConstantRange getPushConstant() {
@@ -41,7 +35,7 @@ void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
   cameraLayout->createUniformBuffer();
 
   _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(CameraObject), _state->getDevice());
+                                                         sizeof(BufferMVP), _state->getDevice());
 
   _descriptorSetCamera = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                          _state->getDescriptorPool(), _state->getDevice());
@@ -185,7 +179,7 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
                        VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexConstants), &pushConstants);
   }
 
-  CameraObject cameraUBO{};
+  BufferMVP cameraUBO{};
   cameraUBO.model = _model;
   cameraUBO.view = _camera->getView();
   cameraUBO.projection = _camera->getProjection();

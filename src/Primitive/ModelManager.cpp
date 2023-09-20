@@ -1,102 +1,85 @@
 #include "ModelManager.h"
+#undef far
 
 Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                               std::shared_ptr<DescriptorPool> descriptorPool,
-                               std::shared_ptr<Device> device,
-                               std::shared_ptr<Settings> settings) {
-  _lightManager = lightManager;
+                               std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
-  _device = device;
-  _settings = settings;
-  _descriptorPool = descriptorPool;
-  {
-    auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createUniformBuffer();
-    _descriptorSetLayout.push_back({"camera", setLayout});
-  }
-  {
-    auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createJoints();
-    _descriptorSetLayout.push_back({"joint", setLayout});
-  }
-  {
-    auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createGraphicModel();
-    _descriptorSetLayout.push_back({"texture", setLayout});
-  }
-  {
-    auto setLayout = std::make_shared<DescriptorSetLayout>(device);
-    setLayout->createModelAuxilary();
-    _descriptorSetLayout.push_back({"alphaMask", setLayout});
-  }
-  { _descriptorSetLayout.push_back({"light", _lightManager->getDSLLight()}); }
+  _lightManager = lightManager;
+  _state = state;
+  _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
+  _defaultAnimation = std::make_shared<Animation>(std::vector<NodeGLTF*>{}, std::vector<SkinGLTF>{},
+                                                  std::vector<AnimationGLTF>{}, state);
 
-  { _descriptorSetLayout.push_back({"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)}); }
-
-  { _descriptorSetLayout.push_back({"shadowTexture", _lightManager->getDSLShadowTexture()}); }
+  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraSetLayout->createUniformBuffer();
+  _descriptorSetLayout.push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout.push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  _descriptorSetLayout.push_back({"texture", _defaultMaterial->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout.push_back({"alphaMask", _defaultMaterial->getDescriptorSetLayoutAlphaCutoff()});
+  _descriptorSetLayout.push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout.push_back({"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayout.push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
+  _descriptorSetLayout.push_back({"phongCoefficients", _defaultMaterial->getDescriptorSetLayoutCoefficients()});
 
   {
-    auto shader = std::make_shared<Shader>(device);
+    auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
+    _pipeline[ModelRenderMode::FULL] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["vertex"] = PushConstants::getPushConstant(sizeof(LightPush));
     defaultPushConstants["fragment"] = LightPush::getPushConstant();
 
-    _pipeline[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                      _descriptorSetLayout, defaultPushConstants,
-                                                      Vertex3D::getBindingDescription(),
-                                                      Vertex3D::getAttributeDescriptions());
+    _pipeline[ModelRenderMode::FULL]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayout, defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
 
-    _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(settings, device);
-    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                             _descriptorSetLayout, defaultPushConstants,
-                                                             Vertex3D::getBindingDescription(),
-                                                             Vertex3D::getAttributeDescriptions());
+    _pipelineCullOff[ModelRenderMode::FULL] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineCullOff[ModelRenderMode::FULL]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayout, defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
   {
-    auto shader = std::make_shared<Shader>(device);
+    auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipeline[ModelRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(settings, device);
-    std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
+    _pipeline[ModelRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[ModelRenderMode::DIRECTIONAL]->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
-        {_descriptorSetLayout[0], _descriptorSetLayout[1]}, defaultPushConstants, Vertex3D::getBindingDescription(),
-        Vertex3D::getAttributeDescriptions());
+        {_descriptorSetLayout[0], _descriptorSetLayout[1]}, {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
   }
   {
-    auto shader = std::make_shared<Shader>(device);
+    auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("../shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipeline[ModelRenderMode::POINT] = std::make_shared<Pipeline>(settings, device);
+    _pipeline[ModelRenderMode::POINT] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["vertex"] = PushConstants::getPushConstant(0);
-    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(sizeof(PushConstants));
+    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
     _pipeline[ModelRenderMode::POINT]->createGraphic3DShadow(VK_CULL_MODE_NONE,
                                                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              {_descriptorSetLayout[0], _descriptorSetLayout[1]},
-                                                             defaultPushConstants, Vertex3D::getBindingDescription(),
-                                                             Vertex3D::getAttributeDescriptions());
+                                                             defaultPushConstants, _mesh->getBindingDescription(),
+                                                             _mesh->getAttributeDescriptions());
   }
 }
 
-std::shared_ptr<ModelGLTF> Model3DManager::createModelGLTF(std::string path) {
-  return std::make_shared<ModelGLTF>(path, _descriptorSetLayout, _descriptorPool, _commandBufferTransfer, _device,
-                                     _settings);
+std::shared_ptr<Model3D> Model3DManager::createModel3D(std::vector<NodeGLTF*> nodes,
+                                                       std::vector<std::shared_ptr<Mesh3D>> meshes) {
+  auto model = std::make_shared<Model3D>(nodes, meshes, _descriptorSetLayout, _commandBufferTransfer, _state);
+  model->setAnimation(_defaultAnimation);
+  return model;
 }
-void Model3DManager::registerModelGLTF(std::shared_ptr<Model> model) { _modelsGLTF.push_back(model); }
+void Model3DManager::registerModel3D(std::shared_ptr<Model3D> model) { _modelsGLTF.push_back(model); }
 
-void Model3DManager::unregisterModelGLTF(std::shared_ptr<Model> model) {
+void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
   _modelsGLTF.erase(std::remove(_modelsGLTF.begin(), _modelsGLTF.end(), model), _modelsGLTF.end());
 }
 
@@ -108,16 +91,17 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
 
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_settings->getResolution());
-  viewport.width = std::get<0>(_settings->getResolution());
-  viewport.height = -std::get<1>(_settings->getResolution());
+  viewport.y = std::get<1>(_state->getSettings()->getResolution());
+  viewport.width = std::get<0>(_state->getSettings()->getResolution());
+  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_settings->getResolution()), std::get<1>(_settings->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
+                              std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto pipelineLayout = _pipeline[ModelRenderMode::FULL]->getDescriptorSetLayout();
@@ -154,12 +138,6 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
   for (auto model : _modelsGLTF) {
     model->setCamera(_camera);
     model->draw(currentFrame, commandBuffer, _pipeline[ModelRenderMode::FULL], _pipelineCullOff[ModelRenderMode::FULL]);
-  }
-}
-
-void Model3DManager::updateAnimation(int currentFrame, float deltaTime) {
-  for (auto model : _modelsGLTF) {
-    if (model) model->updateAnimation(currentFrame, deltaTime);
   }
 }
 
@@ -220,8 +198,8 @@ void Model3DManager::drawShadow(int currentFrame,
       // light camera
       pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame],
-                         _pipeline[ModelRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
-                         sizeof(PushConstants), sizeof(DepthConstants), &pushConstants);
+                         _pipeline[ModelRenderMode::POINT]->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                         sizeof(DepthConstants), &pushConstants);
     }
   }
 
@@ -237,7 +215,7 @@ void Model3DManager::drawShadow(int currentFrame,
                         _pipeline[ModelRenderMode::DIRECTIONAL], lightIndexTotal, view, projection, face);
     }
     if (lightType == LightType::POINT) {
-      lightIndexTotal += _settings->getMaxDirectionalLights();
+      lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
       model->drawShadow(currentFrame, commandBuffer, _pipeline[ModelRenderMode::POINT],

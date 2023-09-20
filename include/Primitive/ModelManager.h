@@ -1,7 +1,6 @@
 #pragma once
 #include "Model.h"
-#include "LightManager.h"
-#include "Camera.h"
+#include "Mesh.h"
 
 class Model3DManager {
  private:
@@ -10,27 +9,27 @@ class Model3DManager {
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
   std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
 
+  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<Animation> _defaultAnimation;
+
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<LightManager> _lightManager;
-  std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  std::shared_ptr<Device> _device;
-  std::shared_ptr<Settings> _settings;
+  std::shared_ptr<State> _state;
   std::shared_ptr<Camera> _camera;
-  std::vector<std::shared_ptr<Model>> _modelsGLTF;
+  std::vector<std::shared_ptr<Model3D>> _modelsGLTF;
 
  public:
   Model3DManager(std::vector<VkFormat> renderFormat,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<DescriptorPool> descriptorPool,
-                 std::shared_ptr<Device> device,
-                 std::shared_ptr<Settings> settings);
+                 std::shared_ptr<State> state);
 
-  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
+  std::shared_ptr<Model3D> createModel3D(std::vector<NodeGLTF*> nodes, std::vector<std::shared_ptr<Mesh3D>> meshes);
   void setCamera(std::shared_ptr<Camera> camera);
-  void registerModelGLTF(std::shared_ptr<Model> model);
-  void unregisterModelGLTF(std::shared_ptr<Model> model);
+  void registerModel3D(std::shared_ptr<Model3D> model);
+  void unregisterModel3D(std::shared_ptr<Model3D> model);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,

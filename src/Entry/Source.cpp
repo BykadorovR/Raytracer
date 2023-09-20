@@ -34,9 +34,7 @@
 #include "ParticleSystem.h"
 #include "Postprocessing.h"
 #include "Blur.h"
-
-#undef near
-#undef far
+#include "Loader.h"
 
 float fps = 0;
 float frameTimer = 0.f;
@@ -53,10 +51,10 @@ float depthBiasSlope = 1.75f;
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<CommandBuffer> commandBuffer, commandBufferTransfer, commandBufferParticleSystem,
+std::shared_ptr<CommandBuffer> commandBufferRender, commandBufferTransfer, commandBufferParticleSystem,
     commandBufferPostprocessing, commandBufferBlur, commandBufferGUI;
-std::shared_ptr<CommandPool> commandPool, commandPoolTransfer, commandPoolParticleSystem, commandPoolPostprocessing,
-    commandPoolGUI;
+std::shared_ptr<CommandPool> commandPoolRender, commandPoolTransfer, commandPoolParticleSystem,
+    commandPoolPostprocessing, commandPoolGUI;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
@@ -69,7 +67,7 @@ std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
-std::shared_ptr<ModelGLTF> modelGLTF;
+std::shared_ptr<Model3D> modelGLTF;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
 std::shared_ptr<Blur> blur;
@@ -85,6 +83,7 @@ std::shared_ptr<LoggerGPU> loggerGPU, loggerPostprocessing, loggerParticles, log
 std::shared_ptr<LoggerCPU> loggerCPU;
 
 std::future<void> updateJoints;
+std::shared_ptr<Animation> animation;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
 
@@ -175,10 +174,10 @@ void directionalLightCalculator(int index) {
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame), currentFrame);
-  // modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
-  // terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
 
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -265,10 +264,10 @@ void pointLightCalculator(int index, int face) {
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame), currentFrame);
-  // modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
-  // terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
@@ -446,7 +445,7 @@ void debugVisualizations(int swapchainImageIndex) {
 
   vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
   loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
-  // debugVisualization->draw(currentFrame, commandBufferGUI);
+  debugVisualization->draw(currentFrame, commandBufferGUI);
   loggerGPUDebug->end();
 
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
@@ -513,10 +512,11 @@ void debugVisualizations(int swapchainImageIndex) {
   commandBufferGUI->endCommands();
 }
 
+// TODO: pass appropriate command buffer here as in lighting
 void renderGraphic() {
   // record command buffer
-  commandBuffer->beginCommands(currentFrame);
-  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBuffer);
+  commandBufferRender->beginCommands(currentFrame);
+  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBufferRender);
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
@@ -560,7 +560,7 @@ void renderGraphic() {
     imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   }
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+  vkCmdPipelineBarrier(commandBufferRender->getCommandBuffer()[currentFrame],
                        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
                        imageMemoryBarrier.data());
@@ -612,14 +612,14 @@ void renderGraphic() {
       .pDepthAttachment = &depthAttachmentInfo,
   };
 
-  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+  vkCmdBeginRendering(commandBufferRender->getCommandBuffer()[currentFrame], &renderInfo);
   loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
   lightManager->draw(currentFrame);
   loggerGPU->end();
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
-  spriteManager->draw(currentFrame, commandBuffer);
+  spriteManager->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // wait model3D update
@@ -628,7 +628,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
-  // modelManager->draw(currentFrame, commandBuffer);
+  modelManager->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // submit model3D update
@@ -636,30 +636,31 @@ void renderGraphic() {
     loggerCPU->begin("Update animation " + std::to_string(globalFrame));
     // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
     // modelManager->updateAnimation(1 - currentFrame, frameTimer);
+    animation->updateAnimation(1 - currentFrame, frameTimer);
     loggerCPU->end();
   });
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
-  /*if (terrainWireframe)
-    terrain->draw(currentFrame, commandBuffer, TerrainPipeline::WIREFRAME);
+  if (terrainWireframe)
+    terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::WIREFRAME);
   else
-    terrain->draw(currentFrame, commandBuffer, TerrainPipeline::FILL);
-  if (terrainNormals) terrain->draw(currentFrame, commandBuffer, TerrainPipeline::NORMAL);*/
+    terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::FILL);
+  if (terrainNormals) terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::NORMAL);
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
   for (auto sphere : spheres) {
-    // sphere->draw(currentFrame, commandBuffer);
+    sphere->draw(currentFrame, commandBufferRender);
   }
   loggerGPU->end();
 
   // contains transparency, should be drawn last
   loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
-  // particleSystem->drawGraphic(currentFrame, commandBuffer);
+  particleSystem->drawGraphic(currentFrame, commandBufferRender);
   loggerGPU->end();
 
-  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
-  commandBuffer->endCommands();
+  vkCmdEndRendering(commandBufferRender->getCommandBuffer()[currentFrame]);
+  commandBufferRender->endCommands();
 }
 
 void initialize() {
@@ -689,16 +690,20 @@ void initialize() {
                                         "VkPhysicalDeviceRobustness2FeaturesEXT");
 
   // allocate commands
-  commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  commandBuffer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, device);
-  commandPoolTransfer = std::make_shared<CommandPool>(QueueType::TRANSFER, device);
-  commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPool, device);
+  commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolRender, device);
+  // TODO: transfer doesn't work
+  commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPoolTransfer, device);
+
   commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
   commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                 commandPoolParticleSystem, device);
+
   commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
   commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                 commandPoolPostprocessing, device);
+
   commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, device);
   //
@@ -788,11 +793,11 @@ void initialize() {
   pointLightVertical2->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
-  // directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  // directionalLight->createPhong(glm::vec3(0.2), glm::vec3(1.f), glm::vec3(1.f) , glm::vec3(0.5f, 0.5f, 0.5f));
-  // directionalLight->setPosition({0.f, 15.f, 0.f});
-  // directionalLight->setCenter({0.f, 0.f, 0.f});
-  // directionalLight->setUp({0.f, 0.f, -1.f});
+  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
+  directionalLight->setPosition({0.f, 15.f, 0.f});
+  directionalLight->setCenter({0.f, 0.f, 0.f});
+  directionalLight->setUp({0.f, 0.f, -1.f});
 
   /*directionalLight2 = lightManager->createDirectionalLight(settings->getDepthResolution());
   directionalLight2->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
@@ -803,23 +808,25 @@ void initialize() {
   spriteManager = std::make_shared<SpriteManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, state);
-  /*modelManager = std::make_shared<Model3DManager>(
+  modelManager = std::make_shared<Model3DManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, descriptorPool, device, settings);*/
-  // debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
-  // debugVisualization->setLights(lightManager);
-  // input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
+      commandBufferTransfer, state);
+  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
+  debugVisualization->setLights(lightManager);
+  input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
     auto sprite = spriteManager->createSprite();
-    auto material = std::make_shared<MaterialSpritePhong>(commandBufferTransfer, state);
+    auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     material->setBaseColor(texture);
     material->setNormal(normalMap);
     sprite->setMaterial(material);
     auto sprite2 = spriteManager->createSprite(material);
-    auto materialColor = std::make_shared<MaterialSpritePhong>(commandBufferTransfer, state);
-    materialColor->setBaseColor(glm::vec4(0.f, 1.f, 0.f, 1.f));
+    auto materialColor = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     auto sprite3 = spriteManager->createSprite(materialColor);
-    auto sprite4 = spriteManager->createSprite();
+    auto materialDiffuse = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+    materialDiffuse->setPhongCoefficients(glm::vec3{1.f}, glm::vec3{0.f}, glm::vec3{0.5f}, 64.f);
+    auto sprite4 = spriteManager->createSprite(materialDiffuse);
+
     auto sprite5 = spriteManager->createSprite();
     auto sprite6 = spriteManager->createSprite();
     {
@@ -855,13 +862,26 @@ void initialize() {
     spriteManager->registerSprite(sprite5);
     spriteManager->registerSprite(sprite6);
   }
-  // modelGLTF = modelManager->createModelGLTF("../data/Avocado/Avocado.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/CesiumMan/CesiumMan.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/BrainStem/BrainStem.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/SimpleSkin/SimpleSkin.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Sponza/Sponza.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/DamagedHelmet/DamagedHelmet.gltf");
-  // modelGLTF = modelManager->createModelGLTF("../data/Box/BoxTextured.gltf");
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/BrainStem/BrainStem.gltf",
+                                                                commandBufferTransfer, state);
+  /*for (auto& mesh : loaderGLTF->getMeshes())
+    mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
+  modelGLTF = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+  auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  material->setPhongCoefficients(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(1.f, 1.f, 1.f), 64.f);
+  modelGLTF->setMaterial(loaderGLTF->getMaterialsPhong());
+  // modelGLTF->setMaterial({material});
+  animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
+                                          state);
+  modelGLTF->setAnimation(animation);
+
+  // modelGLTF = modelManager->createModel3D("../data/Avocado/Avocado.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/SimpleSkin/SimpleSkin.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/Sponza/Sponza.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/DamagedHelmet/DamagedHelmet.gltf");
+  // modelGLTF = modelManager->createModel3D("../data/Box/BoxTextured.gltf");
   //{
   //   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
@@ -871,10 +891,10 @@ void initialize() {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
-    // modelGLTF->setModel(model);
+    modelGLTF->setModel(model);
   }
 
-  // modelManager->registerModelGLTF(modelGLTF);
+  modelManager->registerModel3D(modelGLTF);
 
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
@@ -897,15 +917,15 @@ void initialize() {
     }
   }
 
-  /*terrain = std::make_shared<TerrainGPU>(
+  terrain = std::make_shared<TerrainGPU>(
       std::pair{12, 12}, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      commandBufferTransfer, lightManager, state);*/
+      commandBufferTransfer, lightManager, state);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
-    // terrain->setModel(translateMatrix);
+    terrain->setModel(translateMatrix);
   }
-  // terrain->setCamera(camera);
+  terrain->setCamera(camera);
 
   auto particleTexture = std::make_shared<Texture>(
       "../data/Particles/gradient.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
@@ -926,7 +946,7 @@ void initialize() {
   spheres[0] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[0]->setColor({0.f, 0.f, 0.1f, 1.f});
+  spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}});
   spheres[0]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
@@ -935,7 +955,7 @@ void initialize() {
   spheres[1] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[1]->setColor({0.f, 0.f, 0.5f, 1.f});
+  spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}});
   spheres[1]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -5.f, 0.f));
@@ -944,7 +964,7 @@ void initialize() {
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[2]->setColor({0.f, 0.f, 10.f, 1.f});
+  spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}});
   spheres[2]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -5.f, 0.f));
@@ -954,7 +974,7 @@ void initialize() {
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[3]->setColor({5.f, 0.f, 0.f, 1.f});
+  spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}});
   spheres[3]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 2.f));
@@ -963,7 +983,7 @@ void initialize() {
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[4]->setColor({0.f, 5.f, 0.f, 1.f});
+  spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}});
   spheres[4]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, -2.f));
@@ -972,7 +992,7 @@ void initialize() {
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[5]->setColor({0.f, 0.f, 20.f, 1.f});
+  spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}});
   spheres[5]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
@@ -986,7 +1006,7 @@ void initialize() {
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
-  // debugVisualization->setPostprocessing(postprocessing);
+  debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
 }
 
@@ -1015,7 +1035,7 @@ void drawFrame() {
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
   spriteManager->setCamera(camera);
-  // modelManager->setCamera(camera);
+  modelManager->setCamera(camera);
 
   // submit compute particles
   auto particlesFuture = pool->submit(computeParticles);
@@ -1082,11 +1102,11 @@ void drawFrame() {
   submitInfo.pWaitSemaphores = waitSemaphores.data();
   submitInfo.pWaitDstStageMask = waitStages;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  submitInfo.pCommandBuffers = &commandBufferRender->getCommandBuffer()[currentFrame];
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  commandBuffer->submitToQueue(submitInfo, nullptr);
+  commandBufferRender->submitToQueue(submitInfo, nullptr);
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
@@ -1160,7 +1180,6 @@ void drawFrame() {
   result = vkQueuePresentKHR(device->getQueue(QueueType::PRESENT), &presentInfo);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    // TODO: recreate swapchain
     // TODO: support window resize
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");

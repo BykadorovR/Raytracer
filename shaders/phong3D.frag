@@ -55,14 +55,13 @@ layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
 };
 
 //coefficients from base color
-layout(set = 6, binding = 0) uniform Material {
+layout(set = 7, binding = 0) uniform Material {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
     float shininess;
 } material;
 
-//change offset in vertex shader if change values here
 layout( push_constant ) uniform constants {
     layout(offset = 0) int enableShadow;
     layout(offset = 16) int enableLighting;

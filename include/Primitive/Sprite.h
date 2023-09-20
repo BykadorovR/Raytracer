@@ -9,6 +9,7 @@
 #include "LightManager.h"
 #include "Light.h"
 #include "Material.h"
+#include "Mesh.h"
 
 enum class SpriteRenderMode { DIRECTIONAL, POINT, FULL };
 
@@ -22,24 +23,16 @@ class Sprite {
   bool _enableShadow = true;
   bool _enableLighting = true;
   bool _enableDepth = true;
-  std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
-  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
-  std::shared_ptr<MaterialSpritePhong> _material;
+  std::shared_ptr<MaterialPhong> _material;
+  std::shared_ptr<Mesh2D> _mesh;
 
   glm::mat4 _model = glm::mat4(1.f);
-  // Vulkan image origin (0,0) is left-top corner
-  std::vector<Vertex2D> _vertices = {
-      {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
-      {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-      {{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-      {{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}};
-
-  const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
 
  public:
-  Sprite(std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+  Sprite(std::shared_ptr<Mesh2D> mesh,
+         std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<State> state);
   void enableShadow(bool enable);
@@ -47,8 +40,7 @@ class Sprite {
   void enableDepth(bool enable);
   bool isDepthEnabled();
 
-  void setVertexNormal(glm::vec3 normal);
-  void setMaterial(std::shared_ptr<MaterialSpritePhong> material);
+  void setMaterial(std::shared_ptr<MaterialPhong> material);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
 

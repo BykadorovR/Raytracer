@@ -35,13 +35,10 @@ layout(location = 4) out mat3 fragTBN;
 //mat3 takes 3 slots
 layout(location = 7) out vec4 fragLightDirectionalCoord[2];
 
-layout( push_constant ) uniform constants {
-    layout(offset = 48) int jointNum;
-} PushConstants;
-
 void main() {
     mat4 skinMat = mat4(1.0);
-    if (PushConstants.jointNum > 0) {
+    if (jointMatrices.length() > 0) {
+        //we pass all 
         skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
                   inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
                   inJointWeights.z * jointMatrices[int(inJointIndices.z)] +

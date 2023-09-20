@@ -46,7 +46,7 @@ class Pipeline {
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
-                       std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+                       std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
   void createLine(std::vector<VkFormat> renderFormat,
                   VkCullModeFlags cullMode,
                   VkPolygonMode polygonMode,
@@ -55,7 +55,7 @@ class Pipeline {
                   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                   std::map<std::string, VkPushConstantRange> pushConstants,
                   VkVertexInputBindingDescription bindingDescription,
-                  std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+                  std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
   void createGraphicTerrainCPU(
       std::vector<VkFormat> renderFormat,
       VkCullModeFlags cullMode,
@@ -64,7 +64,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphicTerrainGPU(
       std::vector<VkFormat> renderFormat,
@@ -74,7 +74,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphicTerrainShadowGPU(
       VkCullModeFlags cullMode,
@@ -83,7 +83,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphic3DShadow(
       VkCullModeFlags cullMode,
@@ -91,7 +91,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
   void createHUD(VkFormat renderFormat,
                  std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
@@ -110,7 +110,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>& getDescriptorSetLayout();
   std::map<std::string, VkPushConstantRange>& getPushConstants();

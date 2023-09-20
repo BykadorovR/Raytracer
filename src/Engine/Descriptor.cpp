@@ -362,13 +362,11 @@ void DescriptorSet::createGraphicModel(std::shared_ptr<Texture> texture, std::sh
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
     imageInfo.imageView = texture->getImageView()->getImageView();
     imageInfo.sampler = texture->getSampler()->getSampler();
 
     VkDescriptorImageInfo normalInfo{};
     normalInfo.imageLayout = normal->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
     normalInfo.imageView = normal->getImageView()->getImageView();
     normalInfo.sampler = normal->getSampler()->getSampler();
 
@@ -442,7 +440,7 @@ void DescriptorSet::createTexture(std::vector<std::shared_ptr<Texture>> texture,
     std::vector<VkDescriptorImageInfo> imageInfo(texture.size());
     for (int j = 0; j < texture.size(); j++) {
       imageInfo[j].imageLayout = texture[j]->getImageView()->getImage()->getImageLayout();
-      // TODO: make appropriate name
+
       imageInfo[j].imageView = texture[j]->getImageView()->getImageView();
       imageInfo[j].sampler = texture[j]->getSampler()->getSampler();
     }
@@ -466,7 +464,7 @@ void DescriptorSet::createShadowTexture(std::vector<std::shared_ptr<Texture>> di
     std::vector<VkDescriptorImageInfo> directionalImageInfo(directional.size());
     for (int j = 0; j < directionalImageInfo.size(); j++) {
       directionalImageInfo[j].imageLayout = directional[j]->getImageView()->getImage()->getImageLayout();
-      // TODO: make appropriate name
+
       directionalImageInfo[j].imageView = directional[j]->getImageView()->getImageView();
       directionalImageInfo[j].sampler = directional[j]->getSampler()->getSampler();
     }
@@ -474,7 +472,7 @@ void DescriptorSet::createShadowTexture(std::vector<std::shared_ptr<Texture>> di
     std::vector<VkDescriptorImageInfo> pointImageInfo(point.size());
     for (int j = 0; j < pointImageInfo.size(); j++) {
       pointImageInfo[j].imageLayout = point[j]->getImageView()->getImage()->getImageLayout();
-      // TODO: make appropriate name
+
       pointImageInfo[j].imageView = point[j]->getImageView()->getImageView();
       pointImageInfo[j].sampler = point[j]->getSampler()->getSampler();
     }
@@ -525,12 +523,12 @@ void DescriptorSet::createBlur(std::vector<std::shared_ptr<Texture>> src, std::v
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorImageInfo imageInfoSrc{};
     imageInfoSrc.imageLayout = src[i]->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
+
     imageInfoSrc.imageView = src[i]->getImageView()->getImageView();
 
     VkDescriptorImageInfo imageInfoDst{};
     imageInfoDst.imageLayout = dst[i]->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
+
     imageInfoDst.imageView = dst[i]->getImageView()->getImageView();
 
     std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -713,9 +711,13 @@ void DescriptorSet::createLight(int currentFrame,
 void DescriptorSet::createJoints(std::vector<std::shared_ptr<Buffer>> buffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = buffer[i]->getData();
+    bufferInfo.buffer = VK_NULL_HANDLE;
     bufferInfo.offset = 0;
-    bufferInfo.range = buffer[i]->getSize();
+    bufferInfo.range = VK_WHOLE_SIZE;
+    if (buffer.size() > i) {
+      bufferInfo.buffer = buffer[i]->getData();
+      bufferInfo.range = buffer[i]->getSize();
+    }
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -739,7 +741,7 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();
-    // TODO: make appropriate name
+
     imageInfo.imageView = texture->getImageView()->getImageView();
     imageInfo.sampler = texture->getSampler()->getSampler();
 

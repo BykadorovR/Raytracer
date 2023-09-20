@@ -2,6 +2,8 @@
 #include "State.h"
 #include "Camera.h"
 #include "LightManager.h"
+#include "Mesh.h"
+#include "Material.h"
 
 enum class TerrainPipeline { FILL, WIREFRAME, NORMAL };
 
@@ -25,40 +27,13 @@ class Terrain {
                           int face = 0) = 0;
 };
 
-class TerrainCPU : public Terrain {
- private:
-  std::shared_ptr<State> _state;
-  std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
-  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
-  std::shared_ptr<Pipeline> _pipeline;
-  std::vector<uint32_t> _indices;
-  int _numStrips, _numVertsPerStrip;
-
- public:
-  TerrainCPU(std::vector<VkFormat> renderFormat,
-             std::shared_ptr<CommandBuffer> commandBufferTransfer,
-             std::shared_ptr<State> state);
-
-  void draw(int currentFrame,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            TerrainPipeline terrainType = TerrainPipeline::FILL) override;
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
-};
-
 enum class TerrainRenderMode { DIRECTIONAL, POINT, FULL };
 
 class TerrainGPU : public Terrain {
  private:
   std::shared_ptr<State> _state;
-  int _vertexNumber;
-  std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
-  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
+  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MaterialPhong> _defaultMaterial;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepthControl,
@@ -75,7 +50,6 @@ class TerrainGPU : public Terrain {
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   float _heightLevels[4] = {16, 128, 192, 256};
-  // TODO: work very strange, don't use not equal values
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
   float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;

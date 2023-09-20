@@ -1,7 +1,7 @@
 #pragma once
 #include "State.h"
 
-class MaterialSpritePhong {
+class MaterialPhong {
  private:
   struct Coefficients {
     alignas(16) glm::vec3 _ambient{0.2f};
@@ -10,6 +10,14 @@ class MaterialSpritePhong {
     float _shininess{64.f};
   };
 
+  struct AlphaCutoff {
+    bool alphaMask = false;
+    float alphaCutoff = 0.f;
+  };
+
+  AlphaCutoff _alphaCutoff;
+  bool _doubleSided = false;
+
   std::shared_ptr<Texture> _textureColor;
   std::shared_ptr<Texture> _textureNormal;
   std::shared_ptr<Texture> _stubTextureZero, _stubTextureOne;
@@ -17,30 +25,34 @@ class MaterialSpritePhong {
 
   Coefficients _coefficients;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCoefficients, _descriptorSetLayoutTextures;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutAlphaCutoff;
   std::shared_ptr<DescriptorSet> _descriptorSetCoefficients, _descriptorSetTextures;
+  std::shared_ptr<DescriptorSet> _descriptorSetAlphaCutoff;
   std::shared_ptr<UniformBuffer> _uniformBufferCoefficients;
+  std::shared_ptr<UniformBuffer> _uniformBufferAlphaCutoff;
   std::shared_ptr<State> _state;
   std::vector<bool> _changedTexture;
   std::vector<bool> _changedCoefficients;
-  bool _changedBaseColor = false;
   std::mutex _accessMutex;
 
   void _updateTextureDescriptors(int currentFrame);
   void _updateCoefficientDescriptors(int currentFrame);
-  void _updateBaseColor(std::shared_ptr<VertexBuffer<Vertex2D>> vertexBuffer);
+  void _updateAlphaCutoffDescriptors(int currentFrame);
 
  public:
-  MaterialSpritePhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
 
-  void setBaseColor(glm::vec4 color);
+  void setDoubleSided(bool doubleSided);
+  void setAlphaCutoff(bool alphaCutoff, float alphaMask);
   void setBaseColor(std::shared_ptr<Texture> color);
   void setNormal(std::shared_ptr<Texture> normal);
   void setPhongCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);
+  bool getDoubleSided();
 
-  std::shared_ptr<DescriptorSet> getDescriptorSetCoefficients();
+  std::shared_ptr<DescriptorSet> getDescriptorSetAlphaCutoff();
+  std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutAlphaCutoff();
+  std::shared_ptr<DescriptorSet> getDescriptorSetCoefficients(int currentFrame);
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutCoefficients();
-  std::shared_ptr<DescriptorSet> getDescriptorSetTextures();
+  std::shared_ptr<DescriptorSet> getDescriptorSetTextures(int currentFrame);
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutTextures();
-
-  void draw(int currentFrame, std::shared_ptr<VertexBuffer<Vertex2D>> vertexBuffer);
 };

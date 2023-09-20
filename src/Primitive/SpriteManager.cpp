@@ -8,7 +8,18 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
   _lightManager = lightManager;
-  _defaultMaterial = std::make_shared<MaterialSpritePhong>(commandBufferTransfer, state);
+  _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  _defaultMesh = std::make_shared<Mesh2D>(commandBufferTransfer, state);
+  // Vulkan image origin (0,0) is left-top corner
+  _defaultMesh->addVertex(
+      Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}});
+  _defaultMesh->addVertex(
+      Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}});
+  _defaultMesh->addVertex(
+      Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}});
+  _defaultMesh->addVertex(
+      Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}});
+  _defaultMesh->setIndexes({0, 1, 3, 1, 2, 3});
 
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
@@ -31,7 +42,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout,
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
+        _defaultMesh->getBindingDescription(), _defaultMesh->getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
@@ -39,7 +50,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     _pipeline[SpriteRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[SpriteRenderMode::DIRECTIONAL]->createGraphic2DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {_descriptorSetLayout[0]}, {},
-        Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
+        _defaultMesh->getBindingDescription(), _defaultMesh->getAttributeDescriptions());
   }
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -53,21 +64,21 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {_descriptorSetLayout[0]}, defaultPushConstants, Vertex2D::getBindingDescription(),
-        Vertex2D::getAttributeDescriptions());
+        {_descriptorSetLayout[0]}, defaultPushConstants, _defaultMesh->getBindingDescription(),
+        _defaultMesh->getAttributeDescriptions());
   }
 }
 
 std::shared_ptr<Sprite> SpriteManager::createSprite() {
   _spritesCreated++;
-  auto sprite = std::make_shared<Sprite>(_descriptorSetLayout, _commandBufferTransfer, _state);
+  auto sprite = std::make_shared<Sprite>(_defaultMesh, _descriptorSetLayout, _commandBufferTransfer, _state);
   sprite->setMaterial(_defaultMaterial);
   return sprite;
 }
 
-std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<MaterialSpritePhong> material) {
+std::shared_ptr<Sprite> SpriteManager::createSprite(std::shared_ptr<MaterialPhong> material) {
   _spritesCreated++;
-  auto sprite = std::make_shared<Sprite>(_descriptorSetLayout, _commandBufferTransfer, _state);
+  auto sprite = std::make_shared<Sprite>(_defaultMesh, _descriptorSetLayout, _commandBufferTransfer, _state);
   sprite->setMaterial(material);
   return sprite;
 }

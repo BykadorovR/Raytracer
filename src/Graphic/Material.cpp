@@ -1,11 +1,13 @@
 #include "Material.h"
 
-MaterialSpritePhong::MaterialSpritePhong(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                         std::shared_ptr<State> state) {
+MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _state = state;
 
   _descriptorSetLayoutCoefficients = std::make_shared<DescriptorSetLayout>(state->getDevice());
   _descriptorSetLayoutCoefficients->createUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT);
+
+  _descriptorSetLayoutAlphaCutoff = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  _descriptorSetLayoutAlphaCutoff->createUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT);
 
   _descriptorSetLayoutTextures = std::make_shared<DescriptorSetLayout>(state->getDevice());
   std::vector<VkDescriptorSetLayoutBinding> layoutTextures(2);
@@ -30,6 +32,13 @@ MaterialSpritePhong::MaterialSpritePhong(std::shared_ptr<CommandBuffer> commandB
                                                                sizeof(Coefficients), state->getDevice());
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
 
+  _descriptorSetAlphaCutoff = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
+                                                              _descriptorSetLayoutAlphaCutoff,
+                                                              state->getDescriptorPool(), state->getDevice());
+  _uniformBufferAlphaCutoff = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
+                                                              sizeof(AlphaCutoff), state->getDevice());
+  _descriptorSetAlphaCutoff->createUniformBuffer(_uniformBufferAlphaCutoff);
+
   _stubTextureOne = std::make_shared<Texture>(
       "../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
       commandBufferTransfer, _state->getSettings(), _state->getDevice());
@@ -48,7 +57,16 @@ MaterialSpritePhong::MaterialSpritePhong(std::shared_ptr<CommandBuffer> commandB
   }
 }
 
-void MaterialSpritePhong::_updateCoefficientDescriptors(int currentFrame) {
+void MaterialPhong::_updateAlphaCutoffDescriptors(int currentFrame) {
+  void* data;
+  vkMapMemory(_state->getDevice()->getLogicalDevice(),
+              _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->getMemory(), 0, sizeof(AlphaCutoff), 0, &data);
+  memcpy(data, &_alphaCutoff, sizeof(AlphaCutoff));
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
+                _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->getMemory());
+}
+
+void MaterialPhong::_updateCoefficientDescriptors(int currentFrame) {
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(),
               _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory(), 0, sizeof(Coefficients), 0, &data);
@@ -57,16 +75,7 @@ void MaterialSpritePhong::_updateCoefficientDescriptors(int currentFrame) {
                 _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory());
 }
 
-void MaterialSpritePhong::_updateBaseColor(std::shared_ptr<VertexBuffer<Vertex2D>> vertexBuffer) {
-  auto vertices = vertexBuffer->getData();
-  for (auto& vertex : vertices) {
-    vertex.color = _baseColor;
-  }
-
-  vertexBuffer->setData(vertices);
-}
-
-void MaterialSpritePhong::_updateTextureDescriptors(int currentFrame) {
+void MaterialPhong::_updateTextureDescriptors(int currentFrame) {
   std::map<int, VkDescriptorImageInfo> images;
   VkDescriptorImageInfo colorTextureInfo{};
   colorTextureInfo.imageLayout = _textureColor->getImageView()->getImage()->getImageLayout();
@@ -81,27 +90,26 @@ void MaterialSpritePhong::_updateTextureDescriptors(int currentFrame) {
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
-void MaterialSpritePhong::setBaseColor(glm::vec4 color) {
-  _baseColor = color;
-  _changedBaseColor = true;
+void MaterialPhong::setDoubleSided(bool doubleSided) { _doubleSided = doubleSided; }
+
+void MaterialPhong::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
+  _alphaCutoff.alphaCutoff = alphaCutoff;
+  _alphaCutoff.alphaMask = alphaCutoff;
 }
 
-void MaterialSpritePhong::setBaseColor(std::shared_ptr<Texture> color) {
+void MaterialPhong::setBaseColor(std::shared_ptr<Texture> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureColor = color;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialSpritePhong::setNormal(std::shared_ptr<Texture> normal) {
+void MaterialPhong::setNormal(std::shared_ptr<Texture> normal) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureNormal = normal;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialSpritePhong::setPhongCoefficients(glm::vec3 ambient,
-                                               glm::vec3 diffuse,
-                                               glm::vec3 specular,
-                                               float shininess) {
+void MaterialPhong::setPhongCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _coefficients._ambient = ambient;
   _coefficients._diffuse = diffuse;
@@ -110,38 +118,38 @@ void MaterialSpritePhong::setPhongCoefficients(glm::vec3 ambient,
   for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
 }
 
-std::shared_ptr<DescriptorSet> MaterialSpritePhong::getDescriptorSetCoefficients() {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetCoefficients;
-}
+bool MaterialPhong::getDoubleSided() { return _doubleSided; }
 
-std::shared_ptr<DescriptorSetLayout> MaterialSpritePhong::getDescriptorSetLayoutCoefficients() {
+std::shared_ptr<DescriptorSet> MaterialPhong::getDescriptorSetCoefficients(int currentFrame) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetLayoutCoefficients;
-}
-
-std::shared_ptr<DescriptorSet> MaterialSpritePhong::getDescriptorSetTextures() {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetTextures;
-}
-
-std::shared_ptr<DescriptorSetLayout> MaterialSpritePhong::getDescriptorSetLayoutTextures() {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetLayoutTextures;
-}
-
-void MaterialSpritePhong::draw(int currentFrame, std::shared_ptr<VertexBuffer<Vertex2D>> vertexBuffer) {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  if (_changedBaseColor) {
-    _updateBaseColor(vertexBuffer);
-    _changedBaseColor = false;
-  }
-  if (_changedTexture[currentFrame]) {
-    _updateTextureDescriptors(currentFrame);
-    _changedTexture[currentFrame] = false;
-  }
   if (_changedCoefficients[currentFrame]) {
     _updateCoefficientDescriptors(currentFrame);
     _changedCoefficients[currentFrame] = false;
   }
+  return _descriptorSetCoefficients;
+}
+
+std::shared_ptr<DescriptorSetLayout> MaterialPhong::getDescriptorSetLayoutCoefficients() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _descriptorSetLayoutCoefficients;
+}
+
+std::shared_ptr<DescriptorSet> MaterialPhong::getDescriptorSetTextures(int currentFrame) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (_changedTexture[currentFrame]) {
+    _updateTextureDescriptors(currentFrame);
+    _changedTexture[currentFrame] = false;
+  }
+  return _descriptorSetTextures;
+}
+
+std::shared_ptr<DescriptorSetLayout> MaterialPhong::getDescriptorSetLayoutTextures() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _descriptorSetLayoutTextures;
+}
+
+std::shared_ptr<DescriptorSet> MaterialPhong::getDescriptorSetAlphaCutoff() { return _descriptorSetAlphaCutoff; }
+
+std::shared_ptr<DescriptorSetLayout> MaterialPhong::getDescriptorSetLayoutAlphaCutoff() {
+  return _descriptorSetLayoutAlphaCutoff;
 }

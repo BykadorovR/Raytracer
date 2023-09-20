@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Sprite.h"
+#include "Mesh.h"
 
 class SpriteManager {
  private:
@@ -14,7 +15,8 @@ class SpriteManager {
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<LightManager> _lightManager;
   std::vector<std::shared_ptr<Sprite>> _sprites;
-  std::shared_ptr<MaterialSpritePhong> _defaultMaterial;
+  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  std::shared_ptr<Mesh2D> _defaultMesh;
 
  public:
   SpriteManager(std::vector<VkFormat> renderFormat,
@@ -22,7 +24,7 @@ class SpriteManager {
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                 std::shared_ptr<State> state);
   std::shared_ptr<Sprite> createSprite();
-  std::shared_ptr<Sprite> createSprite(std::shared_ptr<MaterialSpritePhong> material);
+  std::shared_ptr<Sprite> createSprite(std::shared_ptr<MaterialPhong> material);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
