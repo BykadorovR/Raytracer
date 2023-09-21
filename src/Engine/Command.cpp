@@ -60,6 +60,8 @@ void CommandBuffer::submitToQueue(bool blocking) {
   if (blocking) vkQueueWaitIdle(queue);
 }
 
+int CommandBuffer::getCurrentFrame() { return _currentFrame; }
+
 void CommandBuffer::submitToQueue(VkSubmitInfo info, std::shared_ptr<Fence> fence) {
   auto queue = _device->getQueue(_pool->getType());
   VkFence currentFence = VK_NULL_HANDLE;

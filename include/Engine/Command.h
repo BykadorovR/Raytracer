@@ -29,5 +29,6 @@ class CommandBuffer {
   void submitToQueue(bool blocking);
   void submitToQueue(VkSubmitInfo info, std::shared_ptr<Fence> fence);
   std::vector<VkCommandBuffer>& getCommandBuffer();
+  int getCurrentFrame();
   ~CommandBuffer();
 };

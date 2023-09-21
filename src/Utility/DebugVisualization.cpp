@@ -10,14 +10,15 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _gui = gui;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
-  _meshSprite = std::make_shared<Mesh2D>(commandBufferTransfer, state);
+  _meshSprite = std::make_shared<Mesh2D>(state);
   // Vulkan image origin (0,0) is left-top corner
   _meshSprite->setVertices(
       {Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
        Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
        Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}});
-  _meshSprite->setIndexes({0, 1, 3, 1, 2, 3});
+       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}},
+      commandBufferTransfer);
+  _meshSprite->setIndexes({0, 1, 3, 1, 2, 3}, commandBufferTransfer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -54,7 +55,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        commandBufferTransfer, state);
     line->setCamera(camera);
     auto mesh = line->getMesh();
-    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)});
+    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
     _lineFrustum[i] = line;
   }
 
@@ -64,6 +65,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _R = r;
   _G = g;
   _B = b;
+
+  _loaderBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer, state);
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
@@ -82,9 +85,8 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
                                                    lightManager, _commandBufferTransfer, _state);
 
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/Box/Box.gltf", _commandBufferTransfer, _state);
   for (auto light : lightManager->getPointLights()) {
-    auto model = _modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
@@ -98,7 +100,7 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
-    auto model = _modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
@@ -224,6 +226,20 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
 }
 
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  if (_frustumDraw) {
+    for (auto& line : _lineFrustum) {
+      line->draw(currentFrame, commandBuffer);
+    }
+  }
+}
+
+void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
+  _postprocessing = postprocessing;
+  _gamma = _postprocessing->getGamma();
+  _exposure = _postprocessing->getExposure();
+}
+
+void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto [resX, resY] = _state->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
@@ -291,24 +307,32 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
       float width1 = height1 * ((float)resX / (float)resY);
       _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                               glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())});
+                                               glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
       _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
-                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())});
+                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
       _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                               glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())});
+                                               glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
       _lineFrustum[3]->getMesh()->setPosition({glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())});
+                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
 
       float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
       float width2 = height2 * ((float)resX / (float)resY);
       _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                               glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())});
+                                               glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
       _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
-                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())});
+                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
       _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                               glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())});
+                                               glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
       _lineFrustum[7]->getMesh()->setPosition({glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())});
+                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
 
       auto model = glm::scale(glm::mat4(1.f), glm::vec3(width2, height2, 1.f));
       model = glm::translate(model, glm::vec3(0.f, 0.f, -camera->getFar()));
@@ -317,33 +341,25 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       _farPlaneCCW->setModel(glm::inverse(camera->getView()) * model);
 
       // bottom
-      _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos});
-      _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)});
-      _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos});
-      _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)});
+      _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos},
+                                              commandBuffer);
+      _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBuffer);
+      _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos},
+                                              commandBuffer);
+      _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBuffer);
       // top
-      _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos});
-      _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
-      _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos});
-      _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
+      _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos},
+                                               commandBuffer);
+      _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBuffer);
+      _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos},
+                                               commandBuffer);
+      _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBuffer);
 
       for (auto& line : _lineFrustum) {
         line->setModel(glm::inverse(camera->getView()));
       }
     }
   }
-
-  if (_frustumDraw) {
-    for (auto& line : _lineFrustum) {
-      line->draw(currentFrame, commandBuffer);
-    }
-  }
-}
-
-void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
-  _postprocessing = postprocessing;
-  _gamma = _postprocessing->getGamma();
-  _exposure = _postprocessing->getExposure();
 }
 
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {

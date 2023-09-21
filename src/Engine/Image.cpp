@@ -89,8 +89,6 @@ void Image::changeLayout(VkImageLayout oldLayout,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _imageLayout = newLayout;
 
-  commandBufferTransfer->beginCommands(0);
-
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
   barrier.oldLayout = oldLayout;
@@ -194,17 +192,16 @@ void Image::changeLayout(VkImageLayout oldLayout,
       break;
   }
 
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[0], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+  int currentFrame = commandBufferTransfer->getCurrentFrame();
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-  commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
                      int layersNumber,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  commandBufferTransfer->beginCommands(0);
+  _stagingBuffer = buffer;
+
   std::vector<VkBufferImageCopy> bufferCopyRegions;
   for (int i = 0; i < layersNumber; i++) {
     VkBufferImageCopy region{};
@@ -221,11 +218,18 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
     region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
     bufferCopyRegions.push_back(region);
   }
-  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _image,
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 
-  commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  int currentFrame = commandBufferTransfer->getCurrentFrame();
+  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _image,
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
+  // need to insert memory barrier so read in fragment shader waits for copy
+  VkMemoryBarrier memoryBarrier = {};
+  memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  memoryBarrier.pNext = nullptr;
+  memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }
 
 VkImageLayout& Image::getImageLayout() { return _imageLayout; }

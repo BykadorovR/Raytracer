@@ -9,7 +9,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _lightManager = lightManager;
   _state = state;
   _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
+  _mesh = std::make_shared<Mesh3D>(state);
   _defaultAnimation = std::make_shared<Animation>(std::vector<NodeGLTF*>{}, std::vector<SkinGLTF>{},
                                                   std::vector<AnimationGLTF>{}, state);
 

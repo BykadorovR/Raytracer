@@ -62,6 +62,7 @@ class Buffer {
   VkDeviceSize _size;
   std::shared_ptr<Device> _device;
   void* _mapped = nullptr;
+  std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
   Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
@@ -80,23 +81,19 @@ template <class T>
 class VertexBuffer {
  private:
   std::shared_ptr<Buffer> _buffer, _stagingBuffer;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Device> _device;
   std::vector<T> _vertices;
   VkBufferUsageFlagBits _type;
 
  public:
-  VertexBuffer(VkBufferUsageFlagBits type,
-               std::shared_ptr<CommandBuffer> commandBufferTransfer,
-               std::shared_ptr<Device> device) {
+  VertexBuffer(VkBufferUsageFlagBits type, std::shared_ptr<Device> device) {
     _device = device;
-    _commandBufferTransfer = commandBufferTransfer;
     _type = type;
   }
 
   std::vector<T> getData() { return _vertices; }
 
-  void setData(std::vector<T> vertices) {
+  void setData(std::vector<T> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
     _vertices = vertices;
 
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
@@ -115,7 +112,7 @@ class VertexBuffer {
                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
     }
 
-    _buffer->copyFrom(_stagingBuffer, _commandBufferTransfer);
+    _buffer->copyFrom(_stagingBuffer, commandBufferTransfer);
   }
 
   std::shared_ptr<Buffer> getBuffer() { return _buffer; }

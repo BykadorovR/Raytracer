@@ -3,7 +3,7 @@
 #include "Buffer.h"
 
 void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared_ptr<CommandBuffer> commandBuffer) {
-  commandBuffer->beginCommands(0);
+  int currentFrame = commandBuffer->getCurrentFrame();
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -24,7 +24,7 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], VK_PIPELINE_STAGE_TRANSFER_BIT,
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     VkImageBlit blit{};
@@ -42,8 +42,9 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
     blit.dstSubresource.layerCount = 1;  // number of visible mip map levels (only i here)
 
     // i = 0 has SRC layout (we changed it above), i = 1 has DST layout (we changed from udefined to dst in constructor)
-    vkCmdBlitImage(commandBuffer->getCommandBuffer()[0], image->getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   image->getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    vkCmdBlitImage(commandBuffer->getCommandBuffer()[currentFrame], image->getImage(),
+                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image->getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+                   &blit, VK_FILTER_LINEAR);
 
     // change i = 0 to READ OPTIMAL, we won't use this level anymore, next resizes will use next i
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -51,7 +52,7 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], VK_PIPELINE_STAGE_TRANSFER_BIT,
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     if (mipWidth > 1) mipWidth /= 2;
@@ -65,11 +66,9 @@ void generateMipmaps(std::shared_ptr<Image> image, int mipMapLevels, std::shared
   barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[0], VK_PIPELINE_STAGE_TRANSFER_BIT,
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-  commandBuffer->endCommands();
-  commandBuffer->submitToQueue(true);
   // we changed real image layout above, need to override imageLayout internal field
   image->overrideLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }

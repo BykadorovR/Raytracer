@@ -1,28 +1,22 @@
 #include "Mesh.h"
 
-Mesh::Mesh(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _state = state;
-  _commandBufferTransfer = commandBufferTransfer;
+Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
+
+Mesh3D::Mesh3D(std::shared_ptr<State> state) : Mesh(state) {
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state->getDevice());
 }
 
-Mesh3D::Mesh3D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
-    : Mesh(commandBufferTransfer, state) {
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _commandBufferTransfer,
-                                                           _state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _commandBufferTransfer,
-                                                          _state->getDevice());
-}
-
-void Mesh3D::setVertices(std::vector<Vertex3D> vertices) {
+void Mesh3D::setVertices(std::vector<Vertex3D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   _vertexData = vertices;
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
-void Mesh3D::setIndexes(std::vector<uint32_t> indexes) {
+void Mesh3D::setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessIndexMutex);
   _indexData = indexes;
-  _indexBuffer->setData(_indexData);
+  _indexBuffer->setData(_indexData, commandBufferTransfer);
 }
 
 const std::vector<uint32_t>& Mesh3D::getIndexData() {
@@ -45,7 +39,7 @@ std::shared_ptr<VertexBuffer<uint32_t>> Mesh3D::getIndexBuffer() {
   return _indexBuffer;
 }
 
-void Mesh3D::setColor(std::vector<glm::vec3> color) {
+void Mesh3D::setColor(std::vector<glm::vec3> color, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   if (color.size() == 0) return;
   if (color.size() > 1 && color.size() != _vertexData.size())
@@ -56,10 +50,10 @@ void Mesh3D::setColor(std::vector<glm::vec3> color) {
     if (i < color.size()) colorValue = color[i];
     _vertexData[i].color = colorValue;
   }
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
-void Mesh3D::setNormal(std::vector<glm::vec3> normal) {
+void Mesh3D::setNormal(std::vector<glm::vec3> normal, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   if (normal.size() == 0) return;
   if (normal.size() > 1 && normal.size() != _vertexData.size())
@@ -70,10 +64,10 @@ void Mesh3D::setNormal(std::vector<glm::vec3> normal) {
     if (i < normal.size()) normalValue = normal[i];
     _vertexData[i].normal = normalValue;
   }
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
-void Mesh3D::setPosition(std::vector<glm::vec3> position) {
+void Mesh3D::setPosition(std::vector<glm::vec3> position, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   if (position.size() == 0) return;
   if (position.size() > 1 && position.size() != _vertexData.size())
     throw std::invalid_argument("Number of positions doesn't match number of vertices");
@@ -83,7 +77,7 @@ void Mesh3D::setPosition(std::vector<glm::vec3> position) {
     if (i < position.size()) positionValue = position[i];
     _vertexData[i].pos = positionValue;
   }
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
 void Mesh3D::addPrimitive(MeshPrimitive primitive) { _primitives.push_back(primitive); }
@@ -140,40 +134,37 @@ std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
   return attributeDescriptions;
 }
 
-Mesh2D::Mesh2D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
-    : Mesh(commandBufferTransfer, state) {
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _commandBufferTransfer,
-                                                           _state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _commandBufferTransfer,
-                                                          _state->getDevice());
+Mesh2D::Mesh2D(std::shared_ptr<State> state) : Mesh(state) {
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state->getDevice());
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state->getDevice());
 }
 
-void Mesh2D::setVertices(std::vector<Vertex2D> vertices) {
+void Mesh2D::setVertices(std::vector<Vertex2D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   _vertexData = vertices;
-  _vertexBuffer->setData(vertices);
+  _vertexBuffer->setData(vertices, commandBufferTransfer);
 }
 
-void Mesh2D::setIndexes(std::vector<uint32_t> indexes) {
+void Mesh2D::setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessIndexMutex);
   _indexData = indexes;
-  _indexBuffer->setData(indexes);
+  _indexBuffer->setData(indexes, commandBufferTransfer);
 }
 
-void Mesh2D::setColor(glm::vec3 color) {
+void Mesh2D::setColor(glm::vec3 color, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   for (auto& vertex : _vertexData) {
     vertex.color = color;
   }
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
-void Mesh2D::setNormal(glm::vec3 normal) {
+void Mesh2D::setNormal(glm::vec3 normal, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessVertexMutex);
   for (auto& vertex : _vertexData) {
     vertex.normal = normal;
   }
-  _vertexBuffer->setData(_vertexData);
+  _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
 const std::vector<uint32_t>& Mesh2D::getIndexData() {

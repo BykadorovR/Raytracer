@@ -9,14 +9,15 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   _state = state;
   _lightManager = lightManager;
   _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMesh = std::make_shared<Mesh2D>(commandBufferTransfer, state);
+  _defaultMesh = std::make_shared<Mesh2D>(state);
   // Vulkan image origin (0,0) is left-top corner
   _defaultMesh->setVertices(
       {Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
        Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
        Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}});
-  _defaultMesh->setIndexes({0, 1, 3, 1, 2, 3});
+       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}},
+      commandBufferTransfer);
+  _defaultMesh->setIndexes({0, 1, 3, 1, 2, 3}, commandBufferTransfer);
 
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();

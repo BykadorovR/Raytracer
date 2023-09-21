@@ -29,10 +29,9 @@ struct Vertex3D {
 class Mesh {
  protected:
   std::shared_ptr<State> _state;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
 
  public:
-  Mesh(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Mesh(std::shared_ptr<State> state);
   virtual VkVertexInputBindingDescription getBindingDescription() = 0;
   virtual std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() = 0;
 };
@@ -47,13 +46,13 @@ class Mesh3D : public Mesh {
   std::vector<MeshPrimitive> _primitives;
 
  public:
-  Mesh3D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Mesh3D(std::shared_ptr<State> state);
 
-  void setVertices(std::vector<Vertex3D> vertices);
-  void setIndexes(std::vector<uint32_t> indexes);
-  void setColor(std::vector<glm::vec3> color);
-  void setNormal(std::vector<glm::vec3> normal);
-  void setPosition(std::vector<glm::vec3> position);
+  void setVertices(std::vector<Vertex3D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setColor(std::vector<glm::vec3> color, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setNormal(std::vector<glm::vec3> normal, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setPosition(std::vector<glm::vec3> position, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void addPrimitive(MeshPrimitive primitive);
 
   const std::vector<uint32_t>& getIndexData();
@@ -76,13 +75,12 @@ class Mesh2D : public Mesh {
   bool _changedVertex = false;
 
  public:
-  Mesh2D(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
-  void setVertices(std::vector<Vertex2D> vertices);
-  // TODO: allow to set only during creation time, during runtime material/matrixes should suit well enough
-  // otherwise multithreading use of commandBufferTransfer can happen
-  void setIndexes(std::vector<uint32_t> indexes);
-  void setColor(glm::vec3 color);
-  void setNormal(glm::vec3 normal);
+  Mesh2D(std::shared_ptr<State> state);
+
+  void setVertices(std::vector<Vertex2D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setColor(glm::vec3 color, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setNormal(glm::vec3 normal, std::shared_ptr<CommandBuffer> commandBufferTransfer);
 
   const std::vector<uint32_t>& getIndexData();
   const std::vector<Vertex2D>& getVertexData();

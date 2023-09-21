@@ -443,6 +443,10 @@ void debugVisualizations(int swapchainImageIndex) {
       .pDepthAttachment = &depthAttachmentInfo,
   };
 
+  loggerGPUDebug->begin("Calculate debug visualization " + std::to_string(globalFrame), currentFrame);
+  debugVisualization->calculate(commandBufferGUI);
+  loggerGPUDebug->end();
+
   vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
   loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
   debugVisualization->draw(currentFrame, commandBufferGUI);
@@ -706,6 +710,9 @@ void initialize() {
 
   commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, device);
+  // start transfer command buffer
+  commandBufferTransfer->beginCommands(0);
+
   //
   loggerGPU = std::make_shared<LoggerGPU>(state);
   loggerPostprocessing = std::make_shared<LoggerGPU>(state);
@@ -946,7 +953,7 @@ void initialize() {
   spheres[0] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}});
+  spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   spheres[0]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
@@ -955,7 +962,7 @@ void initialize() {
   spheres[1] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}});
+  spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   spheres[1]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -5.f, 0.f));
@@ -964,7 +971,7 @@ void initialize() {
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}});
+  spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   spheres[2]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -5.f, 0.f));
@@ -974,7 +981,7 @@ void initialize() {
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}});
+  spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   spheres[3]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 2.f));
@@ -983,7 +990,7 @@ void initialize() {
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}});
+  spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   spheres[4]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, -2.f));
@@ -992,7 +999,7 @@ void initialize() {
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
       VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
-  spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}});
+  spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   spheres[5]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
@@ -1008,6 +1015,9 @@ void initialize() {
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(6);
+
+  commandBufferTransfer->endCommands();
+  commandBufferTransfer->submitToQueue(true);
 }
 
 void drawFrame() {

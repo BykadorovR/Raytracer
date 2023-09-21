@@ -8,7 +8,7 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<State> state) {
   _state = state;
-  _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
+  _mesh = std::make_shared<Mesh3D>(state);
 
   int radius = 1;
   int sectorCount = 20;
@@ -76,8 +76,8 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
       }
     }
   }
-  _mesh->setVertices(vertices);
-  _mesh->setIndexes(indexes);
+  _mesh->setVertices(vertices, commandBufferTransfer);
+  _mesh->setIndexes(indexes, commandBufferTransfer);
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state->getDevice());

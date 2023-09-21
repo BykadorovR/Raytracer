@@ -87,7 +87,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   // vertex generation
   // TODO: replace Vertex3D and Mesh3D with Terrain mesh without redundant fields
   std::vector<Vertex3D> vertices;
-  _mesh = std::make_shared<Mesh3D>(commandBufferTransfer, state);
+  _mesh = std::make_shared<Mesh3D>(state);
   for (unsigned y = 0; y < patchNumber.second; y++) {
     for (unsigned x = 0; x < patchNumber.first; x++) {
       // define patch: 4 points (square)
@@ -116,7 +116,7 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
       vertices.push_back(vertex4);
     }
   }
-  _mesh->setVertices(vertices);
+  _mesh->setVertices(vertices, commandBufferTransfer);
 
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                   state->getDevice());

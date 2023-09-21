@@ -12,7 +12,6 @@ class Line {
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<Camera> _camera;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   glm::mat4 _model = glm::mat4(1.f);
   bool _changed = false;
 

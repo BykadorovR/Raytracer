@@ -13,6 +13,7 @@ class Image {
   int _layers;
   bool _external = false;
   VkImageLayout _imageLayout;
+  std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
   Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);

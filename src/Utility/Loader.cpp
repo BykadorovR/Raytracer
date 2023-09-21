@@ -16,7 +16,7 @@ Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTra
 
   // allocate meshes
   for (int i = 0; i < _model.meshes.size(); i++) {
-    auto mesh = std::make_shared<Mesh3D>(_commandBufferTransfer, _state);
+    auto mesh = std::make_shared<Mesh3D>(_state);
     _meshes.push_back(mesh);
   }
 
@@ -356,8 +356,8 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
       mesh->addPrimitive(primitive);
     }
 
-    mesh->setIndexes(indexes);
-    mesh->setVertices(vertices);
+    mesh->setIndexes(indexes, _commandBufferTransfer);
+    mesh->setVertices(vertices, _commandBufferTransfer);
   }
 
   // we store all node's heads in _nodes array

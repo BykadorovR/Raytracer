@@ -55,7 +55,7 @@ class DebugVisualization : public InputSubscriber {
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
   std::vector<std::string> _shadowKeys;
-
+  std::shared_ptr<Loader> _loaderBox;
   bool _frustumDraw = false;
   bool _showPlanes = false;
   bool _planesRegistered = false;
@@ -76,6 +76,8 @@ class DebugVisualization : public InputSubscriber {
                      std::shared_ptr<State> state);
   void setLights(std::shared_ptr<LightManager> lightManager);
   void setPostprocessing(std::shared_ptr<Postprocessing> postprocessing);
+
+  void calculate(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
