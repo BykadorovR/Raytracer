@@ -20,6 +20,8 @@ void Settings::setMaxFramesInFlight(int maxFramesInFlight) { _maxFramesInFlight 
 
 void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number; }
 
+void Settings::setDesiredFPS(int fps) { _desiredFPS = fps; }
+
 void Settings::setBloomPasses(int number) { _bloomPasses = number; }
 
 void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
@@ -57,3 +59,5 @@ int Settings::getThreadsInPool() { return _threadsInPool; }
 VkClearColorValue Settings::getClearColor() { return _clearColor; }
 
 int Settings::getAnisotropicSamples() { return _anisotropicSamples; }
+
+int Settings::getDesiredFPS() { return _desiredFPS; }

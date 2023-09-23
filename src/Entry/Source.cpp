@@ -104,7 +104,6 @@ bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
-int desiredFPS = 1000;
 bool FPSChanged = false;
 
 std::vector<std::shared_ptr<Sphere>> spheres;
@@ -467,8 +466,10 @@ void debugVisualizations(int swapchainImageIndex) {
     settings->setBloomPasses(bloomPasses);
   }
 
+  int desiredFPS = settings->getDesiredFPS();
   gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
   if (gui->drawInputInt("FPS", {20, 20}, {{"##current", &desiredFPS}})) {
+    settings->setDesiredFPS(desiredFPS);
     FPSChanged = true;
   }
   {
@@ -680,6 +681,7 @@ void initialize() {
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
+  settings->setDesiredFPS(100);
 
   state = std::make_shared<State>(settings);
   window = state->getWindow();
@@ -1214,7 +1216,7 @@ void mainLoop() {
     frameFPS++;
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsedSleep = std::chrono::duration_cast<std::chrono::milliseconds>(end - globalStartTimeFPS).count();
-    uint64_t expected = (1000.f / desiredFPS) * sleepFrame;
+    uint64_t expected = (1000.f / settings->getDesiredFPS()) * sleepFrame;
     if (elapsedSleep < expected) {
       loggerCPU->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
       std::this_thread::sleep_for(std::chrono::milliseconds(expected - elapsedSleep));
