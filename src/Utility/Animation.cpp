@@ -1,8 +1,8 @@
 #include "Animation.h"
 
-Animation::Animation(std::vector<NodeGLTF*> nodes,
-                     std::vector<SkinGLTF> skins,
-                     std::vector<AnimationGLTF> animations,
+Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                     const std::vector<std::shared_ptr<SkinGLTF>>& skins,
+                     const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
                      std::shared_ptr<State> state) {
   _nodes = nodes;
   _skins = skins;
@@ -24,7 +24,7 @@ Animation::Animation(std::vector<NodeGLTF*> nodes,
     _ssboJoints[i].resize(_state->getSettings()->getMaxFramesInFlight());
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
       _ssboJoints[i][j] = std::make_shared<Buffer>(
-          _skins[i].inverseBindMatrices.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+          _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
     }
     _descriptorSetJoints[i]->createJoints(_ssboJoints[i]);
@@ -45,9 +45,9 @@ std::shared_ptr<DescriptorSetLayout> Animation::getDescriptorSetLayoutJoints() {
 std::vector<std::shared_ptr<DescriptorSet>> Animation::getDescriptorSetJoints() { return _descriptorSetJoints; }
 
 // Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
-glm::mat4 Animation::_getNodeMatrix(NodeGLTF* node) {
+glm::mat4 Animation::_getNodeMatrix(std::shared_ptr<NodeGLTF> node) {
   glm::mat4 nodeMatrix = node->getLocalMatrix();
-  NodeGLTF* currentParent = node->parent;
+  std::shared_ptr<NodeGLTF> currentParent = node->parent;
   while (currentParent) {
     nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
     currentParent = currentParent->parent;
@@ -55,14 +55,14 @@ glm::mat4 Animation::_getNodeMatrix(NodeGLTF* node) {
   return nodeMatrix;
 }
 
-void Animation::_updateJoints(int frame, NodeGLTF* node) {
+void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
   if (node->skin > -1) {
     // Update the joint matrices
     glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
-    SkinGLTF skin = _skins[node->skin];
-    std::vector<glm::mat4> jointMatrices(skin.joints.size());
+    std::shared_ptr<SkinGLTF> skin = _skins[node->skin];
+    std::vector<glm::mat4> jointMatrices(skin->joints.size());
     for (size_t i = 0; i < jointMatrices.size(); i++) {
-      jointMatrices[i] = _getNodeMatrix(skin.joints[i]) * skin.inverseBindMatrices[i];
+      jointMatrices[i] = _getNodeMatrix(skin->joints[i]) * skin->inverseBindMatrices[i];
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
 
@@ -85,22 +85,22 @@ void Animation::updateAnimation(int frame, float deltaTime) {
   }
 
   _loggerCPU->begin("Update translate/scale/rotation");
-  AnimationGLTF& animation = _animations[animationIndex];
-  animation.currentTime += deltaTime;
-  animation.currentTime = fmod(animation.currentTime, animation.end);
-  for (auto& channel : animation.channels) {
-    AnimationSamplerGLTF& sampler = animation.samplers[channel.samplerIndex];
+  std::shared_ptr<AnimationGLTF> animation = _animations[animationIndex];
+  animation->currentTime += deltaTime;
+  animation->currentTime = fmod(animation->currentTime, animation->end);
+  for (auto& channel : animation->channels) {
+    AnimationSamplerGLTF& sampler = animation->samplers[channel.samplerIndex];
     if (sampler.interpolation != "LINEAR") {
       std::cout << "This sample only supports linear interpolations\n";
       continue;
     }
 
-    auto lower = std::upper_bound(sampler.inputs.begin(), sampler.inputs.end(), animation.currentTime);
+    auto lower = std::upper_bound(sampler.inputs.begin(), sampler.inputs.end(), animation->currentTime);
     // Get the input keyframe values for the current time stamp
     if (lower != sampler.inputs.begin()) {
       lower = std::prev(lower);
       int i = std::distance(sampler.inputs.begin(), lower);
-      float a = (animation.currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+      float a = (animation->currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
       if (channel.path == "translation") {
         channel.node->translation = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
       }

@@ -10,8 +10,9 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _state = state;
   _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   _mesh = std::make_shared<Mesh3D>(state);
-  _defaultAnimation = std::make_shared<Animation>(std::vector<NodeGLTF*>{}, std::vector<SkinGLTF>{},
-                                                  std::vector<AnimationGLTF>{}, state);
+  _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
+                                                  std::vector<std::shared_ptr<SkinGLTF>>{},
+                                                  std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
 
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
@@ -71,8 +72,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   }
 }
 
-std::shared_ptr<Model3D> Model3DManager::createModel3D(std::vector<NodeGLTF*> nodes,
-                                                       std::vector<std::shared_ptr<Mesh3D>> meshes) {
+std::shared_ptr<Model3D> Model3DManager::createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                                                       const std::vector<std::shared_ptr<Mesh3D>>& meshes) {
   auto model = std::make_shared<Model3D>(nodes, meshes, _descriptorSetLayout, _commandBufferTransfer, _state);
   model->setAnimation(_defaultAnimation);
   return model;

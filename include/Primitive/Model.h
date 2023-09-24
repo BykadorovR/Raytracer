@@ -19,7 +19,7 @@ class Model3D {
   std::shared_ptr<State> _state;
   std::shared_ptr<LoggerCPU> _loggerCPU;
 
-  std::vector<NodeGLTF*> _nodes;
+  std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
   std::shared_ptr<CommandPool> _commandPool;
@@ -52,11 +52,11 @@ class Model3D {
                  std::shared_ptr<UniformBuffer> cameraUBO,
                  glm::mat4 view,
                  glm::mat4 projection,
-                 NodeGLTF* node);
+                 std::shared_ptr<NodeGLTF> node);
 
  public:
-  Model3D(std::vector<NodeGLTF*> nodes,
-          std::vector<std::shared_ptr<Mesh3D>> meshes,
+  Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+          const std::vector<std::shared_ptr<Mesh3D>>& meshes,
           std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);

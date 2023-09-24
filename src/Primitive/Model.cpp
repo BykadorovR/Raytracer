@@ -6,8 +6,8 @@ void Model3D::setModel(glm::mat4 model) { _model = model; }
 void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 bool Model3D::isDepthEnabled() { return _enableDepth; }
 
-Model3D::Model3D(std::vector<NodeGLTF*> nodes,
-                 std::vector<std::shared_ptr<Mesh3D>> meshes,
+Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                 const std::vector<std::shared_ptr<Mesh3D>>& meshes,
                  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state) {
@@ -89,7 +89,7 @@ void Model3D::_drawNode(int currentFrame,
                         std::shared_ptr<UniformBuffer> cameraUBO,
                         glm::mat4 view,
                         glm::mat4 projection,
-                        NodeGLTF* node) {
+                        std::shared_ptr<NodeGLTF> node) {
   if (node->mesh >= 0 && _meshes[node->mesh]->getPrimitives().size() > 0) {
     VkBuffer vertexBuffers[] = {_meshes[node->mesh]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -98,7 +98,7 @@ void Model3D::_drawNode(int currentFrame,
                          _meshes[node->mesh]->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
     glm::mat4 nodeMatrix = node->getLocalMatrix();
-    NodeGLTF* currentParent = node->parent;
+    std::shared_ptr<NodeGLTF> currentParent = node->parent;
     while (currentParent) {
       nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
       currentParent = currentParent->parent;

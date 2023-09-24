@@ -681,7 +681,7 @@ void initialize() {
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
-  settings->setDesiredFPS(100);
+  settings->setDesiredFPS(1000);
 
   state = std::make_shared<State>(settings);
   window = state->getWindow();

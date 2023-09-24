@@ -23,7 +23,7 @@ struct Settings {
   int _anisotropicSamples = 0;
   // TODO: protect by mutex?
   int _bloomPasses = 1;
-  int _desiredFPS = 100;
+  int _desiredFPS;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},
                                                        {200, 0.0019}, {325, 0.0007}, {600, 0.0002}, {3250, 0.000007}};

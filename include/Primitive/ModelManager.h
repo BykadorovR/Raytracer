@@ -26,7 +26,8 @@ class Model3DManager {
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state);
 
-  std::shared_ptr<Model3D> createModel3D(std::vector<NodeGLTF*> nodes, std::vector<std::shared_ptr<Mesh3D>> meshes);
+  std::shared_ptr<Model3D> createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                                         const std::vector<std::shared_ptr<Mesh3D>>& meshes);
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);

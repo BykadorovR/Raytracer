@@ -104,10 +104,10 @@ void Loader::_loadMaterials() {
   for (size_t i = 0; i < _model.materials.size(); i++) {
     tinygltf::Material glTFMaterial = _model.materials[i];
     std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
-    MaterialGLTF material{};
+    std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
     // Get the base color factor
     if (glTFMaterial.values.find("baseColorFactor") != glTFMaterial.values.end()) {
-      material.baseColorFactor = glm::make_vec4(glTFMaterial.values["baseColorFactor"].ColorFactor().data());
+      material->baseColorFactor = glm::make_vec4(glTFMaterial.values["baseColorFactor"].ColorFactor().data());
     }
     // Get base color texture
     if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end()) {
@@ -116,7 +116,7 @@ void Loader::_loadMaterials() {
       // glTF image index
       auto baseColorImageIndex = _model.textures[baseColorTextureIndex].source;
       // glTF images are stored as vector of Texture
-      material.baseColorTexture = _textures[baseColorImageIndex];
+      material->baseColorTexture = _textures[baseColorImageIndex];
       // set texture to phong material
       materialPhong->setBaseColor(_textures[baseColorImageIndex]);
     }
@@ -126,24 +126,24 @@ void Loader::_loadMaterials() {
       // glTF image index
       auto normalImageIndex = _model.textures[normalTextureIndex].source;
       // glTF images are stored as vector of Texture
-      material.normalTexture = _textures[normalImageIndex];
+      material->normalTexture = _textures[normalImageIndex];
       // set normal texture to phong material
       materialPhong->setNormal(_textures[normalImageIndex]);
     }
 
-    material.doubleSided = glTFMaterial.doubleSided;
-    materialPhong->setDoubleSided(material.doubleSided);
-    material.alphaMask = (glTFMaterial.alphaMode == "MASK");
-    material.alphaCutoff = glTFMaterial.alphaCutoff;
-    materialPhong->setAlphaCutoff(material.alphaMask, material.alphaCutoff);
+    material->doubleSided = glTFMaterial.doubleSided;
+    materialPhong->setDoubleSided(material->doubleSided);
+    material->alphaMask = (glTFMaterial.alphaMode == "MASK");
+    material->alphaCutoff = glTFMaterial.alphaCutoff;
+    materialPhong->setAlphaCutoff(material->alphaMask, material->alphaCutoff);
 
     _materials.push_back(material);
     _materialsPhong.push_back(materialPhong);
   }
 }
 
-void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeIndex) {
-  NodeGLTF* node = new NodeGLTF();
+void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, uint32_t nodeIndex) {
+  std::shared_ptr<NodeGLTF> node = std::make_shared<NodeGLTF>();
   node->parent = parent;
   node->matrix = glm::mat4(1.f);
   node->index = nodeIndex;
@@ -301,7 +301,7 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
           }
           vertex.color = glm::vec3(1.f);
           if (_materials.size() > glTFPrimitive.material)
-            vertex.color = _materials[glTFPrimitive.material].baseColorFactor;
+            vertex.color = _materials[glTFPrimitive.material]->baseColorFactor;
 
           vertex.tangent = glm::vec4(0.0f);
           if (tangentsBuffer) vertex.tangent = glm::make_vec4(&tangentsBuffer[v * tangentByteStride]);
@@ -370,8 +370,8 @@ void Loader::_loadNode(tinygltf::Node& input, NodeGLTF* parent, uint32_t nodeInd
 }
 
 // Helper functions for locating glTF nodes
-NodeGLTF* Loader::_findNode(NodeGLTF* parent, uint32_t index) {
-  NodeGLTF* nodeFound = nullptr;
+std::shared_ptr<NodeGLTF> Loader::_findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index) {
+  std::shared_ptr<NodeGLTF> nodeFound = nullptr;
   if (parent->index == index) {
     return parent;
   }
@@ -384,8 +384,8 @@ NodeGLTF* Loader::_findNode(NodeGLTF* parent, uint32_t index) {
   return nodeFound;
 }
 
-NodeGLTF* Loader::_nodeFromIndex(uint32_t index) {
-  NodeGLTF* nodeFound = nullptr;
+std::shared_ptr<NodeGLTF> Loader::_nodeFromIndex(uint32_t index) {
+  std::shared_ptr<NodeGLTF> nodeFound = nullptr;
   for (auto& node : _nodes) {
     nodeFound = _findNode(node, index);
     if (nodeFound) {
@@ -398,14 +398,14 @@ NodeGLTF* Loader::_nodeFromIndex(uint32_t index) {
 // TODO: ssbo matrix copy is missing
 void Loader::_loadSkins() {
   for (size_t i = 0; i < _model.skins.size(); i++) {
-    SkinGLTF skin{};
+    std::shared_ptr<SkinGLTF> skin = std::make_shared<SkinGLTF>();
     tinygltf::Skin glTFSkin = _model.skins[i];
-    skin.name = glTFSkin.name;
+    skin->name = glTFSkin.name;
     // Find joint nodes
     for (int jointIndex : glTFSkin.joints) {
-      NodeGLTF* node = _nodeFromIndex(jointIndex);
+      auto node = _nodeFromIndex(jointIndex);
       if (node) {
-        skin.joints.push_back(node);
+        skin->joints.push_back(node);
       }
     }
 
@@ -414,8 +414,8 @@ void Loader::_loadSkins() {
       const tinygltf::Accessor& accessor = _model.accessors[glTFSkin.inverseBindMatrices];
       const tinygltf::BufferView& bufferView = _model.bufferViews[accessor.bufferView];
       const tinygltf::Buffer& buffer = _model.buffers[bufferView.buffer];
-      skin.inverseBindMatrices.resize(accessor.count);
-      std::memcpy(skin.inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
+      skin->inverseBindMatrices.resize(accessor.count);
+      std::memcpy(skin->inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
                   accessor.count * sizeof(glm::mat4));
     }
 
@@ -425,15 +425,15 @@ void Loader::_loadSkins() {
 
 void Loader::_loadAnimations() {
   for (size_t i = 0; i < _model.animations.size(); i++) {
-    AnimationGLTF animation{};
+    std::shared_ptr<AnimationGLTF> animation = std::make_shared<AnimationGLTF>();
     tinygltf::Animation glTFAnimation = _model.animations[i];
-    animation.name = glTFAnimation.name;
+    animation->name = glTFAnimation.name;
 
     // Samplers
-    animation.samplers.resize(glTFAnimation.samplers.size());
+    animation->samplers.resize(glTFAnimation.samplers.size());
     for (size_t j = 0; j < glTFAnimation.samplers.size(); j++) {
       tinygltf::AnimationSampler glTFSampler = glTFAnimation.samplers[j];
-      AnimationSamplerGLTF& dstSampler = animation.samplers[j];
+      AnimationSamplerGLTF& dstSampler = animation->samplers[j];
       dstSampler.interpolation = glTFSampler.interpolation;
 
       // Read sampler keyframe input time values
@@ -447,12 +447,12 @@ void Loader::_loadAnimations() {
           dstSampler.inputs.push_back(buf[index]);
         }
         // Adjust animation's start and end times
-        for (auto input : animation.samplers[j].inputs) {
-          if (input < animation.start) {
-            animation.start = input;
+        for (auto input : animation->samplers[j].inputs) {
+          if (input < animation->start) {
+            animation->start = input;
           };
-          if (input > animation.end) {
-            animation.end = input;
+          if (input > animation->end) {
+            animation->end = input;
           }
         }
       }
@@ -487,10 +487,10 @@ void Loader::_loadAnimations() {
     }
 
     // Channels
-    animation.channels.resize(glTFAnimation.channels.size());
+    animation->channels.resize(glTFAnimation.channels.size());
     for (size_t j = 0; j < glTFAnimation.channels.size(); j++) {
       tinygltf::AnimationChannel glTFChannel = glTFAnimation.channels[j];
-      AnimationChannelGLTF& dstChannel = animation.channels[j];
+      AnimationChannelGLTF& dstChannel = animation->channels[j];
       dstChannel.path = glTFChannel.target_path;
       dstChannel.samplerIndex = glTFChannel.sampler;
       dstChannel.node = _nodeFromIndex(glTFChannel.target_node);
@@ -502,10 +502,10 @@ void Loader::_loadAnimations() {
 
 std::vector<std::shared_ptr<MaterialPhong>> Loader::getMaterialsPhong() { return _materialsPhong; }
 
-const std::vector<SkinGLTF>& Loader::getSkins() { return _skins; }
+const std::vector<std::shared_ptr<SkinGLTF>>& Loader::getSkins() { return _skins; }
 
-const std::vector<AnimationGLTF>& Loader::getAnimations() { return _animations; }
+const std::vector<std::shared_ptr<AnimationGLTF>>& Loader::getAnimations() { return _animations; }
 
-std::vector<std::shared_ptr<Mesh3D>> Loader::getMeshes() { return _meshes; }
+const std::vector<std::shared_ptr<Mesh3D>>& Loader::getMeshes() { return _meshes; }
 
-std::vector<NodeGLTF*> Loader::getNodes() { return _nodes; }
+const std::vector<std::shared_ptr<NodeGLTF>>& Loader::getNodes() { return _nodes; }
