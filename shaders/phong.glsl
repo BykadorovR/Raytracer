@@ -4,7 +4,7 @@ float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, ve
     // transform to [0,1] range
     position.xy = position.xy * 0.5 + 0.5;
     float currentDepth = position.z;
-    float bias = max(0.05 * (1.0 - dot(normal, lightDir)), minBias);
+    float bias = max(0.01 * (1.0 - dot(normal, lightDir)), minBias);
     vec2 unitSize = 1.0 / textureSize(shadowSampler, 0);
     float shadow = 0.0;
     for (int y = -1; y <= 1; y++) {

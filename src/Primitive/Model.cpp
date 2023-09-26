@@ -77,7 +77,19 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   }
 }
 
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) { _materials = materials; }
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+}
 
 void Model3D::setAnimation(std::shared_ptr<Animation> animation) { _animation = animation; }
 
@@ -156,7 +168,7 @@ void Model3D::_drawNode(int currentFrame,
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
       if (primitive.indexCount > 0) {
         auto currentPipeline = pipeline;
-        std::shared_ptr<MaterialPhong> material = _defaultMaterial;
+        std::shared_ptr<Material> material = _defaultMaterial;
         // Get the texture index for this primitive
         if (_materials.size() > 0) {
           material = _materials.front();

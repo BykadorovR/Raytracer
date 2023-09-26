@@ -104,41 +104,83 @@ void Loader::_loadMaterials() {
   for (size_t i = 0; i < _model.materials.size(); i++) {
     tinygltf::Material glTFMaterial = _model.materials[i];
     std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
+    std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(_commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
+    float metallicFactor = 0;
+    float roughnessFactor = 0;
+    float occlusionStrength = 0;
+    glm::vec3 emissiveFactor = glm::vec3(0.f);
     // Get the base color factor
-    if (glTFMaterial.values.find("baseColorFactor") != glTFMaterial.values.end()) {
-      material->baseColorFactor = glm::make_vec4(glTFMaterial.values["baseColorFactor"].ColorFactor().data());
-    }
+    material->baseColorFactor = glm::make_vec4(glTFMaterial.pbrMetallicRoughness.baseColorFactor.data());
+    // Get metallic factor
+    metallicFactor = glTFMaterial.pbrMetallicRoughness.metallicFactor;
+    // Get roughness factor
+    roughnessFactor = glTFMaterial.pbrMetallicRoughness.roughnessFactor;
+    // Get occlusion strength
+    occlusionStrength = glTFMaterial.occlusionTexture.strength;
+    // Get emissive factor
+    emissiveFactor = glm::make_vec3(glTFMaterial.emissiveFactor.data());
+    // Get double side propery
+    materialPBR->setDoubleSided(glTFMaterial.doubleSided);
+    materialPhong->setDoubleSided(glTFMaterial.doubleSided);
+    // Get alpha cut off information
+    materialPBR->setAlphaCutoff((glTFMaterial.alphaMode == "MASK"), glTFMaterial.alphaCutoff);
+    materialPhong->setAlphaCutoff((glTFMaterial.alphaMode == "MASK"), glTFMaterial.alphaCutoff);
     // Get base color texture
-    if (glTFMaterial.values.find("baseColorTexture") != glTFMaterial.values.end()) {
+    {
       // glTF texture index
-      auto baseColorTextureIndex = glTFMaterial.values["baseColorTexture"].TextureIndex();
-      // glTF image index
-      auto baseColorImageIndex = _model.textures[baseColorTextureIndex].source;
-      // glTF images are stored as vector of Texture
-      material->baseColorTexture = _textures[baseColorImageIndex];
-      // set texture to phong material
-      materialPhong->setBaseColor(_textures[baseColorImageIndex]);
+      auto baseColorTextureIndex = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
+      if (baseColorTextureIndex >= 0) {
+        // glTF image index
+        auto baseColorImageIndex = _model.textures[baseColorTextureIndex].source;
+        // set texture to phong material
+        materialPhong->setBaseColor(_textures[baseColorImageIndex]);
+        // set texture to PBR material
+        materialPBR->setBaseColor(_textures[baseColorImageIndex]);
+      }
     }
     // Get normal texture
-    if (glTFMaterial.additionalValues.find("normalTexture") != glTFMaterial.additionalValues.end()) {
-      auto normalTextureIndex = glTFMaterial.additionalValues["normalTexture"].TextureIndex();
-      // glTF image index
-      auto normalImageIndex = _model.textures[normalTextureIndex].source;
-      // glTF images are stored as vector of Texture
-      material->normalTexture = _textures[normalImageIndex];
-      // set normal texture to phong material
-      materialPhong->setNormal(_textures[normalImageIndex]);
+    {
+      auto normalTextureIndex = glTFMaterial.normalTexture.index;
+      if (normalTextureIndex >= 0) {
+        // glTF image index
+        auto normalImageIndex = _model.textures[normalTextureIndex].source;
+        // set normal texture to phong material
+        materialPhong->setNormal(_textures[normalImageIndex]);
+        // set normal texture to PBR material
+        materialPBR->setNormal(_textures[normalImageIndex]);
+      }
     }
-
-    material->doubleSided = glTFMaterial.doubleSided;
-    materialPhong->setDoubleSided(material->doubleSided);
-    material->alphaMask = (glTFMaterial.alphaMode == "MASK");
-    material->alphaCutoff = glTFMaterial.alphaCutoff;
-    materialPhong->setAlphaCutoff(material->alphaMask, material->alphaCutoff);
+    // Get metallic-roughness texture
+    {
+      auto metallicRoughnessTextureIndex = glTFMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
+      if (metallicRoughnessTextureIndex >= 0) {
+        // glTF image index
+        auto metallicRoughnessImageIndex = _model.textures[metallicRoughnessTextureIndex].source;
+        // set PBR texture to PBR material
+        materialPBR->setMetallicRoughness(_textures[metallicRoughnessImageIndex]);
+      }
+    }
+    // Get occlusion texture
+    {
+      auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
+      if (occlusionTextureIndex >= 0) {
+        auto occlusionImageIndex = _model.textures[occlusionTextureIndex].source;
+        materialPBR->setOccluded(_textures[occlusionImageIndex]);
+      }
+    }
+    // Get emissive texture
+    {
+      auto emissiveTextureIndex = glTFMaterial.emissiveTexture.index;
+      if (emissiveTextureIndex >= 0) {
+        auto emissiveImageIndex = _model.textures[emissiveTextureIndex].source;
+        materialPBR->setEmissive(_textures[emissiveImageIndex]);
+      }
+    }
 
     _materials.push_back(material);
     _materialsPhong.push_back(materialPhong);
+    _materialsPBR.push_back(materialPBR);
   }
 }
 
@@ -501,6 +543,8 @@ void Loader::_loadAnimations() {
 }
 
 std::vector<std::shared_ptr<MaterialPhong>> Loader::getMaterialsPhong() { return _materialsPhong; }
+
+std::vector<std::shared_ptr<MaterialPBR>> Loader::getMaterialsPBR() { return _materialsPBR; }
 
 const std::vector<std::shared_ptr<SkinGLTF>>& Loader::getSkins() { return _skins; }
 

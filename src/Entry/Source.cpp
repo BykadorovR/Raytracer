@@ -833,7 +833,7 @@ void initialize() {
     auto materialColor = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     auto sprite3 = spriteManager->createSprite(materialColor);
     auto materialDiffuse = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    materialDiffuse->setPhongCoefficients(glm::vec3{1.f}, glm::vec3{0.f}, glm::vec3{0.5f}, 64.f);
+    materialDiffuse->setCoefficients(glm::vec3{1.f}, glm::vec3{0.f}, glm::vec3{0.5f}, 64.f);
     auto sprite4 = spriteManager->createSprite(materialDiffuse);
 
     auto sprite5 = spriteManager->createSprite();
@@ -871,13 +871,13 @@ void initialize() {
     spriteManager->registerSprite(sprite5);
     spriteManager->registerSprite(sprite6);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/BrainStem/BrainStem.gltf",
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/DamagedHelmet/DamagedHelmet.gltf",
                                                                 commandBufferTransfer, state);
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
   modelGLTF = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
   auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  material->setPhongCoefficients(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(1.f, 1.f, 1.f), 64.f);
+  material->setCoefficients(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(1.f, 1.f, 1.f), 64.f);
   modelGLTF->setMaterial(loaderGLTF->getMaterialsPhong());
   // modelGLTF->setMaterial({material});
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),

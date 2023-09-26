@@ -32,26 +32,9 @@ struct NodeGLTF {
   }
 };
 
-// TODO: remove, should be replaced by Phong + PBR, only base color can store here
-//  A glTF material stores information in e.g. the texture that is attached to it and colors
 struct MaterialGLTF {
   // PBR info
   glm::vec4 baseColorFactor = glm::vec4(1.0f);  // default [1,1,1,1]
-  std::shared_ptr<Texture> baseColorTexture;
-  double metallicFactor;   // default 1
-  double roughnessFactor;  // default 1
-  std::shared_ptr<Texture> metallicRoughnessTexture;
-
-  std::shared_ptr<Texture> normalTexture;
-  std::shared_ptr<Texture> occludedTexture;
-  double occlusionStrength;  // occludedColor = lerp(color, color * <sampled occlusion
-                             // texture value>, <occlusion strength>)
-  std::shared_ptr<Texture> emissiveTexture;
-  std::vector<double> emissiveFactor;  // length 3. default [0, 0, 0]
-
-  bool alphaMask;      // we are interested in alphaMode = "MASK" string value only
-  double alphaCutoff;  // default 0.5
-  bool doubleSided;    // default false;
 };
 
 struct SkinGLTF {
@@ -94,6 +77,7 @@ class Loader {
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::shared_ptr<MaterialGLTF>> _materials;
   std::vector<std::shared_ptr<MaterialPhong>> _materialsPhong;
+  std::vector<std::shared_ptr<MaterialPBR>> _materialsPBR;
   std::vector<std::shared_ptr<SkinGLTF>> _skins;
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
@@ -110,6 +94,7 @@ class Loader {
  public:
   Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   std::vector<std::shared_ptr<MaterialPhong>> getMaterialsPhong();
+  std::vector<std::shared_ptr<MaterialPBR>> getMaterialsPBR();
 
   const std::vector<std::shared_ptr<SkinGLTF>>& getSkins();
   const std::vector<std::shared_ptr<AnimationGLTF>>& getAnimations();

@@ -40,7 +40,7 @@ class Model3D {
   bool _enableLighting = true;
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
-  std::vector<std::shared_ptr<MaterialPhong>> _materials;
+  std::vector<std::shared_ptr<Material>> _materials;
   std::shared_ptr<MaterialPhong> _defaultMaterial;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
@@ -64,6 +64,7 @@ class Model3D {
   void enableLighting(bool enable);
   void setCamera(std::shared_ptr<Camera> camera);
 
+  void setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials);
   void setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials);
   void setAnimation(std::shared_ptr<Animation> animation);
   void setModel(glm::mat4 model);
