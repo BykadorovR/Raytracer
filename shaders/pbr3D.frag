@@ -75,6 +75,10 @@ layout( push_constant ) uniform constants {
 
 void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
+    vec4 normalTest = texture(normalSampler, fragTexCoord);
+    vec4 metallicRoughnessSampler = texture(metallicRoughnessSampler, fragTexCoord);
+    vec4 occlusionSampler = texture(occlusionSampler, fragTexCoord);
+    vec4 emissiveSampler = texture(emissiveSampler, fragTexCoord);
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
             discard;

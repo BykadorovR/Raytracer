@@ -8,7 +8,7 @@ bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-                 std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+                 std::shared_ptr<DescriptorSetLayout> cameraDescriptorSetLayout,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
@@ -18,7 +18,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _meshes = meshes;
 
   // default material if model doesn't have material at all, we still have to send data to shader
-  _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
 
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
@@ -37,14 +38,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _cameraUBODepth.push_back(facesBuffer);
   }
   // initialize descriptor sets
-  auto cameraLayout = std::find_if(descriptorSetLayout.begin(), descriptorSetLayout.end(),
-                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("camera");
-                                   });
   {
     for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                       (*cameraLayout).second, _state->getDescriptorPool(),
+                                                       cameraDescriptorSetLayout, _state->getDescriptorPool(),
                                                        _state->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
@@ -55,7 +52,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
         facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                      (*cameraLayout).second, _state->getDescriptorPool(),
+                                                      cameraDescriptorSetLayout, _state->getDescriptorPool(),
                                                       _state->getDevice());
         facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
       }
@@ -70,7 +67,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // initialize descriptor sets
   {
     auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                     (*cameraLayout).second, _state->getDescriptorPool(),
+                                                     cameraDescriptorSetLayout, _state->getDescriptorPool(),
                                                      _state->getDevice());
     cameraSet->createUniformBuffer(_cameraUBOFull);
     _descriptorSetCameraFull = cameraSet;
@@ -82,6 +79,7 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials)
   for (auto& material : materials) {
     _materials.push_back(material);
   }
+  _materialType = MaterialType::PHONG;
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
@@ -89,7 +87,10 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
   for (auto& material : materials) {
     _materials.push_back(material);
   }
+  _materialType = MaterialType::PBR;
 }
+
+MaterialType Model3D::getMaterialType() { return _materialType; }
 
 void Model3D::setAnimation(std::shared_ptr<Animation> animation) { _animation = animation; }
 
@@ -168,7 +169,8 @@ void Model3D::_drawNode(int currentFrame,
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
       if (primitive.indexCount > 0) {
         auto currentPipeline = pipeline;
-        std::shared_ptr<Material> material = _defaultMaterial;
+        std::shared_ptr<Material> material = _defaultMaterialPhong;
+        if (_materialType == MaterialType::PBR) material = _defaultMaterialPBR;
         // Get the texture index for this primitive
         if (_materials.size() > 0) {
           material = _materials.front();

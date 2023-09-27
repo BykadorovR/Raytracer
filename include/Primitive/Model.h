@@ -12,7 +12,7 @@
 #include "Animation.h"
 #include "Material.h"
 
-enum class ModelRenderMode { DIRECTIONAL, POINT, FULL };
+enum class MaterialType { PHONG, PBR };
 
 class Model3D {
  private:
@@ -41,8 +41,11 @@ class Model3D {
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
-  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  // TODO: add default PBR material
+  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
+  MaterialType _materialType = MaterialType::PHONG;
 
   void _drawNode(int currentFrame,
                  std::shared_ptr<CommandBuffer> commandBuffer,
@@ -57,7 +60,7 @@ class Model3D {
  public:
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+          std::shared_ptr<DescriptorSetLayout> cameraDescriptorSetLayout,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   void enableShadow(bool enable);
@@ -66,6 +69,7 @@ class Model3D {
 
   void setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials);
   void setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials);
+  MaterialType getMaterialType();
   void setAnimation(std::shared_ptr<Animation> animation);
   void setModel(glm::mat4 model);
   void enableDepth(bool enable);

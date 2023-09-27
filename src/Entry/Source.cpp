@@ -878,7 +878,7 @@ void initialize() {
   modelGLTF = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
   auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   material->setCoefficients(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(1.f, 1.f, 1.f), 64.f);
-  modelGLTF->setMaterial(loaderGLTF->getMaterialsPhong());
+  modelGLTF->setMaterial(loaderGLTF->getMaterialsPBR());
   // modelGLTF->setMaterial({material});
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
                                           state);

@@ -5,11 +5,13 @@
 class Model3DManager {
  private:
   // position in vector is set number
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
-  std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipeline;
-  std::map<ModelRenderMode, std::shared_ptr<Pipeline>> _pipelineCullOff;
+  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayout;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineCullOff;
+  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
-  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh3D> _mesh;
   std::shared_ptr<Animation> _defaultAnimation;
 
@@ -19,6 +21,7 @@ class Model3DManager {
   std::shared_ptr<State> _state;
   std::shared_ptr<Camera> _camera;
   std::vector<std::shared_ptr<Model3D>> _modelsGLTF;
+  std::shared_ptr<DescriptorSetLayout> _cameraSetLayout;
 
  public:
   Model3DManager(std::vector<VkFormat> renderFormat,
