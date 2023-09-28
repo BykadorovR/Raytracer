@@ -95,7 +95,7 @@ void main() {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
             lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
-                                            push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.05);
+                                            push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.01);
             //calculate point light
             lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, push.cameraPosition,
                                       push.enableShadow, shadowPointSampler, 0.15);

@@ -63,6 +63,8 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _changed[LightType::POINT].resize(state->getSettings()->getMaxFramesInFlight(), false);
 
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _reallocateDirectionalDescriptors(i);
+    _reallocatePointDescriptors(i);
     _updateDirectionalDescriptors(i);
     _updatePointDescriptors(i);
     _setLightDescriptors(i);
@@ -81,7 +83,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
   _descriptorSetDepthTexture[currentFrame]->createShadowTexture(_directionalTextures, _pointTextures);
 }
 
-void LightManager::_updateDirectionalDescriptors(int currentFrame) {
+void LightManager::_reallocateDirectionalDescriptors(int currentFrame) {
   int size = 0;
   for (int i = 0; i < _directionalLights.size(); i++) {
     size += _directionalLights[i]->getSize();
@@ -91,16 +93,6 @@ void LightManager::_updateDirectionalDescriptors(int currentFrame) {
     _lightDirectionalSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
-
-    int offset = 0;
-    _lightDirectionalSSBO[currentFrame]->map();
-    for (int i = 0; i < _directionalLights.size(); i++) {
-      // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset,
-             _directionalLights[i]->getData(), _directionalLights[i]->getSize());
-      offset += _directionalLights[i]->getSize();
-    }
-    _lightDirectionalSSBO[currentFrame]->unmap();
   }
 
   size = 0;
@@ -112,7 +104,23 @@ void LightManager::_updateDirectionalDescriptors(int currentFrame) {
     _lightDirectionalSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+  }
+}
 
+void LightManager::_updateDirectionalDescriptors(int currentFrame) {
+  if (_directionalLights.size() > 0) {
+    int offset = 0;
+    _lightDirectionalSSBO[currentFrame]->map();
+    for (int i = 0; i < _directionalLights.size(); i++) {
+      // we pass inverse bind matrices to shader via SSBO
+      memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset,
+             _directionalLights[i]->getData(), _directionalLights[i]->getSize());
+      offset += _directionalLights[i]->getSize();
+    }
+    _lightDirectionalSSBO[currentFrame]->unmap();
+  }
+
+  if (_directionalLights.size() > 0) {
     _lightDirectionalSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> directionalVP;
     for (int i = 0; i < _directionalLights.size(); i++) {
@@ -130,7 +138,7 @@ void LightManager::_updateDirectionalTexture(int currentFrame) {
   _directionalTextures[currentIndex] = _directionalLights[currentIndex]->getDepthTexture()[currentFrame];
 }
 
-void LightManager::_updatePointDescriptors(int currentFrame) {
+void LightManager::_reallocatePointDescriptors(int currentFrame) {
   int size = 0;
   for (int i = 0; i < _pointLights.size(); i++) {
     size += _pointLights[i]->getSize();
@@ -140,16 +148,6 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
     _lightPointSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
-
-    _lightPointSSBO[currentFrame]->map();
-    int offset = 0;
-    for (int i = 0; i < _pointLights.size(); i++) {
-      // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
-             _pointLights[i]->getSize());
-      offset += _pointLights[i]->getSize();
-    }
-    _lightPointSSBO[currentFrame]->unmap();
   }
 
   size = 0;
@@ -161,7 +159,23 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
     _lightPointSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+  }
+}
 
+void LightManager::_updatePointDescriptors(int currentFrame) {
+  if (_pointLights.size() > 0) {
+    _lightPointSSBO[currentFrame]->map();
+    int offset = 0;
+    for (int i = 0; i < _pointLights.size(); i++) {
+      // we pass inverse bind matrices to shader via SSBO
+      memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
+             _pointLights[i]->getSize());
+      offset += _pointLights[i]->getSize();
+    }
+    _lightPointSSBO[currentFrame]->unmap();
+  }
+
+  if (_pointLights.size() > 0) {
     _lightPointSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> pointVP;
     float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
@@ -263,20 +277,26 @@ std::vector<std::shared_ptr<DescriptorSet>> LightManager::getDSShadowTexture() {
 
 void LightManager::draw(int currentFrame) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+
+  // change lights configuration on demand only
   float updateLightDescriptors = false;
   if (_changed[LightType::DIRECTIONAL][currentFrame]) {
     _changed[LightType::DIRECTIONAL][currentFrame] = false;
-    _updateDirectionalDescriptors(currentFrame);
+    _reallocateDirectionalDescriptors(currentFrame);
     _updateDirectionalTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
   if (_changed[LightType::POINT][currentFrame]) {
     _changed[LightType::POINT][currentFrame] = false;
-    _updatePointDescriptors(currentFrame);
+    _reallocatePointDescriptors(currentFrame);
     _updatePointTexture(currentFrame);
     updateLightDescriptors = true;
   }
+
+  // light parameters can be changed on per-frame basis
+  _updateDirectionalDescriptors(currentFrame);
+  _updatePointDescriptors(currentFrame);
 
   if (updateLightDescriptors) _setLightDescriptors(currentFrame);
 }

@@ -67,7 +67,6 @@ std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
 std::shared_ptr<SpriteManager> spriteManager;
 std::shared_ptr<Model3DManager> modelManager;
-std::shared_ptr<Model3D> modelGLTF;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
 std::shared_ptr<Blur> blur;
@@ -803,7 +802,7 @@ void initialize() {
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
+  directionalLight->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
@@ -875,14 +874,18 @@ void initialize() {
                                                                 commandBufferTransfer, state);
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
-  modelGLTF = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
-  auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  material->setCoefficients(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(1.f, 1.f, 1.f), 64.f);
-  modelGLTF->setMaterial(loaderGLTF->getMaterialsPBR());
-  // modelGLTF->setMaterial({material});
+  auto modelGLTFPhong = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+  modelManager->registerModel3D(modelGLTFPhong);
+  modelGLTFPhong->setMaterial(loaderGLTF->getMaterialsPhong());
+
+  auto modelGLTFPBR = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+  modelManager->registerModel3D(modelGLTFPBR);
+  modelGLTFPBR->setMaterial(loaderGLTF->getMaterialsPBR());
+
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
                                           state);
-  modelGLTF->setAnimation(animation);
+  modelGLTFPhong->setAnimation(animation);
+  modelGLTFPBR->setAnimation(animation);
 
   // modelGLTF = modelManager->createModel3D("../data/Avocado/Avocado.gltf");
   // modelGLTF = modelManager->createModel3D("../data/CesiumMan/CesiumMan.gltf");
@@ -900,10 +903,14 @@ void initialize() {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
-    modelGLTF->setModel(model);
+    modelGLTFPhong->setModel(model);
   }
-
-  modelManager->registerModel3D(modelGLTF);
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
+    // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+    // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
+    modelGLTFPBR->setModel(model);
+  }
 
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());

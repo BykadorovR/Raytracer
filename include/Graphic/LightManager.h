@@ -36,8 +36,10 @@ class LightManager {
   std::map<LightType, std::vector<bool>> _changed;
   std::vector<std::shared_ptr<Texture>> _directionalTextures;
   std::vector<std::shared_ptr<Texture>> _pointTextures;
+  void _reallocateDirectionalDescriptors(int currentFrame);
   void _updateDirectionalDescriptors(int currentFrame);
   void _updateDirectionalTexture(int currentFrame);
+  void _reallocatePointDescriptors(int currentFrame);
   void _updatePointDescriptors(int currentFrame);
   void _updatePointTexture(int currentFrame);
   void _setLightDescriptors(int currentFrame);
