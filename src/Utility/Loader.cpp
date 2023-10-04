@@ -20,8 +20,9 @@ Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTra
     _meshes.push_back(mesh);
   }
 
+  _textures.resize(_model.images.size(), nullptr);
+
   // load material
-  _loadTextures();
   _loadMaterials();
   // load nodes
   const tinygltf::Scene& scene = _model.scenes[0];
@@ -36,10 +37,11 @@ Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTra
 }
 
 // load all textures here
-void Loader::_loadTextures() {
-  for (int i = 0; i < _model.images.size(); i++) {
-    tinygltf::Image& glTFImage = _model.images[i];
-    std::shared_ptr<Texture> texture;
+std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
+  std::shared_ptr<Texture> texture = _textures[imageIndex];
+  if (texture == nullptr) {
+    tinygltf::Image& glTFImage = _model.images[imageIndex];
+
     if (std::filesystem::exists(glTFImage.uri)) {
       texture = std::make_shared<Texture>(glTFImage.uri, _state->getSettings()->getLoadTextureColorFormat(),
                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
@@ -54,7 +56,7 @@ void Loader::_loadTextures() {
         bufferSize = glTFImage.width * glTFImage.height * 4;
         buffer = new unsigned char[bufferSize];
         unsigned char* rgba = buffer;
-        unsigned char* rgb = &glTFImage.image[0];
+        const unsigned char* rgb = glTFImage.image.data();
         for (size_t i = 0; i < glTFImage.width * glTFImage.height; ++i) {
           memcpy(rgba, rgb, sizeof(unsigned char) * 3);
           rgba += 4;
@@ -62,7 +64,7 @@ void Loader::_loadTextures() {
         }
         deleteBuffer = true;
       } else {
-        buffer = &glTFImage.image[0];
+        buffer = (unsigned char*)glTFImage.image.data();
         bufferSize = glTFImage.image.size();
       }
 
@@ -76,6 +78,7 @@ void Loader::_loadTextures() {
       memcpy(data, buffer, bufferSize);
       vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
 
+      // for some textures SRGB is used but for others linear format
       auto image = std::make_shared<Image>(std::tuple{glTFImage.width, glTFImage.height}, 1, 1,
                                            _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
                                            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -95,8 +98,9 @@ void Loader::_loadTextures() {
         delete[] buffer;
       }
     }
-    _textures.push_back(texture);
+    _textures[imageIndex] = texture;
   }
+  return texture;
 }
 
 // TODO: we can store baseColorFactor only in GLTF material, rest will go to PBR/Phong
@@ -134,9 +138,11 @@ void Loader::_loadMaterials() {
         // glTF image index
         auto baseColorImageIndex = _model.textures[baseColorTextureIndex].source;
         // set texture to phong material
-        materialPhong->setBaseColor(_textures[baseColorImageIndex]);
+        materialPhong->setBaseColor(
+            _loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
         // set texture to PBR material
-        materialPBR->setBaseColor(_textures[baseColorImageIndex]);
+        materialPBR->setBaseColor(
+            _loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
       }
     }
     // Get normal texture
@@ -146,9 +152,9 @@ void Loader::_loadMaterials() {
         // glTF image index
         auto normalImageIndex = _model.textures[normalTextureIndex].source;
         // set normal texture to phong material
-        materialPhong->setNormal(_textures[normalImageIndex]);
+        materialPhong->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
         // set normal texture to PBR material
-        materialPBR->setNormal(_textures[normalImageIndex]);
+        materialPBR->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
       }
     }
     // Get metallic-roughness texture
@@ -158,7 +164,8 @@ void Loader::_loadMaterials() {
         // glTF image index
         auto metallicRoughnessImageIndex = _model.textures[metallicRoughnessTextureIndex].source;
         // set PBR texture to PBR material
-        materialPBR->setMetallicRoughness(_textures[metallicRoughnessImageIndex]);
+        materialPBR->setMetallicRoughness(
+            _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
       }
     }
     // Get occlusion texture
@@ -166,7 +173,8 @@ void Loader::_loadMaterials() {
       auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
       if (occlusionTextureIndex >= 0) {
         auto occlusionImageIndex = _model.textures[occlusionTextureIndex].source;
-        materialPBR->setOccluded(_textures[occlusionImageIndex]);
+        materialPBR->setOccluded(
+            _loadTexture(occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
       }
     }
     // Get emissive texture
@@ -174,7 +182,7 @@ void Loader::_loadMaterials() {
       auto emissiveTextureIndex = glTFMaterial.emissiveTexture.index;
       if (emissiveTextureIndex >= 0) {
         auto emissiveImageIndex = _model.textures[emissiveTextureIndex].source;
-        materialPBR->setEmissive(_textures[emissiveImageIndex]);
+        materialPBR->setEmissive(_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
       }
     }
 

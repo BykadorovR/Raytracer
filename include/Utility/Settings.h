@@ -13,6 +13,7 @@ struct Settings {
   std::string _name = "default";
   VkFormat _swapchainColorFormat;
   VkFormat _graphicColorFormat;
+  // should be SRGB, so we convert to linear during loading
   VkFormat _loadTextureColorFormat;
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;

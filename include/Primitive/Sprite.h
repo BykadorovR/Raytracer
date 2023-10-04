@@ -11,8 +11,6 @@
 #include "Material.h"
 #include "Mesh.h"
 
-enum class SpriteRenderMode { DIRECTIONAL, POINT, FULL };
-
 class Sprite {
  private:
   std::shared_ptr<State> _state;
@@ -25,14 +23,15 @@ class Sprite {
   bool _enableDepth = true;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
-  std::shared_ptr<MaterialPhong> _material;
+  std::shared_ptr<Material> _material;
+  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh2D> _mesh;
-
+  MaterialType _materialType = MaterialType::PHONG;
   glm::mat4 _model = glm::mat4(1.f);
 
  public:
   Sprite(std::shared_ptr<Mesh2D> mesh,
-         std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<State> state);
   void enableShadow(bool enable);
@@ -40,7 +39,9 @@ class Sprite {
   void enableDepth(bool enable);
   bool isDepthEnabled();
 
+  void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setMaterial(std::shared_ptr<MaterialPhong> material);
+  MaterialType getMaterialType();
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
 

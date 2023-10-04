@@ -1,6 +1,8 @@
 #pragma once
 #include "State.h"
 
+enum class MaterialType { PHONG, PBR };
+
 class Material {
  protected:
   struct AlphaCutoff {

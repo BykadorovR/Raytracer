@@ -823,17 +823,22 @@ void initialize() {
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
   {
-    auto sprite = spriteManager->createSprite();
     auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     material->setBaseColor(texture);
     material->setNormal(normalMap);
-    sprite->setMaterial(material);
-    auto sprite2 = spriteManager->createSprite(material);
-    auto materialColor = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    auto sprite3 = spriteManager->createSprite(materialColor);
     auto materialDiffuse = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     materialDiffuse->setCoefficients(glm::vec3{1.f}, glm::vec3{0.f}, glm::vec3{0.5f}, 64.f);
-    auto sprite4 = spriteManager->createSprite(materialDiffuse);
+    auto materialColor = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+
+    auto sprite = spriteManager->createSprite();
+    sprite->setMaterial(materialDiffuse);
+    auto sprite2 = spriteManager->createSprite();
+    sprite2->setMaterial(materialColor);
+    auto sprite3 = spriteManager->createSprite();
+    sprite3->setMaterial(material);
+
+    auto sprite4 = spriteManager->createSprite();
+    sprite4->setMaterial(material);
 
     auto sprite5 = spriteManager->createSprite();
     auto sprite6 = spriteManager->createSprite();

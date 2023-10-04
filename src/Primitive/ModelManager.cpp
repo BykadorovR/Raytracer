@@ -15,9 +15,9 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
 
-  _cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  _cameraSetLayout->createUniformBuffer();
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", _cameraSetLayout});
+  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraSetLayout->createUniformBuffer();
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
@@ -28,9 +28,9 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"phongCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
+      {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
 
-  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", _cameraSetLayout});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", cameraSetLayout});
   _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
@@ -40,7 +40,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PBR].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
-      {"phongCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
+      {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
 
   // initialize Phong
   {
@@ -97,7 +97,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
-        {{"camera", _cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, {},
+        {{"camera", cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, {},
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
   {
@@ -111,14 +111,14 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {{"camera", _cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}},
+        {{"camera", cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}},
         defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
 }
 
 std::shared_ptr<Model3D> Model3DManager::createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                        const std::vector<std::shared_ptr<Mesh3D>>& meshes) {
-  auto model = std::make_shared<Model3D>(nodes, meshes, _cameraSetLayout, _commandBufferTransfer, _state);
+  auto model = std::make_shared<Model3D>(nodes, meshes, _commandBufferTransfer, _state);
   model->setAnimation(_defaultAnimation);
   return model;
 }

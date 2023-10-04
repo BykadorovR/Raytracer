@@ -82,7 +82,7 @@ class Loader {
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
-  void _loadTextures();
+  std::shared_ptr<Texture> _loadTexture(int imageIndex, VkFormat format);
   void _loadMaterials();
   void _loadAnimations();
   void _loadSkins();

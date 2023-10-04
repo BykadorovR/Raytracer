@@ -6,8 +6,10 @@
 class SpriteManager {
  private:
   // position in vector is set number
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
-  std::map<SpriteRenderMode, std::shared_ptr<Pipeline>> _pipeline;
+  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayout;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
+  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
   int _spritesCreated = 0;
   std::shared_ptr<State> _state;
@@ -15,7 +17,8 @@ class SpriteManager {
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<LightManager> _lightManager;
   std::vector<std::shared_ptr<Sprite>> _sprites;
-  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh2D> _defaultMesh;
 
  public:
@@ -24,7 +27,6 @@ class SpriteManager {
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                 std::shared_ptr<State> state);
   std::shared_ptr<Sprite> createSprite();
-  std::shared_ptr<Sprite> createSprite(std::shared_ptr<MaterialPhong> material);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);

@@ -8,7 +8,6 @@ bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-                 std::shared_ptr<DescriptorSetLayout> cameraDescriptorSetLayout,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
@@ -38,6 +37,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _cameraUBODepth.push_back(facesBuffer);
   }
   // initialize descriptor sets
+  auto cameraDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraDescriptorSetLayout->createUniformBuffer();
   {
     for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
@@ -161,10 +162,11 @@ void Model3D::_drawNode(int currentFrame,
                                       [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                         return info.first == std::string("texture");
                                       });
-    auto phongCoefficientsLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                                [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                                  return info.first == std::string("phongCoefficients");
-                                                });
+    auto materialCoefficientsLayout = std::find_if(
+        pipelineLayout.begin(), pipelineLayout.end(),
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+          return info.first == std::string("materialCoefficients");
+        });
 
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
       if (primitive.indexCount > 0) {
@@ -192,7 +194,7 @@ void Model3D::_drawNode(int currentFrame,
                                   0, nullptr);
         }
         // assign coefficients
-        if (phongCoefficientsLayout != pipelineLayout.end()) {
+        if (materialCoefficientsLayout != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(
               commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
               pipeline->getPipelineLayout(), 7, 1,

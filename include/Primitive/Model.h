@@ -12,8 +12,6 @@
 #include "Animation.h"
 #include "Material.h"
 
-enum class MaterialType { PHONG, PBR };
-
 class Model3D {
  private:
   std::shared_ptr<State> _state;
@@ -41,7 +39,6 @@ class Model3D {
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
-  // TODO: add default PBR material
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
@@ -60,7 +57,6 @@ class Model3D {
  public:
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-          std::shared_ptr<DescriptorSetLayout> cameraDescriptorSetLayout,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   void enableShadow(bool enable);

@@ -21,7 +21,6 @@ class Model3DManager {
   std::shared_ptr<State> _state;
   std::shared_ptr<Camera> _camera;
   std::vector<std::shared_ptr<Model3D>> _modelsGLTF;
-  std::shared_ptr<DescriptorSetLayout> _cameraSetLayout;
 
  public:
   Model3DManager(std::vector<VkFormat> renderFormat,
@@ -40,5 +39,4 @@ class Model3DManager {
                   LightType lightType,
                   int lightIndex,
                   int face = 0);
-  void updateAnimation(int currentFrame, float deltaTime);
 };
