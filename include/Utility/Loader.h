@@ -4,6 +4,7 @@
 #include "tiny_gltf.h"
 #include "Material.h"
 #include "Mesh.h"
+#include <filesystem>
 
 // A node represents an object in the glTF scene graph
 struct NodeGLTF {
@@ -66,7 +67,7 @@ struct AnimationGLTF {
 
 class Loader {
  private:
-  std::string _path;
+  std::filesystem::path _path;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   // pool of all used textures to conviniently take neccessary in materials

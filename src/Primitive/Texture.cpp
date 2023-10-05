@@ -81,6 +81,7 @@ Texture::Texture(std::string path,
                  std::shared_ptr<Settings> settings,
                  std::shared_ptr<Device> device) {
   _device = device;
+  _path = path;
   // load texture
   int texWidth, texHeight, texChannels;
   stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);

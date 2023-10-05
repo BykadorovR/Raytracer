@@ -62,7 +62,7 @@ layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
 layout(set = 7, binding = 0) uniform Material {
     float metallicFactor;
     float roughnessFactor;
-    // occludedColor = lerp(color, color * <sampled occlusion texture value>, <occlusion strength>)
+    // occludedColor = mix(color, color * <sampled occlusion texture value>, <occlusion strength>)
     float occlusionStrength;
     vec3 emissiveFactor;
 } material;
@@ -73,14 +73,21 @@ layout( push_constant ) uniform constants {
     layout(offset = 32) vec3 cameraPosition;
 } push;
 
+#define getLightDir(index) lightDirectional[index]
+#define getLightPoint(index) lightPoint[index]
 #include "pbr.glsl"
 
 void main() {
-    outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
-    vec4 normalTest = texture(normalSampler, fragTexCoord);
-    vec4 metallicRoughnessSampler = texture(metallicRoughnessSampler, fragTexCoord);
-    vec4 occlusionSampler = texture(occlusionSampler, fragTexCoord);
-    vec4 emissiveSampler = texture(emissiveSampler, fragTexCoord);
+    vec4 albedoTexture = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
+    vec4 normalTexture = texture(normalSampler, fragTexCoord);
+    vec4 metallicRoughnessTexture = texture(metallicRoughnessSampler, fragTexCoord);
+    vec4 occlusionTexture = texture(occlusionSampler, fragTexCoord);
+    vec4 emissiveTexture = texture(emissiveSampler, fragTexCoord);
+    // ao .r, roughness .g, metallic .b
+    float metallicValue = metallicRoughnessTexture.b * material.metallicFactor;
+    float roughnessValue = metallicRoughnessTexture.g * material.roughnessFactor;
+
+    outColor = albedoTexture;
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
             discard;
@@ -88,7 +95,7 @@ void main() {
     }
 
     if (push.enableLighting > 0) {
-        vec3 normal = texture(normalSampler, fragTexCoord).rgb;
+        vec3 normal = normalTexture.rgb;
         if (length(normal) > epsilon) {
             normal = normal * 2.0 - 1.0;
             normal = normalize(fragTBN * normal);
@@ -97,9 +104,33 @@ void main() {
         }
 
         if (length(normal) > epsilon) {
-            //calculate reflected part for every light source separately and them sum them
-            //add occlusion to resulting color (it doesn't depend on light sources at all)
+            //calculate reflected part for every light source separately and them sum them            
+            vec3 viewDir = normalize(push.cameraPosition - fragPosition);
+
+            // reflectance equation
+            vec3 Lr = vec3(0.0);
+            for (int i = 0; i < lightDirectional.length(); i++) {
+                vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
+                vec3 inRadiance = getLightDir(i).color;
+                Lr += calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+            }
+
+            for (int i = 0; i < lightPoint.length(); i++) {
+                vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
+                float distance = length(getLightPoint(i).position - fragPosition);
+                if (distance > getLightPoint(i).distance) break;
+                float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
+                vec3 inRadiance = getLightPoint(i).color * attenuation;
+                Lr += calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+            }
+
+            outColor.rgb = Lr;
+            //add occlusion to resulting color (it doesn't depend on light sources at all), occlusion is stored inside metallic roughness as .r channel or as separate texture .r channel
+            //so it doesn't matter, any texture -> .r channel
+            outColor.rgb = mix(outColor.rgb, outColor.rgb * occlusionTexture.r, material.occlusionStrength);
             //add emissive to resulting reflected radiance from all light sources
+            outColor.rgb += emissiveTexture.rgb * material.emissiveFactor;
+
         }
     }
 

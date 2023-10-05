@@ -6,7 +6,7 @@
 #include <filesystem>
 
 Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _path = path;
+  _path = std::filesystem::path(path);
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
 
@@ -41,10 +41,9 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
   std::shared_ptr<Texture> texture = _textures[imageIndex];
   if (texture == nullptr) {
     tinygltf::Image& glTFImage = _model.images[imageIndex];
-
-    if (std::filesystem::exists(glTFImage.uri)) {
-      texture = std::make_shared<Texture>(glTFImage.uri, _state->getSettings()->getLoadTextureColorFormat(),
-                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
+    auto filePath = _path.remove_filename().string() + glTFImage.uri;
+    if (std::filesystem::exists(filePath)) {
+      texture = std::make_shared<Texture>(filePath, format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
                                           _state->getSettings(), _state->getDevice());
     } else {
       // Get the image data from the glTF loader
@@ -79,8 +78,8 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
       vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
 
       // for some textures SRGB is used but for others linear format
-      auto image = std::make_shared<Image>(std::tuple{glTFImage.width, glTFImage.height}, 1, 1,
-                                           _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+      auto image = std::make_shared<Image>(std::tuple{glTFImage.width, glTFImage.height}, 1, 1, format,
+                                           VK_IMAGE_TILING_OPTIMAL,
                                            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
 
@@ -93,7 +92,6 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state->getDevice());
       texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, imageView, _state->getDevice());
-
       if (deleteBuffer) {
         delete[] buffer;
       }
