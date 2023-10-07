@@ -131,6 +131,8 @@ void main() {
             //add emissive to resulting reflected radiance from all light sources
             outColor.rgb += emissiveTexture.rgb * material.emissiveFactor;
 
+            //outColor.rgb = normal;
+
         }
     }
 

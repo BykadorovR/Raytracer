@@ -76,6 +76,24 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace)
+file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/CMakeLists.txt
+  "cmake_minimum_required(VERSION 3.16)\n"
+  "project(mikktspace LANGUAGES C)\n"
+  "include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/src/mikktspace)\n"
+  "add_library(mikktspace "${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/src/mikktspace/mikktspace.c"
+                          )"
+  )
+
+ExternalProject_Add(
+  mikktspace
+  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace
+  GIT_REPOSITORY https://github.com/mmikk/MikkTSpace.git
+  GIT_TAG 3e895b49d05ea07e4c2133156cfa94369e19e409
+  CONFIGURE_COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/
+  INSTALL_COMMAND ""
+)
+
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
   "cmake_minimum_required(VERSION 3.16)\n"
@@ -137,7 +155,7 @@ find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
 
-add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader nvtx thread-pool)
+add_dependencies(${PROJECT_NAME} glfw glm imgui tinygltf tinyobjloader nvtx thread-pool mikktspace)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
@@ -145,9 +163,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/d
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/tinyobjloader/src/tinyobjloader)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/nvtx/src/nvtx/c/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/thread-pool/src/thread-pool/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/src/mikktspace)
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)
 #link imgui libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui-build/Debug/imgui.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui-build/Release/imgui.lib)
+#link mikktspace library
+target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/src/mikktspace-build/Debug/mikktspace.lib)
+target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/mikktspace/src/mikktspace-build/Release/mikktspace.lib)

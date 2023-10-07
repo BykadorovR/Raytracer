@@ -100,6 +100,8 @@ void main() {
             lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, push.cameraPosition,
                                       push.enableShadow, shadowPointSampler, 0.15);
             outColor *= vec4(lightFactor, 1.0);
+
+            outColor.rgb = normal;
         }
     }
 

@@ -4,6 +4,7 @@
 #include "Loader.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <filesystem>
+#include "mikktspace.h"
 
 Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _path = std::filesystem::path(path);
@@ -34,6 +35,96 @@ Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTra
   _loadSkins();
   // load animations
   _loadAnimations();
+}
+
+void Loader::_generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices) {
+  struct VertexIndex {
+    std::vector<uint32_t>& indexes;
+    std::vector<Vertex3D>& vertices;
+  };
+
+  SMikkTSpaceInterface mkif;
+  mkif.m_getNormal = [](SMikkTSpaceContext const* context, float normOut[], const int faceNum, const int vertNum) {
+    VertexIndex& vertexIndex = *reinterpret_cast<VertexIndex*>(context->m_pUserData);
+    glm::vec3 v;
+    if (vertexIndex.indexes.size() > 0) {
+      uint32_t index = vertexIndex.indexes[faceNum * 3 + vertNum];
+      if (index < vertexIndex.vertices.size()) {
+        v = vertexIndex.vertices[index].normal;
+      }
+    } else {
+      v = vertexIndex.vertices[faceNum * 3 + vertNum].normal;
+    }
+
+    normOut[0] = v.x;
+    normOut[1] = v.y;
+    normOut[2] = v.z;
+  };
+
+  mkif.m_getNumFaces = [](SMikkTSpaceContext const* context) -> int {
+    VertexIndex& vertexIndex = *reinterpret_cast<VertexIndex*>(context->m_pUserData);
+    if (vertexIndex.indexes.size() > 0) return vertexIndex.indexes.size() / 3;
+    return vertexIndex.vertices.size() / 3;
+  };
+
+  mkif.m_getNumVerticesOfFace = [](SMikkTSpaceContext const* context, const int faceNum) -> int { return 3; };
+  mkif.m_getPosition = [](SMikkTSpaceContext const* context, float posOut[], const int faceNum, const int vertNum) {
+    VertexIndex& vertexIndex = *reinterpret_cast<VertexIndex*>(context->m_pUserData);
+    glm::vec3 v;
+    if (vertexIndex.indexes.size() > 0) {
+      uint32_t index = vertexIndex.indexes[faceNum * 3 + vertNum];
+      if (index < vertexIndex.vertices.size()) {
+        v = vertexIndex.vertices[index].pos;
+      }
+    } else {
+      v = vertexIndex.vertices[faceNum * 3 + vertNum].pos;
+    }
+
+    posOut[0] = v.x;
+    posOut[1] = v.y;
+    posOut[2] = v.z;
+  };
+  mkif.m_getTexCoord = [](SMikkTSpaceContext const* context, float texCoordOut[], const int faceNum,
+                          const int vertNum) {
+    VertexIndex& vertexIndex = *reinterpret_cast<VertexIndex*>(context->m_pUserData);
+    glm::vec2 v;
+    if (vertexIndex.indexes.size() > 0) {
+      uint32_t index = vertexIndex.indexes[faceNum * 3 + vertNum];
+      if (index < vertexIndex.vertices.size()) {
+        v = vertexIndex.vertices[index].texCoord;
+      }
+    } else {
+      v = vertexIndex.vertices[faceNum * 3 + vertNum].texCoord;
+    }
+
+    texCoordOut[0] = v.x;
+    texCoordOut[1] = v.y;
+  };
+  mkif.m_setTSpace = nullptr;
+  mkif.m_setTSpaceBasic = [](SMikkTSpaceContext const* context, const float tangent[], const float fSign,
+                             const int faceNum, const int vertNum) {
+    VertexIndex& vertexIndex = *reinterpret_cast<VertexIndex*>(context->m_pUserData);
+    Vertex3D* v;
+    if (vertexIndex.indexes.size() > 0) {
+      uint32_t index = vertexIndex.indexes[faceNum * 3 + vertNum];
+      if (index < vertexIndex.vertices.size()) {
+        v = &vertexIndex.vertices[index];
+      }
+    } else {
+      v = &vertexIndex.vertices[faceNum * 3 + vertNum];
+    }
+
+    glm::vec3 temp = glm::make_vec3(tangent);
+    v->tangent = glm::vec4(temp, fSign);
+  };
+
+  SMikkTSpaceContext msc;
+  msc.m_pInterface = &mkif;
+  std::shared_ptr<VertexIndex> vertexIndexData = std::make_shared<VertexIndex>(indexes, vertices);
+  msc.m_pUserData = vertexIndexData.get();
+
+  bool res = genTangSpaceDefault(&msc);
+  if (res == false) std::cout << "Can't generate tangent vectors";
 }
 
 // load all textures here
@@ -122,6 +213,8 @@ void Loader::_loadMaterials() {
     occlusionStrength = glTFMaterial.occlusionTexture.strength;
     // Get emissive factor
     emissiveFactor = glm::make_vec3(glTFMaterial.emissiveFactor.data());
+    materialPBR->setCoefficients(metallicFactor, roughnessFactor, occlusionStrength, emissiveFactor);
+
     // Get double side propery
     materialPBR->setDoubleSided(glTFMaterial.doubleSided);
     materialPhong->setDoubleSided(glTFMaterial.doubleSided);
@@ -231,6 +324,7 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
     auto mesh = _meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
+    bool generateTangent = true;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {
       const tinygltf::Primitive& glTFPrimitive = meshGLTF.primitives[i];
@@ -352,7 +446,10 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
             vertex.color = _materials[glTFPrimitive.material]->baseColorFactor;
 
           vertex.tangent = glm::vec4(0.0f);
-          if (tangentsBuffer) vertex.tangent = glm::make_vec4(&tangentsBuffer[v * tangentByteStride]);
+          if (tangentsBuffer) {
+            vertex.tangent = glm::make_vec4(&tangentsBuffer[v * tangentByteStride]);
+            generateTangent = false;
+          }
 
           vertices.push_back(vertex);
         }
@@ -402,6 +499,10 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
       primitive.indexCount = indexCount;
       primitive.materialIndex = glTFPrimitive.material;
       mesh->addPrimitive(primitive);
+    }
+
+    if (generateTangent) {
+      _generateTangent(indexes, vertices);
     }
 
     mesh->setIndexes(indexes, _commandBufferTransfer);

@@ -87,6 +87,7 @@ class Loader {
   void _loadMaterials();
   void _loadAnimations();
   void _loadSkins();
+  void _generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices);
 
   std::shared_ptr<NodeGLTF> _findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index);
   std::shared_ptr<NodeGLTF> _nodeFromIndex(uint32_t index);

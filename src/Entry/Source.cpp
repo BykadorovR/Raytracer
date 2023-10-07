@@ -786,9 +786,9 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  /*pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});*/
   /*pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
@@ -802,7 +802,7 @@ void initialize() {
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(0.5f, 0.5f, 0.5f));
+  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
@@ -877,6 +877,8 @@ void initialize() {
   }
   std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/DamagedHelmet/DamagedHelmet.gltf",
                                                                 commandBufferTransfer, state);
+  std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer,
+                                                                   state);
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
   auto modelGLTFPhong = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
@@ -886,6 +888,10 @@ void initialize() {
   auto modelGLTFPBR = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
   modelManager->registerModel3D(modelGLTFPBR);
   modelGLTFPBR->setMaterial(loaderGLTF->getMaterialsPBR());
+
+  auto modelBox = modelManager->createModel3D(loaderGLTFBox->getNodes(), loaderGLTFBox->getMeshes());
+  modelManager->registerModel3D(modelBox);
+  modelBox->setMaterial(loaderGLTFBox->getMaterialsPBR());
 
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
                                           state);
@@ -905,7 +911,7 @@ void initialize() {
   //   model3D->setModel(model);
   // }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 2.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTFPhong->setModel(model);
@@ -915,6 +921,10 @@ void initialize() {
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
     // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
     modelGLTFPBR->setModel(model);
+  }
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, -3.f));
+    modelBox->setModel(model);
   }
 
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
