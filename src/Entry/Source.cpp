@@ -802,7 +802,7 @@ void initialize() {
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(10.f, 10.f, 10.f));
   directionalLight->setPosition({0.f, 15.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
