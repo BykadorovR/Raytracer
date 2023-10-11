@@ -26,28 +26,24 @@ layout(set = 3, binding = 0) uniform AlphaMask {
 } alphaMask;
 
 struct LightDirectional {
-    vec3 ambient;
-    //it's not "native" for light source to vary specular
-    //it's here for simplification of changing light propery for bulk of objects
-    vec3 diffuse;
-    vec3 specular;
     //
-    vec3 color;
+    vec3 color; //radiance
     vec3 position;
 };
 
 struct LightPoint {
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
     //attenuation
     float quadratic;
     int distance;
     //parameters
     float far;
     //
-    vec3 color;
+    vec3 color; //radiance
     vec3 position;
+};
+
+struct LightAmbient {
+    vec3 color; //radiance
 };
 
 layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
@@ -56,6 +52,10 @@ layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
 
 layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
+};
+
+layout(std140, set = 4, binding = 2) readonly buffer LightBufferAmbient {
+    LightAmbient lightAmbient[];
 };
 
 //coefficients from base color
@@ -75,6 +75,7 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getLightAmbient(index) lightAmbient[index]
 #include "pbr.glsl"
 
 void main() {
@@ -127,7 +128,13 @@ void main() {
             outColor.rgb = Lr;
             //add occlusion to resulting color (it doesn't depend on light sources at all), occlusion is stored inside metallic roughness as .r channel or as separate texture .r channel
             //so it doesn't matter, any texture -> .r channel
-            outColor.rgb = mix(outColor.rgb, outColor.rgb * occlusionTexture.r, material.occlusionStrength);
+
+            for (int i = 0;i < lightAmbient.length(); i++) {
+                vec3 ambientColor = lightAmbient[i].color * albedoTexture.rgb; //should go from IBL
+                ambientColor = mix(ambientColor, ambientColor * occlusionTexture.r, material.occlusionStrength);
+                outColor.rgb += ambientColor;
+            }
+
             //add emissive to resulting reflected radiance from all light sources
             outColor.rgb += emissiveTexture.rgb * material.emissiveFactor;
 

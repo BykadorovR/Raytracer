@@ -77,6 +77,7 @@ std::shared_ptr<CameraFly> camera;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
+std::shared_ptr<AmbientLight> ambientLight;
 std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU, loggerPostprocessing, loggerParticles, loggerGPUDebug;
 std::shared_ptr<LoggerCPU> loggerCPU;
@@ -776,6 +777,12 @@ void initialize() {
   gui = std::make_shared<GUI>(settings, window, device);
   gui->initialize(commandBufferTransfer);
 
+  // for postprocessing descriptors GENERAL is needed
+  swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
+  postprocessing = std::make_shared<Postprocessing>(graphicTexture, blurTextureIn, swapchain->getImageViews(), state);
+  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
+  swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
+
   auto texture = std::make_shared<Texture>("../data/brickwall.jpg", settings->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings, device);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
@@ -801,9 +808,14 @@ void initialize() {
   pointLightVertical2->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical2->setPosition({-3.f, 4.f, -3.f});*/
 
+  ambientLight = lightManager->createAmbientLight();
+  // calculate ambient color with default gamma
+  float ambientColor = std::pow(0.05f, postprocessing->getGamma());
+  ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
+
   directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->createPhong(glm::vec3(0.2f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(10.f, 10.f, 10.f));
-  directionalLight->setPosition({0.f, 15.f, 0.f});
+  directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
+  directionalLight->setPosition({0.f, 35.f, 0.f});
   directionalLight->setCenter({0.f, 0.f, 0.f});
   directionalLight->setUp({0.f, 0.f, -1.f});
 
@@ -1029,12 +1041,6 @@ void initialize() {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
     spheres[5]->setModel(model);
   }
-
-  // for postprocessing descriptors GENERAL is needed
-  swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
-  postprocessing = std::make_shared<Postprocessing>(graphicTexture, blurTextureIn, swapchain->getImageViews(), state);
-  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
-  swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);

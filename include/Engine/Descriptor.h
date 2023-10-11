@@ -20,8 +20,6 @@ class DescriptorSetLayout {
   void createPostprocessing();
   void createGraphicModel();
   void createJoints();
-  void createLight();
-  void createLightVP(VkShaderStageFlagBits stage);
   void createShadowTexture();
   void createModelAuxilary();
   void createGUI();
@@ -67,9 +65,6 @@ class DescriptorSet {
                             std::shared_ptr<ImageView> blur,
                             std::shared_ptr<ImageView> dst);
   void createJoints(std::vector<std::shared_ptr<Buffer>> buffer);
-  void createLight(int currentFrame,
-                   std::vector<std::shared_ptr<Buffer>> bufferDirectional,
-                   std::vector<std::shared_ptr<Buffer>> bufferPoint);
   void createModelAuxilary(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createGraphicModel(std::shared_ptr<Texture> texture, std::shared_ptr<Texture> normal);
   void createShadowTexture(std::vector<std::shared_ptr<Texture>> directional,

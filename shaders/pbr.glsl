@@ -9,7 +9,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness) {
 
     float nom   = a2;
     float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-    denom = PI * denom * denom;
+    denom = PI * denom * denom + epsilon; //to avoid division by zero
 
     return nom / denom;
 }
@@ -49,7 +49,8 @@ vec3 calculateOutRadiance(vec3 lightDir, vec3 normal, vec3 viewDir, vec3 inRadia
     vec3 halfway = normalize(viewDir + lightDir);
     // Cook-Torrance BRDF
     float NDF = DistributionGGX(normal, halfway, roughnessValue);
-    NDF = min(max(max(inRadiance.x, inRadiance.y), inRadiance.z), NDF);
+    //NDF will be multiplied by inRadiance so need to limit by 1.0
+    NDF = min(NDF, 1.0);
     float G   = GeometrySmith(normal, viewDir, lightDir, roughnessValue);
     vec3 F    = fresnelSchlick(max(dot(halfway, viewDir), 0.0), F0);
 
@@ -66,7 +67,7 @@ vec3 calculateOutRadiance(vec3 lightDir, vec3 normal, vec3 viewDir, vec3 inRadia
     // multiply kD by the inverse metalness such that only non-metals 
     // have diffuse lighting, or a linear blend if partly metal (pure metals
     // have no diffuse light).
-    kD *= 1.0 - metallicValue;
+    kD *= (1.0 - metallicValue);
     
     // scale light by NdotL
     float NdotL = max(dot(normal, lightDir), 0.0);    
