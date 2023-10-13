@@ -209,13 +209,14 @@ void MaterialPBR::setCoefficients(float metallicFactor,
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _coefficients.metallicFactor = metallicFactor;
   _coefficients.roughnessFactor = roughnessFactor;
+  _coefficients.occlusionStrength = occlusionStrength;
   _coefficients.emissiveFactor = emissiveFactor;
   for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
 }
 
 MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
-  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(2);
+  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(3);
   layoutTextures[0].binding = 0;
   layoutTextures[0].descriptorCount = 1;
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -224,6 +225,10 @@ MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfe
   layoutTextures[1].descriptorCount = 1;
   layoutTextures[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  layoutTextures[2].binding = 2;
+  layoutTextures[2].descriptorCount = 1;
+  layoutTextures[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
 
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
@@ -237,6 +242,7 @@ MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfe
   // initialize with empty/default data
   _textureColor = _stubTextureOne;
   _textureNormal = _stubTextureZero;
+  _textureSpecular = _stubTextureZero;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     _updateTextureDescriptors(i);
     _updateCoefficientDescriptors(i);
@@ -264,12 +270,23 @@ void MaterialPhong::_updateTextureDescriptors(int currentFrame) {
   normalTextureInfo.imageView = _textureNormal->getImageView()->getImageView();
   normalTextureInfo.sampler = _textureNormal->getSampler()->getSampler();
   images[1] = normalTextureInfo;
+  VkDescriptorImageInfo specularTextureInfo{};
+  specularTextureInfo.imageLayout = _textureSpecular->getImageView()->getImage()->getImageLayout();
+  specularTextureInfo.imageView = _textureSpecular->getImageView()->getImageView();
+  specularTextureInfo.sampler = _textureSpecular->getSampler()->getSampler();
+  images[2] = specularTextureInfo;
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
 void MaterialPhong::setBaseColor(std::shared_ptr<Texture> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureColor = color;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}
+
+void MaterialPhong::setSpecular(std::shared_ptr<Texture> specular) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _textureSpecular = specular;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 

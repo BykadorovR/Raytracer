@@ -49,7 +49,7 @@ float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, 
     return shadow;
 }
 
-vec3 directionalLight(int lightDirectionalNumber, vec3 fragPosition, vec3 normal, vec3 cameraPosition, 
+vec3 directionalLight(int lightDirectionalNumber, vec3 fragPosition, vec3 normal, float specularTexture, vec3 cameraPosition, 
                       int enableShadow, vec4 fragLightDirectionalCoord[2], sampler2D shadowDirectionalSampler[2], float bias) {
     vec3 lightFactor = vec3(0.0, 0.0, 0.0);
     for (int i = 0; i < lightDirectionalNumber; i++) {
@@ -66,13 +66,13 @@ vec3 directionalLight(int lightDirectionalNumber, vec3 fragPosition, vec3 normal
         //Blinn-Phong implementation
         vec3 viewDir = normalize(cameraPosition - fragPosition);
         vec3 halfwayDir = normalize(viewDir + lightDir);
-        vec3 specularFactor = getMaterial().specular * pow(max(dot(normal, halfwayDir), 0), max(getMaterial().shininess, 1));
+        vec3 specularFactor = specularTexture * getMaterial().specular * pow(max(dot(normal, halfwayDir), 0), max(getMaterial().shininess, 1));
         lightFactor += getLightDir(i).color * ((1 - shadow) * (diffuseFactor + specularFactor));
     }
     return lightFactor;
 }
 
-vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, vec3 cameraPosition, 
+vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, float specularTexture, vec3 cameraPosition, 
                 int enableShadow, samplerCube shadowPointSampler[4], float bias) {
     vec3 lightFactor = vec3(0.0, 0.0, 0.0);
     for (int i = 0; i < lightPointNumber; i++) {
@@ -93,7 +93,7 @@ vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, vec3 camer
         //Blinn-Phong implementation
         vec3 viewDir = normalize(cameraPosition - fragPosition);
         vec3 halfwayDir = normalize(viewDir + lightDir);
-        vec3 specularFactor = getMaterial().specular * pow(max(dot(normal, halfwayDir), 0), max(getMaterial().shininess, 1));
+        vec3 specularFactor = specularTexture * getMaterial().specular * pow(max(dot(normal, halfwayDir), 0), max(getMaterial().shininess, 1));
         lightFactor += getLightPoint(i).color * attenuation * ((1 - shadow) * (diffuseFactor + specularFactor)); 
     }
 

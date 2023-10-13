@@ -50,7 +50,7 @@ vec3 calculateOutRadiance(vec3 lightDir, vec3 normal, vec3 viewDir, vec3 inRadia
     // Cook-Torrance BRDF
     float NDF = DistributionGGX(normal, halfway, roughnessValue);
     //NDF will be multiplied by inRadiance so need to limit by 1.0
-    NDF = min(NDF, 1.0);
+    NDF = clamp(NDF, 0.0, 1.0);
     float G   = GeometrySmith(normal, viewDir, lightDir, roughnessValue);
     vec3 F    = fresnelSchlick(max(dot(halfway, viewDir), 0.0), F0);
 

@@ -13,6 +13,8 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
 layout(set = 2, binding = 0) uniform sampler2D texSampler;
 layout(set = 2, binding = 1) uniform sampler2D normalSampler;
+layout(set = 2, binding = 2) uniform sampler2D specularSampler;
+
 layout(set = 6, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 6, binding = 1) uniform samplerCube shadowPointSampler[4];
 
@@ -77,6 +79,7 @@ layout( push_constant ) uniform constants {
 
 void main() {
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
+    float specularTexture = texture(specularSampler, fragTexCoord).b;
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
             discard;
@@ -95,10 +98,10 @@ void main() {
         if (length(normal) > epsilon) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, specularTexture, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.01);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, push.cameraPosition,
+            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, specularTexture, push.cameraPosition,
                                       push.enableShadow, shadowPointSampler, 0.15);
             //calculate ambient light
             for (int i = 0;i < lightAmbient.length(); i++) {

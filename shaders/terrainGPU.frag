@@ -101,10 +101,10 @@ void main() {
         if (push.enableLighting > 0) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, 0, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 
+            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 0,
                                       push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
             //calculate ambient light
             for (int i = 0;i < lightAmbient.length(); i++) {

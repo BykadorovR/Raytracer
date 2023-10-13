@@ -88,6 +88,7 @@ class MaterialPhong : public Material {
 
   std::shared_ptr<Texture> _textureColor;
   std::shared_ptr<Texture> _textureNormal;
+  std::shared_ptr<Texture> _textureSpecular;
 
   Coefficients _coefficients;
 
@@ -99,5 +100,6 @@ class MaterialPhong : public Material {
 
   void setBaseColor(std::shared_ptr<Texture> color);
   void setNormal(std::shared_ptr<Texture> normal);
+  void setSpecular(std::shared_ptr<Texture> specular);
   void setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);
 };

@@ -254,6 +254,9 @@ void Loader::_loadMaterials() {
       if (metallicRoughnessTextureIndex >= 0) {
         // glTF image index
         auto metallicRoughnessImageIndex = _model.textures[metallicRoughnessTextureIndex].source;
+        // set specular texture to Phong material
+        materialPhong->setSpecular(
+            _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
         // set PBR texture to PBR material
         materialPBR->setMetallicRoughness(
             _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));

@@ -793,9 +793,9 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  /*pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightHorizontal->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});*/
+  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
+  pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
   /*pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
   pointLightVertical->createPhong(glm::vec3(0.f), glm::vec3(1.f), glm::vec3(1.f), glm::vec3(1.f, 1.f, 1.f));
   pointLightVertical->setPosition({-3.f, 4.f, 0.f});
@@ -887,7 +887,7 @@ void initialize() {
     spriteManager->registerSprite(sprite5);
     spriteManager->registerSprite(sprite6);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/DamagedHelmet/DamagedHelmet.gltf",
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/WaterBottle/WaterBottle.gltf",
                                                                 commandBufferTransfer, state);
   std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer,
                                                                    state);
@@ -902,7 +902,7 @@ void initialize() {
   modelGLTFPBR->setMaterial(loaderGLTF->getMaterialsPBR());
 
   auto modelBox = modelManager->createModel3D(loaderGLTFBox->getNodes(), loaderGLTFBox->getMeshes());
-  modelManager->registerModel3D(modelBox);
+  // modelManager->registerModel3D(modelBox);
   modelBox->setMaterial(loaderGLTFBox->getMaterialsPBR());
 
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
@@ -923,15 +923,15 @@ void initialize() {
   //   model3D->setModel(model);
   // }
   {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 2.f, -3.f));
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
+    model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
     modelGLTFPhong->setModel(model);
   }
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    // model = glm::scale(model, glm::vec3(20.f, 20.f, 20.f));
+    model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
     modelGLTFPBR->setModel(model);
   }
   {
