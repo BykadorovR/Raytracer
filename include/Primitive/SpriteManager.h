@@ -8,7 +8,11 @@ class SpriteManager {
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
+  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayoutNormal;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineNormal, _pipelineNormalWireframe;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
   int _spritesCreated = 0;
@@ -30,7 +34,7 @@ class SpriteManager {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType = DrawType::FILL);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

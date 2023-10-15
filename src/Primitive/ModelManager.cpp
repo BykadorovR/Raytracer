@@ -15,32 +15,50 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
 
+  // layout for Phong
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
   _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"alphaMask", _defaultMaterialPhong->getDescriptorSetLayoutAlphaCutoff()});
+      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"light", _lightManager->getDSLLight()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+      {"alphaMask", _defaultMaterialPhong->getDescriptorSetLayoutAlphaCutoff()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
 
+  // layout for PBR
   _descriptorSetLayout[MaterialType::PBR].push_back({"camera", cameraSetLayout});
   _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayout[MaterialType::PBR].push_back(
-      {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"light", _lightManager->getDSLLight()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
+
+  // layout for Normal Phong
+  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
+      {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
+      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  // layout for Normal PBR
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
+      {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
 
   // initialize Phong
   {
@@ -65,6 +83,14 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                            _descriptorSetLayout[MaterialType::PHONG],
                                                            defaultPushConstants, _mesh->getBindingDescription(),
                                                            _mesh->getAttributeDescriptions());
+
+    _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                             _descriptorSetLayout[MaterialType::PHONG],
+                                                             defaultPushConstants, _mesh->getBindingDescription(),
+                                                             _mesh->getAttributeDescriptions());
   }
   // initialize PBR
   {
@@ -89,8 +115,77 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                          _descriptorSetLayout[MaterialType::PBR], defaultPushConstants,
                                                          _mesh->getBindingDescription(),
                                                          _mesh->getAttributeDescriptions());
+
+    _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineWireframe[MaterialType::PBR]->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                           _descriptorSetLayout[MaterialType::PBR],
+                                                           defaultPushConstants, _mesh->getBindingDescription(),
+                                                           _mesh->getAttributeDescriptions());
   }
-  //
+  // initialize Normals Phong
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/debugPhong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineNormal[MaterialType::PHONG]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                          _descriptorSetLayoutNormal[MaterialType::PHONG], {},
+                                                          _mesh->getBindingDescription(),
+                                                          _mesh->getAttributeDescriptions());
+
+    _pipelineNormalCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineNormalCullOff[MaterialType::PHONG]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutNormal[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+
+    _pipelineNormalWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(),
+                                                                               state->getDevice());
+    _pipelineNormalWireframe[MaterialType::PHONG]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutNormal[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+  // initialize Normals PBR
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("../shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/debugPBR3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineNormal[MaterialType::PBR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                        _descriptorSetLayoutNormal[MaterialType::PBR], {},
+                                                        _mesh->getBindingDescription(),
+                                                        _mesh->getAttributeDescriptions());
+
+    _pipelineNormalCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineNormalCullOff[MaterialType::PBR]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutNormal[MaterialType::PBR], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+
+    _pipelineNormalWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineNormalWireframe[MaterialType::PBR]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutNormal[MaterialType::PBR], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+  // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -100,6 +195,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
         {{"camera", cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, {},
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
+
+  // initialize depth point
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -131,7 +228,7 @@ void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 // todo: choose appropriate pipeline using material from sprite
-void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType) {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(_state->getSettings()->getResolution());
@@ -147,77 +244,64 @@ void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comma
                               std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  // draw phong
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline[MaterialType::PHONG]->getPipeline());
-
-  auto pipelineLayout = _pipeline[MaterialType::PHONG]->getDescriptorSetLayout();
-  auto lightVPLayout = std::find_if(
-      pipelineLayout.begin(), pipelineLayout.end(),
-      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
-  if (lightVPLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-        _pipeline[MaterialType::PHONG]->getPipelineLayout(), 5, 1,
-        &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  auto shadowTextureLayout = std::find_if(
-      pipelineLayout.begin(), pipelineLayout.end(),
-      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "shadowTexture"; });
-  if (shadowTextureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[MaterialType::PHONG]->getPipelineLayout(), 6, 1,
-                            &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
-  }
-
-  auto lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                  [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                    return info.first == std::string("light");
-                                  });
-  if (lightLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[MaterialType::PHONG]->getPipelineLayout(), 4, 1,
-                            &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  for (auto model : _modelsGLTF) {
-    if (model->getMaterialType() == MaterialType::PHONG) {
-      model->setCamera(_camera);
-      model->draw(currentFrame, commandBuffer, _pipeline[MaterialType::PHONG], _pipelineCullOff[MaterialType::PHONG]);
+  auto drawModel = [&](MaterialType materialType, DrawType drawType) {
+    auto pipeline = _pipeline[materialType];
+    auto pipelineCullOff = _pipelineCullOff[materialType];
+    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) {
+      pipeline = _pipelineWireframe[materialType];
     }
-  }
 
-  // draw PBR
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline[MaterialType::PBR]->getPipeline());
-  if (lightVPLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-        _pipeline[MaterialType::PBR]->getPipelineLayout(), 5, 1,
-        &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  if (shadowTextureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[MaterialType::PBR]->getPipelineLayout(), 6, 1,
-                            &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
-  }
-
-  if (lightLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline[MaterialType::PBR]->getPipelineLayout(), 4, 1,
-                            &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  for (auto model : _modelsGLTF) {
-    if (model->getMaterialType() == MaterialType::PBR) {
-      model->setCamera(_camera);
-      model->draw(currentFrame, commandBuffer, _pipeline[MaterialType::PBR], _pipelineCullOff[MaterialType::PBR]);
+    if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
+      pipeline = _pipelineNormal[materialType];
+      pipelineCullOff = _pipelineNormalCullOff[materialType];
+      if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
     }
-  }
+
+    auto pipelineLayout = pipeline->getDescriptorSetLayout();
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipeline->getPipeline());
+    auto lightVPLayout = std::find_if(
+        pipelineLayout.begin(), pipelineLayout.end(),
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
+    if (lightVPLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          pipeline->getPipelineLayout(), 2, 1,
+          &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0,
+          nullptr);
+    }
+
+    auto lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("light");
+                                    });
+    if (lightLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 4, 1,
+                              &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+
+    auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                            [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                              return info.first == "shadowTexture";
+                                            });
+    if (shadowTextureLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 6, 1,
+                              &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
+    }
+
+    for (auto model : _modelsGLTF) {
+      if (model->getMaterialType() == materialType) {
+        model->setCamera(_camera);
+        model->draw(currentFrame, commandBuffer, pipeline, pipelineCullOff);
+      }
+    }
+  };
+
+  drawModel(MaterialType::PHONG, drawType);
+  drawModel(MaterialType::PBR, drawType);
 }
 
 void Model3DManager::drawShadow(int currentFrame,

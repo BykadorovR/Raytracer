@@ -22,6 +22,8 @@ void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number;
 
 void Settings::setDesiredFPS(int fps) { _desiredFPS = fps; }
 
+void Settings::setDrawType(DrawType drawType) { _drawType = drawType; }
+
 void Settings::setBloomPasses(int number) { _bloomPasses = number; }
 
 void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
@@ -61,3 +63,5 @@ VkClearColorValue Settings::getClearColor() { return _clearColor; }
 int Settings::getAnisotropicSamples() { return _anisotropicSamples; }
 
 int Settings::getDesiredFPS() { return _desiredFPS; }
+
+DrawType Settings::getDrawType() { return _drawType; }

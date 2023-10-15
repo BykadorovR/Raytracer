@@ -96,7 +96,6 @@ std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
 
 std::vector<std::shared_ptr<LoggerGPU>> loggerGPUDirectional;
 std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
-bool terrainNormals = false;
 bool terrainWireframe = false;
 bool terrainPatch = false;
 bool showLoD = false;
@@ -454,15 +453,15 @@ void debugVisualizations(int swapchainImageIndex) {
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
   // TODO: move to debug visualization
   int blurKernelSize = blur->getKernelSize();
-  if (gui->drawInputInt("Bloom", {20, 480}, {{"Kernel", &blurKernelSize}})) {
+  if (gui->drawInputInt("Bloom", {20, 500}, {{"Kernel", &blurKernelSize}})) {
     blur->setKernelSize(blurKernelSize);
   }
   int blurSigma = blur->getSigma();
-  if (gui->drawInputInt("Bloom", {20, 480}, {{"Sigma", &blurSigma}})) {
+  if (gui->drawInputInt("Bloom", {20, 500}, {{"Sigma", &blurSigma}})) {
     blur->setSigma(blurSigma);
   }
   int bloomPasses = settings->getBloomPasses();
-  if (gui->drawInputInt("Bloom", {20, 480}, {{"Passes", &bloomPasses}})) {
+  if (gui->drawInputInt("Bloom", {20, 500}, {{"Passes", &bloomPasses}})) {
     settings->setBloomPasses(bloomPasses);
   }
 
@@ -474,7 +473,6 @@ void debugVisualizations(int swapchainImageIndex) {
   }
   {
     std::map<std::string, bool*> terrainGUI;
-    terrainGUI["Normals"] = &terrainNormals;
     terrainGUI["Wireframe"] = &terrainWireframe;
     gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
   }
@@ -624,7 +622,7 @@ void renderGraphic() {
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
-  spriteManager->draw(currentFrame, commandBufferRender);
+  spriteManager->draw(currentFrame, commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   // wait model3D update
@@ -633,7 +631,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
-  modelManager->draw(currentFrame, commandBufferRender);
+  modelManager->draw(currentFrame, commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   // submit model3D update
@@ -646,11 +644,8 @@ void renderGraphic() {
   });
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
-  if (terrainWireframe)
-    terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::WIREFRAME);
-  else
-    terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::FILL);
-  if (terrainNormals) terrain->draw(currentFrame, commandBufferRender, TerrainPipeline::NORMAL);
+  // for terrain we have to draw both: fill and normal/wireframe
+  terrain->draw(currentFrame, commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
@@ -838,22 +833,19 @@ void initialize() {
     auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     material->setBaseColor(texture);
     material->setNormal(normalMap);
-    auto materialDiffuse = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    materialDiffuse->setCoefficients(glm::vec3{1.f}, glm::vec3{0.f}, glm::vec3{0.5f}, 64.f);
-    auto materialColor = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
 
     auto sprite = spriteManager->createSprite();
-    sprite->setMaterial(materialDiffuse);
+    sprite->setMaterial(material);
     auto sprite2 = spriteManager->createSprite();
-    sprite2->setMaterial(materialColor);
+    sprite2->setMaterial(material);
     auto sprite3 = spriteManager->createSprite();
     sprite3->setMaterial(material);
-
     auto sprite4 = spriteManager->createSprite();
     sprite4->setMaterial(material);
-
     auto sprite5 = spriteManager->createSprite();
+    sprite5->setMaterial(material);
     auto sprite6 = spriteManager->createSprite();
+    sprite6->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
       model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
@@ -887,7 +879,7 @@ void initialize() {
     spriteManager->registerSprite(sprite5);
     spriteManager->registerSprite(sprite6);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/WaterBottle/WaterBottle.gltf",
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/BrainStem/BrainStem.gltf",
                                                                 commandBufferTransfer, state);
   std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer,
                                                                    state);
@@ -907,7 +899,7 @@ void initialize() {
 
   animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
                                           state);
-  modelGLTFPhong->setAnimation(animation);
+  // modelGLTFPhong->setAnimation(animation);
   modelGLTFPBR->setAnimation(animation);
 
   // modelGLTF = modelManager->createModel3D("../data/Avocado/Avocado.gltf");
@@ -925,13 +917,13 @@ void initialize() {
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
+    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
     modelGLTFPhong->setModel(model);
   }
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
     // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-    model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
+    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
     modelGLTFPBR->setModel(model);
   }
   {
@@ -1044,7 +1036,7 @@ void initialize() {
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
-  pool = std::make_shared<BS::thread_pool>(6);
+  pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);

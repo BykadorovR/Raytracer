@@ -49,6 +49,8 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<Mesh2D> _meshSprite;
   std::shared_ptr<Postprocessing> _postprocessing;
   bool _showDepth = true;
+  bool _showNormals = false;
+  bool _showWireframe = false;
   bool _initializedDepth = false;
   int _lightSpheresIndex = -1;
   int _shadowMapIndex = 0;

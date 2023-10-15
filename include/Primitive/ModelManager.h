@@ -7,7 +7,10 @@ class Model3DManager {
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineCullOff;
+  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayoutNormal;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineCullOff, _pipelineWireframe;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineNormal, _pipelineNormalWireframe, _pipelineNormalCullOff;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
@@ -33,7 +36,7 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType = DrawType::FILL);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

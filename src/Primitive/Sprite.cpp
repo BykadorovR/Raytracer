@@ -136,7 +136,7 @@ void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
   if (textureLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
         commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        1, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
+        2, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto materialCoefficientsLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),

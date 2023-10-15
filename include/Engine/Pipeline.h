@@ -27,6 +27,7 @@ class Pipeline {
   Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
   void createGraphic2D(std::vector<VkFormat> renderFormat,
                        VkCullModeFlags cullMode,
+                       VkPolygonMode polygonMode,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
@@ -56,15 +57,6 @@ class Pipeline {
                   std::map<std::string, VkPushConstantRange> pushConstants,
                   VkVertexInputBindingDescription bindingDescription,
                   std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
-  void createGraphicTerrainCPU(
-      std::vector<VkFormat> renderFormat,
-      VkCullModeFlags cullMode,
-      VkPolygonMode polygonMode,
-      std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
-      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-      std::map<std::string, VkPushConstantRange> pushConstants,
-      VkVertexInputBindingDescription bindingDescription,
-      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphicTerrainGPU(
       std::vector<VkFormat> renderFormat,

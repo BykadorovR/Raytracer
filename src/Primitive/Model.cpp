@@ -170,7 +170,6 @@ void Model3D::_drawNode(int currentFrame,
 
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
       if (primitive.indexCount > 0) {
-        auto currentPipeline = pipeline;
         std::shared_ptr<Material> material = _defaultMaterialPhong;
         if (_materialType == MaterialType::PBR) material = _defaultMaterialPBR;
         // Get the texture index for this primitive
@@ -179,17 +178,18 @@ void Model3D::_drawNode(int currentFrame,
           if (primitive.materialIndex >= 0 && primitive.materialIndex < _materials.size())
             material = _materials[primitive.materialIndex];
         }
+
         // assign alpha cutoff from material
         if (alphaMaskLayout != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipeline->getPipelineLayout(), 3, 1,
+                                  pipeline->getPipelineLayout(), 5, 1,
                                   &material->getDescriptorSetAlphaCutoff()->getDescriptorSets()[currentFrame], 0,
                                   nullptr);
         }
         // assign material textures
         if (textureLayout != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipeline->getPipelineLayout(), 2, 1,
+                                  pipeline->getPipelineLayout(), 3, 1,
                                   &material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame],
                                   0, nullptr);
         }
@@ -201,10 +201,10 @@ void Model3D::_drawNode(int currentFrame,
               &material->getDescriptorSetCoefficients(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
         }
 
+        auto currentPipeline = pipeline;
         if (material->getDoubleSided()) currentPipeline = pipelineCullOff;
-
         vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          pipeline->getPipeline());
+                          currentPipeline->getPipeline());
         vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], primitive.indexCount, 1, primitive.firstIndex,
                          0, 0);
       }

@@ -7,11 +7,11 @@ layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 proj;
 } mvp;
 
-layout(std140, set = 3, binding = 0) readonly buffer LightMatrixDirectional {
+layout(std140, set = 1, binding = 0) readonly buffer LightMatrixDirectional {
     mat4 lightDirectionalVP[];
 };
 
-layout(std140, set = 3, binding = 1) readonly buffer LightMatrixPoint {
+layout(std140, set = 1, binding = 1) readonly buffer LightMatrixPoint {
     mat4 lightPointVP[];
 };
 

@@ -5,8 +5,6 @@
 #include "Mesh.h"
 #include "Material.h"
 
-enum class TerrainPipeline { FILL, WIREFRAME, NORMAL };
-
 class Terrain {
  protected:
   std::shared_ptr<Camera> _camera;
@@ -18,7 +16,7 @@ class Terrain {
 
   virtual void draw(int currentFrame,
                     std::shared_ptr<CommandBuffer> commandBuffer,
-                    TerrainPipeline terrainType = TerrainPipeline::FILL) = 0;
+                    DrawType terrainType = DrawType::FILL) = 0;
 
   virtual void drawShadow(int currentFrame,
                           std::shared_ptr<CommandBuffer> commandBuffer,
@@ -67,7 +65,7 @@ class TerrainGPU : public Terrain {
   void showLoD(bool enable);
   void draw(int currentFrame,
             std::shared_ptr<CommandBuffer> commandBuffer,
-            TerrainPipeline terrainType = TerrainPipeline::FILL) override;
+            DrawType terrainType = DrawType::FILL) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

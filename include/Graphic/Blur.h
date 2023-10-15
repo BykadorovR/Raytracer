@@ -10,7 +10,7 @@ class Blur {
   std::vector<std::shared_ptr<Buffer>> _blurWeightsSSBO;
   std::vector<float> _blurWeights;
   std::vector<bool> _changed;
-  int _kernelSize = 35, _sigma = 10;
+  int _kernelSize = 15, _sigma = 3;
   void _updateWeights();
   void _updateDescriptors(int currentFrame);
   void _setWeights(int currentFrame);
