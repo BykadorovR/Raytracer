@@ -69,7 +69,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
-  _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,

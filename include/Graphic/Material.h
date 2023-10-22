@@ -1,7 +1,7 @@
 #pragma once
 #include "State.h"
 
-enum class MaterialType { PHONG, PBR };
+enum class MaterialType { PHONG, PBR, COLOR };
 
 class Material {
  protected:
@@ -102,4 +102,15 @@ class MaterialPhong : public Material {
   void setNormal(std::shared_ptr<Texture> normal);
   void setSpecular(std::shared_ptr<Texture> specular);
   void setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);
+};
+
+class MaterialColor : public Material {
+ private:
+  std::shared_ptr<Texture> _textureColor;
+  void _updateTextureDescriptors(int currentFrame);
+  void _updateCoefficientDescriptors(int currentFrame);
+
+ public:
+  MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  void setBaseColor(std::shared_ptr<Texture> color);
 };

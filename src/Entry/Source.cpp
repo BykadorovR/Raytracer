@@ -35,6 +35,9 @@
 #include "Postprocessing.h"
 #include "Blur.h"
 #include "Loader.h"
+#include "Cube.h"
+#include "Skybox.h"
+#include "Cubemap.h"
 
 float fps = 0;
 float frameTimer = 0.f;
@@ -106,6 +109,9 @@ uint64_t particleSignal;
 bool FPSChanged = false;
 
 std::vector<std::shared_ptr<Sphere>> spheres;
+std::shared_ptr<Cubemap> cubemap;
+std::shared_ptr<Cube> cube;
+std::shared_ptr<Skybox> skybox;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -177,7 +183,9 @@ void directionalLightCalculator(int index) {
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-
+  // loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  // cube->draw(currentFrame, commandBufferRender);
+  // loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
 
@@ -267,6 +275,9 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
+  // loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  // cube->draw(currentFrame, commandBufferRender);
+  // loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
 
@@ -574,6 +585,7 @@ void renderGraphic() {
   VkClearValue clearColor;
   clearColor.color = settings->getClearColor();
   std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(2);
+  // here we render scene as is
   colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView = graphicTexture[currentFrame]->getImageView()->getImageView(),
@@ -582,6 +594,7 @@ void renderGraphic() {
       .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
       .clearValue = clearColor,
   };
+  // here we render bloom that will be applied on postprocessing stage to simple render
   colorAttachmentInfo[1] = VkRenderingAttachmentInfo{
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView = blurTextureIn[currentFrame]->getImageView()->getImageView(),
@@ -616,6 +629,10 @@ void renderGraphic() {
   };
 
   vkCmdBeginRendering(commandBufferRender->getCommandBuffer()[currentFrame], &renderInfo);
+  loggerGPU->begin("Render skybox " + std::to_string(globalFrame), currentFrame);
+  skybox->draw(currentFrame, commandBufferRender);
+  loggerGPU->end();
+
   loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
   lightManager->draw(currentFrame);
   loggerGPU->end();
@@ -652,6 +669,10 @@ void renderGraphic() {
   for (auto sphere : spheres) {
     sphere->draw(currentFrame, commandBufferRender);
   }
+  loggerGPU->end();
+
+  loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
+  cube->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -834,50 +855,56 @@ void initialize() {
     material->setBaseColor(texture);
     material->setNormal(normalMap);
 
-    auto sprite = spriteManager->createSprite();
-    sprite->setMaterial(material);
-    auto sprite2 = spriteManager->createSprite();
-    sprite2->setMaterial(material);
-    auto sprite3 = spriteManager->createSprite();
-    sprite3->setMaterial(material);
-    auto sprite4 = spriteManager->createSprite();
-    sprite4->setMaterial(material);
-    auto sprite5 = spriteManager->createSprite();
-    sprite5->setMaterial(material);
-    auto sprite6 = spriteManager->createSprite();
-    sprite6->setMaterial(material);
+    auto spriteForward = spriteManager->createSprite();
+    spriteForward->setMaterial(material);
+    auto spriteBackward = spriteManager->createSprite();
+    spriteBackward->setMaterial(material);
+
+    auto spriteLeft = spriteManager->createSprite();
+    spriteLeft->setMaterial(material);
+    auto spriteRight = spriteManager->createSprite();
+    spriteRight->setMaterial(material);
+
+    auto spriteTop = spriteManager->createSprite();
+    spriteTop->setMaterial(material);
+    auto spriteBot = spriteManager->createSprite();
+    spriteBot->setMaterial(material);
+
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
-      model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
-      sprite6->setModel(model);
+      spriteForward->setModel(model);
+    }
+    {
+      auto model = glm::rotate(glm::mat4(1.f), glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
+      spriteBackward->setModel(model);
     }
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-      sprite2->setModel(model);
+      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
+      spriteLeft->setModel(model);
     }
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-      sprite3->setModel(model);
+      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+      spriteRight->setModel(model);
     }
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-      sprite4->setModel(model);
+      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
+      spriteTop->setModel(model);
     }
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      sprite5->setModel(model);
+      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+      spriteBot->setModel(model);
     }
 
-    spriteManager->registerSprite(sprite);
-    spriteManager->registerSprite(sprite2);
-    spriteManager->registerSprite(sprite3);
-    spriteManager->registerSprite(sprite4);
-    spriteManager->registerSprite(sprite5);
-    spriteManager->registerSprite(sprite6);
+    spriteManager->registerSprite(spriteForward);
+    spriteManager->registerSprite(spriteBackward);
+    spriteManager->registerSprite(spriteLeft);
+    spriteManager->registerSprite(spriteRight);
+    spriteManager->registerSprite(spriteTop);
+    spriteManager->registerSprite(spriteBot);
   }
   std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/BrainStem/BrainStem.gltf",
                                                                 commandBufferTransfer, state);
@@ -1032,6 +1059,25 @@ void initialize() {
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
     spheres[5]->setModel(model);
+  }
+
+  cubemap = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
+                               "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
+      settings->getLoadTextureColorFormat(), commandBufferTransfer, state);
+  cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+  auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialColor->setBaseColor(cubemap->getTexture());
+  cube->setMaterial(materialColor);
+  cube->setCamera(camera);
+  skybox->setMaterial(materialColor);
+  skybox->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
+    cube->setModel(model);
   }
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);

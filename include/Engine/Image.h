@@ -26,7 +26,10 @@ class Image {
         VkMemoryPropertyFlags properties,
         std::shared_ptr<Device> device);
 
-  void copyFrom(std::shared_ptr<Buffer> buffer, int layersNumber, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  // bufferOffsets contains offsets for part of buffer that should be copied to corresponding layers of image
+  void copyFrom(std::shared_ptr<Buffer> buffer,
+                std::vector<int> bufferOffsets,
+                std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void changeLayout(VkImageLayout oldLayout,
                     VkImageLayout newLayout,
                     VkImageAspectFlags aspectMask,

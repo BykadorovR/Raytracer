@@ -198,14 +198,14 @@ void Image::changeLayout(VkImageLayout oldLayout,
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
-                     int layersNumber,
+                     std::vector<int> bufferOffsets,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _stagingBuffer = buffer;
 
   std::vector<VkBufferImageCopy> bufferCopyRegions;
-  for (int i = 0; i < layersNumber; i++) {
+  for (int i = 0; i < bufferOffsets.size(); i++) {
     VkBufferImageCopy region{};
-    region.bufferOffset = 0;
+    region.bufferOffset = bufferOffsets[i];
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
 

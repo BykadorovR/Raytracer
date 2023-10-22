@@ -304,3 +304,41 @@ void MaterialPhong::setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::v
   _coefficients._shininess = shininess;
   for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
 }
+
+MaterialColor::MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
+    : Material(commandBufferTransfer, state) {
+  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(1);
+  layoutTextures[0].binding = 0;
+  layoutTextures[0].descriptorCount = 1;
+  layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  _descriptorSetLayoutTextures->createCustom(layoutTextures);
+
+  _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
+                                                           _descriptorSetLayoutTextures, state->getDescriptorPool(),
+                                                           state->getDevice());
+
+  // initialize with empty/default data
+  _textureColor = _stubTextureZero;
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _updateTextureDescriptors(i);
+  }
+}
+
+void MaterialColor::_updateCoefficientDescriptors(int currentFrame) {}
+
+void MaterialColor::_updateTextureDescriptors(int currentFrame) {
+  std::map<int, VkDescriptorImageInfo> images;
+  VkDescriptorImageInfo colorTextureInfo{};
+  colorTextureInfo.imageLayout = _textureColor->getImageView()->getImage()->getImageLayout();
+  colorTextureInfo.imageView = _textureColor->getImageView()->getImageView();
+  colorTextureInfo.sampler = _textureColor->getSampler()->getSampler();
+  images[0] = colorTextureInfo;
+  _descriptorSetTextures->createCustom(currentFrame, {}, images);
+}
+
+void MaterialColor::setBaseColor(std::shared_ptr<Texture> color) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _textureColor = color;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}

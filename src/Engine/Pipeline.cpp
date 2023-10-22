@@ -141,6 +141,86 @@ void Pipeline::createHUD(VkFormat renderFormat,
   }
 }
 
+void Pipeline::createSkybox(
+    std::vector<VkFormat> renderFormat,
+    VkCullModeFlags cullMode,
+    VkPolygonMode polygonMode,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants,
+    VkVertexInputBindingDescription bindingDescription,
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions) {
+  _descriptorSetLayout = descriptorSetLayout;
+  _pushConstants = pushConstants;
+
+  // create pipeline layout
+  std::vector<VkDescriptorSetLayout> descriptorSetLayoutRaw;
+  for (auto& layout : _descriptorSetLayout) {
+    descriptorSetLayoutRaw.push_back(layout.second->getDescriptorSetLayout());
+  }
+  VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+  pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  pipelineLayoutInfo.setLayoutCount = descriptorSetLayoutRaw.size();
+  pipelineLayoutInfo.pSetLayouts = descriptorSetLayoutRaw.data();
+
+  auto pushConstantsView = std::views::values(pushConstants);
+  auto pushConstantsRaw = std::vector<VkPushConstantRange>{pushConstantsView.begin(), pushConstantsView.end()};
+  if (pushConstants.size() > 0) {
+    pipelineLayoutInfo.pPushConstantRanges = pushConstantsRaw.data();
+    pipelineLayoutInfo.pushConstantRangeCount = pushConstantsRaw.size();
+  }
+
+  if (vkCreatePipelineLayout(_device->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &_pipelineLayout) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create pipeline layout!");
+  }
+
+  // create pipeline
+  VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+  vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+  vertexInputInfo.vertexBindingDescriptionCount = 1;
+  vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+  vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+  vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+  _rasterizer.cullMode = cullMode;
+  _rasterizer.polygonMode = polygonMode;
+
+  _depthStencil.depthTestEnable = VK_TRUE;
+  _depthStencil.depthWriteEnable = VK_FALSE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
+
+  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                        .colorAttachmentCount = (uint32_t)renderFormat.size(),
+                                                        .pColorAttachmentFormats = renderFormat.data(),
+                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
+
+  VkGraphicsPipelineCreateInfo pipelineInfo{};
+  pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+  pipelineInfo.pNext = &pipelineRender;
+  pipelineInfo.stageCount = shaderStages.size();
+  pipelineInfo.pStages = shaderStages.data();
+  pipelineInfo.pVertexInputState = &vertexInputInfo;
+  pipelineInfo.pInputAssemblyState = &_inputAssembly;
+  pipelineInfo.pViewportState = &_viewportState;
+  pipelineInfo.pDepthStencilState = &_depthStencil;
+  pipelineInfo.pRasterizationState = &_rasterizer;
+  pipelineInfo.pMultisampleState = &_multisampling;
+  pipelineInfo.pColorBlendState = &_colorBlending;
+  pipelineInfo.pDynamicState = &_dynamicState;
+  pipelineInfo.layout = _pipelineLayout;
+  pipelineInfo.subpass = 0;
+  pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+  if (vkCreateGraphicsPipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create graphics pipeline!");
+  }
+}
+
 void Pipeline::createGraphic3D(
     std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,

@@ -9,9 +9,10 @@ class Cubemap {
   std::vector<std::shared_ptr<ImageView>> _imageViewSeparate;
   std::shared_ptr<Texture> _texture;
   std::vector<std::shared_ptr<Texture>> _textureSeparate;
+  std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
-  Cubemap(std::string path,
+  Cubemap(std::vector<std::string> path,
           VkFormat format,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);

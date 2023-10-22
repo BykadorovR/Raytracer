@@ -99,8 +99,9 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer,
                                            _state->getSettings(), _state->getDevice());
-  _stubCubemap = std::make_shared<Cubemap>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
-                                           commandBufferTransfer, _state);
+  _stubCubemap = std::make_shared<Cubemap>(std::vector<std::string>(6, "../data/Texture1x1.png"),
+                                           _state->getSettings()->getLoadTextureColorFormat(), commandBufferTransfer,
+                                           _state);
 
   _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
   _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());

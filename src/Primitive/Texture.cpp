@@ -107,7 +107,7 @@ Texture::Texture(std::string path,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
   image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                       mipMapLevels, commandBufferTransfer);
-  image->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  image->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   // TODO: generate mipmaps here
   // TODO: use commandBuffer with graphic support for Blit (!)
   generateMipmaps(image, mipMapLevels, commandBufferTransfer);

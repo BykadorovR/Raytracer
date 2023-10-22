@@ -176,7 +176,7 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
 
       image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                           1, _commandBufferTransfer);
-      image->copyFrom(stagingBuffer, 1, _commandBufferTransfer);
+      image->copyFrom(stagingBuffer, {0}, _commandBufferTransfer);
       image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                           1, _commandBufferTransfer);
 
