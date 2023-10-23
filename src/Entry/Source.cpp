@@ -183,9 +183,9 @@ void directionalLightCalculator(int index) {
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-  // loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame), currentFrame);
-  // cube->draw(currentFrame, commandBufferRender);
-  // loggerGPU->end();
+  loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  cube->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
 
@@ -275,9 +275,9 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
   terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
-  // loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame), currentFrame);
-  // cube->draw(currentFrame, commandBufferRender);
-  // loggerGPU->end();
+  loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  cube->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
 
@@ -1066,7 +1066,7 @@ void initialize() {
                                "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
       settings->getLoadTextureColorFormat(), commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+                                VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                     VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
   auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
