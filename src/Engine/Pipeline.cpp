@@ -189,6 +189,9 @@ void Pipeline::createSkybox(
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_FALSE;
+  // we force skybox to have the biggest possible depth = 1 so we need to draw skybox if it's depth <= 1
+  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();

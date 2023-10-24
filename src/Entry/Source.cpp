@@ -629,10 +629,6 @@ void renderGraphic() {
   };
 
   vkCmdBeginRendering(commandBufferRender->getCommandBuffer()[currentFrame], &renderInfo);
-  loggerGPU->begin("Render skybox " + std::to_string(globalFrame), currentFrame);
-  skybox->draw(currentFrame, commandBufferRender);
-  loggerGPU->end();
-
   loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
   lightManager->draw(currentFrame);
   loggerGPU->end();
@@ -678,6 +674,11 @@ void renderGraphic() {
   // contains transparency, should be drawn last
   loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
   particleSystem->drawGraphic(currentFrame, commandBufferRender);
+  loggerGPU->end();
+
+  // should be drawn last
+  loggerGPU->begin("Render skybox " + std::to_string(globalFrame), currentFrame);
+  skybox->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   vkCmdEndRendering(commandBufferRender->getCommandBuffer()[currentFrame]);

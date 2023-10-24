@@ -18,5 +18,7 @@ layout(location = 0) out vec3 TexCoords;
 
 void main() {
     TexCoords = inPosition;
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    vec4 position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    // little trick to force skybox to have z = 1 so it's drawn on the background  
+    gl_Position = position.xyww;
 }  
