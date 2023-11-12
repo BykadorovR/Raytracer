@@ -188,7 +188,9 @@ std::shared_ptr<Sprite> SpriteManager::createSprite() {
 
 void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) { _sprites.push_back(sprite); }
+void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) {
+  if (std::find(_sprites.begin(), _sprites.end(), sprite) == _sprites.end()) _sprites.push_back(sprite);
+}
 
 void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());

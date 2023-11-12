@@ -219,7 +219,9 @@ std::shared_ptr<Model3D> Model3DManager::createModel3D(const std::vector<std::sh
   model->setAnimation(_defaultAnimation);
   return model;
 }
-void Model3DManager::registerModel3D(std::shared_ptr<Model3D> model) { _modelsGLTF.push_back(model); }
+void Model3DManager::registerModel3D(std::shared_ptr<Model3D> model) {
+  if (std::find(_modelsGLTF.begin(), _modelsGLTF.end(), model) == _modelsGLTF.end()) _modelsGLTF.push_back(model);
+}
 
 void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
   _modelsGLTF.erase(std::remove(_modelsGLTF.begin(), _modelsGLTF.end(), model), _modelsGLTF.end());

@@ -38,6 +38,7 @@
 #include "Cube.h"
 #include "Skybox.h"
 #include "Cubemap.h"
+#include "Equirectangular.h"
 
 float fps = 0;
 float frameTimer = 0.f;
@@ -112,6 +113,9 @@ std::vector<std::shared_ptr<Sphere>> spheres;
 std::shared_ptr<Cubemap> cubemap;
 std::shared_ptr<Cube> cube;
 std::shared_ptr<Skybox> skybox;
+
+std::shared_ptr<Sprite> spriteTest;
+std::shared_ptr<Equirectangular> equirectangular;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -689,9 +693,11 @@ void initialize() {
   settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
   settings->setResolution(std::tuple{1600, 900});
-  // for HDR, it's not SRGB, it's linear
-  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+  // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
+  // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
+  settings->setGraphicColorFormat(VK_FORMAT_R16G16B16A16_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  // SRGB the same as UNORM but + gamma conversion
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
   settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
   settings->setAnisotropicSamples(0);
@@ -1080,6 +1086,20 @@ void initialize() {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
     cube->setModel(model);
   }
+
+  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/golf_equirectangular.hdr", commandBufferTransfer,
+                                                      state);
+  auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialEq->setBaseColor(equirectangular->getTexture());
+
+  spriteTest = spriteManager->createSprite();
+  spriteTest->setMaterial(materialEq);
+  spriteTest->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
+    spriteTest->setModel(model);
+  }
+  spriteManager->registerSprite(spriteTest);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
