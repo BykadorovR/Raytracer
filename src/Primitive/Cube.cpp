@@ -160,24 +160,6 @@ void Cube::_draw(int currentFrame,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<CommandBuffer> commandBuffer,
                  int face) {
-  float width = 1600;
-  float height = 1600;
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = width;
-  viewport.width = width;
-  viewport.height = -height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
-
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(width, height);
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
   cameraUBO.view = _camera->getView();
@@ -222,10 +204,42 @@ void Cube::_draw(int currentFrame,
 }
 
 void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipeline->getPipeline());
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = std::get<1>(_state->getSettings()->getResolution());
+  viewport.width = std::get<0>(_state->getSettings()->getResolution());
+  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
+                              std::get<1>(_state->getSettings()->getResolution()));
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
   _draw(currentFrame, _pipeline, commandBuffer, 0);
 }
 
 void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipelineEquirectangular->getPipeline());
+  auto [width, height] = _state->getSettings()->getDepthResolution();
+  VkViewport viewport{};
+  viewport.x = 0.f;
+  viewport.y = 0.f;
+  viewport.width = width;
+  viewport.height = height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(width, height);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
   _draw(currentFrame, _pipelineEquirectangular, commandBuffer, face);
 }
 

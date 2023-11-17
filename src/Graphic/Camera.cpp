@@ -52,7 +52,10 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
+  _aspect = (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution());
 }
+
+void CameraFly::setAspect(float aspect) { _aspect = aspect; }
 
 glm::vec3 CameraFly::getAngles() { return glm::vec3(_yaw, _pitch, _roll); }
 
@@ -73,9 +76,7 @@ void CameraFly::setProjectionParameters(float fov, float near, float far) {
 }
 
 glm::mat4 CameraFly::getProjection() {
-  auto projection = glm::perspective(
-      glm::radians(_fov),
-      (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution()), _near, _far);
+  auto projection = glm::perspective(glm::radians(_fov), _aspect, _near, _far);
   return projection;
 }
 
