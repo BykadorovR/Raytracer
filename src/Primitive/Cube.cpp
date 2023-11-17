@@ -39,14 +39,20 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
 
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state->getDevice());
+  _uniformBuffer.resize(6);
+  for (int i = 0; i < 6; i++) {
+    _uniformBuffer[i] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
+                                                        sizeof(BufferMVP), state->getDevice());
+  }
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
-                                                         state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
+  _descriptorSetCamera.resize(6);
+  for (int i = 0; i < 6; i++) {
+    _descriptorSetCamera[i] = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
+                                                              state->getDescriptorPool(), state->getDevice());
+    _descriptorSetCamera[i]->createUniformBuffer(_uniformBuffer[i]);
+  }
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
@@ -124,6 +130,19 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
                                           {{"camera", setLayout}}, defaultPushConstants, _mesh->getBindingDescription(),
                                           _mesh->getAttributeDescriptions());
   }
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add("../shaders/skybox_equirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/skybox_equirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineEquirectangular->createGraphic3D(
+        renderFormat, cullMode, polygonMode,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {std::pair{std::string("camera"), setLayout},
+         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+        {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+  }
 }
 
 void Cube::setMaterial(std::shared_ptr<MaterialColor> material) {
@@ -137,22 +156,26 @@ void Cube::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 std::shared_ptr<Mesh3D> Cube::getMesh() { return _mesh; }
 
-void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Cube::_draw(int currentFrame,
+                 std::shared_ptr<Pipeline> pipeline,
+                 std::shared_ptr<CommandBuffer> commandBuffer,
+                 int face) {
+  float width = 1600;
+  float height = 1600;
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+                    pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = width;
+  viewport.width = width;
+  viewport.height = -height;
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   BufferMVP cameraUBO{};
@@ -161,10 +184,10 @@ void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) 
   cameraUBO.projection = _camera->getProjection();
 
   void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
+  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer[face]->getBuffer()[currentFrame]->getMemory(), 0,
               sizeof(cameraUBO), 0, &data);
   memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer[face]->getBuffer()[currentFrame]->getMemory());
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -173,15 +196,15 @@ void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) 
   vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
                        0, VK_INDEX_TYPE_UINT32);
 
-  auto pipelineLayout = _pipeline->getDescriptorSetLayout();
+  auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+                            pipeline->getPipelineLayout(), 0, 1,
+                            &_descriptorSetCamera[face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -189,14 +212,21 @@ void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) 
                                       return info.first == std::string("texture");
                                     });
   if (textureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 1, 1,
-                            &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0,
-                            nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        1, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
+}
+
+void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  _draw(currentFrame, _pipeline, commandBuffer, 0);
+}
+
+void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
+  _draw(currentFrame, _pipelineEquirectangular, commandBuffer, face);
 }
 
 void Cube::drawShadow(int currentFrame,
@@ -228,6 +258,8 @@ void Cube::drawShadow(int currentFrame,
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
+  // if we swap, we need to change shader as well, so swap there. But we can't do it there because we sample from
+  // cubemap and we can't just (1 - y)
   VkViewport viewport{};
   if (lightType == LightType::DIRECTIONAL) {
     viewport.x = 0.0f;

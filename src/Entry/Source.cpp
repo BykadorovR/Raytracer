@@ -55,10 +55,10 @@ float depthBiasSlope = 1.75f;
 std::shared_ptr<Window> window;
 std::shared_ptr<Instance> instance;
 std::shared_ptr<Device> device;
-std::shared_ptr<CommandBuffer> commandBufferRender, commandBufferTransfer, commandBufferParticleSystem,
-    commandBufferPostprocessing, commandBufferBlur, commandBufferGUI;
-std::shared_ptr<CommandPool> commandPoolRender, commandPoolTransfer, commandPoolParticleSystem,
-    commandPoolPostprocessing, commandPoolGUI;
+std::shared_ptr<CommandBuffer> commandBufferEquirectangular, commandBufferRender, commandBufferTransfer,
+    commandBufferParticleSystem, commandBufferPostprocessing, commandBufferBlur, commandBufferGUI;
+std::shared_ptr<CommandPool> commandPoolEquirectangular, commandPoolRender, commandPoolTransfer,
+    commandPoolParticleSystem, commandPoolPostprocessing, commandPoolGUI;
 std::shared_ptr<DescriptorPool> descriptorPool;
 std::shared_ptr<Surface> surface;
 std::shared_ptr<Settings> settings;
@@ -90,6 +90,8 @@ std::future<void> updateJoints;
 std::shared_ptr<Animation> animation;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
+std::shared_ptr<Cubemap> cubemapEquirectangular;
+std::shared_ptr<Texture> textureBug;
 
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -115,6 +117,7 @@ std::shared_ptr<Cube> cube;
 std::shared_ptr<Skybox> skybox;
 
 std::shared_ptr<Sprite> spriteTest;
+std::shared_ptr<Cube> cubeTest, cubeTemp;
 std::shared_ptr<Equirectangular> equirectangular;
 
 void directionalLightCalculator(int index) {
@@ -673,6 +676,7 @@ void renderGraphic() {
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
   cube->draw(currentFrame, commandBufferRender);
+  // cubeTest->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -695,7 +699,7 @@ void initialize() {
   settings->setResolution(std::tuple{1600, 900});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
-  settings->setGraphicColorFormat(VK_FORMAT_R16G16B16A16_SFLOAT);
+  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
@@ -721,6 +725,11 @@ void initialize() {
   // allocate commands
   commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolRender, device);
+
+  commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
+  commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                 commandPoolEquirectangular, device);
+
   // TODO: transfer doesn't work
   commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPoolTransfer, device);
@@ -1068,10 +1077,27 @@ void initialize() {
     spheres[5]->setModel(model);
   }
 
+  auto [width, height] = settings->getResolution();
+
+  auto imageBug = std::make_shared<Image>(std::tuple{1600, 1600}, 1, 1, settings->getGraphicColorFormat(),
+                                          VK_IMAGE_TILING_OPTIMAL,
+                                          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+  imageBug->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                         commandBufferTransfer);
+  auto imageViewBug = std::make_shared<ImageView>(imageBug, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                  state->getDevice());
+
+  textureBug = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, imageViewBug, state->getDevice());
+  cubemapEquirectangular = std::make_shared<Cubemap>(
+      std::tuple{std::max(width, height), std::max(width, height)}, settings->getGraphicColorFormat(),
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
                                "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
-      settings->getLoadTextureColorFormat(), commandBufferTransfer, state);
+      settings->getLoadTextureColorFormat(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                 VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -1087,17 +1113,36 @@ void initialize() {
     cube->setModel(model);
   }
 
+  spriteTest = spriteManager->createSprite();
+  cubeTest = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer,
+                                    state);
+
+  cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
+                                    VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+
   equirectangular = std::make_shared<Equirectangular>("../data/Skybox/golf_equirectangular.hdr", commandBufferTransfer,
                                                       state);
   auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialEq->setBaseColor(equirectangular->getTexture());
+  auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialColorEq->setBaseColor(equirectangular->getTexture());
 
-  spriteTest = spriteManager->createSprite();
+  auto cameraTemp = std::make_shared<CameraFly>(settings);
+  cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
+  cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
+  cubeTemp->setMaterial(materialColorEq);
+  cubeTemp->setCamera(cameraTemp);
+
   spriteTest->setMaterial(materialEq);
   spriteTest->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
     spriteTest->setModel(model);
+  }
+  {
+    auto model = glm::translate(glm::mat4(1.f), cameraTemp->getEye());
+    cubeTemp->setModel(model);
   }
   spriteManager->registerSprite(spriteTest);
 
@@ -1105,6 +1150,82 @@ void initialize() {
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
+  commandBufferTransfer->endCommands();
+  commandBufferTransfer->submitToQueue(true);
+
+  // render equirectangular to cubemap
+  commandBufferEquirectangular->beginCommands(currentFrame);
+  loggerGPU->setCommandBufferName("Draw equirectangular buffer", currentFrame, commandBufferEquirectangular);
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // render graphic
+  /////////////////////////////////////////////////////////////////////////////////////////
+  for (int i = 0; i < 1; i++) {
+    auto currentTexture = textureBug;  // cubemapEquirectangular->getTextureSeparate()[i];
+    VkClearValue clearColor;
+    clearColor.color = settings->getClearColor();
+    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+    // here we render scene as is
+    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = currentTexture->getImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
+
+    auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                     .renderArea = renderArea,
+                                     .layerCount = 1,
+                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                     .pColorAttachments = colorAttachmentInfo.data()};
+
+    vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
+
+    loggerGPU->begin("Render equirectangular", currentFrame);
+    // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+    switch (i) {
+      case 0:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
+        break;
+      case 1:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 1.f, 0.f));
+        break;
+      case 2:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+        break;
+      case 3:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+        break;
+      case 4:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        break;
+      case 5:
+        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        break;
+    }
+
+    cubeTemp->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
+    loggerGPU->end();
+
+    vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+  }
+  commandBufferEquirectangular->endCommands();
+  commandBufferEquirectangular->submitToQueue(true);
+
+  commandBufferTransfer->beginCommands(0);
+  auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialColorCM->setBaseColor(textureBug /*cubemapEquirectangular->getTexture()*/);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -2.f, 0.f));
+    cubeTest->setModel(model);
+  }
+  cubeTest->setMaterial(materialColorCM);
+  cubeTest->setCamera(camera);
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
 }

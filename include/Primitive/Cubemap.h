@@ -14,9 +14,16 @@ class Cubemap {
  public:
   Cubemap(std::vector<std::string> path,
           VkFormat format,
+          VkImageLayout layout,
+          VkImageAspectFlagBits colorBits,
+          VkImageUsageFlags usage,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   Cubemap(std::tuple<int, int> resolution,
+          VkFormat format,
+          VkImageLayout layout,
+          VkImageAspectFlagBits colorBits,
+          VkImageUsageFlags usage,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   std::shared_ptr<Texture> getTexture();

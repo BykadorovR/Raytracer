@@ -299,6 +299,8 @@ void SpriteManager::drawShadow(int currentFrame,
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
+  // if we swap, we need to change shader as well, so swap there. But we can't do it there because we sample from
+  // cubemap and we can't just (1 - y)
   VkViewport viewport{};
   if (lightType == LightType::DIRECTIONAL) {
     viewport.x = 0.0f;

@@ -99,9 +99,10 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer,
                                            _state->getSettings(), _state->getDevice());
-  _stubCubemap = std::make_shared<Cubemap>(std::vector<std::string>(6, "../data/Texture1x1.png"),
-                                           _state->getSettings()->getLoadTextureColorFormat(), commandBufferTransfer,
-                                           _state);
+  _stubCubemap = std::make_shared<Cubemap>(
+      std::vector<std::string>(6, "../data/Texture1x1.png"), _state->getSettings()->getLoadTextureColorFormat(),
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, _state);
 
   _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
   _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
@@ -375,7 +376,10 @@ void LightManager::_updatePointTexture(int currentFrame) {
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _commandBufferTransfer, _state));
+    depthCubemap.push_back(std::make_shared<Cubemap>(
+        resolution, _state->getSettings()->getDepthFormat(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        _commandBufferTransfer, _state));
   }
 
   auto light = std::make_shared<PointLight>(_state->getSettings());

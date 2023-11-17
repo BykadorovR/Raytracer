@@ -24,7 +24,7 @@ Equirectangular::Equirectangular(std::string path,
 
   // image
   auto [width, height] = state->getSettings()->getResolution();
-  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT,
+  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1, state->getSettings()->getGraphicColorFormat(),
                                    VK_IMAGE_TILING_OPTIMAL,
                                    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());

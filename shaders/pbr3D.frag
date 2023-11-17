@@ -79,6 +79,7 @@ layout( push_constant ) uniform constants {
 #define getLightAmbient(index) lightAmbient[index]
 #include "pbr.glsl"
 
+//TODO: add support for shadows, right now there is no PBR objects on which shadows should be casted that's why everything is fine
 void main() {
     vec4 albedoTexture = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     vec4 normalTexture = texture(normalSampler, fragTexCoord);

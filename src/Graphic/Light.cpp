@@ -21,7 +21,7 @@ void PointLight::setPosition(glm::vec3 position) { _light->position = position; 
 glm::vec3 PointLight::getPosition() { return _light->position; }
 
 glm::mat4 PointLight::getViewMatrix(int face) {
-  // up is inverted because of some specific cubemap Y coordinate stuff
+  // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
   auto viewMatrix = glm::mat4(1.f);
   switch (face) {
     case 0:  // POSITIVE_X / right
