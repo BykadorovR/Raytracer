@@ -91,7 +91,6 @@ std::shared_ptr<Animation> animation;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
 std::shared_ptr<Cubemap> cubemapEquirectangular;
-std::shared_ptr<Texture> textureBug;
 
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -676,7 +675,7 @@ void renderGraphic() {
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
   cube->draw(currentFrame, commandBufferRender);
-  // cubeTest->draw(currentFrame, commandBufferRender);
+  cubeTest->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -1078,17 +1077,6 @@ void initialize() {
   }
 
   auto [width, height] = settings->getResolution();
-
-  auto imageBug = std::make_shared<Image>(std::tuple{1600, 1600}, 1, 1, settings->getGraphicColorFormat(),
-                                          VK_IMAGE_TILING_OPTIMAL,
-                                          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
-  imageBug->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                         commandBufferTransfer);
-  auto imageViewBug = std::make_shared<ImageView>(imageBug, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                  state->getDevice());
-
-  textureBug = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, imageViewBug, state->getDevice());
   cubemapEquirectangular = std::make_shared<Cubemap>(
       std::tuple{std::max(width, height), std::max(width, height)}, settings->getGraphicColorFormat(),
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1159,8 +1147,8 @@ void initialize() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
-  for (int i = 0; i < 1; i++) {
-    auto currentTexture = textureBug;  // cubemapEquirectangular->getTextureSeparate()[i];
+  for (int i = 0; i < 6; i++) {
+    auto currentTexture = cubemapEquirectangular->getTextureSeparate()[i];
     VkClearValue clearColor;
     clearColor.color = settings->getClearColor();
     std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
@@ -1219,7 +1207,7 @@ void initialize() {
 
   commandBufferTransfer->beginCommands(0);
   auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialColorCM->setBaseColor(textureBug /*cubemapEquirectangular->getTexture()*/);
+  materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -2.f, 0.f));
     cubeTest->setModel(model);

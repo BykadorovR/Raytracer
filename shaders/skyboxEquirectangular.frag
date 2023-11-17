@@ -18,5 +18,5 @@ void main() {
     vec2 uv = SampleSphericalMap(normalize(TexCoords));
     vec3 color = texture(skybox, vec2(uv.x, uv.y)).rgb;
     
-    outColor = vec4(vec3(1.0, 0.0, 0.0), 0.25);
+    outColor = vec4(color, 1.0);
 }

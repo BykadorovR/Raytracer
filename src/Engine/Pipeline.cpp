@@ -38,7 +38,8 @@ Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> d
   _blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
   _blendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   _blendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
-  _blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+  //_blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+  _blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
   _blendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   _blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
 
