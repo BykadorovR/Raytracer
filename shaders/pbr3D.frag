@@ -16,6 +16,7 @@ layout(set = 3, binding = 1) uniform sampler2D normalSampler;
 layout(set = 3, binding = 2) uniform sampler2D metallicRoughnessSampler;
 layout(set = 3, binding = 3) uniform sampler2D occlusionSampler;
 layout(set = 3, binding = 4) uniform sampler2D emissiveSampler;
+layout(set = 3, binding = 5) uniform samplerCube irradianceSampler;
 
 struct LightDirectional {
     //
@@ -46,6 +47,7 @@ layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
 
+//remove for PBR, IBL is used
 layout(std140, set = 4, binding = 2) readonly buffer LightBufferAmbient {
     LightAmbient lightAmbient[];
 };
@@ -76,7 +78,6 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
-#define getLightAmbient(index) lightAmbient[index]
 #include "pbr.glsl"
 
 //TODO: add support for shadows, right now there is no PBR objects on which shadows should be casted that's why everything is fine
@@ -131,11 +132,16 @@ void main() {
             //add occlusion to resulting color (it doesn't depend on light sources at all), occlusion is stored inside metallic roughness as .r channel or as separate texture .r channel
             //so it doesn't matter, any texture -> .r channel
 
-            for (int i = 0;i < lightAmbient.length(); i++) {
-                vec3 ambientColor = lightAmbient[i].color * albedoTexture.rgb; //should go from IBL
-                ambientColor = mix(ambientColor, ambientColor * occlusionTexture.r, material.occlusionStrength);
-                outColor.rgb += ambientColor;
-            }
+            //IBL
+            vec3 F0 = vec3(0.04);        
+            F0 = mix(F0, albedoTexture.rgb, metallicValue);
+            vec3 kS = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, roughnessValue);
+            vec3 kD = 1.0 - kS;
+            kD *= 1.0 - metallicValue;
+            vec3 irradiance = texture(irradianceSampler, normal).rgb;
+            vec3 diffuse = kD * irradiance * albedoTexture.rgb;
+            vec3 ambientColor = mix(diffuse, diffuse * occlusionTexture.r, material.occlusionStrength);
+            outColor.rgb += ambientColor;
 
             //add emissive to resulting reflected radiance from all light sources
             outColor.rgb += emissiveTexture.rgb * material.emissiveFactor;

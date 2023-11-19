@@ -143,6 +143,18 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
          std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
         {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add("../shaders/skybox_diffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/skybox_diffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, polygonMode,
+                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                      {std::pair{std::string("camera"), setLayout},
+                                       std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+                                      {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+  }
 }
 
 void Cube::setMaterial(std::shared_ptr<MaterialColor> material) {
@@ -241,6 +253,26 @@ void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> 
   scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
   _draw(currentFrame, _pipelineEquirectangular, commandBuffer, face);
+}
+
+void Cube::drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipelineDiffuse->getPipeline());
+  auto [width, height] = std::tuple{32, 32};
+  VkViewport viewport{};
+  viewport.x = 0.f;
+  viewport.y = 0.f;
+  viewport.width = width;
+  viewport.height = height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(width, height);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  _draw(currentFrame, _pipelineDiffuse, commandBuffer, face);
 }
 
 void Cube::drawShadow(int currentFrame,

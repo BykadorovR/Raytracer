@@ -90,7 +90,7 @@ std::future<void> updateJoints;
 std::shared_ptr<Animation> animation;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
-std::shared_ptr<Cubemap> cubemapEquirectangular;
+std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse;
 
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -115,9 +115,9 @@ std::shared_ptr<Cubemap> cubemap;
 std::shared_ptr<Cube> cube;
 std::shared_ptr<Skybox> skybox;
 
-std::shared_ptr<Sprite> spriteTest;
-std::shared_ptr<Cube> cubeTest, cubeTemp;
+std::shared_ptr<Cube> cubeTemp;
 std::shared_ptr<Equirectangular> equirectangular;
+std::shared_ptr<MaterialColor> materialColorDiffuse;
 
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
@@ -490,11 +490,6 @@ void debugVisualizations(int swapchainImageIndex) {
   }
   {
     std::map<std::string, bool*> terrainGUI;
-    terrainGUI["Wireframe"] = &terrainWireframe;
-    gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI);
-  }
-  {
-    std::map<std::string, bool*> terrainGUI;
     terrainGUI["Patches"] = &terrainPatch;
     if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
       std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
@@ -675,7 +670,6 @@ void renderGraphic() {
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
   cube->draw(currentFrame, commandBufferRender);
-  cubeTest->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -921,7 +915,7 @@ void initialize() {
     spriteManager->registerSprite(spriteTop);
     spriteManager->registerSprite(spriteBot);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/BrainStem/BrainStem.gltf",
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/DamagedHelmet/DamagedHelmet.gltf",
                                                                 commandBufferTransfer, state);
   std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer,
                                                                    state);
@@ -933,7 +927,8 @@ void initialize() {
 
   auto modelGLTFPBR = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
   modelManager->registerModel3D(modelGLTFPBR);
-  modelGLTFPBR->setMaterial(loaderGLTF->getMaterialsPBR());
+  auto pbrMaterial = loaderGLTF->getMaterialsPBR();
+  modelGLTFPBR->setMaterial(pbrMaterial);
 
   auto modelBox = modelManager->createModel3D(loaderGLTFBox->getNodes(), loaderGLTFBox->getMeshes());
   // modelManager->registerModel3D(modelBox);
@@ -1082,6 +1077,11 @@ void initialize() {
       settings->getDepthResolution(), settings->getGraphicColorFormat(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
+  cubemapDiffuse = std::make_shared<Cubemap>(std::tuple{32, 32}, settings->getGraphicColorFormat(),
+                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                             commandBufferTransfer, state);
+
   cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
                                "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
@@ -1095,17 +1095,11 @@ void initialize() {
   materialColor->setBaseColor(cubemap->getTexture());
   cube->setMaterial(materialColor);
   cube->setCamera(camera);
-  skybox->setMaterial(materialColor);
   skybox->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
     cube->setModel(model);
   }
-
-  spriteTest = spriteManager->createSprite();
-  cubeTest = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer,
-                                    state);
 
   cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
                                     VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
@@ -1124,17 +1118,10 @@ void initialize() {
   cubeTemp->setMaterial(materialColorEq);
   cubeTemp->setCamera(cameraTemp);
 
-  spriteTest->setMaterial(materialEq);
-  spriteTest->setCamera(camera);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
-    spriteTest->setModel(model);
-  }
   {
     auto model = glm::translate(glm::mat4(1.f), cameraTemp->getEye());
     cubeTemp->setModel(model);
   }
-  spriteManager->registerSprite(spriteTest);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
@@ -1143,87 +1130,161 @@ void initialize() {
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
 
-  // render equirectangular to cubemap
-  commandBufferEquirectangular->beginCommands(currentFrame);
-  loggerGPU->setCommandBufferName("Draw equirectangular buffer", currentFrame, commandBufferEquirectangular);
-  /////////////////////////////////////////////////////////////////////////////////////////
-  // render graphic
-  /////////////////////////////////////////////////////////////////////////////////////////
-  for (int i = 0; i < 6; i++) {
-    auto currentTexture = cubemapEquirectangular->getTextureSeparate()[i];
-    VkClearValue clearColor;
-    clearColor.color = settings->getClearColor();
-    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
-    // here we render scene as is
-    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = currentTexture->getImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearColor,
-    };
+  {
+    // render equirectangular to cubemap
+    commandBufferEquirectangular->beginCommands(currentFrame);
+    loggerGPU->setCommandBufferName("Draw equirectangular buffer", currentFrame, commandBufferEquirectangular);
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // render graphic
+    /////////////////////////////////////////////////////////////////////////////////////////
+    for (int i = 0; i < 6; i++) {
+      auto currentTexture = cubemapEquirectangular->getTextureSeparate()[i];
+      VkClearValue clearColor;
+      clearColor.color = settings->getClearColor();
+      std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+      // here we render scene as is
+      colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+          .imageView = currentTexture->getImageView()->getImageView(),
+          .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .clearValue = clearColor,
+      };
 
-    auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
-    VkRect2D renderArea{};
-    renderArea.extent.width = width;
-    renderArea.extent.height = height;
-    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                                     .renderArea = renderArea,
-                                     .layerCount = 1,
-                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-                                     .pColorAttachments = colorAttachmentInfo.data()};
+      auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+      VkRect2D renderArea{};
+      renderArea.extent.width = width;
+      renderArea.extent.height = height;
+      const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                       .renderArea = renderArea,
+                                       .layerCount = 1,
+                                       .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                       .pColorAttachments = colorAttachmentInfo.data()};
 
-    vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
+      vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
-    loggerGPU->begin("Render equirectangular", currentFrame);
-    // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
-    switch (i) {
-      case 0:
-        // POSITIVE_X / right
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
-        break;
-      case 1:
-        // NEGATIVE_X /left
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
-        break;
-      case 2:
-        // POSITIVE_Y / top
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-        break;
-      case 3:
-        // NEGATIVE_Y / bottom
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
-        break;
-      case 4:
-        // POSITIVE_Z / near
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
-        break;
-      case 5:
-        // NEGATIVE_Z / far
-        cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
-        break;
+      loggerGPU->begin("Render equirectangular", currentFrame);
+      // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+      switch (i) {
+        case 0:
+          // POSITIVE_X / right
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 1:
+          // NEGATIVE_X /left
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 2:
+          // POSITIVE_Y / top
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+          break;
+        case 3:
+          // NEGATIVE_Y / bottom
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+          break;
+        case 4:
+          // POSITIVE_Z / near
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 5:
+          // NEGATIVE_Z / far
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+      }
+
+      cubeTemp->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
+      loggerGPU->end();
+
+      vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
     }
-
-    cubeTemp->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
-    loggerGPU->end();
-
-    vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+    commandBufferEquirectangular->endCommands();
+    commandBufferEquirectangular->submitToQueue(true);
   }
-  commandBufferEquirectangular->endCommands();
-  commandBufferEquirectangular->submitToQueue(true);
 
   commandBufferTransfer->beginCommands(0);
   auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -2.f, 0.f));
-    cubeTest->setModel(model);
-  }
-  cubeTest->setMaterial(materialColorCM);
-  cubeTest->setCamera(camera);
+  cubeTemp->setMaterial(materialColorCM);
+  skybox->setMaterial(materialColorCM);
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
+
+  {
+    // render cubemap to diffuse
+    commandBufferEquirectangular->beginCommands(currentFrame);
+    loggerGPU->setCommandBufferName("Draw diffuse buffer", currentFrame, commandBufferEquirectangular);
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // render graphic
+    /////////////////////////////////////////////////////////////////////////////////////////
+    for (int i = 0; i < 6; i++) {
+      auto currentTexture = cubemapDiffuse->getTextureSeparate()[i];
+      VkClearValue clearColor;
+      clearColor.color = settings->getClearColor();
+      std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+      // here we render scene as is
+      colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+          .imageView = currentTexture->getImageView()->getImageView(),
+          .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .clearValue = clearColor,
+      };
+
+      auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+      VkRect2D renderArea{};
+      renderArea.extent.width = width;
+      renderArea.extent.height = height;
+      const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                       .renderArea = renderArea,
+                                       .layerCount = 1,
+                                       .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                       .pColorAttachments = colorAttachmentInfo.data()};
+
+      vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
+
+      loggerGPU->begin("Render diffuse", currentFrame);
+      // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+      switch (i) {
+        case 0:
+          // POSITIVE_X / right
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 1:
+          // NEGATIVE_X /left
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 2:
+          // POSITIVE_Y / top
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+          break;
+        case 3:
+          // NEGATIVE_Y / bottom
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+          break;
+        case 4:
+          // POSITIVE_Z / near
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 5:
+          // NEGATIVE_Z / far
+          cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+      }
+
+      cubeTemp->drawDiffuse(currentFrame, commandBufferEquirectangular, i);
+      loggerGPU->end();
+
+      vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+    }
+    commandBufferEquirectangular->endCommands();
+    commandBufferEquirectangular->submitToQueue(true);
+  }
+
+  for (auto& material : pbrMaterial) {
+    material->setDiffuseIBL(cubemapDiffuse->getTexture());
+  }
 }
 
 void drawFrame() {

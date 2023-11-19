@@ -60,6 +60,7 @@ class MaterialPBR : public Material {
   std::shared_ptr<Texture> _textureMetallicRoughness;
   std::shared_ptr<Texture> _textureOccluded;
   std::shared_ptr<Texture> _textureEmissive;
+  std::shared_ptr<Texture> _textureDiffuseIBL;
 
   Coefficients _coefficients;
 
@@ -74,6 +75,7 @@ class MaterialPBR : public Material {
   void setMetallicRoughness(std::shared_ptr<Texture> metallicRoughness);
   void setOccluded(std::shared_ptr<Texture> occluded);
   void setEmissive(std::shared_ptr<Texture> emissive);
+  void setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL);
   void setCoefficients(float metallicFactor, float roughnessFactor, float occlusionStrength, glm::vec3 emissiveFactor);
 };
 

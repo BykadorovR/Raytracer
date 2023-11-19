@@ -112,6 +112,11 @@ void MaterialPBR::_updateTextureDescriptors(int currentFrame) {
   emissiveTextureInfo.imageView = _textureEmissive->getImageView()->getImageView();
   emissiveTextureInfo.sampler = _textureEmissive->getSampler()->getSampler();
   images[4] = emissiveTextureInfo;
+  VkDescriptorImageInfo diffuseIBLTextureInfo{};
+  diffuseIBLTextureInfo.imageLayout = _textureDiffuseIBL->getImageView()->getImage()->getImageLayout();
+  diffuseIBLTextureInfo.imageView = _textureDiffuseIBL->getImageView()->getImageView();
+  diffuseIBLTextureInfo.sampler = _textureDiffuseIBL->getSampler()->getSampler();
+  images[5] = diffuseIBLTextureInfo;
 
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
@@ -119,7 +124,7 @@ void MaterialPBR::_updateTextureDescriptors(int currentFrame) {
 MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
   // define textures
-  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(5);
+  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(6);
   layoutTextures[0].binding = 0;
   layoutTextures[0].descriptorCount = 1;
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -140,6 +145,10 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   layoutTextures[4].descriptorCount = 1;
   layoutTextures[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  layoutTextures[5].binding = 5;
+  layoutTextures[5].descriptorCount = 1;
+  layoutTextures[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                            _descriptorSetLayoutTextures, state->getDescriptorPool(),
@@ -155,6 +164,7 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   _textureMetallicRoughness = _stubTextureZero;
   _textureEmissive = _stubTextureZero;
   _textureOccluded = _stubTextureZero;
+  _textureDiffuseIBL = _stubTextureZero;
 
   // update layouts
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
@@ -193,6 +203,12 @@ void MaterialPBR::setMetallicRoughness(std::shared_ptr<Texture> metallicRoughnes
 void MaterialPBR::setOccluded(std::shared_ptr<Texture> occluded) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureOccluded = occluded;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}
+
+void MaterialPBR::setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _textureDiffuseIBL = diffuseIBL;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 

@@ -13,7 +13,7 @@ class Cube {
   std::vector<std::shared_ptr<UniformBuffer>> _uniformBuffer;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<Pipeline> _pipeline, _pipelineEquirectangular, _pipelineDirectional, _pipelinePoint;
+  std::shared_ptr<Pipeline> _pipeline, _pipelineEquirectangular, _pipelineDiffuse, _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
@@ -41,6 +41,7 @@ class Cube {
 
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
   void drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face);
+  void drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
