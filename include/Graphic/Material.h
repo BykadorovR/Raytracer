@@ -115,4 +115,5 @@ class MaterialColor : public Material {
  public:
   MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   void setBaseColor(std::shared_ptr<Texture> color);
+  std::shared_ptr<Texture> getBaseColor();
 };

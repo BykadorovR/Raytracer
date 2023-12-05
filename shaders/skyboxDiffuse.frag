@@ -32,9 +32,7 @@ void main() {
         }
     }
     irradiance = PI * irradiance * (1.0 / float(nrSamples));
+    //irradiance = texture(skybox, normal).rgb;
 
-    // exposure tone mapping
-    vec3 corrected = vec3(1.0) - exp(-irradiance);
-    // gamma correction
-    outColor = vec4(pow(corrected, vec3(1 / 2.2)), 1.0);
+    outColor = vec4(irradiance, 1.0);
 }

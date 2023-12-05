@@ -65,3 +65,5 @@ int Settings::getAnisotropicSamples() { return _anisotropicSamples; }
 int Settings::getDesiredFPS() { return _desiredFPS; }
 
 DrawType Settings::getDrawType() { return _drawType; }
+
+std::tuple<int, int> Settings::getDiffuseIBLResolution() { return _diffuseIBLResolution; }

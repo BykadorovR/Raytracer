@@ -92,6 +92,8 @@ std::shared_ptr<Animation> animation;
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
 std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse;
 
+std::shared_ptr<Cube> equiCube, diffuseCube;
+
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
 std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
@@ -670,6 +672,8 @@ void renderGraphic() {
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
   cube->draw(currentFrame, commandBufferRender);
+  equiCube->draw(currentFrame, commandBufferRender);
+  diffuseCube->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -1077,7 +1081,7 @@ void initialize() {
       settings->getDepthResolution(), settings->getGraphicColorFormat(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  cubemapDiffuse = std::make_shared<Cubemap>(std::tuple{32, 32}, settings->getGraphicColorFormat(),
+  cubemapDiffuse = std::make_shared<Cubemap>(settings->getDiffuseIBLResolution(), settings->getGraphicColorFormat(),
                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                              commandBufferTransfer, state);
@@ -1103,25 +1107,40 @@ void initialize() {
 
   cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
                                     VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
-
-  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/golf_equirectangular.hdr", commandBufferTransfer,
-                                                      state);
-  auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialEq->setBaseColor(equirectangular->getTexture());
-  auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialColorEq->setBaseColor(equirectangular->getTexture());
-
   auto cameraTemp = std::make_shared<CameraFly>(settings);
   cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
   cameraTemp->setAspect(1.f);
-  cubeTemp->setMaterial(materialColorEq);
   cubeTemp->setCamera(cameraTemp);
-
   {
     auto model = glm::translate(glm::mat4(1.f), cameraTemp->getEye());
     cubeTemp->setModel(model);
   }
+
+  equiCube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer,
+                                    state);
+  equiCube->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
+    equiCube->setModel(model);
+  }
+
+  diffuseCube = std::make_shared<Cube>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
+      VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+  diffuseCube->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
+    diffuseCube->setModel(model);
+  }
+
+  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/kart_club_8k.hdr", commandBufferTransfer, state);
+  auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialEq->setBaseColor(equirectangular->getTexture());
+  auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialColorEq->setBaseColor(equirectangular->getTexture());
+  cubeTemp->setMaterial(materialColorEq);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
@@ -1204,8 +1223,10 @@ void initialize() {
 
   commandBufferTransfer->beginCommands(0);
   auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  auto materialColorDiffuse = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
   cubeTemp->setMaterial(materialColorCM);
+  equiCube->setMaterial(materialColorCM);
   skybox->setMaterial(materialColorCM);
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
@@ -1282,6 +1303,8 @@ void initialize() {
     commandBufferEquirectangular->submitToQueue(true);
   }
 
+  materialColorDiffuse->setBaseColor(cubemapDiffuse->getTexture());
+  diffuseCube->setMaterial(materialColorDiffuse);
   for (auto& material : pbrMaterial) {
     material->setDiffuseIBL(cubemapDiffuse->getTexture());
   }

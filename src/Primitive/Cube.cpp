@@ -258,7 +258,7 @@ void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> 
 void Cube::drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineDiffuse->getPipeline());
-  auto [width, height] = std::tuple{32, 32};
+  auto [width, height] = _state->getSettings()->getDiffuseIBLResolution();
   VkViewport viewport{};
   viewport.x = 0.f;
   viewport.y = 0.f;
