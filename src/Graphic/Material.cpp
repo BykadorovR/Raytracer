@@ -353,6 +353,8 @@ void MaterialColor::_updateTextureDescriptors(int currentFrame) {
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
+std::shared_ptr<Texture> MaterialColor::getBaseColor() { return _textureColor; }
+
 void MaterialColor::setBaseColor(std::shared_ptr<Texture> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureColor = color;
