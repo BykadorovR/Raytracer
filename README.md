@@ -14,3 +14,7 @@ Educational purposes
 
 - **raytracing** branch contains Path Tracer with importance sampling using compute shader
 - **dev/master** branch contains classic rasterization engine
+
+# Architecture
+
+[Draw.io diagrams](https://drive.google.com/file/d/1eI9kWqMdEsKQL0aQhGGtAJed9jmwzZk7/view?usp=sharing)
