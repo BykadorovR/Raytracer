@@ -132,8 +132,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/skybox_equirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/skybox_equirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("../shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineEquirectangular->createGraphic3D(
         renderFormat, cullMode, polygonMode,
@@ -145,8 +145,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/skybox_diffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/skybox_diffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("../shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, polygonMode,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
