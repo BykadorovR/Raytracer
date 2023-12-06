@@ -39,13 +39,12 @@
 #include "Skybox.h"
 #include "Cubemap.h"
 #include "Equirectangular.h"
+#include "Timer.h"
 
-float fps = 0;
-float frameTimer = 0.f;
-uint64_t currentFrame = 0;
-uint64_t globalFrame = 0;
-uint64_t sleepFrame = 0;
-
+std::shared_ptr<Timer> timer = std::make_shared<Timer>();
+std::shared_ptr<TimerFPS> timerFPSReal = std::make_shared<TimerFPS>();
+std::shared_ptr<TimerFPS> timerFPSLimited = std::make_shared<TimerFPS>();
+int currentFrame = 0;
 // Depth bias (and slope) are used to avoid shadowing artifacts
 // Constant depth bias factor (always applied)
 float depthBiasConstant = 1.25f;
@@ -129,7 +128,7 @@ void directionalLightCalculator(int index) {
   commandBuffer->beginCommands(currentFrame);
   loggerGPU->setCommandBufferName("Directional command buffer", currentFrame, commandBuffer);
 
-  loggerGPU->begin("Directional to depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Directional to depth buffer " + std::to_string(timer->getFrameCounter()), currentFrame);
   // change layout to write one
   VkImageMemoryBarrier imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -182,6 +181,7 @@ void directionalLightCalculator(int index) {
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
   // draw scene here
+  auto globalFrame = timer->getFrameCounter();
   loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
@@ -209,7 +209,7 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->setCommandBufferName("Point " + std::to_string(index) + "x" + std::to_string(face) + " command buffer",
                                   currentFrame, commandBuffer);
   commandBuffer->beginCommands(currentFrame);
-  loggerGPU->begin("Point to depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Point to depth buffer " + std::to_string(timer->getFrameCounter()), currentFrame);
   // cubemap is the only image, rest is image views, so we need to perform change only once
   if (face == 0) {
     // change layout to write one
@@ -273,6 +273,7 @@ void pointLightCalculator(int index, int face) {
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[currentFrame], depthBiasConstant, 0.0f, depthBiasSlope);
 
   // draw scene here
+  auto globalFrame = timer->getFrameCounter();
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
   loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame), currentFrame);
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
@@ -308,13 +309,13 @@ void computeParticles() {
                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-  loggerParticles->begin("Particle system compute " + std::to_string(globalFrame), currentFrame);
+  loggerParticles->begin("Particle system compute " + std::to_string(timer->getFrameCounter()), currentFrame);
   particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
   loggerParticles->end();
 
-  particleSystem->updateTimer(frameTimer);
+  particleSystem->updateTimer(timer->getElapsedCurrent());
 
-  particleSignal = globalFrame + 1;
+  particleSignal = timer->getFrameCounter() + 1;
   VkTimelineSemaphoreSubmitInfo timelineInfo{};
   timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
   timelineInfo.pNext = NULL;
@@ -344,7 +345,7 @@ void computePostprocessing(int swapchainImageIndex) {
   // in - out - horizontal
   // out - in - vertical
   for (int i = 0; i < bloomPasses; i++) {
-    loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(globalFrame), currentFrame);
+    loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(timer->getFrameCounter()), currentFrame);
     blur->drawCompute(currentFrame, true, commandBufferPostprocessing);
     loggerPostprocessing->end();
 
@@ -371,7 +372,7 @@ void computePostprocessing(int swapchainImageIndex) {
       );
     }
 
-    loggerPostprocessing->begin("Blur vertical compute " + std::to_string(globalFrame), currentFrame);
+    loggerPostprocessing->begin("Blur vertical compute " + std::to_string(timer->getFrameCounter()), currentFrame);
     blur->drawCompute(currentFrame, false, commandBufferPostprocessing);
     loggerPostprocessing->end();
 
@@ -418,7 +419,7 @@ void computePostprocessing(int swapchainImageIndex) {
     );
   }
 
-  loggerPostprocessing->begin("Postprocessing compute " + std::to_string(globalFrame), currentFrame);
+  loggerPostprocessing->begin("Postprocessing compute " + std::to_string(timer->getFrameCounter()), currentFrame);
   postprocessing->drawCompute(currentFrame, swapchainImageIndex, commandBufferPostprocessing);
   loggerPostprocessing->end();
   commandBufferPostprocessing->endCommands();
@@ -460,6 +461,7 @@ void debugVisualizations(int swapchainImageIndex) {
       .pDepthAttachment = &depthAttachmentInfo,
   };
 
+  auto globalFrame = timer->getFrameCounter();
   loggerGPUDebug->begin("Calculate debug visualization " + std::to_string(globalFrame), currentFrame);
   debugVisualization->calculate(commandBufferGUI);
   loggerGPUDebug->end();
@@ -485,7 +487,8 @@ void debugVisualizations(int swapchainImageIndex) {
   }
 
   int desiredFPS = settings->getDesiredFPS();
-  gui->drawText("FPS", {20, 20}, {std::to_string(fps)});
+  gui->drawText("FPS", {20, 20},
+                {std::to_string(timerFPSLimited->getFPS()) + "/" + std::to_string(timerFPSReal->getFPS())});
   if (gui->drawInputInt("FPS", {20, 20}, {{"##current", &desiredFPS}})) {
     settings->setDesiredFPS(desiredFPS);
     FPSChanged = true;
@@ -631,6 +634,7 @@ void renderGraphic() {
       .pDepthAttachment = &depthAttachmentInfo,
   };
 
+  auto globalFrame = timer->getFrameCounter();
   vkCmdBeginRendering(commandBufferRender->getCommandBuffer()[currentFrame], &renderInfo);
   loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
   lightManager->draw(currentFrame);
@@ -654,8 +658,7 @@ void renderGraphic() {
   updateJoints = pool->submit([&]() {
     loggerCPU->begin("Update animation " + std::to_string(globalFrame));
     // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
-    // modelManager->updateAnimation(1 - currentFrame, frameTimer);
-    animation->updateAnimation(1 - currentFrame, frameTimer);
+    animation->updateAnimation(1 - currentFrame, timer->getElapsedCurrent());
     loggerCPU->end();
   });
 
@@ -1311,7 +1314,8 @@ void initialize() {
 }
 
 void drawFrame() {
-  currentFrame = globalFrame % settings->getMaxFramesInFlight();
+  timerFPSReal->tick();
+  currentFrame = timer->getFrameCounter() % settings->getMaxFramesInFlight();
   ////////////////////////////////////////////////////////////////////////////////////////
   // compute particles
   ////////////////////////////////////////////////////////////////////////////////////////
@@ -1476,6 +1480,7 @@ void drawFrame() {
 
   presentInfo.pImageIndices = &imageIndex;
 
+  timerFPSReal->tock();
   // TODO: change to own present queue
   result = vkQueuePresentKHR(device->getQueue(QueueType::PRESENT), &presentInfo);
 
@@ -1487,40 +1492,21 @@ void drawFrame() {
 }
 
 void mainLoop() {
-  auto startTimeFPS = std::chrono::high_resolution_clock::now();
-  auto globalStartTimeFPS = std::chrono::high_resolution_clock::now();
-  int frameFPS = 0;
   while (!glfwWindowShouldClose(window->getWindow())) {
-    auto startTimeCurrent = std::chrono::high_resolution_clock::now();
     glfwPollEvents();
+    timer->tick();
+    timerFPSLimited->tick();
+
     drawFrame();
+
     if (FPSChanged) {
       FPSChanged = false;
-      sleepFrame = 0;
-      globalStartTimeFPS = std::chrono::high_resolution_clock::now();
+      timer->reset();
     }
-    globalFrame++;
-    sleepFrame++;
-    frameFPS++;
-    auto end = std::chrono::high_resolution_clock::now();
-    auto elapsedSleep = std::chrono::duration_cast<std::chrono::milliseconds>(end - globalStartTimeFPS).count();
-    uint64_t expected = (1000.f / settings->getDesiredFPS()) * sleepFrame;
-    if (elapsedSleep < expected) {
-      loggerCPU->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
-      std::this_thread::sleep_for(std::chrono::milliseconds(expected - elapsedSleep));
-      loggerCPU->end();
-    }
-    // calculate FPS and model timings
-    end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsedCurrent = end - startTimeCurrent;
-    frameTimer = elapsedCurrent.count();
-    std::chrono::duration<double> elapsed = end - startTimeFPS;
-    // calculate frames per second
-    if (elapsed.count() > 1.f) {
-      fps = frameFPS;
-      frameFPS = 0;
-      startTimeFPS = std::chrono::high_resolution_clock::now();
-    }
+
+    timer->sleep(settings->getDesiredFPS(), loggerCPU);
+    timer->tock();
+    timerFPSLimited->tock();
   }
   vkDeviceWaitIdle(device->getLogicalDevice());
   shouldWork = false;
