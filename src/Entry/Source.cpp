@@ -1313,18 +1313,54 @@ void initialize() {
   }
 }
 
-void drawFrame() {
-  timerFPSReal->tick();
+void getImageIndex(uint32_t* imageIndex) {
   currentFrame = timer->getFrameCounter() % settings->getMaxFramesInFlight();
-  ////////////////////////////////////////////////////////////////////////////////////////
-  // compute particles
-  ////////////////////////////////////////////////////////////////////////////////////////
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
   result = vkResetFences(device->getLogicalDevice(), waitFences.size(), waitFences.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+  // RETURNS ONLY INDEX, NOT IMAGE
+  // semaphore to signal, once image is available
+  result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
+                                 imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, imageIndex);
+
+  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    // TODO: recreate swapchain
+    throw std::runtime_error("failed to acquire swap chain image!");
+  } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+    throw std::runtime_error("failed to acquire swap chain image!");
+  }
+}
+
+void displayFrame(uint32_t* imageIndex) {
+  VkPresentInfoKHR presentInfo{};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+  std::vector<VkSemaphore> waitSemaphoresPresent = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
+
+  presentInfo.waitSemaphoreCount = waitSemaphoresPresent.size();
+  presentInfo.pWaitSemaphores = waitSemaphoresPresent.data();
+
+  VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = swapChains;
+
+  presentInfo.pImageIndices = imageIndex;
+
+  // TODO: change to own present queue
+  auto result = vkQueuePresentKHR(device->getQueue(QueueType::PRESENT), &presentInfo);
+
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    // TODO: support window resize
+  } else if (result != VK_SUCCESS) {
+    throw std::runtime_error("failed to present swap chain image!");
+  }
+}
+
+void drawFrame(int imageIndex) {
+  currentFrame = timer->getFrameCounter() % settings->getMaxFramesInFlight();
 
   // update positions
   static float angleHorizontal = 90.f;
@@ -1356,19 +1392,6 @@ void drawFrame() {
     for (int j = 0; j < 6; j++) {
       shadowFutures.push_back(pool->submit(pointLightCalculator, i, j));
     }
-  }
-
-  uint32_t imageIndex;
-  // RETURNS ONLY INDEX, NOT IMAGE
-  // semaphore to signal, once image is available
-  result = vkAcquireNextImageKHR(device->getLogicalDevice(), swapchain->getSwapchain(), UINT64_MAX,
-                                 imageAvailableSemaphores[currentFrame]->getSemaphore(), VK_NULL_HANDLE, &imageIndex);
-
-  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    // TODO: recreate swapchain
-    return;
-  } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-    throw std::runtime_error("failed to acquire swap chain image!");
   }
 
   auto postprocessingFuture = pool->submit([imageIndex]() { computePostprocessing(imageIndex); });
@@ -1465,39 +1488,21 @@ void drawFrame() {
     // signal inFlightFences once all commands on GPU finish execution
     commandBufferGUI->submitToQueue(submitInfo, inFlightFences[currentFrame]);
   }
-
-  VkPresentInfoKHR presentInfo{};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-  std::vector<VkSemaphore> waitSemaphoresPresent = {renderFinishedSemaphores[currentFrame]->getSemaphore()};
-
-  presentInfo.waitSemaphoreCount = waitSemaphoresPresent.size();
-  presentInfo.pWaitSemaphores = waitSemaphoresPresent.data();
-
-  VkSwapchainKHR swapChains[] = {swapchain->getSwapchain()};
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = swapChains;
-
-  presentInfo.pImageIndices = &imageIndex;
-
-  timerFPSReal->tock();
-  // TODO: change to own present queue
-  result = vkQueuePresentKHR(device->getQueue(QueueType::PRESENT), &presentInfo);
-
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    // TODO: support window resize
-  } else if (result != VK_SUCCESS) {
-    throw std::runtime_error("failed to present swap chain image!");
-  }
 }
 
 void mainLoop() {
   while (!glfwWindowShouldClose(window->getWindow())) {
     glfwPollEvents();
     timer->tick();
+    timerFPSReal->tick();
     timerFPSLimited->tick();
 
-    drawFrame();
+    uint32_t imageIndex;
+    getImageIndex(&imageIndex);
+    drawFrame(imageIndex);
+    timerFPSReal->tock();
+    // if GPU frames are limited by driver it will happen during display
+    displayFrame(&imageIndex);
 
     if (FPSChanged) {
       FPSChanged = false;
