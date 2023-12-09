@@ -2,6 +2,7 @@
 #include "Device.h"
 #include "Buffer.h"
 #include "Texture.h"
+#include "Pool.h"
 
 class DescriptorSetLayout {
  private:
@@ -26,17 +27,6 @@ class DescriptorSetLayout {
   std::vector<VkDescriptorSetLayoutBinding> getLayoutInfo();
   VkDescriptorSetLayout& getDescriptorSetLayout();
   ~DescriptorSetLayout();
-};
-
-class DescriptorPool {
- private:
-  std::shared_ptr<Device> _device;
-  VkDescriptorPool _descriptorPool;
-
- public:
-  DescriptorPool(int number, std::shared_ptr<Device> device);
-  VkDescriptorPool& getDescriptorPool();
-  ~DescriptorPool();
 };
 
 class DescriptorSet {

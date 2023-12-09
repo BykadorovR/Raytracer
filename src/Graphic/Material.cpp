@@ -20,12 +20,12 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
 
   _descriptorSetLayoutTextures = std::make_shared<DescriptorSetLayout>(state->getDevice());
 
-  _stubTextureOne = std::make_shared<Texture>(
-      "../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-      commandBufferTransfer, _state->getSettings(), _state->getDevice());
-  _stubTextureZero = std::make_shared<Texture>(
-      "../data/Texture1x1Black.png", _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      1, commandBufferTransfer, _state->getSettings(), _state->getDevice());
+  _stubTextureOne = std::make_shared<Texture>("../data/Texture1x1.png",
+                                              _state->getSettings()->getLoadTextureColorFormat(),
+                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
+  _stubTextureZero = std::make_shared<Texture>("../data/Texture1x1Black.png",
+                                               _state->getSettings()->getLoadTextureColorFormat(),
+                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
 
   _descriptorSetCoefficients = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutCoefficients,

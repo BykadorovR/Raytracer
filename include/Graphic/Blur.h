@@ -1,6 +1,8 @@
 #pragma once
 #include "State.h"
 #include "Texture.h"
+#include "Descriptor.h"
+#include "Pipeline.h"
 
 class Blur {
  private:

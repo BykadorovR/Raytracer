@@ -1,6 +1,7 @@
 #pragma once
 #include "State.h"
 #include "Texture.h"
+#include "Pipeline.h"
 
 class Postprocessing {
  private:

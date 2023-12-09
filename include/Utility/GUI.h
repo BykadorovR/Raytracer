@@ -47,8 +47,7 @@ class GUI : public InputSubscriber {
  private:
   float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
-  std::shared_ptr<Device> _device;
-  std::shared_ptr<Settings> _settings;
+  std::shared_ptr<State> _state;
   std::shared_ptr<Window> _window;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
@@ -67,7 +66,7 @@ class GUI : public InputSubscriber {
   int _calls = 0;
 
  public:
-  GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device);
+  GUI(std::shared_ptr<Window> window, std::shared_ptr<State> state);
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
   bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);

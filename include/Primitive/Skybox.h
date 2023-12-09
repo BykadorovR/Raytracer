@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "Pipeline.h"
 
 class Skybox {
  private:

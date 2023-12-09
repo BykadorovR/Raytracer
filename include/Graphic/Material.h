@@ -1,5 +1,6 @@
 #pragma once
 #include "State.h"
+#include "Descriptor.h"
 
 enum class MaterialType { PHONG, PBR, COLOR };
 

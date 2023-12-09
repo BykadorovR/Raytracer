@@ -2,6 +2,8 @@
 #include "State.h"
 #include "Camera.h"
 #include "Mesh.h"
+#include "Descriptor.h"
+#include "Pipeline.h"
 
 class Line {
  private:

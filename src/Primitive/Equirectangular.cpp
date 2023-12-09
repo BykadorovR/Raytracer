@@ -35,7 +35,7 @@ Equirectangular::Equirectangular(std::string path,
                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                            state->getDevice());
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, state->getDevice());
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, _imageView, state);
 }
 
 std::shared_ptr<Texture> Equirectangular::getTexture() { return _texture; }

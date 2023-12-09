@@ -36,6 +36,8 @@ class Image {
                     int layersNumber,
                     int mipMapLevels,
                     std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void generateMipmaps(int mipMapLevels, std::shared_ptr<CommandBuffer> commandBuffer);
+
   void overrideLayout(VkImageLayout layout);
   std::tuple<int, int> getResolution();
   VkImage& getImage();

@@ -259,34 +259,6 @@ DescriptorSetLayout::~DescriptorSetLayout() {
   vkDestroyDescriptorSetLayout(_device->getLogicalDevice(), _descriptorSetLayout, nullptr);
 }
 
-DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
-  _device = device;
-
-  std::array<VkDescriptorPoolSize, 4> poolSizes{};
-  poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  poolSizes[2].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  poolSizes[3].descriptorCount = static_cast<uint32_t>(number);
-
-  VkDescriptorPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-  poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = static_cast<uint32_t>(number);
-
-  if (vkCreateDescriptorPool(device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create descriptor pool!");
-  }
-}
-
-VkDescriptorPool& DescriptorPool::getDescriptorPool() { return _descriptorPool; }
-
-DescriptorPool::~DescriptorPool() { vkDestroyDescriptorPool(_device->getLogicalDevice(), _descriptorPool, nullptr); }
-
 DescriptorSet::DescriptorSet(int number,
                              std::shared_ptr<DescriptorSetLayout> layout,
                              std::shared_ptr<DescriptorPool> pool,

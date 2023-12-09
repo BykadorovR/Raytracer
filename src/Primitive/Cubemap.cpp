@@ -3,6 +3,7 @@
 
 Cubemap::Cubemap(std::vector<std::string> path,
                  VkFormat format,
+                 int mipMapLevels,
                  VkImageLayout layout,
                  VkImageAspectFlagBits colorBits,
                  VkImageUsageFlags usage,
@@ -51,11 +52,12 @@ Cubemap::Cubemap(std::vector<std::string> path,
   // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout, colorBits, 6, 1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0, 1, colorBits, state->getDevice());
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, _state->getDevice());
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, _imageView, _state);
 }
 
 Cubemap::Cubemap(std::tuple<int, int> resolution,
                  VkFormat format,
+                 int mipMapLevels,
                  VkImageLayout layout,
                  VkImageAspectFlagBits colorBits,
                  VkImageUsageFlags usage,
@@ -69,15 +71,15 @@ Cubemap::Cubemap(std::tuple<int, int> resolution,
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, layout, colorBits, 6, 1, commandBufferTransfer);
 
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 6, 0, 1, colorBits, state->getDevice());
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageView, _state->getDevice());
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, _imageView, _state);
 
   _imageViewSeparate.resize(6);
   _textureSeparate.resize(6);
   for (int i = 0; i < 6; i++) {
     _imageViewSeparate[i] = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 1, i, 1, colorBits,
                                                         state->getDevice());
-    _textureSeparate[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, _imageViewSeparate[i],
-                                                    _state->getDevice());
+    _textureSeparate[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, _imageViewSeparate[i],
+                                                    _state);
   }
 }
 

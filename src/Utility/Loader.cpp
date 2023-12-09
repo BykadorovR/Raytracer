@@ -135,7 +135,7 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
       texture = std::make_shared<Texture>(filePath, format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
-                                          _state->getSettings(), _state->getDevice());
+                                          _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -182,7 +182,7 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state->getDevice());
-      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, imageView, _state->getDevice());
+      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
       if (deleteBuffer) {
         delete[] buffer;
       }

@@ -1,6 +1,9 @@
 #pragma once
 #include "State.h"
 #include "Camera.h"
+#include "Texture.h"
+#include "Descriptor.h"
+#include "Pipeline.h"
 
 struct Particle {
   glm::vec3 position;

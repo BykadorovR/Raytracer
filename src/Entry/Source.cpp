@@ -778,8 +778,7 @@ void initialize() {
                                commandBufferTransfer);
     auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
                                                         VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
-    graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, graphicImageView,
-                                                  state->getDevice());
+    graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, state);
     {
       auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
                                                VK_IMAGE_TILING_OPTIMAL,
@@ -789,8 +788,7 @@ void initialize() {
                               commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
-      blurTextureIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, blurImageView,
-                                                   state->getDevice());
+      blurTextureIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
     {
       auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
@@ -801,12 +799,11 @@ void initialize() {
                               commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
-      blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, blurImageView,
-                                                    state->getDevice());
+      blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
   }
 
-  gui = std::make_shared<GUI>(settings, window, device);
+  gui = std::make_shared<GUI>(window, state);
   gui->initialize(commandBufferTransfer);
 
   // for postprocessing descriptors GENERAL is needed
@@ -816,10 +813,9 @@ void initialize() {
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
   auto texture = std::make_shared<Texture>("../data/brickwall.jpg", settings->getLoadTextureColorFormat(),
-                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings, device);
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
-                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, settings,
-                                             device);
+                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   camera = std::make_shared<CameraFly>(settings);
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
@@ -1006,9 +1002,9 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>(
-      "../data/Particles/gradient.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-      commandBufferTransfer, settings, device);
+  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png",
+                                                   settings->getLoadTextureAuxilaryFormat(),
+                                                   VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   particleSystem = std::make_shared<ParticleSystem>(
       300, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
       particleTexture, commandBufferTransfer, state);
@@ -1081,10 +1077,10 @@ void initialize() {
   auto [width, height] = settings->getResolution();
 
   cubemapEquirectangular = std::make_shared<Cubemap>(
-      settings->getDepthResolution(), settings->getGraphicColorFormat(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      settings->getDepthResolution(), settings->getGraphicColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  cubemapDiffuse = std::make_shared<Cubemap>(settings->getDiffuseIBLResolution(), settings->getGraphicColorFormat(),
+  cubemapDiffuse = std::make_shared<Cubemap>(settings->getDiffuseIBLResolution(), settings->getGraphicColorFormat(), 1,
                                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                              commandBufferTransfer, state);
@@ -1092,7 +1088,7 @@ void initialize() {
   cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
                                "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
-      settings->getLoadTextureColorFormat(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                 VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
