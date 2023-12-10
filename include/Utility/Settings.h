@@ -22,6 +22,7 @@ struct Settings {
   std::tuple<int, int> _depthResolution = {512, 512};
   // used for irradiance diffuse cubemap generation
   std::tuple<int, int> _diffuseIBLResolution = {32, 32};
+  std::tuple<int, int> _specularIBLResolution = {128, 128};
   // VkClearColorValue _clearColor = {196.f / 255.f, 233.f / 255.f, 242.f / 255.f, 1.f};
   VkClearColorValue _clearColor = {0.0f, 0.0f, 0.0f, 1.f};
   std::string _name = "default";
@@ -82,4 +83,5 @@ struct Settings {
   int getDesiredFPS();
   DrawType getDrawType();
   std::tuple<int, int> getDiffuseIBLResolution();
+  std::tuple<int, int> getSpecularIBLResolution();
 };

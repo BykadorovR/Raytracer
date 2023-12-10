@@ -89,9 +89,9 @@ std::future<void> updateJoints;
 std::shared_ptr<Animation> animation;
 
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
-std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse;
+std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse, cubemapSpecular;
 
-std::shared_ptr<Cube> equiCube, diffuseCube;
+std::shared_ptr<Cube> equiCube, diffuseCube, specularCube;
 
 std::shared_ptr<BS::thread_pool> pool, pool2;
 std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
@@ -241,7 +241,7 @@ void pointLightCalculator(int index, int face) {
       .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
       .imageView = pointLights[index]
                        ->getDepthCubemap()[currentFrame]
-                       ->getTextureSeparate()[face]
+                       ->getTextureSeparate()[face][0]
                        ->getImageView()
                        ->getImageView(),
       .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -252,7 +252,7 @@ void pointLightCalculator(int index, int face) {
 
   auto [width, height] = pointLights[index]
                              ->getDepthCubemap()[currentFrame]
-                             ->getTextureSeparate()[face]
+                             ->getTextureSeparate()[face][0]
                              ->getImageView()
                              ->getImage()
                              ->getResolution();
@@ -677,6 +677,7 @@ void renderGraphic() {
   cube->draw(currentFrame, commandBufferRender);
   equiCube->draw(currentFrame, commandBufferRender);
   diffuseCube->draw(currentFrame, commandBufferRender);
+  specularCube->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -776,7 +777,7 @@ void initialize() {
                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
     graphicImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                                commandBufferTransfer);
-    auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+    auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                         VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
     graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, state);
     {
@@ -786,7 +787,7 @@ void initialize() {
                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
       blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                               commandBufferTransfer);
-      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
       blurTextureIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
@@ -797,7 +798,7 @@ void initialize() {
                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
       blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                               commandBufferTransfer);
-      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1,
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
       blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
@@ -1085,6 +1086,12 @@ void initialize() {
                                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                              commandBufferTransfer, state);
 
+  int specularMipMaps = log2(std::get<0>(settings->getSpecularIBLResolution()));
+  cubemapSpecular = std::make_shared<Cubemap>(
+      settings->getSpecularIBLResolution(), settings->getGraphicColorFormat(), specularMipMaps,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+
   cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
                                "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
@@ -1134,6 +1141,15 @@ void initialize() {
     diffuseCube->setModel(model);
   }
 
+  specularCube = std::make_shared<Cube>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
+      VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+  specularCube->setCamera(camera);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
+    specularCube->setModel(model);
+  }
+
   equirectangular = std::make_shared<Equirectangular>("../data/Skybox/kart_club_8k.hdr", commandBufferTransfer, state);
   auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialEq->setBaseColor(equirectangular->getTexture());
@@ -1156,7 +1172,7 @@ void initialize() {
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i < 6; i++) {
-      auto currentTexture = cubemapEquirectangular->getTextureSeparate()[i];
+      auto currentTexture = cubemapEquirectangular->getTextureSeparate()[i][0];
       VkClearValue clearColor;
       clearColor.color = settings->getClearColor();
       std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
@@ -1223,6 +1239,7 @@ void initialize() {
   commandBufferTransfer->beginCommands(0);
   auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   auto materialColorDiffuse = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  auto materialColorSpecular = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
   cubeTemp->setMaterial(materialColorCM);
   equiCube->setMaterial(materialColorCM);
@@ -1238,7 +1255,7 @@ void initialize() {
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
     for (int i = 0; i < 6; i++) {
-      auto currentTexture = cubemapDiffuse->getTextureSeparate()[i];
+      auto currentTexture = cubemapDiffuse->getTextureSeparate()[i][0];
       VkClearValue clearColor;
       clearColor.color = settings->getClearColor();
       std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
@@ -1302,8 +1319,15 @@ void initialize() {
     commandBufferEquirectangular->submitToQueue(true);
   }
 
+  // display specular as texture
+  materialColorSpecular->setBaseColor(cubemapSpecular->getTexture());
+  specularCube->setMaterial(materialColorSpecular);
+
+  // display diffuse as texture
   materialColorDiffuse->setBaseColor(cubemapDiffuse->getTexture());
   diffuseCube->setMaterial(materialColorDiffuse);
+
+  // set diffuse to material
   for (auto& material : pbrMaterial) {
     material->setDiffuseIBL(cubemapDiffuse->getTexture());
   }

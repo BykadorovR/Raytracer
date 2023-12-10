@@ -37,11 +37,11 @@ Texture::Texture(std::string path,
   image->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   // TODO: generate mipmaps here
   // TODO: use commandBuffer with graphic support for Blit (!)
-  image->generateMipmaps(mipMapLevels, commandBufferTransfer);
+  image->generateMipmaps(mipMapLevels, 1, commandBufferTransfer);
 
   // image view
-  _imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           state->getDevice());
+  _imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, mipMapLevels,
+                                           VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
   _sampler = std::make_shared<Sampler>(mode, mipMapLevels, state->getSettings()->getAnisotropicSamples(),
                                        state->getDevice());
 }

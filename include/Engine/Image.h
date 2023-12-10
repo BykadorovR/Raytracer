@@ -36,7 +36,7 @@ class Image {
                     int layersNumber,
                     int mipMapLevels,
                     std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void generateMipmaps(int mipMapLevels, std::shared_ptr<CommandBuffer> commandBuffer);
+  void generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void overrideLayout(VkImageLayout layout);
   std::tuple<int, int> getResolution();
@@ -55,13 +55,16 @@ class ImageView {
   std::shared_ptr<Device> _device;
 
  public:
-  // layerCount = 1, baseArrayLayer = 0 by default
-  // type VK_IMAGE_VIEW_TYPE_2D or VK_IMAGE_VIEW_TYPE_CUBE
+  // baseArrayLayer - which face is used
+  // arrayLayerNumber - number of faces
+  // baseMipMapLevel - which mip map level is used
+  // mipMapLevels - number of visible mip maps for current image view
   ImageView(std::shared_ptr<Image> image,
             VkImageViewType type,
-            int layerCount,
             int baseArrayLayer,
-            int mipMapLevels,
+            int arrayLayerNumber,
+            int baseMipMap,
+            int mipMapNumber,
             VkImageAspectFlags aspectFlags,
             std::shared_ptr<Device> device);
   VkImageView& getImageView();

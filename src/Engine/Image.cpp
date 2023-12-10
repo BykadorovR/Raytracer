@@ -81,7 +81,7 @@ void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 
 std::tuple<int, int> Image::getResolution() { return _resolution; }
 
-void Image::generateMipmaps(int mipMapLevels, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = commandBuffer->getCurrentFrame();
 
   VkImageMemoryBarrier barrier{};
@@ -91,7 +91,7 @@ void Image::generateMipmaps(int mipMapLevels, std::shared_ptr<CommandBuffer> com
   barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
   barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = 1;
+  barrier.subresourceRange.layerCount = layers;
   barrier.subresourceRange.levelCount = 1;
 
   auto [mipWidth, mipHeight] = getResolution();
@@ -112,15 +112,16 @@ void Image::generateMipmaps(int mipMapLevels, std::shared_ptr<CommandBuffer> com
     blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.srcSubresource.mipLevel = i - 1;  // previous mip map image used for resize
     blit.srcSubresource.baseArrayLayer = 0;
-    blit.srcSubresource.layerCount = 1;
+    blit.srcSubresource.layerCount = layers;
     blit.dstOffsets[0] = {0, 0, 0};
     blit.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
     blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     blit.dstSubresource.mipLevel = i;
     blit.dstSubresource.baseArrayLayer = 0;
-    blit.dstSubresource.layerCount = 1;  // number of visible mip map levels (only i here)
+    blit.dstSubresource.layerCount = layers;
 
-    // i = 0 has SRC layout (we changed it above), i = 1 has DST layout (we changed from udefined to dst in constructor)
+    // i = 0 has SRC layout (we changed it above), i = 1 has DST layout (we changed from undefined to dst in
+    // constructor)
     vkCmdBlitImage(commandBuffer->getCommandBuffer()[currentFrame], getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                    getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
@@ -315,9 +316,10 @@ Image::~Image() {
 
 ImageView::ImageView(std::shared_ptr<Image> image,
                      VkImageViewType type,
-                     int layerCount,
                      int baseArrayLayer,
-                     int mipMapLevels,
+                     int arrayLayerNumber,
+                     int baseMipMap,
+                     int mipMapNumber,
                      VkImageAspectFlags aspectFlags,
                      std::shared_ptr<Device> device) {
   _device = device;
@@ -333,10 +335,10 @@ ImageView::ImageView(std::shared_ptr<Image> image,
   viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.subresourceRange.aspectMask = aspectFlags;
-  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.baseMipLevel = baseMipMap;
   viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
-  viewInfo.subresourceRange.layerCount = layerCount;
-  viewInfo.subresourceRange.levelCount = mipMapLevels;
+  viewInfo.subresourceRange.layerCount = arrayLayerNumber;
+  viewInfo.subresourceRange.levelCount = mipMapNumber;
 
   if (vkCreateImageView(device->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");

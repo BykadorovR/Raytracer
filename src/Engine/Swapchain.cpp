@@ -92,7 +92,7 @@ Swapchain::Swapchain(VkFormat imageFormat,
   for (uint32_t i = 0; i < _swapchainImages.size(); i++) {
     auto image = std::make_shared<Image>(_swapchainImages[i], std::tuple{extent.width, extent.height},
                                          surfaceFormat.format, device);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                  device);
 
     _swapchainImageViews[i] = imageView;
@@ -101,8 +101,8 @@ Swapchain::Swapchain(VkFormat imageFormat,
   _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, 1, 1, depthFormat,
                                         VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, device);
-  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                device);
+  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                VK_IMAGE_ASPECT_DEPTH_BIT, device);
 }
 
 VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }

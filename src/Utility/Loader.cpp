@@ -180,7 +180,7 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
       image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                           1, _commandBufferTransfer);
 
-      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+      auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state->getDevice());
       texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
       if (deleteBuffer) {
