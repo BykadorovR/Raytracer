@@ -11,6 +11,20 @@ struct BufferMVP {
   glm::mat4 projection;
 };
 
+struct RoughnessConstants {
+  float roughness;
+  static VkPushConstantRange getPushConstant(int offset) {
+    VkPushConstantRange pushConstant;
+    // this push constant range starts at the beginning
+    pushConstant.offset = offset;
+    // this push constant range takes up the size of a MeshPushConstants struct
+    pushConstant.size = sizeof(RoughnessConstants);
+    // this push constant range is accessible only in the vertex shader
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    return pushConstant;
+  }
+};
+
 struct DepthConstants {
   alignas(16) glm::vec3 lightPosition;
   alignas(16) int far;

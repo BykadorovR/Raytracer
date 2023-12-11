@@ -1086,9 +1086,8 @@ void initialize() {
                                              VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                              commandBufferTransfer, state);
 
-  int specularMipMaps = log2(std::get<0>(settings->getSpecularIBLResolution()));
   cubemapSpecular = std::make_shared<Cubemap>(
-      settings->getSpecularIBLResolution(), settings->getGraphicColorFormat(), specularMipMaps,
+      settings->getSpecularIBLResolution(), settings->getGraphicColorFormat(), settings->getSpecularMipMap(),
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
 
@@ -1314,6 +1313,85 @@ void initialize() {
       loggerGPU->end();
 
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+    }
+    commandBufferEquirectangular->endCommands();
+    commandBufferEquirectangular->submitToQueue(true);
+  }
+
+  // render to specular
+  {
+    commandBufferEquirectangular->beginCommands(currentFrame);
+    loggerGPU->setCommandBufferName("Draw specular buffer", currentFrame, commandBufferEquirectangular);
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // render graphic
+    /////////////////////////////////////////////////////////////////////////////////////////
+    for (int i = 0; i < 6; i++) {
+      for (int j = 0; j < settings->getSpecularMipMap(); j++) {
+        auto currentTexture = cubemapSpecular->getTextureSeparate()[i][j];
+        VkClearValue clearColor;
+        clearColor.color = settings->getClearColor();
+        std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+        // here we render scene as is
+        colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = currentTexture->getImageView()->getImageView(),
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = clearColor,
+        };
+
+        auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+        VkRect2D renderArea{};
+        renderArea.extent.width = width * std::pow(0.5, j);
+        renderArea.extent.height = height * std::pow(0.5, j);
+        const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                         .renderArea = renderArea,
+                                         .layerCount = 1,
+                                         .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                         .pColorAttachments = colorAttachmentInfo.data()};
+
+        vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
+
+        loggerGPU->begin("Render specular", currentFrame);
+        // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+        switch (i) {
+          case 0:
+            // POSITIVE_X / right
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f),
+                                          glm::vec3(0.f, -1.f, 0.f));
+            break;
+          case 1:
+            // NEGATIVE_X /left
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f),
+                                          glm::vec3(0.f, -1.f, 0.f));
+            break;
+          case 2:
+            // POSITIVE_Y / top
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+            break;
+          case 3:
+            // NEGATIVE_Y / bottom
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f),
+                                          glm::vec3(0.f, 0.f, -1.f));
+            break;
+          case 4:
+            // POSITIVE_Z / near
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f),
+                                          glm::vec3(0.f, -1.f, 0.f));
+            break;
+          case 5:
+            // NEGATIVE_Z / far
+            cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f),
+                                          glm::vec3(0.f, -1.f, 0.f));
+            break;
+        }
+
+        cubeTemp->drawSpecular(currentFrame, commandBufferEquirectangular, i, j);
+        loggerGPU->end();
+
+        vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+      }
     }
     commandBufferEquirectangular->endCommands();
     commandBufferEquirectangular->submitToQueue(true);

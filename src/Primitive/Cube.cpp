@@ -155,6 +155,22 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
                                       {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
+  {
+    std::map<std::string, VkPushConstantRange> defaultPushConstants;
+    defaultPushConstants["fragment"] = RoughnessConstants::getPushConstant(0);
+
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add("../shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("../shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineSpecular->createGraphic3D(renderFormat, cullMode, polygonMode,
+                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                       {std::pair{std::string("camera"), setLayout},
+                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+                                       defaultPushConstants, _mesh->getBindingDescription(),
+                                       _mesh->getAttributeDescriptions());
+  }
 }
 
 void Cube::setMaterial(std::shared_ptr<MaterialColor> material) {
@@ -253,6 +269,37 @@ void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> 
   scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
   _draw(currentFrame, _pipelineEquirectangular, commandBuffer, face);
+}
+
+void Cube::drawSpecular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face, int mipMap) {
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipelineSpecular->getPipeline());
+  auto [width, height] = _state->getSettings()->getSpecularIBLResolution();
+  width *= std::pow(0.5, mipMap);
+  height *= std::pow(0.5, mipMap);
+  VkViewport viewport{};
+  viewport.x = 0.f;
+  viewport.y = 0.f;
+  viewport.width = width;
+  viewport.height = height;
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(width, height);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+  if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
+    RoughnessConstants pushConstants;
+    float roughness = (float)mipMap / (float)(_state->getSettings()->getSpecularMipMap() - 1);
+    pushConstants.roughness = roughness;
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipelineSpecular->getPipelineLayout(),
+                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RoughnessConstants), &pushConstants);
+  }
+
+  _draw(currentFrame, _pipelineSpecular, commandBuffer, face);
 }
 
 void Cube::drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {

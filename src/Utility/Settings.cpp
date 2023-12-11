@@ -69,3 +69,5 @@ DrawType Settings::getDrawType() { return _drawType; }
 std::tuple<int, int> Settings::getDiffuseIBLResolution() { return _diffuseIBLResolution; }
 
 std::tuple<int, int> Settings::getSpecularIBLResolution() { return _specularIBLResolution; }
+
+int Settings::getSpecularMipMap() { return _specularIBLMipMap; }
