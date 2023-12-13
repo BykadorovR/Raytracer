@@ -457,7 +457,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   _modelManager->draw(currentFrame, commandBuffer);
 
   _spriteManager->setCamera(_camera);
-  _spriteManager->draw(currentFrame, commandBuffer);
+  _spriteManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
 
   _drawFrustum(currentFrame, commandBuffer);
 

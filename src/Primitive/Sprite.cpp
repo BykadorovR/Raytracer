@@ -75,6 +75,11 @@ void Sprite::setMaterial(std::shared_ptr<MaterialPhong> material) {
   _materialType = MaterialType::PHONG;
 }
 
+void Sprite::setMaterial() {
+  _material = nullptr;
+  _materialType = MaterialType::CUSTOM;
+}
+
 MaterialType Sprite::getMaterialType() { return _materialType; }
 
 void Sprite::enableDepth(bool enable) { _enableDepth = enable; }

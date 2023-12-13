@@ -41,6 +41,7 @@ class Sprite {
 
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setMaterial(std::shared_ptr<MaterialPhong> material);
+  void setMaterial();
   MaterialType getMaterialType();
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);

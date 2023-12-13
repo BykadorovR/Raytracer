@@ -2,7 +2,7 @@
 #include "State.h"
 #include "Descriptor.h"
 
-enum class MaterialType { PHONG, PBR, COLOR };
+enum class MaterialType { PHONG, PBR, COLOR, CUSTOM };
 
 class Material {
  protected:

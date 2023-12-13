@@ -7,6 +7,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
                              std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
+  _renderFormat = renderFormat;
   _lightManager = lightManager;
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
@@ -186,6 +187,23 @@ std::shared_ptr<Sprite> SpriteManager::createSprite() {
   return sprite;
 }
 
+std::shared_ptr<Sprite> SpriteManager::createSprite(
+    std::shared_ptr<Shader> shader,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> layouts) {
+  auto sprite = createSprite();
+  sprite->setMaterial();
+
+  _descriptorSetLayoutCustom[sprite] = layouts;
+  _pipelineCustom[sprite] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                           _descriptorSetLayoutCustom[sprite], {},
+                                           _defaultMesh->getBindingDescription(),
+                                           _defaultMesh->getAttributeDescriptions());
+  return sprite;
+}
+
 void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) {
@@ -196,32 +214,25 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());
 }
 
-void SpriteManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType) {
+void SpriteManager::draw(int currentFrame,
+                         std::tuple<int, int> resolution,
+                         std::shared_ptr<CommandBuffer> commandBuffer,
+                         DrawType drawType) {
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  // define draw spirte lambda
-  auto drawSprite = [&](MaterialType materialType, DrawType drawType) {
-    auto pipeline = _pipeline[materialType];
-    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[materialType];
-
-    if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
-      pipeline = _pipelineNormal[materialType];
-      if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
-    }
-
+  auto bindPipeline = [&](std::shared_ptr<Pipeline> pipeline) {
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
 
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -257,6 +268,19 @@ void SpriteManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comman
                               &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
                               nullptr);
     }
+  };
+
+  // define draw spirte lambda
+  auto drawSprite = [&](MaterialType materialType, DrawType drawType) {
+    auto pipeline = _pipeline[materialType];
+    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[materialType];
+
+    if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
+      pipeline = _pipelineNormal[materialType];
+      if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
+    }
+
+    bindPipeline(pipeline);
 
     for (auto sprite : _sprites) {
       if (sprite->getMaterialType() == materialType) {
@@ -268,6 +292,16 @@ void SpriteManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> comman
 
   drawSprite(MaterialType::PHONG, drawType);
   drawSprite(MaterialType::PBR, drawType);
+
+  // draw custom
+  for (auto sprite : _sprites) {
+    if (sprite->getMaterialType() == MaterialType::CUSTOM) {
+      auto pipeline = _pipelineCustom[sprite];
+      bindPipeline(pipeline);
+      sprite->setCamera(_camera);
+      sprite->draw(currentFrame, commandBuffer, pipeline);
+    }
+  }
 }
 
 void SpriteManager::drawShadow(int currentFrame,

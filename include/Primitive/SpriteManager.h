@@ -15,7 +15,12 @@ class SpriteManager {
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineNormal, _pipelineNormalWireframe;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
+  std::map<std::shared_ptr<Sprite>, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayoutCustom;
+  std::map<std::shared_ptr<Sprite>, std::shared_ptr<Pipeline>> _pipelineCustom;
+
   int _spritesCreated = 0;
+  std::vector<VkFormat> _renderFormat;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Camera> _camera;
@@ -31,10 +36,16 @@ class SpriteManager {
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
                 std::shared_ptr<State> state);
   std::shared_ptr<Sprite> createSprite();
+  std::shared_ptr<Sprite> createSprite(
+      std::shared_ptr<Shader> shader,
+      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> layouts);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType = DrawType::FILL);
+  void draw(int currentFrame,
+            std::tuple<int, int> resolution,
+            std::shared_ptr<CommandBuffer> commandBuffer,
+            DrawType drawType = DrawType::FILL);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

@@ -68,7 +68,7 @@ std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinished
     semaphorePostprocessing, semaphoreGUI;
 std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
-std::shared_ptr<SpriteManager> spriteManager;
+std::shared_ptr<SpriteManager> spriteManager, spriteManagerHUD;
 std::shared_ptr<Model3DManager> modelManager;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
@@ -77,6 +77,7 @@ std::shared_ptr<Input> input;
 std::shared_ptr<GUI> gui;
 std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<CameraFly> camera;
+std::shared_ptr<CameraOrtho> cameraOrtho;
 std::shared_ptr<LightManager> lightManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
@@ -642,7 +643,7 @@ void renderGraphic() {
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
-  spriteManager->draw(currentFrame, commandBufferRender, settings->getDrawType());
+  spriteManager->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   // wait model3D update
@@ -817,6 +818,10 @@ void initialize() {
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+  cameraOrtho = std::make_shared<CameraOrtho>();
+  cameraOrtho->setProjectionParameters({-1, 1, -1, 1}, 0, 1);
+  cameraOrtho->setViewParameters(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+
   camera = std::make_shared<CameraFly>(settings);
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
@@ -857,12 +862,25 @@ void initialize() {
   spriteManager = std::make_shared<SpriteManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, state);
+  spriteManagerHUD = std::make_shared<SpriteManager>(std::vector{settings->getGraphicColorFormat()}, lightManager,
+                                                     commandBufferTransfer, state);
   modelManager = std::make_shared<Model3DManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, state);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
+
+  auto shader = std::make_shared<Shader>(device);
+  shader->add("../shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("../shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraSetLayout->createUniformBuffer();
+
+  auto spriteHUD = spriteManagerHUD->createSprite(shader, {{"camera", cameraSetLayout}});
+  spriteHUD->setModel(glm::scale(glm::mat4(1.f), glm::vec3(2.f, 2.f, 1.f)));
+  spriteManagerHUD->registerSprite(spriteHUD);
+
   {
     auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     material->setBaseColor(texture);
@@ -1090,6 +1108,16 @@ void initialize() {
       settings->getSpecularIBLResolution(), settings->getGraphicColorFormat(), settings->getSpecularMipMap(),
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+
+  auto brdfImage = std::make_shared<Image>(settings->getDepthResolution(), 1, 1, settings->getGraphicColorFormat(),
+                                           VK_IMAGE_TILING_OPTIMAL,
+                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+  brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                          commandBufferTransfer);
+  auto brdfImageView = std::make_shared<ImageView>(brdfImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                   VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+  auto brdfTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
 
   cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
@@ -1409,6 +1437,68 @@ void initialize() {
   for (auto& material : pbrMaterial) {
     material->setDiffuseIBL(cubemapDiffuse->getTexture());
   }
+
+  // render to specular
+  {
+    commandBufferEquirectangular->beginCommands(currentFrame);
+    loggerGPU->setCommandBufferName("Draw specular brdf", currentFrame, commandBufferEquirectangular);
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // render graphic
+    /////////////////////////////////////////////////////////////////////////////////////////
+
+    VkClearValue clearColor;
+    clearColor.color = settings->getClearColor();
+    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+    // here we render scene as is
+    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = brdfTexture->getImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
+
+    auto [width, height] = brdfTexture->getImageView()->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                     .renderArea = renderArea,
+                                     .layerCount = 1,
+                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                     .pColorAttachments = colorAttachmentInfo.data()};
+
+    vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
+
+    loggerGPU->begin("Render specular brdf", currentFrame);
+    spriteManagerHUD->setCamera(cameraOrtho);
+    spriteManagerHUD->draw(currentFrame, brdfTexture->getImageView()->getImage()->getResolution(),
+                           commandBufferEquirectangular, DrawType::FILL);
+    loggerGPU->end();
+
+    vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
+
+    commandBufferEquirectangular->endCommands();
+    commandBufferEquirectangular->submitToQueue(true);
+  }
+
+  commandBufferTransfer->beginCommands(0);
+  auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialBRDF->setBaseColor(brdfTexture);
+  materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
+  auto spriteBRDF = spriteManager->createSprite();
+  spriteBRDF->enableLighting(false);
+  spriteBRDF->enableShadow(false);
+  spriteBRDF->enableDepth(false);
+  spriteBRDF->setMaterial(materialBRDF);
+  {
+    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(5.f, 3.f, 1.f));
+    spriteBRDF->setModel(model);
+  }
+  spriteManager->registerSprite(spriteBRDF);
+  commandBufferTransfer->endCommands();
+  commandBufferTransfer->submitToQueue(true);
 }
 
 void getImageIndex(uint32_t* imageIndex) {
