@@ -17,6 +17,8 @@ layout(set = 3, binding = 2) uniform sampler2D metallicRoughnessSampler;
 layout(set = 3, binding = 3) uniform sampler2D occlusionSampler;
 layout(set = 3, binding = 4) uniform sampler2D emissiveSampler;
 layout(set = 3, binding = 5) uniform samplerCube irradianceSampler;
+layout(set = 3, binding = 6) uniform samplerCube specularIBLSampler;
+layout(set = 3, binding = 7) uniform sampler2D specularBRDFSampler;
 
 struct LightDirectional {
     //
@@ -140,7 +142,14 @@ void main() {
             kD *= 1.0 - metallicValue;
             vec3 irradiance = texture(irradianceSampler, normal).rgb;
             vec3 diffuse = kD * irradiance * albedoTexture.rgb;
-            vec3 ambientColor = mix(diffuse, diffuse * occlusionTexture.r, material.occlusionStrength);
+
+            vec3 R = reflect(-viewDir, normal);   
+            const float MAX_REFLECTION_LOD = 4.0;
+            vec3 prefilteredColor = textureLod(specularIBLSampler, R,  roughnessValue * MAX_REFLECTION_LOD).rgb;
+            vec2 envBRDF  = texture(specularBRDFSampler, vec2(max(dot(normal, viewDir), 0.0), roughnessValue)).rg;
+            vec3 specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
+
+            vec3 ambientColor = mix(diffuse + specular, (diffuse + specular) * occlusionTexture.r, material.occlusionStrength);
             outColor.rgb += ambientColor;
 
             //add emissive to resulting reflected radiance from all light sources

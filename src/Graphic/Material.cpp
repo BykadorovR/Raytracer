@@ -26,6 +26,13 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
   _stubTextureZero = std::make_shared<Texture>("../data/Texture1x1Black.png",
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
+  _stubCubemapZero = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
+                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
+                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png"},
+      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
+      state);
 
   _descriptorSetCoefficients = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutCoefficients,
@@ -117,14 +124,23 @@ void MaterialPBR::_updateTextureDescriptors(int currentFrame) {
   diffuseIBLTextureInfo.imageView = _textureDiffuseIBL->getImageView()->getImageView();
   diffuseIBLTextureInfo.sampler = _textureDiffuseIBL->getSampler()->getSampler();
   images[5] = diffuseIBLTextureInfo;
-
+  VkDescriptorImageInfo specularIBLTextureInfo{};
+  specularIBLTextureInfo.imageLayout = _textureSpecularIBL->getImageView()->getImage()->getImageLayout();
+  specularIBLTextureInfo.imageView = _textureSpecularIBL->getImageView()->getImageView();
+  specularIBLTextureInfo.sampler = _textureSpecularIBL->getSampler()->getSampler();
+  images[6] = specularIBLTextureInfo;
+  VkDescriptorImageInfo specularBRDFTextureInfo{};
+  specularBRDFTextureInfo.imageLayout = _textureSpecularBRDF->getImageView()->getImage()->getImageLayout();
+  specularBRDFTextureInfo.imageView = _textureSpecularBRDF->getImageView()->getImageView();
+  specularBRDFTextureInfo.sampler = _textureSpecularBRDF->getSampler()->getSampler();
+  images[7] = specularBRDFTextureInfo;
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
 MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
   // define textures
-  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(6);
+  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(8);
   layoutTextures[0].binding = 0;
   layoutTextures[0].descriptorCount = 1;
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -149,6 +165,14 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   layoutTextures[5].descriptorCount = 1;
   layoutTextures[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  layoutTextures[6].binding = 6;
+  layoutTextures[6].descriptorCount = 1;
+  layoutTextures[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  layoutTextures[7].binding = 7;
+  layoutTextures[7].descriptorCount = 1;
+  layoutTextures[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                            _descriptorSetLayoutTextures, state->getDescriptorPool(),
@@ -164,7 +188,9 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   _textureMetallicRoughness = _stubTextureZero;
   _textureEmissive = _stubTextureZero;
   _textureOccluded = _stubTextureZero;
-  _textureDiffuseIBL = _stubTextureZero;
+  _textureDiffuseIBL = _stubCubemapZero->getTexture();
+  _textureSpecularIBL = _stubCubemapZero->getTexture();
+  _textureSpecularBRDF = _stubTextureZero;
 
   // update layouts
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
@@ -209,6 +235,13 @@ void MaterialPBR::setOccluded(std::shared_ptr<Texture> occluded) {
 void MaterialPBR::setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureDiffuseIBL = diffuseIBL;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}
+
+void MaterialPBR::setSpecularIBL(std::shared_ptr<Texture> specularIBL, std::shared_ptr<Texture> specularBRDF) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _textureSpecularIBL = specularIBL;
+  _textureSpecularBRDF = specularBRDF;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "State.h"
 #include "Descriptor.h"
+#include "Cubemap.h"
 
 enum class MaterialType { PHONG, PBR, COLOR, CUSTOM };
 
@@ -15,6 +16,7 @@ class Material {
   bool _doubleSided = false;
 
   std::shared_ptr<Texture> _stubTextureZero, _stubTextureOne;
+  std::shared_ptr<Cubemap> _stubCubemapZero;
 
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCoefficients, _descriptorSetLayoutTextures;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutAlphaCutoff;
@@ -62,6 +64,8 @@ class MaterialPBR : public Material {
   std::shared_ptr<Texture> _textureOccluded;
   std::shared_ptr<Texture> _textureEmissive;
   std::shared_ptr<Texture> _textureDiffuseIBL;
+  std::shared_ptr<Texture> _textureSpecularIBL;
+  std::shared_ptr<Texture> _textureSpecularBRDF;
 
   Coefficients _coefficients;
 
@@ -77,6 +81,7 @@ class MaterialPBR : public Material {
   void setOccluded(std::shared_ptr<Texture> occluded);
   void setEmissive(std::shared_ptr<Texture> emissive);
   void setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL);
+  void setSpecularIBL(std::shared_ptr<Texture> specularIBL, std::shared_ptr<Texture> specularBRDF);
   void setCoefficients(float metallicFactor, float roughnessFactor, float occlusionStrength, glm::vec3 emissiveFactor);
 };
 

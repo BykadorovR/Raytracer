@@ -1177,7 +1177,7 @@ void initialize() {
     specularCube->setModel(model);
   }
 
-  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/kart_club_8k.hdr", commandBufferTransfer, state);
+  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/newport_loft.hdr", commandBufferTransfer, state);
   auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialEq->setBaseColor(equirectangular->getTexture());
   auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
@@ -1482,6 +1482,11 @@ void initialize() {
     commandBufferEquirectangular->endCommands();
     commandBufferEquirectangular->submitToQueue(true);
   }
+
+  // set diffuse to material
+  /*for (auto& material : pbrMaterial) {
+    material->setSpecularIBL(cubemapSpecular->getTexture(), brdfTexture);
+  }*/
 
   commandBufferTransfer->beginCommands(0);
   auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
