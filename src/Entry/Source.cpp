@@ -819,7 +819,7 @@ void initialize() {
   auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   cameraOrtho = std::make_shared<CameraOrtho>();
-  cameraOrtho->setProjectionParameters({-1, 1, -1, 1}, 0, 1);
+  cameraOrtho->setProjectionParameters({-1, 1, 1, -1}, 0, 1);
   cameraOrtho->setViewParameters(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 
   camera = std::make_shared<CameraFly>(settings);
@@ -1483,10 +1483,10 @@ void initialize() {
     commandBufferEquirectangular->submitToQueue(true);
   }
 
-  // set diffuse to material
-  /*for (auto& material : pbrMaterial) {
+  // set specular to material
+  for (auto& material : pbrMaterial) {
     material->setSpecularIBL(cubemapSpecular->getTexture(), brdfTexture);
-  }*/
+  }
 
   commandBufferTransfer->beginCommands(0);
   auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);

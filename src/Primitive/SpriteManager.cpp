@@ -195,7 +195,7 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(
 
   _descriptorSetLayoutCustom[sprite] = layouts;
   _pipelineCustom[sprite] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+  _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                            {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                             shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                            _descriptorSetLayoutCustom[sprite], {},
