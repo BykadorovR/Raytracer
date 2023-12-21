@@ -80,6 +80,7 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
         // preferred alignment direction (importance sampling).
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
         vec3 H = ImportanceSampleGGX(Xi, N, roughness);
+        // it increases lobe's size, so more samples, but L isn't mandatory here, everything will work with H too
         vec3 L = normalize(2.0 * dot(V, H) * H - V);
 
         float NdotL = max(L.z, 0.0);
@@ -87,6 +88,7 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
         float VdotH = max(dot(V, H), 0.0);
 
         if(NdotL > 0.0) {
+            // formula for BRDF (see notes)
             float G = GeometrySmith(N, V, L, roughness);
             float G_Vis = (G * VdotH) / (NdotH * NdotV);
             float Fc = pow(1.0 - VdotH, 5.0);

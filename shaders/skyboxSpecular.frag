@@ -57,6 +57,7 @@ void main() {
     for(uint i = 0u; i < SAMPLE_COUNT; ++i) {
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
         vec3 H  = ImportanceSampleGGX(Xi, N, push.roughness);
+        // it increases lobe's size, so more samples, but L isn't mandatory here, everything will work with H too
         vec3 L  = normalize(2.0 * dot(V, H) * H - V);
 
         float NdotL = max(dot(N, L), 0.0);
