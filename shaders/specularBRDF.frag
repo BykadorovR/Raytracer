@@ -22,7 +22,7 @@ vec2 Hammersley(uint i, uint N) {
 // ----------------------------------------------------------------------------
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness) {
 	float a = roughness*roughness;
-	
+	//http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
 	float phi = 2.0 * PI * Xi.x;
 	float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
 	float sinTheta = sqrt(1.0 - cosTheta*cosTheta);
@@ -86,8 +86,7 @@ vec2 IntegrateBRDF(float NdotV, float roughness) {
         float NdotH = max(H.z, 0.0);
         float VdotH = max(dot(V, H), 0.0);
 
-        if(NdotL > 0.0)
-        {
+        if(NdotL > 0.0) {
             float G = GeometrySmith(N, V, L, roughness);
             float G_Vis = (G * VdotH) / (NdotH * NdotV);
             float Fc = pow(1.0 - VdotH, 5.0);
