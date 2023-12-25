@@ -14,10 +14,11 @@ layout(location = 4) in vec4 inJointIndices;
 layout(location = 5) in vec4 inJointWeights;
 layout(location = 6) in vec4 inTangent;
 
-layout(location = 0) out float height;
+layout(location = 0) out vec3 TexCoords;
 
 void main() {
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
-
-    height = inPosition.y;
-}
+    TexCoords = inPosition;
+    vec4 position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    // little trick to force skybox to have z = 1 so it's drawn on the background
+    gl_Position = position.xyww;
+}  

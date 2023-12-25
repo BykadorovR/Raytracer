@@ -10,7 +10,7 @@ State::State(std::shared_ptr<Settings> settings) {
   _device = std::make_shared<Device>(_surface, _instance);
   _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), settings->getDepthFormat(), _window,
                                            _surface, _device);
-  _descriptorPool = std::make_shared<DescriptorPool>(1500, _device);
+  _descriptorPool = std::make_shared<DescriptorPool>(3000, _device);
 }
 
 std::shared_ptr<Settings> State::getSettings() { return _settings; }

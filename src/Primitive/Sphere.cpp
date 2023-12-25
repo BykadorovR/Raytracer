@@ -2,18 +2,14 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-struct UniformObject {
-  alignas(16) glm::mat4 model;
-  alignas(16) glm::mat4 view;
-  alignas(16) glm::mat4 projection;
-};
-
-Sphere::Sphere(VkFormat renderFormat,
+Sphere::Sphere(std::vector<VkFormat> renderFormat,
+               VkCullModeFlags cullMode,
+               VkPolygonMode polygonMode,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<State> state) {
   _state = state;
+  _mesh = std::make_shared<Mesh3D>(state);
 
-  std::vector<Vertex3D> vertices;
   int radius = 1;
   int sectorCount = 20;
   int stackCount = 20;
@@ -26,6 +22,7 @@ Sphere::Sphere(VkFormat renderFormat,
   float stackStep = M_PI / stackCount;
   float sectorAngle, stackAngle;
 
+  std::vector<Vertex3D> vertices;
   for (int i = 0; i <= stackCount; ++i) {
     Vertex3D vertex;
     stackAngle = M_PI / 2 - i * stackStep;  // starting from pi/2 to -pi/2
@@ -56,6 +53,7 @@ Sphere::Sphere(VkFormat renderFormat,
     }
   }
 
+  std::vector<uint32_t> indexes;
   int k1, k2;
   for (int i = 0; i < stackCount; ++i) {
     k1 = i * (sectorCount + 1);  // beginning of current stack
@@ -65,26 +63,23 @@ Sphere::Sphere(VkFormat renderFormat,
       // 2 triangles per sector excluding first and last stacks
       // k1 => k2 => k1+1
       if (i != 0) {
-        _indices.push_back(k1);
-        _indices.push_back(k2);
-        _indices.push_back(k1 + 1);
+        indexes.push_back(k1);
+        indexes.push_back(k2);
+        indexes.push_back(k1 + 1);
       }
 
       // k1+1 => k2 => k2+1
       if (i != (stackCount - 1)) {
-        _indices.push_back(k1 + 1);
-        _indices.push_back(k2);
-        _indices.push_back(k2 + 1);
+        indexes.push_back(k1 + 1);
+        indexes.push_back(k2);
+        indexes.push_back(k2 + 1);
       }
     }
   }
+  _mesh->setVertices(vertices, commandBufferTransfer);
+  _mesh->setIndexes(indexes, commandBufferTransfer);
 
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                           commandBufferTransfer, state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                          commandBufferTransfer, state->getDevice());
-
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformObject),
+  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state->getDevice());
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
@@ -96,16 +91,18 @@ Sphere::Sphere(VkFormat renderFormat,
   shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+  _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                             {std::pair{std::string("camera"), setLayout}}, {}, Vertex3D::getBindingDescription(),
-                             Vertex3D::getAttributeDescriptions());
+                             {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
+                             _mesh->getAttributeDescriptions());
 }
 
 void Sphere::setModel(glm::mat4 model) { _model = model; }
 
 void Sphere::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+
+std::shared_ptr<Mesh3D> Sphere::getMesh() { return _mesh; }
 
 void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -125,7 +122,7 @@ void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
                               std::get<1>(_state->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  UniformObject cameraUBO{};
+  BufferMVP cameraUBO{};
   cameraUBO.model = _model;
   cameraUBO.view = _camera->getView();
   cameraUBO.projection = _camera->getProjection();
@@ -136,12 +133,12 @@ void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
   memcpy(data, &cameraUBO, sizeof(cameraUBO));
   vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
 
-  VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
+  VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
   vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
-                       VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
+                       0, VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = _pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -154,5 +151,6 @@ void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
+                   1, 0, 0, 0);
 }

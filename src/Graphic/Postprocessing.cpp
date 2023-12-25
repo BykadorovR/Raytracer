@@ -3,6 +3,7 @@
 struct ComputeConstants {
   float gamma;
   float exposure;
+  int enableBloom;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant;
     pushConstant.offset = 0;
@@ -13,6 +14,7 @@ struct ComputeConstants {
 };
 
 Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
+                               std::vector<std::shared_ptr<Texture>> blur,
                                std::vector<std::shared_ptr<ImageView>> dst,
                                std::shared_ptr<State> state) {
   _state = state;
@@ -27,7 +29,7 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
     for (int j = 0; j < dst.size(); j++) {
       _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
                                                                         _state->getDevice());
-      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), dst[j]);
+      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
     }
   }
 
@@ -53,6 +55,7 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
     ComputeConstants pushConstants;
     pushConstants.gamma = _gamma;
     pushConstants.exposure = _exposure;
+    pushConstants.enableBloom = _state->getSettings()->getBloomPasses();
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
   }

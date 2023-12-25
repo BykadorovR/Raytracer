@@ -25,8 +25,9 @@ class Pipeline {
 
  public:
   Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
-  void createGraphic2D(VkFormat renderFormat,
+  void createGraphic2D(std::vector<VkFormat> renderFormat,
                        VkCullModeFlags cullMode,
+                       VkPolygonMode polygonMode,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
@@ -39,15 +40,15 @@ class Pipeline {
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
       std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
-  void createGraphic3D(VkFormat renderFormat,
+  void createGraphic3D(std::vector<VkFormat> renderFormat,
                        VkCullModeFlags cullMode,
                        VkPolygonMode polygonMode,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,
                        VkVertexInputBindingDescription bindingDescription,
-                       std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
-  void createLine(VkFormat renderFormat,
+                       std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+  void createLine(std::vector<VkFormat> renderFormat,
                   VkCullModeFlags cullMode,
                   VkPolygonMode polygonMode,
                   int thick,
@@ -55,26 +56,26 @@ class Pipeline {
                   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                   std::map<std::string, VkPushConstantRange> pushConstants,
                   VkVertexInputBindingDescription bindingDescription,
-                  std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
-  void createGraphicTerrainCPU(
-      VkFormat renderFormat,
-      VkCullModeFlags cullMode,
-      VkPolygonMode polygonMode,
-      std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
-      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-      std::map<std::string, VkPushConstantRange> pushConstants,
-      VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+                  std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
+
+  void createSkybox(std::vector<VkFormat> renderFormat,
+                    VkCullModeFlags cullMode,
+                    VkPolygonMode polygonMode,
+                    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+                    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+                    std::map<std::string, VkPushConstantRange> pushConstants,
+                    VkVertexInputBindingDescription bindingDescription,
+                    std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphicTerrainGPU(
-      VkFormat renderFormat,
+      std::vector<VkFormat> renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphicTerrainShadowGPU(
       VkCullModeFlags cullMode,
@@ -83,7 +84,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   void createGraphic3DShadow(
       VkCullModeFlags cullMode,
@@ -91,7 +92,7 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 7> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
   void createHUD(VkFormat renderFormat,
                  std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
@@ -103,14 +104,14 @@ class Pipeline {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants);
   void createParticleSystemGraphic(
-      VkFormat renderFormat,
+      std::vector<VkFormat> renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,
       std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
       std::map<std::string, VkPushConstantRange> pushConstants,
       VkVertexInputBindingDescription bindingDescription,
-      std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions);
+      std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>& getDescriptorSetLayout();
   std::map<std::string, VkPushConstantRange>& getPushConstants();

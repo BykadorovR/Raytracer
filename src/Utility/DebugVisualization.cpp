@@ -10,16 +10,21 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _gui = gui;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
+  _meshSprite = std::make_shared<Mesh2D>(state);
+  // Vulkan image origin (0,0) is left-top corner
+  _meshSprite->setVertices(
+      {Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}},
+      commandBufferTransfer);
+  _meshSprite->setIndexes({0, 1, 3, 1, 2, 3}, commandBufferTransfer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
                                                    state->getDevice());
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(_vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                           commandBufferTransfer, state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                          commandBufferTransfer, state->getDevice());
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraLayout->createUniformBuffer();
@@ -38,7 +43,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {{"camera", cameraLayout}, {"texture", _textureSetLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("fragment"), DepthPush::getPushConstant()}},
-      Vertex2D::getBindingDescription(), Vertex2D::getAttributeDescriptions());
+      _meshSprite->getBindingDescription(), _meshSprite->getAttributeDescriptions());
 
   for (auto elem : _state->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
@@ -46,10 +51,11 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = std::make_shared<Line>(3, _state->getSettings()->getSwapchainColorFormat(), commandBufferTransfer,
-                                       state);
+    auto line = std::make_shared<Line>(3, std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                       commandBufferTransfer, state);
     line->setCamera(camera);
-    line->setColor(glm::vec3(1.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f));
+    auto mesh = line->getMesh();
+    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
     _lineFrustum[i] = line;
   }
 
@@ -59,47 +65,46 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _R = r;
   _G = g;
   _B = b;
+
+  _loaderBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer, state);
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
-  _spriteManager = std::make_shared<SpriteManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
-                                                   _commandBufferTransfer, _state->getDescriptorPool(),
-                                                   _state->getDevice(), _state->getSettings());
-  _farPlaneCW = _spriteManager->createSprite(nullptr, nullptr);
+  _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                                   lightManager, _commandBufferTransfer, _state);
+  _farPlaneCW = _spriteManager->createSprite();
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
-  _farPlaneCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
-  _farPlaneCCW = _spriteManager->createSprite(nullptr, nullptr);
+  _farPlaneCCW = _spriteManager->createSprite();
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
-  _farPlaneCCW->setColor(glm::vec3(1.f, 0.4f, 0.4f));
 
-  _modelManager = std::make_shared<Model3DManager>(_state->getSettings()->getSwapchainColorFormat(), lightManager,
-                                                   _commandBufferTransfer, _state->getDescriptorPool(),
-                                                   _state->getDevice(), _state->getSettings());
+  _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                                   lightManager, _commandBufferTransfer, _state);
+
   for (auto light : lightManager->getPointLights()) {
-    auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
+    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
-    _modelManager->registerModelGLTF(model);
+    _modelManager->registerModel3D(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(_state->getSettings()->getSwapchainColorFormat(), _commandBufferTransfer,
-                                           _state);
+    auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, _commandBufferTransfer, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
-    auto model = _modelManager->createModelGLTF("../data/Box/Box.gltf");
+    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
-    _modelManager->registerModelGLTF(model);
+    _modelManager->registerModel3D(model);
     _directionalLightModels.push_back(model);
   }
 }
@@ -199,12 +204,12 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
       memcpy(data, &model, sizeof(glm::mat4));
       vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
 
-      VkBuffer vertexBuffers[] = {_vertexBuffer->getBuffer()->getData()};
+      VkBuffer vertexBuffers[] = {_meshSprite->getVertexBuffer()->getBuffer()->getData()};
       VkDeviceSize offsets[] = {0};
       vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-      vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _indexBuffer->getBuffer()->getData(), 0,
-                           VK_INDEX_TYPE_UINT32);
+      vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
+                           _meshSprite->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               _pipeline->getPipelineLayout(), 0, 1, &_cameraSet->getDescriptorSets()[currentFrame], 0,
@@ -214,13 +219,27 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
                               _pipeline->getPipelineLayout(), 1, 1,
                               &shadowDescriptorSet->getDescriptorSets()[currentFrame], 0, nullptr);
 
-      vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_indices.size()), 1, 0, 0,
-                       0);
+      vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
+                       static_cast<uint32_t>(_meshSprite->getIndexData().size()), 1, 0, 0, 0);
     }
   }
 }
 
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+  if (_frustumDraw) {
+    for (auto& line : _lineFrustum) {
+      line->draw(currentFrame, commandBuffer);
+    }
+  }
+}
+
+void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
+  _postprocessing = postprocessing;
+  _gamma = _postprocessing->getGamma();
+  _exposure = _postprocessing->getExposure();
+}
+
+void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto [resX, resY] = _state->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
@@ -287,25 +306,33 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       auto [resX, resY] = _state->getSettings()->getResolution();
       float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
       float width1 = height1 * ((float)resX / (float)resY);
-      _lineFrustum[0]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                   glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()));
-      _lineFrustum[1]->setPosition(glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
-                                   glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear()));
-      _lineFrustum[2]->setPosition(glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                   glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()));
-      _lineFrustum[3]->setPosition(glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                   glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear()));
+      _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                               glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
+      _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
+                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
+      _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                               glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
+      _lineFrustum[3]->getMesh()->setPosition({glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
+                                               glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
+                                              commandBuffer);
 
       float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
       float width2 = height2 * ((float)resX / (float)resY);
-      _lineFrustum[4]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                   glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()));
-      _lineFrustum[5]->setPosition(glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
-                                   glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar()));
-      _lineFrustum[6]->setPosition(glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                   glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()));
-      _lineFrustum[7]->setPosition(glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                   glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar()));
+      _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                               glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
+      _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
+                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
+      _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                               glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
+      _lineFrustum[7]->getMesh()->setPosition({glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
+                                               glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
+                                              commandBuffer);
 
       auto model = glm::scale(glm::mat4(1.f), glm::vec3(width2, height2, 1.f));
       model = glm::translate(model, glm::vec3(0.f, 0.f, -camera->getFar()));
@@ -314,39 +341,50 @@ void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandB
       _farPlaneCCW->setModel(glm::inverse(camera->getView()) * model);
 
       // bottom
-      _lineFrustum[8]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().first);
-      _lineFrustum[8]->setColor(glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 1.f, 0.f));
-      _lineFrustum[9]->setPosition(glm::vec3(0), _lineFrustum[4]->getPosition().second);
-      _lineFrustum[9]->setColor(glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos},
+                                              commandBuffer);
+      _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBuffer);
+      _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos},
+                                              commandBuffer);
+      _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBuffer);
       // top
-      _lineFrustum[10]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().first);
-      _lineFrustum[10]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-      _lineFrustum[11]->setPosition(glm::vec3(0), _lineFrustum[5]->getPosition().second);
-      _lineFrustum[11]->setColor(glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+      _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos},
+                                               commandBuffer);
+      _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBuffer);
+      _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos},
+                                               commandBuffer);
+      _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBuffer);
 
       for (auto& line : _lineFrustum) {
         line->setModel(glm::inverse(camera->getView()));
       }
     }
   }
-
-  if (_frustumDraw) {
-    for (auto& line : _lineFrustum) {
-      line->draw(currentFrame, commandBuffer);
-    }
-  }
-}
-
-void DebugVisualization::setPostprocessing(std::shared_ptr<Postprocessing> postprocessing) {
-  _postprocessing = postprocessing;
-  _gamma = _postprocessing->getGamma();
-  _exposure = _postprocessing->getExposure();
 }
 
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
   _gui->drawCheckbox("Debug", {20, 100}, toggleDepth);
+
+  std::map<std::string, bool*> toggleNormals;
+  toggleNormals["Normals"] = &_showNormals;
+  if (_gui->drawCheckbox("Debug", {20, 100}, toggleNormals)) {
+    if (_showNormals) {
+      _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() | DrawType::NORMAL);
+    } else {
+      _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() & ~DrawType::NORMAL);
+    }
+  }
+  std::map<std::string, bool*> toggleWireframe;
+  toggleWireframe["Wireframe"] = &_showWireframe;
+  if (_gui->drawCheckbox("Debug", {20, 100}, toggleWireframe)) {
+    if (_showWireframe) {
+      _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() | DrawType::WIREFRAME);
+    } else {
+      _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() & ~DrawType::WIREFRAME);
+    }
+  }
 
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
@@ -359,10 +397,10 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       if (_enableSpheres) {
         std::map<std::string, int*> toggleSpheres;
         toggleSpheres["##Spheres"] = &_lightSpheresIndex;
-        _gui->drawListBox("Debug Spheres", {20, 220}, _attenuationKeys, toggleSpheres);
+        _gui->drawListBox("Debug Spheres", {20, 255}, _attenuationKeys, toggleSpheres);
       }
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
-        if (_registerLights) _modelManager->registerModelGLTF(_pointLightModels[i]);
+        if (_registerLights) _modelManager->registerModel3D(_pointLightModels[i]);
         {
           auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
           model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
@@ -381,7 +419,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
         }
       }
       for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
-        if (_registerLights) _modelManager->registerModelGLTF(_directionalLightModels[i]);
+        if (_registerLights) _modelManager->registerModel3D(_directionalLightModels[i]);
         auto model = glm::translate(glm::mat4(1.f), _lightManager->getDirectionalLights()[i]->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _directionalLightModels[i]->setModel(model);
@@ -391,25 +429,25 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       if (_registerLights == false) {
         _registerLights = true;
         for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
-          _modelManager->unregisterModelGLTF(_pointLightModels[i]);
+          _modelManager->unregisterModel3D(_pointLightModels[i]);
         }
         for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
-          _modelManager->unregisterModelGLTF(_directionalLightModels[i]);
+          _modelManager->unregisterModel3D(_directionalLightModels[i]);
         }
       }
     }
 
-    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"gamma", &_gamma}});
+    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"gamma", &_gamma}});
     _postprocessing->setGamma(_gamma);
-    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"exposure", &_exposure}});
+    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"exposure", &_exposure}});
     _postprocessing->setExposure(_exposure);
-    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"R", &_R}});
+    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"R", &_R}});
     _R = std::min(_R, 1.f);
     _R = std::max(_R, 0.f);
-    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"G", &_G}});
+    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"G", &_G}});
     _G = std::min(_G, 1.f);
     _G = std::max(_G, 0.f);
-    _gui->drawInputFloat("Postprocessing", {20, 320}, {{"B", &_B}});
+    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"B", &_B}});
     _B = std::min(_B, 1.f);
     _B = std::max(_B, 0.f);
     _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
@@ -419,7 +457,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   _modelManager->draw(currentFrame, commandBuffer);
 
   _spriteManager->setCamera(_camera);
-  _spriteManager->draw(currentFrame, commandBuffer);
+  _spriteManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
 
   _drawFrustum(currentFrame, commandBuffer);
 

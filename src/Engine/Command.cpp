@@ -1,24 +1,5 @@
 #include "Command.h"
 
-CommandPool::CommandPool(QueueType type, std::shared_ptr<Device> device) {
-  _device = device;
-  _type = type;
-  VkCommandPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = device->getSupportedFamilyIndex(type).value();
-
-  if (vkCreateCommandPool(device->getLogicalDevice(), &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create graphics command pool!");
-  }
-}
-
-QueueType CommandPool::getType() { return _type; }
-
-VkCommandPool& CommandPool::getCommandPool() { return _commandPool; }
-
-CommandPool::~CommandPool() { vkDestroyCommandPool(_device->getLogicalDevice(), _commandPool, nullptr); }
-
 CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device) {
   _pool = pool;
   _device = device;
@@ -59,6 +40,8 @@ void CommandBuffer::submitToQueue(bool blocking) {
   // instead of fence
   if (blocking) vkQueueWaitIdle(queue);
 }
+
+int CommandBuffer::getCurrentFrame() { return _currentFrame; }
 
 void CommandBuffer::submitToQueue(VkSubmitInfo info, std::shared_ptr<Fence> fence) {
   auto queue = _device->getQueue(_pool->getType());

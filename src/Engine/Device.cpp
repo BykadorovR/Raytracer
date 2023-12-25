@@ -14,6 +14,8 @@ VkQueue Device::getQueue(QueueType type) {
   return queue;
 }
 
+VkPhysicalDeviceLimits Device::getDeviceLimits() { return _deviceLimits; }
+
 std::mutex& Device::getQueueMutex(QueueType type) {
   std::unique_lock<std::mutex> lock(_mapMutex);
   return _queueMutex[type];
@@ -131,6 +133,7 @@ void Device::_pickPhysicalDevice() {
     vkGetPhysicalDeviceProperties(device, &props);
     if (_isDeviceSuitable(device) && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
       _physicalDevice = device;
+      _deviceLimits = props.limits;
       break;
     }
   }

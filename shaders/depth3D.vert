@@ -20,13 +20,9 @@ layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
 
-layout( push_constant ) uniform constants {
-    int jointNum;
-} PushConstants;
-
 void main() {
     mat4 skinMat = mat4(1.0);
-    if (PushConstants.jointNum > 0) {
+    if (jointMatrices.length() > 0) {
         skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
                   inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
                   inJointWeights.z * jointMatrices[int(inJointIndices.z)] +

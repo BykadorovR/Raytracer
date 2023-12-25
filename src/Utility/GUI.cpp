@@ -3,16 +3,15 @@
 #include "Descriptor.h"
 #include "Input.h"
 
-GUI::GUI(std::shared_ptr<Settings> settings, std::shared_ptr<Window> window, std::shared_ptr<Device> device) {
-  _device = device;
+GUI::GUI(std::shared_ptr<Window> window, std::shared_ptr<State> state) {
+  _state = state;
   _window = window;
-  _settings = settings;
-  _resolution = settings->getResolution();
+  _resolution = state->getSettings()->getResolution();
 
-  _vertexBuffer.resize(settings->getMaxFramesInFlight());
-  _indexBuffer.resize(settings->getMaxFramesInFlight());
-  _vertexCount.resize(settings->getMaxFramesInFlight(), 0);
-  _indexCount.resize(settings->getMaxFramesInFlight(), 0);
+  _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
+  _indexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
+  _vertexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
+  _indexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -42,10 +41,10 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   // check if device extensions are supported
   uint32_t extensionCount;
-  vkEnumerateDeviceExtensionProperties(_device->getPhysicalDevice(), nullptr, &extensionCount, nullptr);
+  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount, nullptr);
 
   std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-  vkEnumerateDeviceExtensionProperties(_device->getPhysicalDevice(), nullptr, &extensionCount,
+  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
                                        availableExtensions.data());
   bool supported = false;
   for (const auto& extension : availableExtensions) {
@@ -57,40 +56,42 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   auto stagingBuffer = std::make_shared<Buffer>(
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
 
   void* data;
-  vkMapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
+  vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
   memcpy(data, fontData, uploadSize);
-  vkUnmapMemory(_device->getLogicalDevice(), stagingBuffer->getMemory());
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
 
-  _fontImage = std::make_shared<Image>(
-      std::tuple{texWidth, texHeight}, 1, 1, _settings->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
+  _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
+                                       _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+                                       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
-  _fontImage->copyFrom(stagingBuffer, 1, commandBufferTransfer);
+  _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           _device);
-  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, _imageView, _device);
+  _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                           _state->getDevice());
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _imageView, _state);
 
-  _descriptorPool = std::make_shared<DescriptorPool>(100, _device);
-  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_device);
+  _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
+  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_settings->getMaxFramesInFlight(), sizeof(UniformData), _device);
-  _descriptorSet = std::make_shared<DescriptorSet>(_settings->getMaxFramesInFlight(), _descriptorSetLayout,
-                                                   _descriptorPool, _device);
+  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformData),
+                                                   _state->getDevice());
+  _descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
+                                                   _descriptorPool, _state->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(_device);
+  auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-  _pipeline = std::make_shared<Pipeline>(_settings, _device);
-  _pipeline->createHUD(_settings->getSwapchainColorFormat(),
+  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipeline->createHUD(_state->getSettings()->getSwapchainColorFormat(),
                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
@@ -205,7 +206,7 @@ void GUI::updateBuffers(int current) {
 
   if ((_vertexBuffer[current] == nullptr) || (_vertexCount[current] != imDrawData->TotalVtxCount)) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _device);
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
     _vertexCount[current] = imDrawData->TotalVtxCount;
     _vertexBuffer[current]->map();
   }
@@ -213,7 +214,7 @@ void GUI::updateBuffers(int current) {
   // Index buffer
   if ((_indexBuffer[current] == nullptr) || (_indexCount[current] != imDrawData->TotalIdxCount)) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _device);
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
     _indexCount[current] = imDrawData->TotalIdxCount;
     _indexBuffer[current]->map();
   }
@@ -254,10 +255,10 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   uniformData.translate = glm::vec2(-1.0f);
 
   void* data;
-  vkMapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory(), 0, sizeof(uniformData), 0,
-              &data);
+  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory(), 0,
+              sizeof(uniformData), 0, &data);
   memcpy(data, &uniformData, sizeof(uniformData));
-  vkUnmapMemory(_device->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory());
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory());
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,

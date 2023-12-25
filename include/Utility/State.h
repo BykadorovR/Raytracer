@@ -4,14 +4,13 @@
 #include "Surface.h"
 #include "Device.h"
 #include "Swapchain.h"
-#include "Buffer.h"
 #include "Shader.h"
-#include "Pipeline.h"
 #include "Command.h"
 #include "Sync.h"
 #include "Command.h"
 #include "Settings.h"
 #include "Input.h"
+#include "Pool.h"
 
 class State {
  private:

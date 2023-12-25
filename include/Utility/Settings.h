@@ -3,16 +3,33 @@
 #include <string>
 #include "vulkan/vulkan.hpp"
 
+enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 4 };
+
+inline DrawType operator|(DrawType a, DrawType b) {
+  return static_cast<DrawType>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline DrawType operator&(DrawType a, DrawType b) {
+  return static_cast<DrawType>(static_cast<int>(a) & static_cast<int>(b));
+}
+
+inline DrawType operator~(DrawType a) { return (DrawType) ~(int)a; }
+
 struct Settings {
  private:
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
-  std::tuple<int, int> _depthResolution = {1024, 1024};
+  std::tuple<int, int> _depthResolution = {512, 512};
+  // used for irradiance diffuse cubemap generation
+  std::tuple<int, int> _diffuseIBLResolution = {32, 32};
+  std::tuple<int, int> _specularIBLResolution = {128, 128};
+  int _specularIBLMipMap = 5;
   // VkClearColorValue _clearColor = {196.f / 255.f, 233.f / 255.f, 242.f / 255.f, 1.f};
-  VkClearColorValue _clearColor = {0.2f, 0.2f, 0.2f, 1.f};
+  VkClearColorValue _clearColor = {0.0f, 0.0f, 0.0f, 1.f};
   std::string _name = "default";
   VkFormat _swapchainColorFormat;
   VkFormat _graphicColorFormat;
+  // should be SRGB, so we convert to linear during loading
   VkFormat _loadTextureColorFormat;
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
@@ -20,9 +37,14 @@ struct Settings {
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
+  int _anisotropicSamples = 0;
+  // TODO: protect by mutex?
+  int _bloomPasses = 0;
+  int _desiredFPS;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},
                                                        {200, 0.0019}, {325, 0.0007}, {600, 0.0002}, {3250, 0.000007}};
+  DrawType _drawType = DrawType::FILL;
 
  public:
   // setters
@@ -38,6 +60,10 @@ struct Settings {
   void setMaxFramesInFlight(int maxFramesInFlight);
   void setThreadsInPool(int threadsInPool);
   void setClearColor(VkClearColorValue clearColor);
+  void setBloomPasses(int number);
+  void setAnisotropicSamples(int number);
+  void setDesiredFPS(int fps);
+  void setDrawType(DrawType drawType);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getDepthResolution();
@@ -52,5 +78,12 @@ struct Settings {
   VkFormat getLoadTextureColorFormat();
   VkFormat getLoadTextureAuxilaryFormat();
   VkFormat getDepthFormat();
+  int getBloomPasses();
   VkClearColorValue getClearColor();
+  int getAnisotropicSamples();
+  int getDesiredFPS();
+  DrawType getDrawType();
+  std::tuple<int, int> getDiffuseIBLResolution();
+  std::tuple<int, int> getSpecularIBLResolution();
+  int getSpecularMipMap();
 };

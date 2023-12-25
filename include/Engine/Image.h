@@ -13,6 +13,7 @@ class Image {
   int _layers;
   bool _external = false;
   VkImageLayout _imageLayout;
+  std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
   Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
@@ -25,13 +26,18 @@ class Image {
         VkMemoryPropertyFlags properties,
         std::shared_ptr<Device> device);
 
-  void copyFrom(std::shared_ptr<Buffer> buffer, int layersNumber, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  // bufferOffsets contains offsets for part of buffer that should be copied to corresponding layers of image
+  void copyFrom(std::shared_ptr<Buffer> buffer,
+                std::vector<int> bufferOffsets,
+                std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void changeLayout(VkImageLayout oldLayout,
                     VkImageLayout newLayout,
                     VkImageAspectFlags aspectMask,
                     int layersNumber,
                     int mipMapLevels,
                     std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer);
+
   void overrideLayout(VkImageLayout layout);
   std::tuple<int, int> getResolution();
   VkImage& getImage();
@@ -49,13 +55,16 @@ class ImageView {
   std::shared_ptr<Device> _device;
 
  public:
-  // layerCount = 1, baseArrayLayer = 0 by default
-  // type VK_IMAGE_VIEW_TYPE_2D or VK_IMAGE_VIEW_TYPE_CUBE
+  // baseArrayLayer - which face is used
+  // arrayLayerNumber - number of faces
+  // baseMipMapLevel - which mip map level is used
+  // mipMapLevels - number of visible mip maps for current image view
   ImageView(std::shared_ptr<Image> image,
             VkImageViewType type,
-            int layerCount,
             int baseArrayLayer,
-            int mipMapLevels,
+            int arrayLayerNumber,
+            int baseMipMap,
+            int mipMapNumber,
             VkImageAspectFlags aspectFlags,
             std::shared_ptr<Device> device);
   VkImageView& getImageView();

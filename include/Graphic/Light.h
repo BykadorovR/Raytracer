@@ -7,9 +7,7 @@
 
 class PointLight {
  private:
-  struct PhongLightFields {
-    float ambient;
-    float specular;
+  struct LightFields {
     // attenuation
     float quadratic = 0.f;
     int distance;
@@ -20,13 +18,13 @@ class PointLight {
     alignas(16) glm::vec3 position;
   };
   std::shared_ptr<Settings> _settings;
-  std::shared_ptr<PhongLightFields> _phong = nullptr;
+  std::shared_ptr<LightFields> _light = nullptr;
   std::vector<std::shared_ptr<Cubemap>> _depthCubemap;
   int _attenuationIndex = 4;
 
  public:
   PointLight(std::shared_ptr<Settings> settings);
-  void createPhong(float ambient, float specular, glm::vec3 color);
+  void setColor(glm::vec3 color);
   void setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap);
   std::vector<std::shared_ptr<Cubemap>> getDepthCubemap();
   void setPosition(glm::vec3 position);
@@ -43,19 +41,17 @@ class PointLight {
 
 class DirectionalLight {
  private:
-  struct PhongLightFields {
-    float ambient;
-    float specular;
+  struct LightFields {
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;
   };
-  std::shared_ptr<PhongLightFields> _phong = nullptr;
+  std::shared_ptr<LightFields> _light = nullptr;
   glm::vec3 _center, _up;
   std::vector<std::shared_ptr<Texture>> _depthTexture;
 
  public:
   DirectionalLight();
-  void createPhong(float ambient, float specular, glm::vec3 color);
+  void setColor(glm::vec3 color);
   void setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture);
   std::vector<std::shared_ptr<Texture>> getDepthTexture();
   void setPosition(glm::vec3 position);
@@ -64,6 +60,21 @@ class DirectionalLight {
   glm::vec3 getPosition();
   glm::mat4 getViewMatrix();
   glm::mat4 getProjectionMatrix();
+  int getSize();
+  void* getData();
+};
+
+class AmbientLight {
+ private:
+  struct LightFields {
+    alignas(16) glm::vec3 color;
+  };
+
+  std::shared_ptr<LightFields> _light = nullptr;
+
+ public:
+  AmbientLight();
+  void setColor(glm::vec3 color);
   int getSize();
   void* getData();
 };

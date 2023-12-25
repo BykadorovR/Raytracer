@@ -28,7 +28,7 @@ struct DepthPush {
 
 class DebugVisualization : public InputSubscriber {
  private:
-  std::vector<std::shared_ptr<ModelGLTF>> _pointLightModels, _directionalLightModels;
+  std::vector<std::shared_ptr<Model3D>> _pointLightModels, _directionalLightModels;
   std::vector<std::shared_ptr<Sphere>> _spheres;
   std::shared_ptr<LightManager> _lightManager = nullptr;
   bool _showLights = true;
@@ -45,18 +45,19 @@ class DebugVisualization : public InputSubscriber {
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetDirectional;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetPoint;
   std::shared_ptr<DescriptorSet> _cameraSet;
-  std::shared_ptr<VertexBuffer<Vertex2D>> _vertexBuffer;
-  std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<Mesh2D> _meshSprite;
   std::shared_ptr<Postprocessing> _postprocessing;
   bool _showDepth = true;
+  bool _showNormals = false;
+  bool _showWireframe = false;
   bool _initializedDepth = false;
   int _lightSpheresIndex = -1;
   int _shadowMapIndex = 0;
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
   std::vector<std::string> _shadowKeys;
-
+  std::shared_ptr<Loader> _loaderBox;
   bool _frustumDraw = false;
   bool _showPlanes = false;
   bool _planesRegistered = false;
@@ -66,14 +67,6 @@ class DebugVisualization : public InputSubscriber {
   std::vector<std::shared_ptr<Line>> _lineFrustum;
   std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;
   glm::vec3 _eyeSave = {0, 0, 3}, _dirSave = {0, 0, -1}, _upSave = {0, 1, 0}, _angles = {-90, 0, 0};
-
-  std::vector<Vertex2D> _vertices = {
-      {{0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
-      {{0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-      {{-0.5f, -0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-      {{-0.5f, 0.5f, 0.f}, {0.f, 0.f, -1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}};
-
-  const std::vector<uint32_t> _indices = {0, 1, 3, 1, 2, 3};
 
   void _drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
   void _drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
@@ -85,6 +78,8 @@ class DebugVisualization : public InputSubscriber {
                      std::shared_ptr<State> state);
   void setLights(std::shared_ptr<LightManager> lightManager);
   void setPostprocessing(std::shared_ptr<Postprocessing> postprocessing);
+
+  void calculate(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
 
   void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;

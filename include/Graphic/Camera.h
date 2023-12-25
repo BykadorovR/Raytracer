@@ -55,6 +55,7 @@ class CameraFly : public Camera, public InputSubscriber {
   std::shared_ptr<Settings> _settings;
   bool _once;
   float _sensitivity = 0.1f;
+  float _aspect;
 
  public:
   CameraFly(std::shared_ptr<Settings> settings);
@@ -63,6 +64,7 @@ class CameraFly : public Camera, public InputSubscriber {
   glm::mat4 getProjection() override;
   glm::vec3 getAngles();
   void setAngles(float yaw, float pitch, float roll);
+  void setAspect(float aspect);
   float getFOV();
   void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
   void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;

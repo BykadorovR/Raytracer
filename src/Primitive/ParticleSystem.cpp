@@ -2,12 +2,6 @@
 #include <random>
 #include <glm/gtc/random.hpp>
 
-struct CameraObject {
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 projection;
-};
-
 struct VertexConstants {
   float pointScale;  // nominator of gl_PointSize
   static VkPushConstantRange getPushConstant() {
@@ -20,7 +14,7 @@ struct VertexConstants {
 };
 
 ParticleSystem::ParticleSystem(int particlesNumber,
-                               VkFormat renderFormat,
+                               std::vector<VkFormat> renderFormat,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
@@ -33,7 +27,7 @@ ParticleSystem::ParticleSystem(int particlesNumber,
   _initializeGraphic(renderFormat);
 }
 
-void ParticleSystem::_initializeGraphic(VkFormat renderFormat) {
+void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
   auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("../shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("../shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -41,7 +35,7 @@ void ParticleSystem::_initializeGraphic(VkFormat renderFormat) {
   cameraLayout->createUniformBuffer();
 
   _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(CameraObject), _state->getDevice());
+                                                         sizeof(BufferMVP), _state->getDevice());
 
   _descriptorSetCamera = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                          _state->getDescriptorPool(), _state->getDevice());
@@ -185,7 +179,7 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
                        VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexConstants), &pushConstants);
   }
 
-  CameraObject cameraUBO{};
+  BufferMVP cameraUBO{};
   cameraUBO.model = _model;
   cameraUBO.view = _camera->getView();
   cameraUBO.projection = _camera->getProjection();

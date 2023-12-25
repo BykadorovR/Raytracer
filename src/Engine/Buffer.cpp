@@ -46,14 +46,19 @@ Buffer::Buffer(VkDeviceSize size,
 }
 
 void Buffer::copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  commandBufferTransfer->beginCommands(0);
-
+  _stagingBuffer = buffer;
+  int currentFrame = commandBufferTransfer->getCurrentFrame();
   VkBufferCopy copyRegion{};
   copyRegion.size = _size;
-  vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _data, 1, &copyRegion);
-
-  commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _data, 1, &copyRegion);
+  // need to insert memory barrier so read in vertex shader waits for copy
+  VkMemoryBarrier memoryBarrier = {};
+  memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  memoryBarrier.pNext = nullptr;
+  memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }
 
 VkDeviceSize& Buffer::getSize() { return _size; }

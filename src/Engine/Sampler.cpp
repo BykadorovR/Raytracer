@@ -1,6 +1,6 @@
 #include "Sampler.h"
 
-Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, std::shared_ptr<Device> device) {
+Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSamples, std::shared_ptr<Device> device) {
   _device = device;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
@@ -10,9 +10,8 @@ Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, std::shared_ptr<De
   samplerInfo.addressModeU = mode;
   samplerInfo.addressModeV = mode;
   samplerInfo.addressModeW = mode;
-  // TODO: request from device capabilities
-  samplerInfo.anisotropyEnable = VK_FALSE;
-  samplerInfo.maxAnisotropy = 1.f;
+  samplerInfo.anisotropyEnable = anisotropicSamples > 0 ? VK_TRUE : VK_FALSE;
+  samplerInfo.maxAnisotropy = std::min((int)device->getDeviceLimits().maxSamplerAnisotropy, anisotropicSamples);
   samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
   samplerInfo.compareEnable = VK_FALSE;

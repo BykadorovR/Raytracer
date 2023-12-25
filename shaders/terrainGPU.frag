@@ -9,6 +9,7 @@ layout(location = 4) in vec3 fragPosition;
 layout(location = 5) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
+layout(location = 1) out vec4 outColorBloom;
 layout(set = 3, binding = 0) uniform sampler2D terrainSampler[4];
 layout(set = 5, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 5, binding = 1) uniform samplerCube shadowPointSampler[4];
@@ -23,24 +24,24 @@ layout( push_constant ) uniform constants {
 } push;
 
 struct LightDirectional {
-    float ambient;
-    float specular;
     //
-    vec3 color;
+    vec3 color; //radiance
     vec3 position;
 };
 
 struct LightPoint {
-    float ambient;
-    float specular;
     //attenuation
     float quadratic;
     int distance;
     //parameters
     float far;
     //
-    vec3 color;
+    vec3 color; //radiance
     vec3 position;
+};
+
+struct LightAmbient {
+    vec3 color; //radiance
 };
 
 layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
@@ -50,6 +51,18 @@ layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
 layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
     LightPoint lightPoint[];
 };
+
+layout(std140, set = 4, binding = 2) readonly buffer LightBufferAmbient {
+    LightAmbient lightAmbient[];
+};
+
+//coefficients from base color
+layout(set = 7, binding = 0) uniform Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} material;
 
 //It is important to get the gradients before going into non-uniform flow code.
 vec2 dx = dFdx(texCoord);
@@ -64,6 +77,8 @@ vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getLightAmbient(index) lightAmbient[index]
+#define getMaterial() material
 #include "phong.glsl"
 
 void main() {
@@ -86,11 +101,16 @@ void main() {
         if (push.enableLighting > 0) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, 0, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 
+            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, 0,
                                       push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
+            //calculate ambient light
+            for (int i = 0;i < lightAmbient.length(); i++) {
+                lightFactor += lightAmbient[i].color;
+            }
+
             outColor *= vec4(lightFactor, 1.0);
         } 
     }
@@ -99,4 +119,11 @@ void main() {
     if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {
         outColor = vec4(1, 1, 0, 1);
     }
+
+    // check whether fragment output is higher than threshold, if so output as brightness color
+    float brightness = dot(outColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    if(brightness > 1.0)
+        outColorBloom = vec4(outColor.rgb, 1.0);
+    else
+        outColorBloom = vec4(0.0, 0.0, 0.0, 1.0);
 }

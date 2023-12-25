@@ -18,6 +18,14 @@ void Settings::setDepthFormat(VkFormat format) { _depthFormat = format; }
 
 void Settings::setMaxFramesInFlight(int maxFramesInFlight) { _maxFramesInFlight = maxFramesInFlight; }
 
+void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number; }
+
+void Settings::setDesiredFPS(int fps) { _desiredFPS = fps; }
+
+void Settings::setDrawType(DrawType drawType) { _drawType = drawType; }
+
+void Settings::setBloomPasses(int number) { _bloomPasses = number; }
+
 void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
 
 void Settings::setThreadsInPool(int threadsInPool) { _threadsInPool = threadsInPool; }
@@ -40,6 +48,8 @@ VkFormat Settings::getLoadTextureAuxilaryFormat() { return _loadTextureAuxilaryF
 
 VkFormat Settings::getDepthFormat() { return _depthFormat; }
 
+int Settings::getBloomPasses() { return _bloomPasses; }
+
 int Settings::getMaxDirectionalLights() { return _maxDirectionalLights; }
 
 int Settings::getMaxPointLights() { return _maxPointLights; }
@@ -49,3 +59,15 @@ std::vector<std::tuple<int, float>> Settings::getAttenuations() { return _attenu
 int Settings::getThreadsInPool() { return _threadsInPool; }
 
 VkClearColorValue Settings::getClearColor() { return _clearColor; }
+
+int Settings::getAnisotropicSamples() { return _anisotropicSamples; }
+
+int Settings::getDesiredFPS() { return _desiredFPS; }
+
+DrawType Settings::getDrawType() { return _drawType; }
+
+std::tuple<int, int> Settings::getDiffuseIBLResolution() { return _diffuseIBLResolution; }
+
+std::tuple<int, int> Settings::getSpecularIBLResolution() { return _specularIBLResolution; }
+
+int Settings::getSpecularMipMap() { return _specularIBLMipMap; }

@@ -81,6 +81,77 @@ void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 
 std::tuple<int, int> Image::getResolution() { return _resolution; }
 
+void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = commandBuffer->getCurrentFrame();
+
+  VkImageMemoryBarrier barrier{};
+  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+  barrier.image = getImage();
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = layers;
+  barrier.subresourceRange.levelCount = 1;
+
+  auto [mipWidth, mipHeight] = getResolution();
+  for (uint32_t i = 1; i < mipMapLevels; i++) {
+    // change layout of source image to SRC so we can resize it and generate i-th mip map level
+    barrier.subresourceRange.baseMipLevel = i - 1;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    VkImageBlit blit{};
+    blit.srcOffsets[0] = {0, 0, 0};
+    blit.srcOffsets[1] = {mipWidth, mipHeight, 1};  // previous image size
+    blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.mipLevel = i - 1;  // previous mip map image used for resize
+    blit.srcSubresource.baseArrayLayer = 0;
+    blit.srcSubresource.layerCount = layers;
+    blit.dstOffsets[0] = {0, 0, 0};
+    blit.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+    blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.dstSubresource.mipLevel = i;
+    blit.dstSubresource.baseArrayLayer = 0;
+    blit.dstSubresource.layerCount = layers;
+
+    // i = 0 has SRC layout (we changed it above), i = 1 has DST layout (we changed from undefined to dst in
+    // constructor)
+    vkCmdBlitImage(commandBuffer->getCommandBuffer()[currentFrame], getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+
+    // change i = 0 to READ OPTIMAL, we won't use this level anymore, next resizes will use next i
+    barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    if (mipWidth > 1) mipWidth /= 2;
+    if (mipHeight > 1) mipHeight /= 2;
+  }
+
+  // we don't generate mip map from last level so we need explicitly change dst to read only
+  barrier.subresourceRange.baseMipLevel = mipMapLevels - 1;
+  barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+  // we changed real image layout above, need to override imageLayout internal field
+  overrideLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
 void Image::changeLayout(VkImageLayout oldLayout,
                          VkImageLayout newLayout,
                          VkImageAspectFlags aspectMask,
@@ -88,8 +159,6 @@ void Image::changeLayout(VkImageLayout oldLayout,
                          int mipMapLevels,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _imageLayout = newLayout;
-
-  commandBufferTransfer->beginCommands(0);
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -194,21 +263,20 @@ void Image::changeLayout(VkImageLayout oldLayout,
       break;
   }
 
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[0], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+  int currentFrame = commandBufferTransfer->getCurrentFrame();
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-  commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
-                     int layersNumber,
+                     std::vector<int> bufferOffsets,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  commandBufferTransfer->beginCommands(0);
+  _stagingBuffer = buffer;
+
   std::vector<VkBufferImageCopy> bufferCopyRegions;
-  for (int i = 0; i < layersNumber; i++) {
+  for (int i = 0; i < bufferOffsets.size(); i++) {
     VkBufferImageCopy region{};
-    region.bufferOffset = 0;
+    region.bufferOffset = bufferOffsets[i];
     region.bufferRowLength = 0;
     region.bufferImageHeight = 0;
 
@@ -221,11 +289,18 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
     region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
     bufferCopyRegions.push_back(region);
   }
-  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[0], buffer->getData(), _image,
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
 
-  commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  int currentFrame = commandBufferTransfer->getCurrentFrame();
+  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _image,
+                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
+  // need to insert memory barrier so read in fragment shader waits for copy
+  VkMemoryBarrier memoryBarrier = {};
+  memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  memoryBarrier.pNext = nullptr;
+  memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }
 
 VkImageLayout& Image::getImageLayout() { return _imageLayout; }
@@ -241,9 +316,10 @@ Image::~Image() {
 
 ImageView::ImageView(std::shared_ptr<Image> image,
                      VkImageViewType type,
-                     int layerCount,
                      int baseArrayLayer,
-                     int mipMapLevels,
+                     int arrayLayerNumber,
+                     int baseMipMap,
+                     int mipMapNumber,
                      VkImageAspectFlags aspectFlags,
                      std::shared_ptr<Device> device) {
   _device = device;
@@ -259,10 +335,10 @@ ImageView::ImageView(std::shared_ptr<Image> image,
   viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
   viewInfo.subresourceRange.aspectMask = aspectFlags;
-  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.baseMipLevel = baseMipMap;
   viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
-  viewInfo.subresourceRange.layerCount = layerCount;
-  viewInfo.subresourceRange.levelCount = mipMapLevels;
+  viewInfo.subresourceRange.layerCount = arrayLayerNumber;
+  viewInfo.subresourceRange.levelCount = mipMapNumber;
 
   if (vkCreateImageView(device->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");

@@ -1,6 +1,9 @@
 #pragma once
 #include "State.h"
 #include "Camera.h"
+#include "Texture.h"
+#include "Descriptor.h"
+#include "Pipeline.h"
 
 struct Particle {
   glm::vec3 position;
@@ -25,8 +28,8 @@ struct Particle {
     return bindingDescription;
   }
 
-  static std::array<VkVertexInputAttributeDescription, 5> getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 5> attributeDescriptions{};
+  static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{5};
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -74,11 +77,11 @@ class ParticleSystem {
   float _pointScale = 60.f;
 
   void _initializeCompute();
-  void _initializeGraphic(VkFormat renderFormat);
+  void _initializeGraphic(std::vector<VkFormat> renderFormat);
 
  public:
   ParticleSystem(int particlesNumber,
-                 VkFormat renderFormat,
+                 std::vector<VkFormat> renderFormat,
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state);

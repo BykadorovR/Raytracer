@@ -1,19 +1,7 @@
 #pragma once
 #include "Device.h"
 #include "Sync.h"
-
-class CommandPool {
- private:
-  std::shared_ptr<Device> _device;
-  QueueType _type;
-  VkCommandPool _commandPool;
-
- public:
-  CommandPool(QueueType type, std::shared_ptr<Device> device);
-  VkCommandPool& getCommandPool();
-  QueueType getType();
-  ~CommandPool();
-};
+#include "Pool.h"
 
 class CommandBuffer {
  private:
@@ -29,5 +17,6 @@ class CommandBuffer {
   void submitToQueue(bool blocking);
   void submitToQueue(VkSubmitInfo info, std::shared_ptr<Fence> fence);
   std::vector<VkCommandBuffer>& getCommandBuffer();
+  int getCurrentFrame();
   ~CommandBuffer();
 };
