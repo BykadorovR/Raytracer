@@ -170,5 +170,5 @@ target_link_libraries(${PROJECT_NAME} ${CMAKE_BINARY_DIR}/libraries/mikktspace.l
 #recompile after every build just in case, it's fast
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                   COMMAND python compile.py
+                   COMMAND python compile.py ${Vulkan_GLSLC_EXECUTABLE}
                    COMMENT "Compile shaders")

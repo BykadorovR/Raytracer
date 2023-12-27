@@ -1,12 +1,13 @@
-from os import listdir
 import os
 import subprocess
+import sys
+
 
 folder = "shaders"
-compiler_path = "C:/Soft/VulkanSDK/Bin/glslc"
+compiler_path = sys.argv[1]
 debug = True
 
-for f in listdir(folder):
+for f in os.listdir(folder):
 	file_name = os.path.splitext(f)[0]
 	extension = os.path.splitext(f)[1][1:]
 	extension_new = ""
