@@ -21,8 +21,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _meshSprite->setIndexes({0, 1, 3, 1, 2, 3}, commandBufferTransfer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
                                                    state->getDevice());
 
@@ -66,7 +66,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _G = g;
   _B = b;
 
-  _loaderBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer, state);
+  _loaderBox = std::make_shared<Loader>("assets/box/Box.gltf", commandBufferTransfer, state);
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {

@@ -88,8 +88,8 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("../shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),

@@ -87,8 +87,8 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createHUD(_state->getSettings()->getSwapchainColorFormat(),

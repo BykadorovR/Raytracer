@@ -61,8 +61,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic2D(
@@ -86,8 +86,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/pbr2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/pbr2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphic2D(
@@ -110,8 +110,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Normal for Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPhong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPhong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormal[MaterialType::PHONG]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -133,8 +133,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Normal for PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPBR2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPBR2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormal[MaterialType::PBR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -156,7 +156,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic2DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", cameraSetLayout}}, {},
@@ -169,8 +169,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelinePoint->createGraphic2DShadow(VK_CULL_MODE_NONE,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),

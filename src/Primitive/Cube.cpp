@@ -95,8 +95,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   // initialize draw
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/cube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/cube_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/cube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/cube_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
                                {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -108,7 +108,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depthCube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depthCube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", setLayout}}, {},
@@ -121,8 +121,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depthCube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/depthCube_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/depthCube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depthCube_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelinePoint->createGraphic3DShadow(VK_CULL_MODE_NONE,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -132,8 +132,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineEquirectangular->createGraphic3D(
         renderFormat, cullMode, polygonMode,
@@ -145,8 +145,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, polygonMode,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -160,8 +160,8 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     defaultPushConstants["fragment"] = RoughnessConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineSpecular->createGraphic3D(renderFormat, cullMode, polygonMode,
                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),

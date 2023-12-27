@@ -51,9 +51,9 @@ Blur::Blur(std::vector<std::shared_ptr<Texture>> src,
   _state = state;
 
   auto shaderVertical = std::make_shared<Shader>(_state->getDevice());
-  shaderVertical->add("../shaders/blurVertical_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  shaderVertical->add("shaders/blurVertical_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
   auto shaderHorizontal = std::make_shared<Shader>(_state->getDevice());
-  shaderHorizontal->add("../shaders/blurHorizontal_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  shaderHorizontal->add("shaders/blurHorizontal_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   auto textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   textureLayout->createPostprocessing();

@@ -63,8 +63,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -95,8 +95,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/pbr3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/pbr3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -127,8 +127,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize Normals Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPhong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPhong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     _pipelineNormal[MaterialType::PHONG]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -158,8 +158,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize Normals PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPBR3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPBR3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     _pipelineNormal[MaterialType::PBR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -188,7 +188,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
@@ -199,8 +199,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize depth point
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);

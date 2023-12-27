@@ -20,7 +20,7 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
   _state = state;
 
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("../shaders/postprocess_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  shader->add("shaders/postprocess_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   auto textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   textureLayout->createPostprocessing();

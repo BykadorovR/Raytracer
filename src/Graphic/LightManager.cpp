@@ -96,10 +96,11 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
+  _stubTexture = std::make_shared<Texture>("assets/stubs/Texture1x1.png",
+                                           _state->getSettings()->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
   _stubCubemap = std::make_shared<Cubemap>(
-      std::vector<std::string>(6, "../data/Texture1x1.png"), _state->getSettings()->getLoadTextureColorFormat(), 1,
+      std::vector<std::string>(6, "assets/stubs/Texture1x1.png"), _state->getSettings()->getLoadTextureColorFormat(), 1,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, _state);
 

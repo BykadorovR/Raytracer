@@ -1,6 +1,5 @@
 #pragma once
 #include "State.h"
-#include "tiny_obj_loader.h"
 #include "tiny_gltf.h"
 #include "Material.h"
 #include "Mesh.h"

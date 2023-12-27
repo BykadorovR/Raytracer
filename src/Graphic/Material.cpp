@@ -20,16 +20,16 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
 
   _descriptorSetLayoutTextures = std::make_shared<DescriptorSetLayout>(state->getDevice());
 
-  _stubTextureOne = std::make_shared<Texture>("../data/Texture1x1.png",
+  _stubTextureOne = std::make_shared<Texture>("assets/stubs/Texture1x1.png",
                                               _state->getSettings()->getLoadTextureColorFormat(),
                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
-  _stubTextureZero = std::make_shared<Texture>("../data/Texture1x1Black.png",
+  _stubTextureZero = std::make_shared<Texture>("assets/stubs/Texture1x1Black.png",
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
   _stubCubemapZero = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
-                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
-                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png"},
+      std::vector<std::string>{"assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
+                               "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
+                               "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png"},
       _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
       state);

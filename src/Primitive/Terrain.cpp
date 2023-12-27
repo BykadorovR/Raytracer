@@ -56,7 +56,9 @@ struct HeightLevels {
   }
 };
 
-TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
+TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
+                       std::string heightMap,
+                       std::pair<int, int> patchNumber,
                        std::vector<VkFormat> renderFormat,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<LightManager> lightManager,
@@ -67,21 +69,16 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
 
-  _terrainTiles[0] = std::make_shared<Texture>("../data/Terrain/dirt.jpg",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
+  _terrainTiles[0] = std::make_shared<Texture>(tiles[0], _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[1] = std::make_shared<Texture>("../data/Terrain/grass.jpg",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
+  _terrainTiles[1] = std::make_shared<Texture>(tiles[1], _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[2] = std::make_shared<Texture>("../data/Terrain/rock_gray.png",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
+  _terrainTiles[2] = std::make_shared<Texture>(tiles[2], _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[3] = std::make_shared<Texture>("../data/Terrain/snow.png",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
+  _terrainTiles[3] = std::make_shared<Texture>(tiles[3], _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
 
-  _heightMap = std::make_shared<Texture>("../data/Terrain/heightmap.png",
-                                         _state->getSettings()->getLoadTextureAuxilaryFormat(),
+  _heightMap = std::make_shared<Texture>(heightMap, _state->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
@@ -211,17 +208,17 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   }
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("../shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/terrainGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shader->add("../shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-  shader->add("../shaders/terrainGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  shader->add("shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/terrainGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  shader->add("shaders/terrainGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
   auto shaderNormal = std::make_shared<Shader>(state->getDevice());
-  shaderNormal->add("../shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shaderNormal->add("../shaders/normal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shaderNormal->add("../shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-  shaderNormal->add("../shaders/normal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-  shaderNormal->add("../shaders/normal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
+  shaderNormal->add("shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderNormal->add("shaders/normal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shaderNormal->add("shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  shaderNormal->add("shaders/normal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  shaderNormal->add("shaders/normal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();
@@ -275,9 +272,9 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
 
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("../shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();
@@ -295,10 +292,10 @@ TerrainGPU::TerrainGPU(std::pair<int, int> patchNumber,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("../shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("../shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-    shader->add("../shaders/terrainDepthGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrainDepthGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();

@@ -814,9 +814,9 @@ void initialize() {
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
-  auto texture = std::make_shared<Texture>("../data/brickwall.jpg", settings->getLoadTextureColorFormat(),
+  auto texture = std::make_shared<Texture>("../assets/brickwall.jpg", settings->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  auto normalMap = std::make_shared<Texture>("../data/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
+  auto normalMap = std::make_shared<Texture>("../assets/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   cameraOrtho = std::make_shared<CameraOrtho>();
   cameraOrtho->setProjectionParameters({-1, 1, 1, -1}, 0, 1);
@@ -872,8 +872,8 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
 
   auto shader = std::make_shared<Shader>(device);
-  shader->add("../shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
 
@@ -937,9 +937,9 @@ void initialize() {
     spriteManager->registerSprite(spriteTop);
     spriteManager->registerSprite(spriteBot);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../data/DamagedHelmet/DamagedHelmet.gltf",
+  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../assets/DamagedHelmet/DamagedHelmet.gltf",
                                                                 commandBufferTransfer, state);
-  std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer,
+  std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../assets/Box/Box.gltf", commandBufferTransfer,
                                                                    state);
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
@@ -961,13 +961,13 @@ void initialize() {
   // modelGLTFPhong->setAnimation(animation);
   modelGLTFPBR->setAnimation(animation);
 
-  // modelGLTF = modelManager->createModel3D("../data/Avocado/Avocado.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/CesiumMan/CesiumMan.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/BrainStem/BrainStem.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/SimpleSkin/SimpleSkin.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/Sponza/Sponza.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/DamagedHelmet/DamagedHelmet.gltf");
-  // modelGLTF = modelManager->createModel3D("../data/Box/BoxTextured.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/Avocado/Avocado.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/CesiumMan/CesiumMan.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/BrainStem/BrainStem.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/SimpleSkin/SimpleSkin.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/Sponza/Sponza.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/DamagedHelmet/DamagedHelmet.gltf");
+  // modelGLTF = modelManager->createModel3D("../assets/Box/BoxTextured.gltf");
   //{
   //   glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, 0.f));
   //   // model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
@@ -1012,8 +1012,11 @@ void initialize() {
   }
 
   terrain = std::make_shared<TerrainGPU>(
-      std::pair{12, 12}, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      commandBufferTransfer, lightManager, state);
+      std::array<std::string, 4>{"../assets/Terrain/dirt.jpg", "../assets/Terrain/grass.jpg",
+                                 "../assets/Terrain/rock_gray.png", "../assets/Terrain/snow.png"},
+      "../assets/Terrain/heightmap.png", std::pair{12, 12},
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+      lightManager, state);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
@@ -1021,7 +1024,7 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../data/Particles/gradient.png",
+  auto particleTexture = std::make_shared<Texture>("../assets/Particles/gradient.png",
                                                    settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   particleSystem = std::make_shared<ParticleSystem>(
@@ -1120,8 +1123,9 @@ void initialize() {
   auto brdfTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
 
   cubemap = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../data/Skybox/right.jpg", "../data/Skybox/left.jpg", "../data/Skybox/top.jpg",
-                               "../data/Skybox/bottom.jpg", "../data/Skybox/front.jpg", "../data/Skybox/back.jpg"},
+      std::vector<std::string>{"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
+                               "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg",
+                               "../assets/Skybox/back.jpg"},
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -1177,7 +1181,8 @@ void initialize() {
     specularCube->setModel(model);
   }
 
-  equirectangular = std::make_shared<Equirectangular>("../data/Skybox/newport_loft.hdr", commandBufferTransfer, state);
+  equirectangular = std::make_shared<Equirectangular>("../assets/Skybox/newport_loft.hdr", commandBufferTransfer,
+                                                      state);
   auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialEq->setBaseColor(equirectangular->getTexture());
   auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);

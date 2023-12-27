@@ -56,7 +56,9 @@ class TerrainGPU : public Terrain {
   bool _enableShadow = true;
 
  public:
-  TerrainGPU(std::pair<int, int> patchNumber,
+  TerrainGPU(std::array<std::string, 4> tiles,
+             std::string heightMap,
+             std::pair<int, int> patchNumber,
              std::vector<VkFormat> renderFormat,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<LightManager> lightManager,
