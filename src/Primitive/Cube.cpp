@@ -2,7 +2,6 @@
 
 Cube::Cube(std::vector<VkFormat> renderFormat,
            VkCullModeFlags cullMode,
-           VkPolygonMode polygonMode,
            std::shared_ptr<LightManager> lightManager,
            std::shared_ptr<CommandBuffer> commandBufferTransfer,
            std::shared_ptr<State> state) {
@@ -98,12 +97,20 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     shader->add("shaders/cube_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/cube_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
+    _pipeline->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                 shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                {std::pair{std::string("camera"), setLayout},
                                 std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
                                {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+    _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineWireframe->createGraphic3D(
+        renderFormat, cullMode, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {std::pair{std::string("camera"), setLayout},
+         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+        {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
   // initialize depth directional
   {
@@ -136,7 +143,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     shader->add("shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineEquirectangular->createGraphic3D(
-        renderFormat, cullMode, polygonMode,
+        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {std::pair{std::string("camera"), setLayout},
@@ -148,7 +155,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, polygonMode,
+    _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                       {std::pair{std::string("camera"), setLayout},
@@ -163,7 +170,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
     shader->add("shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineSpecular->createGraphic3D(renderFormat, cullMode, polygonMode,
+    _pipelineSpecular->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                        {std::pair{std::string("camera"), setLayout},
@@ -231,24 +238,29 @@ void Cube::_draw(int currentFrame,
                    1, 0, 0, 0);
 }
 
-void Cube::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Cube::draw(int currentFrame,
+                std::tuple<int, int> resolution,
+                std::shared_ptr<CommandBuffer> commandBuffer,
+                DrawType drawType) {
+  auto pipeline = _pipeline;
+  if (drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
+
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+                    pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-  _draw(currentFrame, _pipeline, commandBuffer, 0);
+  _draw(currentFrame, pipeline, commandBuffer, 0);
 }
 
 void Cube::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {

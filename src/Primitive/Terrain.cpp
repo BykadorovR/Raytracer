@@ -1,9 +1,5 @@
 #include "Terrain.h"
 
-void Terrain::setModel(glm::mat4 model) { _model = model; }
-
-void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 struct LoDConstants {
   int minTessellationLevel;
   int maxTessellationLevel;
@@ -56,13 +52,13 @@ struct HeightLevels {
   }
 };
 
-TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
-                       std::string heightMap,
-                       std::pair<int, int> patchNumber,
-                       std::vector<VkFormat> renderFormat,
-                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                       std::shared_ptr<LightManager> lightManager,
-                       std::shared_ptr<State> state) {
+Terrain::Terrain(std::array<std::string, 4> tiles,
+                 std::string heightMap,
+                 std::pair<int, int> patchNumber,
+                 std::vector<VkFormat> renderFormat,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<LightManager> lightManager,
+                 std::shared_ptr<State> state) {
   _state = state;
   _patchNumber = patchNumber;
   _lightManager = lightManager;
@@ -208,15 +204,15 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
   }
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/terrainGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shader->add("shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-  shader->add("shaders/terrainGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+  shader->add("shaders/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/terrain_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  shader->add("shaders/terrain_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
   auto shaderNormal = std::make_shared<Shader>(state->getDevice());
-  shaderNormal->add("shaders/terrainGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shaderNormal->add("shaders/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shaderNormal->add("shaders/normal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shaderNormal->add("shaders/terrainGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+  shaderNormal->add("shaders/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
   shaderNormal->add("shaders/normal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
   shaderNormal->add("shaders/normal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
@@ -226,7 +222,7 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
   defaultPushConstants["fragment"] = HeightLevels::getPushConstant();
 
   _pipeline[TerrainRenderMode::FULL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline[TerrainRenderMode::FULL]->createGraphicTerrainGPU(
+  _pipeline[TerrainRenderMode::FULL]->createGraphicTerrain(
       renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -242,7 +238,7 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
       defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
 
   _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineNormal->createGraphicTerrainGPU(
+  _pipelineNormal->createGraphicTerrain(
       renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
@@ -255,7 +251,7 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
       defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
 
   _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineWireframe->createGraphicTerrainGPU(
+  _pipelineWireframe->createGraphicTerrain(
       renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -272,9 +268,9 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
 
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();
@@ -292,10 +288,10 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/terrainDepthGPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/terrainDepthGPU_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("shaders/terrainDepthGPU_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-    shader->add("shaders/terrainDepthGPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrainDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();
@@ -315,27 +311,33 @@ TerrainGPU::TerrainGPU(std::array<std::string, 4> tiles,
   }
 }
 
-void TerrainGPU::showLoD(bool enable) { _showLoD = enable; }
+void Terrain::setModel(glm::mat4 model) { _model = model; }
 
-void TerrainGPU::patchEdge(bool enable) { _enableEdge = enable; }
+void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType pipelineType) {
+void Terrain::showLoD(bool enable) { _showLoD = enable; }
+
+void Terrain::patchEdge(bool enable) { _enableEdge = enable; }
+
+void Terrain::draw(int currentFrame,
+                   std::tuple<int, int> resolution,
+                   std::shared_ptr<CommandBuffer> commandBuffer,
+                   DrawType pipelineType) {
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = std::get<1>(_state->getSettings()->getResolution());
-    viewport.width = std::get<0>(_state->getSettings()->getResolution());
-    viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+    viewport.y = std::get<1>(resolution);
+    viewport.width = std::get<0>(resolution);
+    viewport.height = -std::get<1>(resolution);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                                std::get<1>(_state->getSettings()->getResolution()));
+    scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
@@ -502,11 +504,11 @@ void TerrainGPU::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
   if ((pipelineType & DrawType::NORMAL) == DrawType::NORMAL) drawTerrain(_pipelineNormal);
 }
 
-void TerrainGPU::drawShadow(int currentFrame,
-                            std::shared_ptr<CommandBuffer> commandBuffer,
-                            LightType lightType,
-                            int lightIndex,
-                            int face) {
+void Terrain::drawShadow(int currentFrame,
+                         std::shared_ptr<CommandBuffer> commandBuffer,
+                         LightType lightType,
+                         int lightIndex,
+                         int face) {
   auto pipeline = _pipeline[(TerrainRenderMode)lightType];
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

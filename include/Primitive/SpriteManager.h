@@ -1,9 +1,10 @@
 #pragma once
 
+#include "Drawable.h"
 #include "Sprite.h"
 #include "Mesh.h"
 
-class SpriteManager {
+class SpriteManager : public Drawable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
@@ -45,10 +46,10 @@ class SpriteManager {
   void draw(int currentFrame,
             std::tuple<int, int> resolution,
             std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType drawType = DrawType::FILL);
+            DrawType drawType = DrawType::FILL) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
                   int lightIndex,
-                  int face = 0);
+                  int face = 0) override;
 };

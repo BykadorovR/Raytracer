@@ -94,9 +94,7 @@ std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse, cubemapSpecular
 
 std::shared_ptr<Cube> equiCube, diffuseCube, specularCube;
 
-std::shared_ptr<BS::thread_pool> pool, pool2;
-std::vector<std::shared_ptr<CommandPool>> commandPoolDirectional;
-std::vector<std::vector<std::shared_ptr<CommandPool>>> commandPoolPoint;
+std::shared_ptr<BS::thread_pool> pool;
 
 std::vector<std::shared_ptr<CommandBuffer>> commandBufferDirectional;
 std::vector<std::vector<std::shared_ptr<CommandBuffer>>> commandBufferPoint;
@@ -106,7 +104,6 @@ std::vector<std::vector<std::shared_ptr<LoggerGPU>>> loggerGPUPoint;
 bool terrainWireframe = false;
 bool terrainPatch = false;
 bool showLoD = false;
-bool shouldWork = true;
 std::map<int, bool> layoutChanged;
 std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
@@ -316,7 +313,7 @@ void computeParticles() {
 
   particleSystem->updateTimer(timer->getElapsedCurrent());
 
-  particleSignal = timer->getFrameCounter() + 1;
+  auto particleSignal = timer->getFrameCounter() + 1;
   VkTimelineSemaphoreSubmitInfo timelineInfo{};
   timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
   timelineInfo.pNext = NULL;
@@ -498,13 +495,13 @@ void debugVisualizations(int swapchainImageIndex) {
     std::map<std::string, bool*> terrainGUI;
     terrainGUI["Patches"] = &terrainPatch;
     if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-      std::dynamic_pointer_cast<TerrainGPU>(terrain)->patchEdge(terrainPatch);
+      std::dynamic_pointer_cast<Terrain>(terrain)->patchEdge(terrainPatch);
   }
   {
     std::map<std::string, bool*> terrainGUI;
     terrainGUI["LoD"] = &showLoD;
     if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-      std::dynamic_pointer_cast<TerrainGPU>(terrain)->showLoD(showLoD);
+      std::dynamic_pointer_cast<Terrain>(terrain)->showLoD(showLoD);
   }
   gui->updateBuffers(currentFrame);
   gui->drawFrame(currentFrame, commandBufferGUI);
@@ -652,7 +649,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
-  modelManager->draw(currentFrame, commandBufferRender, settings->getDrawType());
+  modelManager->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   // submit model3D update
@@ -665,20 +662,20 @@ void renderGraphic() {
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
   // for terrain we have to draw both: fill and normal/wireframe
-  terrain->draw(currentFrame, commandBufferRender, settings->getDrawType());
+  terrain->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
   for (auto sphere : spheres) {
-    sphere->draw(currentFrame, commandBufferRender);
+    sphere->draw(currentFrame, settings->getResolution(), commandBufferRender);
   }
   loggerGPU->end();
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
-  cube->draw(currentFrame, commandBufferRender);
-  equiCube->draw(currentFrame, commandBufferRender);
-  diffuseCube->draw(currentFrame, commandBufferRender);
-  specularCube->draw(currentFrame, commandBufferRender);
+  cube->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  equiCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  diffuseCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  specularCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -805,7 +802,7 @@ void initialize() {
     }
   }
 
-  gui = std::make_shared<GUI>(window, state);
+  gui = std::make_shared<GUI>(state);
   gui->initialize(commandBufferTransfer);
 
   // for postprocessing descriptors GENERAL is needed
@@ -992,26 +989,23 @@ void initialize() {
 
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
-    commandPoolDirectional.push_back(commandPool);
     commandBufferDirectional.push_back(
         std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
     loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(state));
   }
 
-  commandPoolPoint.resize(lightManager->getPointLights().size());
   commandBufferPoint.resize(lightManager->getPointLights().size());
   loggerGPUPoint.resize(lightManager->getPointLights().size());
   for (int i = 0; i < lightManager->getPointLights().size(); i++) {
     for (int j = 0; j < 6; j++) {
       auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
-      commandPoolPoint[i].push_back(commandPool);
       commandBufferPoint[i].push_back(
           std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
       loggerGPUPoint[i].push_back(std::make_shared<LoggerGPU>(state));
     }
   }
 
-  terrain = std::make_shared<TerrainGPU>(
+  terrain = std::make_shared<Terrain>(
       std::array<std::string, 4>{"../assets/Terrain/dirt.jpg", "../assets/Terrain/grass.jpg",
                                  "../assets/Terrain/rock_gray.png", "../assets/Terrain/snow.png"},
       "../assets/Terrain/heightmap.png", std::pair{12, 12},
@@ -1042,7 +1036,7 @@ void initialize() {
   // non HDR
   spheres[0] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   spheres[0]->setCamera(camera);
   {
@@ -1051,7 +1045,7 @@ void initialize() {
   }
   spheres[1] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   spheres[1]->setCamera(camera);
   {
@@ -1060,7 +1054,7 @@ void initialize() {
   }
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   spheres[2]->setCamera(camera);
   {
@@ -1070,7 +1064,7 @@ void initialize() {
   // HDR
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   spheres[3]->setCamera(camera);
   {
@@ -1079,7 +1073,7 @@ void initialize() {
   }
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   spheres[4]->setCamera(camera);
   {
@@ -1088,7 +1082,7 @@ void initialize() {
   }
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+      commandBufferTransfer, state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   spheres[5]->setCamera(camera);
   {
@@ -1129,9 +1123,9 @@ void initialize() {
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+                                VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, commandBufferTransfer, state);
+                                    VK_CULL_MODE_NONE, commandBufferTransfer, state);
   auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColor->setBaseColor(cubemap->getTexture());
   cube->setMaterial(materialColor);
@@ -1142,8 +1136,8 @@ void initialize() {
     cube->setModel(model);
   }
 
-  cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-                                    VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+  cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE, lightManager,
+                                    commandBufferTransfer, state);
   auto cameraTemp = std::make_shared<CameraFly>(settings);
   cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
@@ -1155,8 +1149,7 @@ void initialize() {
   }
 
   equiCube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer,
-                                    state);
+                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, state);
   equiCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
@@ -1165,7 +1158,7 @@ void initialize() {
 
   diffuseCube = std::make_shared<Cube>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   diffuseCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
@@ -1174,7 +1167,7 @@ void initialize() {
 
   specularCube = std::make_shared<Cube>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      VK_POLYGON_MODE_FILL, lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   specularCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
@@ -1613,6 +1606,7 @@ void drawFrame(int imageIndex) {
   VkSemaphore signalSemaphores[] = {semaphorePostprocessing[currentFrame]->getSemaphore()};
   std::vector<VkSemaphore> waitSemaphores = {particleSystemSemaphore[currentFrame]->getSemaphore()};
   VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
+  auto particleSignal = timer->getFrameCounter() + 1;
   std::vector<uint64_t> waitSemaphoreValues = {particleSignal};
 
   VkTimelineSemaphoreSubmitInfo waitParticlesSemaphore{};
@@ -1712,7 +1706,6 @@ void mainLoop() {
     timerFPSLimited->tock();
   }
   vkDeviceWaitIdle(device->getLogicalDevice());
-  shouldWork = false;
 }
 
 int main() {

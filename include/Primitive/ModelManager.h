@@ -1,8 +1,9 @@
 #pragma once
+#include "Drawable.h"
 #include "Model.h"
 #include "Mesh.h"
 
-class Model3DManager {
+class Model3DManager : public Drawable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
@@ -36,10 +37,13 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType = DrawType::FILL);
+  void draw(int currentFrame,
+            std::tuple<int, int> resolution,
+            std::shared_ptr<CommandBuffer> commandBuffer,
+            DrawType drawType = DrawType::FILL) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
                   int lightIndex,
-                  int face = 0);
+                  int face = 0) override;
 };

@@ -230,20 +230,22 @@ void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 // todo: choose appropriate pipeline using material from sprite
-void Model3DManager::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType) {
+void Model3DManager::draw(int currentFrame,
+                          std::tuple<int, int> resolution,
+                          std::shared_ptr<CommandBuffer> commandBuffer,
+                          DrawType drawType) {
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto drawModel = [&](MaterialType materialType, DrawType drawType) {

@@ -471,7 +471,7 @@ void Pipeline::createGraphicTerrainShadowGPU(
   }
 }
 
-void Pipeline::createGraphicTerrainGPU(
+void Pipeline::createGraphicTerrain(
     std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,

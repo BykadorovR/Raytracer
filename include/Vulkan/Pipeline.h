@@ -67,7 +67,7 @@ class Pipeline {
                     VkVertexInputBindingDescription bindingDescription,
                     std::vector<VkVertexInputAttributeDescription> attributeDescriptions);
 
-  void createGraphicTerrainGPU(
+  void createGraphicTerrain(
       std::vector<VkFormat> renderFormat,
       VkCullModeFlags cullMode,
       VkPolygonMode polygonMode,

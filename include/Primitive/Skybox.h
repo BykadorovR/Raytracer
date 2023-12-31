@@ -22,7 +22,6 @@ class Skybox {
  public:
   Skybox(std::vector<VkFormat> renderFormat,
          VkCullModeFlags cullMode,
-         VkPolygonMode polygonMode,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);

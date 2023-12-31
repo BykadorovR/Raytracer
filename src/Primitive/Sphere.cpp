@@ -4,7 +4,6 @@
 
 Sphere::Sphere(std::vector<VkFormat> renderFormat,
                VkCullModeFlags cullMode,
-               VkPolygonMode polygonMode,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<State> state) {
   _state = state;
@@ -91,11 +90,17 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
   shader->add("shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createGraphic3D(renderFormat, cullMode, polygonMode,
+  _pipeline->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                              {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
                              _mesh->getAttributeDescriptions());
+  _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipelineWireframe->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_LINE,
+                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                      {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
+                                      _mesh->getAttributeDescriptions());
 }
 
 void Sphere::setModel(glm::mat4 model) { _model = model; }
@@ -104,22 +109,26 @@ void Sphere::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 std::shared_ptr<Mesh3D> Sphere::getMesh() { return _mesh; }
 
-void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Sphere::draw(int currentFrame,
+                  std::tuple<int, int> resolution,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  DrawType drawType) {
+  auto pipeline = _pipeline;
+  if (drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+                    pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   BufferMVP cameraUBO{};
@@ -140,17 +149,23 @@ void Sphere::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
   vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
                        0, VK_INDEX_TYPE_UINT32);
 
-  auto pipelineLayout = _pipeline->getDescriptorSetLayout();
+  auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1,
+                            pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
+
+void Sphere::drawShadow(int currentFrame,
+                        std::shared_ptr<CommandBuffer> commandBuffer,
+                        LightType lightType,
+                        int lightIndex,
+                        int face) {}

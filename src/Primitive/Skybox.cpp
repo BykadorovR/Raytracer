@@ -2,7 +2,6 @@
 
 Skybox::Skybox(std::vector<VkFormat> renderFormat,
                VkCullModeFlags cullMode,
-               VkPolygonMode polygonMode,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<State> state) {
   _state = state;
@@ -46,7 +45,7 @@ Skybox::Skybox(std::vector<VkFormat> renderFormat,
   shader->add("shaders/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createSkybox(renderFormat, cullMode, polygonMode,
+  _pipeline->createSkybox(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                           {std::pair{std::string("camera"), setLayout},

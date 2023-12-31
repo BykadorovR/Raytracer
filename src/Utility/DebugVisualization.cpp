@@ -94,7 +94,7 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
     _pointLightModels.push_back(model);
 
     auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, _commandBufferTransfer, _state);
+                                           VK_CULL_MODE_NONE, _commandBufferTransfer, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }
@@ -414,7 +414,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
             int distance = _lightManager->getPointLights()[i]->getDistance();
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
-            _spheres[i]->draw(currentFrame, commandBuffer);
+            _spheres[i]->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer, DrawType::WIREFRAME);
           }
         }
       }
@@ -454,7 +454,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   }
 
   _modelManager->setCamera(_camera);
-  _modelManager->draw(currentFrame, commandBuffer);
+  _modelManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
 
   _spriteManager->setCamera(_camera);
   _spriteManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);

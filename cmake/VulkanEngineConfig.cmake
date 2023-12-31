@@ -34,6 +34,7 @@ set(VulkanEngine_INCLUDE_DIRS ${VulkanEngine_INSTALL_PREFIX}/include/Engine
                               ${VulkanEngine_INSTALL_PREFIX}/include/Graphic
                               ${VulkanEngine_INSTALL_PREFIX}/include/Primitive
                               ${VulkanEngine_INSTALL_PREFIX}/include/Utility
+                              ${VulkanEngine_INSTALL_PREFIX}/include/Vulkan
                               ${VulkanEngine_INSTALL_PREFIX}/build/include/
                               ${Vulkan_INCLUDE_DIRS})
 # VulkanEngine library only
