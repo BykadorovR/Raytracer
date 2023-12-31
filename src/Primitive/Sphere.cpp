@@ -163,9 +163,3 @@ void Sphere::draw(int currentFrame,
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
-
-void Sphere::drawShadow(int currentFrame,
-                        std::shared_ptr<CommandBuffer> commandBuffer,
-                        LightType lightType,
-                        int lightIndex,
-                        int face) {}

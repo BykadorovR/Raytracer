@@ -7,7 +7,7 @@
 #include "Mesh.h"
 #include "LightManager.h"
 
-class Cube : public Drawable {
+class Cube : public IDrawable, IShadowable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;

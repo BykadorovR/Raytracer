@@ -228,7 +228,7 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_frustumDraw) {
     for (auto& line : _lineFrustum) {
-      line->draw(currentFrame, commandBuffer);
+      line->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
     }
   }
 }

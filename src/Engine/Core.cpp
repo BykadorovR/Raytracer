@@ -171,10 +171,10 @@ void Core::_directionalLightCalculator(int index) {
 
   // draw scene here
   auto globalFrame = _timer->getFrameCounter();
-  for (auto drawable : _drawables) {
-    std::string drawableName = typeid(drawable).name();
+  for (auto shadowable : _shadowables) {
+    std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame), _currentFrame);
-    drawable->drawShadow(_currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+    shadowable->drawShadow(_currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[_currentFrame]);
@@ -262,10 +262,10 @@ void Core::_pointLightCalculator(int index, int face) {
                  std::get<1>(_state->getSettings()->getResolution());
 
   // draw scene here
-  for (auto drawable : _drawables) {
-    std::string drawableName = typeid(drawable).name();
+  for (auto shadowable : _shadowables) {
+    std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame), _currentFrame);
-    drawable->drawShadow(_currentFrame, commandBuffer, LightType::POINT, index);
+    shadowable->drawShadow(_currentFrame, commandBuffer, LightType::POINT, index);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[_currentFrame]);
@@ -786,7 +786,9 @@ std::shared_ptr<LightManager> Core::getLightManager() { return _lightManager; }
 
 std::shared_ptr<State> Core::getState() { return _state; }
 
-void Core::addDrawable(std::shared_ptr<Drawable> drawable) { _drawables.push_back(drawable); }
+void Core::addDrawable(std::shared_ptr<IDrawable> drawable) { _drawables.push_back(drawable); }
+
+void Core::addShadowable(std::shared_ptr<IShadowable> shadowable) { _shadowables.push_back(shadowable); }
 
 void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);

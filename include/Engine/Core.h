@@ -47,7 +47,8 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
-  std::vector<std::shared_ptr<Drawable>> _drawables;
+  std::vector<std::shared_ptr<IDrawable>> _drawables;
+  std::vector<std::shared_ptr<IShadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
 
@@ -71,7 +72,8 @@ class Core {
 
  public:
   Core(std::shared_ptr<Settings> settings);
-  void addDrawable(std::shared_ptr<Drawable> drawable);
+  void addDrawable(std::shared_ptr<IDrawable> drawable);
+  void addShadowable(std::shared_ptr<IShadowable> shadowable);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();

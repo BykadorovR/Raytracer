@@ -3,7 +3,7 @@
 #include "Model.h"
 #include "Mesh.h"
 
-class Model3DManager : public Drawable {
+class Model3DManager : public IDrawable, IShadowable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>

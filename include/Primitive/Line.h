@@ -26,5 +26,8 @@ class Line {
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
 
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(int currentFrame,
+            std::tuple<int, int> resolution,
+            std::shared_ptr<CommandBuffer> commandBuffer,
+            DrawType drawType = DrawType::FILL);
 };

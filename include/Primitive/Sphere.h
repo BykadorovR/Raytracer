@@ -6,7 +6,7 @@
 #include "Pipeline.h"
 #include "Drawable.h"
 
-class Sphere : public Drawable {
+class Sphere : public IDrawable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
@@ -29,9 +29,4 @@ class Sphere : public Drawable {
             std::tuple<int, int> resolution,
             std::shared_ptr<CommandBuffer> commandBuffer,
             DrawType drawType = DrawType::FILL) override;
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
 };

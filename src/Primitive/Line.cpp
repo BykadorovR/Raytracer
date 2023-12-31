@@ -33,22 +33,24 @@ void Line::setModel(glm::mat4 model) { _model = model; }
 
 void Line::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
-void Line::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Line::draw(int currentFrame,
+                std::tuple<int, int> resolution,
+                std::shared_ptr<CommandBuffer> commandBuffer,
+                DrawType drawType) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   BufferMVP cameraUBO{};

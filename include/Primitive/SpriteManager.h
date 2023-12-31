@@ -4,7 +4,7 @@
 #include "Sprite.h"
 #include "Mesh.h"
 
-class SpriteManager : public Drawable {
+class SpriteManager : public IDrawable, IShadowable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>

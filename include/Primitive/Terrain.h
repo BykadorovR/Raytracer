@@ -8,7 +8,7 @@
 
 enum class TerrainRenderMode { DIRECTIONAL, POINT, FULL };
 
-class Terrain : public Drawable {
+class Terrain : public IDrawable, IShadowable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
