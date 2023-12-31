@@ -1,15 +1,9 @@
 #include <iostream>
 #include <chrono>
 #include <future>
-#include <windows.h>
-#undef near
-#undef far
-#include "Core.h"
+#include "Main.h"
 
-std::shared_ptr<Core> core;
-std::shared_ptr<CameraFly> camera;
-
-void initialize() {
+Main::Main() {
   auto settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
   settings->setResolution(std::tuple{1600, 900});
@@ -26,12 +20,12 @@ void initialize() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
-  core = std::make_shared<Core>(settings);
+  _core = std::make_shared<Core>(settings);
 
-  auto lightManager = core->getLightManager();
-  auto commandBufferTransfer = core->getCommandBufferTransfer();
+  auto lightManager = _core->getLightManager();
+  auto commandBufferTransfer = _core->getCommandBufferTransfer();
   commandBufferTransfer->beginCommands(0);
-  auto state = core->getState();
+  auto state = _core->getState();
 
   auto cubemap = std::make_shared<Cubemap>(
       std::vector<std::string>{"../assets/right.jpg", "../assets/left.jpg", "../assets/top.jpg", "../assets/bottom.jpg",
@@ -43,27 +37,29 @@ void initialize() {
 
   auto cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, state);
-  camera = std::make_shared<CameraFly>(settings);
-  camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
-  cube->setCamera(camera);
+  _camera = std::make_shared<CameraFly>(settings);
+  _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  cube->setCamera(_camera);
   cube->setMaterial(materialColor);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
     cube->setModel(model);
   }
-  core->addDrawable(cube);
+  _core->addDrawable(cube);
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
 }
+
+void Main::start() { _core->draw(); }
 
 int main() {
 #ifdef WIN32
   SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
 #endif
   try {
-    initialize();
-    core->draw();
+    auto main = std::make_shared<Main>();
+    main->start();
   } catch (const std::exception& e) {
     std::cerr << e.what() << std::endl;
     return EXIT_FAILURE;
