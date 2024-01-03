@@ -33,6 +33,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
                                 5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
+  _mesh->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
   _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   _material = _defaultMaterialColor;
 

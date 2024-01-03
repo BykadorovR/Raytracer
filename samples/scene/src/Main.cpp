@@ -192,6 +192,11 @@ void directionalLightCalculator(int index) {
   loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame), currentFrame);
   cube->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
+  loggerGPU->begin("Sphere to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  for (auto& sphere : spheres) {
+    sphere->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  }
+  loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
 
@@ -284,6 +289,11 @@ void pointLightCalculator(int index, int face) {
   loggerGPU->end();
   loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame), currentFrame);
   cube->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  loggerGPU->end();
+  loggerGPU->begin("Sphere to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  for (auto& sphere : spheres) {
+    sphere->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  }
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
   loggerGPU->end();
@@ -1036,57 +1046,57 @@ void initialize() {
   // non HDR
   spheres[0] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   spheres[0]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
     spheres[0]->setModel(model);
   }
   spheres[1] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   spheres[1]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -5.f, 0.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
     spheres[1]->setModel(model);
   }
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   spheres[2]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -5.f, 0.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
     spheres[2]->setModel(model);
   }
   // HDR
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   spheres[3]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 2.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
     spheres[3]->setModel(model);
   }
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   spheres[4]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, -2.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
     spheres[4]->setModel(model);
   }
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   spheres[5]->setCamera(camera);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -5.f, 0.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
     spheres[5]->setModel(model);
   }
 
