@@ -16,7 +16,7 @@ class Material {
   bool _doubleSided = false;
 
   std::shared_ptr<Texture> _stubTextureZero, _stubTextureOne;
-  std::shared_ptr<Cubemap> _stubCubemapZero;
+  std::shared_ptr<Cubemap> _stubCubemapZero, _stubCubemapOne;
 
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCoefficients, _descriptorSetLayoutTextures;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutAlphaCutoff;
@@ -69,8 +69,8 @@ class MaterialPBR : public Material {
 
   Coefficients _coefficients;
 
-  void _updateTextureDescriptors(int currentFrame);
-  void _updateCoefficientDescriptors(int currentFrame);
+  void _updateTextureDescriptors(int currentFrame) override;
+  void _updateCoefficientDescriptors(int currentFrame) override;
 
  public:
   MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
@@ -100,8 +100,8 @@ class MaterialPhong : public Material {
 
   Coefficients _coefficients;
 
-  void _updateTextureDescriptors(int currentFrame);
-  void _updateCoefficientDescriptors(int currentFrame);
+  void _updateTextureDescriptors(int currentFrame) override;
+  void _updateCoefficientDescriptors(int currentFrame) override;
 
  public:
   MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
@@ -115,8 +115,8 @@ class MaterialPhong : public Material {
 class MaterialColor : public Material {
  private:
   std::shared_ptr<Texture> _textureColor;
-  void _updateTextureDescriptors(int currentFrame);
-  void _updateCoefficientDescriptors(int currentFrame);
+  void _updateTextureDescriptors(int currentFrame) override;
+  void _updateCoefficientDescriptors(int currentFrame) override;
 
  public:
   MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);

@@ -6,28 +6,12 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "LightManager.h"
+#include "Shape3D.h"
 
 class Cube : public IDrawable, IShadowable {
  private:
-  std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
-  std::vector<std::shared_ptr<UniformBuffer>> _uniformBuffer;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
-  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe, _pipelineEquirectangular, _pipelineDiffuse,
-      _pipelineSpecular, _pipelineDirectional, _pipelinePoint;
-  std::shared_ptr<Camera> _camera;
-  std::shared_ptr<Material> _material;
-  std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  MaterialType _materialType = MaterialType::COLOR;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
-  std::shared_ptr<LightManager> _lightManager;
-  glm::mat4 _model = glm::mat4(1.f);
-
-  void _draw(int currentFrame,
-             std::shared_ptr<Pipeline> pipeline,
-             std::shared_ptr<CommandBuffer> commandBuffer,
-             int face = 0);
+  std::shared_ptr<Shape3D> _shape3D;
 
  public:
   Cube(std::vector<VkFormat> renderFormat,
@@ -44,9 +28,6 @@ class Cube : public IDrawable, IShadowable {
             std::tuple<int, int> resolution,
             std::shared_ptr<CommandBuffer> commandBuffer,
             DrawType drawType = DrawType::FILL) override;
-  void drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face);
-  void drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face);
-  void drawSpecular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face, int mipMap);
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

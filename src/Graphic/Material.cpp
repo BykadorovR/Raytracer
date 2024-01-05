@@ -34,6 +34,14 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
       state);
 
+  _stubCubemapOne = std::make_shared<Cubemap>(
+      std::vector<std::string>{"assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
+                               "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
+                               "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png"},
+      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
+      state);
+
   _descriptorSetCoefficients = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutCoefficients,
                                                                state->getDescriptorPool(), state->getDevice());

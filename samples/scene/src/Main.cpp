@@ -40,6 +40,7 @@
 #include "Cubemap.h"
 #include "Equirectangular.h"
 #include "Timer.h"
+#include "IBL.h"
 
 std::shared_ptr<Timer> timer = std::make_shared<Timer>();
 std::shared_ptr<TimerFPS> timerFPSReal = std::make_shared<TimerFPS>();
@@ -115,6 +116,7 @@ std::shared_ptr<Cube> cube;
 std::shared_ptr<Skybox> skybox;
 
 std::shared_ptr<Cube> cubeTemp;
+std::shared_ptr<IBL> ibl;
 std::shared_ptr<Equirectangular> equirectangular;
 std::shared_ptr<MaterialColor> materialColorDiffuse;
 
@@ -1146,16 +1148,16 @@ void initialize() {
     cube->setModel(model);
   }
 
-  cubeTemp = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE, lightManager,
-                                    commandBufferTransfer, state);
+  ibl = std::make_shared<IBL>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE, lightManager,
+                              commandBufferTransfer, state);
   auto cameraTemp = std::make_shared<CameraFly>(settings);
   cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
   cameraTemp->setAspect(1.f);
-  cubeTemp->setCamera(cameraTemp);
+  ibl->setCamera(cameraTemp);
   {
     auto model = glm::translate(glm::mat4(1.f), cameraTemp->getEye());
-    cubeTemp->setModel(model);
+    ibl->setModel(model);
   }
 
   equiCube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -1190,7 +1192,7 @@ void initialize() {
   materialEq->setBaseColor(equirectangular->getTexture());
   auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorEq->setBaseColor(equirectangular->getTexture());
-  cubeTemp->setMaterial(materialColorEq);
+  ibl->setMaterial(materialColorEq);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
   debugVisualization->setPostprocessing(postprocessing);
@@ -1262,7 +1264,7 @@ void initialize() {
           break;
       }
 
-      cubeTemp->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
+      ibl->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
       loggerGPU->end();
 
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1276,7 +1278,7 @@ void initialize() {
   auto materialColorDiffuse = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   auto materialColorSpecular = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
-  cubeTemp->setMaterial(materialColorCM);
+  ibl->setMaterial(materialColorCM);
   equiCube->setMaterial(materialColorCM);
   skybox->setMaterial(materialColorCM);
   commandBufferTransfer->endCommands();
@@ -1345,7 +1347,7 @@ void initialize() {
           break;
       }
 
-      cubeTemp->drawDiffuse(currentFrame, commandBufferEquirectangular, i);
+      ibl->drawDiffuse(currentFrame, commandBufferEquirectangular, i);
       loggerGPU->end();
 
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1423,7 +1425,7 @@ void initialize() {
             break;
         }
 
-        cubeTemp->drawSpecular(currentFrame, commandBufferEquirectangular, i, j);
+        ibl->drawSpecular(currentFrame, commandBufferEquirectangular, i, j);
         loggerGPU->end();
 
         vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);

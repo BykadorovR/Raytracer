@@ -17,8 +17,8 @@ Line::Line(int thick,
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("shaders/sphere_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/sphere_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createLine(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, thick,
                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
