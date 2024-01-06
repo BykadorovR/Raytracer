@@ -15,9 +15,6 @@ class Material {
   AlphaCutoff _alphaCutoff;
   bool _doubleSided = false;
 
-  std::shared_ptr<Texture> _stubTextureZero, _stubTextureOne;
-  std::shared_ptr<Cubemap> _stubCubemapZero, _stubCubemapOne;
-
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutCoefficients, _descriptorSetLayoutTextures;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutAlphaCutoff;
   std::shared_ptr<DescriptorSet> _descriptorSetCoefficients, _descriptorSetTextures;

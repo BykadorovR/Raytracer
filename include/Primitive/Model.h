@@ -11,6 +11,7 @@
 #include "Loader.h"
 #include "Animation.h"
 #include "Material.h"
+#include "ResourceManager.h"
 
 class Model3D {
  private:
@@ -58,6 +59,7 @@ class Model3D {
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
+          std::shared_ptr<ResourceManager> resourceManager,
           std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);

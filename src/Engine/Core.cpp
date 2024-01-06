@@ -35,6 +35,8 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _loggerGPUDebug = std::make_shared<LoggerGPU>(_state);
   _loggerCPU = std::make_shared<LoggerCPU>();
 
+  _resourceManager = std::make_shared<ResourceManager>(_commandBufferTransfer, _state);
+
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
     _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
@@ -781,6 +783,8 @@ void Core::draw() {
 }
 
 std::shared_ptr<CommandBuffer> Core::getCommandBufferTransfer() { return _commandBufferTransfer; }
+
+std::shared_ptr<ResourceManager> Core::getResourceManager() { return _resourceManager; }
 
 std::shared_ptr<LightManager> Core::getLightManager() { return _lightManager; }
 

@@ -4,8 +4,10 @@
 Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                std::shared_ptr<LightManager> lightManager,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                               std::shared_ptr<ResourceManager> resourceManager,
                                std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
+  _resourceManager = resourceManager;
   _lightManager = lightManager;
   _state = state;
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
@@ -215,7 +217,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
 
 std::shared_ptr<Model3D> Model3DManager::createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                        const std::vector<std::shared_ptr<Mesh3D>>& meshes) {
-  auto model = std::make_shared<Model3D>(nodes, meshes, _commandBufferTransfer, _state);
+  auto model = std::make_shared<Model3D>(nodes, meshes, _commandBufferTransfer, _resourceManager, _state);
   model->setAnimation(_defaultAnimation);
   return model;
 }

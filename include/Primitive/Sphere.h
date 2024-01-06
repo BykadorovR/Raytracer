@@ -7,17 +7,20 @@
 #include "Drawable.h"
 #include "Material.h"
 #include "Shape3D.h"
+#include "ResourceManager.h"
 
 class Sphere : public IDrawable, IShadowable {
  private:
   std::shared_ptr<Mesh3D> _mesh;
   std::shared_ptr<Shape3D> _shape3D;
+  std::shared_ptr<MaterialColor> _defaultMaterial;
 
  public:
   Sphere(std::vector<VkFormat> renderFormat,
          VkCullModeFlags cullMode,
          std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);

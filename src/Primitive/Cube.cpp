@@ -4,6 +4,7 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
            VkCullModeFlags cullMode,
            std::shared_ptr<LightManager> lightManager,
            std::shared_ptr<CommandBuffer> commandBufferTransfer,
+           std::shared_ptr<ResourceManager> resourceManager,
            std::shared_ptr<State> state) {
   _mesh = std::make_shared<Mesh3D>(state);
   std::vector<Vertex3D> vertices(8);
@@ -34,6 +35,9 @@ Cube::Cube(std::vector<VkFormat> renderFormat,
 
   _shape3D = std::make_shared<Shape3D>(ShapeType::CUBE, _mesh, renderFormat, cullMode, lightManager,
                                        commandBufferTransfer, state);
+  _defaultMaterial = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterial->setBaseColor(resourceManager->getCubemapOne()->getTexture());
+  _shape3D->setMaterial(_defaultMaterial);
 }
 
 void Cube::setMaterial(std::shared_ptr<MaterialColor> material) { _shape3D->setMaterial(material); }

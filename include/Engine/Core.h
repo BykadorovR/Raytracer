@@ -15,10 +15,12 @@
 #include "Blur.h"
 #include "Skybox.h"
 #include "BS_thread_pool.hpp"
+#include "ResourceManager.h"
 
 class Core {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
       _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferTransfer, _commandBufferEquirectangular,
@@ -78,6 +80,7 @@ class Core {
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
   std::shared_ptr<LightManager> getLightManager();
+  std::shared_ptr<ResourceManager> getResourceManager();
   std::shared_ptr<State> getState();
   void draw();
 };

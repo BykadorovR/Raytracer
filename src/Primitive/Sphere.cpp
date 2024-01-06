@@ -6,6 +6,7 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
                VkCullModeFlags cullMode,
                std::shared_ptr<LightManager> lightManager,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
   _mesh = std::make_shared<Mesh3D>(state);
 
@@ -81,6 +82,9 @@ Sphere::Sphere(std::vector<VkFormat> renderFormat,
 
   _shape3D = std::make_shared<Shape3D>(ShapeType::SPHERE, _mesh, renderFormat, cullMode, lightManager,
                                        commandBufferTransfer, state);
+  _defaultMaterial = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterial->setBaseColor(resourceManager->getTextureOne());
+  _shape3D->setMaterial(_defaultMaterial);
 }
 
 void Sphere::setMaterial(std::shared_ptr<MaterialColor> material) { _shape3D->setMaterial(material); }

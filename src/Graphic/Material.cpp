@@ -20,28 +20,6 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
 
   _descriptorSetLayoutTextures = std::make_shared<DescriptorSetLayout>(state->getDevice());
 
-  _stubTextureOne = std::make_shared<Texture>("assets/stubs/Texture1x1.png",
-                                              _state->getSettings()->getLoadTextureColorFormat(),
-                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
-  _stubTextureZero = std::make_shared<Texture>("assets/stubs/Texture1x1Black.png",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
-  _stubCubemapZero = std::make_shared<Cubemap>(
-      std::vector<std::string>{"assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
-                               "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
-                               "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png"},
-      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
-      state);
-
-  _stubCubemapOne = std::make_shared<Cubemap>(
-      std::vector<std::string>{"assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
-                               "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
-                               "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png"},
-      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
-      state);
-
   _descriptorSetCoefficients = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutCoefficients,
                                                                state->getDescriptorPool(), state->getDevice());
@@ -190,19 +168,8 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
                                                                sizeof(Coefficients), state->getDevice());
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
 
-  // initialize with empty/default data
-  _textureColor = _stubTextureOne;
-  _textureNormal = _stubTextureZero;
-  _textureMetallicRoughness = _stubTextureZero;
-  _textureEmissive = _stubTextureZero;
-  _textureOccluded = _stubTextureZero;
-  _textureDiffuseIBL = _stubCubemapZero->getTexture();
-  _textureSpecularIBL = _stubCubemapZero->getTexture();
-  _textureSpecularBRDF = _stubTextureZero;
-
-  // update layouts
+  // set default coefficients
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
     _updateCoefficientDescriptors(i);
   }
 }
@@ -295,13 +262,8 @@ MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfe
   _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
                                                                sizeof(Coefficients), state->getDevice());
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
-
-  // initialize with empty/default data
-  _textureColor = _stubTextureOne;
-  _textureNormal = _stubTextureZero;
-  _textureSpecular = _stubTextureZero;
+  // set default coefficients
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
     _updateCoefficientDescriptors(i);
   }
 }
@@ -374,12 +336,6 @@ MaterialColor::MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfe
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                            _descriptorSetLayoutTextures, state->getDescriptorPool(),
                                                            state->getDevice());
-
-  // initialize with empty/default data
-  _textureColor = _stubTextureZero;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
-  }
 }
 
 void MaterialColor::_updateCoefficientDescriptors(int currentFrame) {}

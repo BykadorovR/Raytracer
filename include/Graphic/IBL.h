@@ -6,6 +6,7 @@
 #include "Material.h"
 #include "Mesh.h"
 #include "LightManager.h"
+#include "ResourceManager.h"
 
 class IBL {
  private:
@@ -31,6 +32,7 @@ class IBL {
       VkCullModeFlags cullMode,
       std::shared_ptr<LightManager> lightManager,
       std::shared_ptr<CommandBuffer> commandBufferTransfer,
+      std::shared_ptr<ResourceManager> resourceManager,
       std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);

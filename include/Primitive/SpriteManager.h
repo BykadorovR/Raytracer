@@ -30,11 +30,13 @@ class SpriteManager : public IDrawable, IShadowable {
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh2D> _defaultMesh;
+  std::shared_ptr<ResourceManager> _resourceManager;
 
  public:
   SpriteManager(std::vector<VkFormat> renderFormat,
                 std::shared_ptr<LightManager> lightManager,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                std::shared_ptr<ResourceManager> resourceManager,
                 std::shared_ptr<State> state);
   std::shared_ptr<Sprite> createSprite();
   std::shared_ptr<Sprite> createSprite(

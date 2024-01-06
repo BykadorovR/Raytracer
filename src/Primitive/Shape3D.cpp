@@ -70,19 +70,20 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shapeShaders[_shapeType].first, VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shapeShaders[_shapeType].second, VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-                               {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                               {std::pair{std::string("camera"), setLayout},
-                                std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                               {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+    _pipeline->createGraphic3D(
+        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {std::pair{std::string("camera"), setLayout},
+         std::pair{std::string("texture"), _defaultMaterialColor->getDescriptorSetLayoutTextures()}},
+        {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
     _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe->createGraphic3D(
         renderFormat, cullMode, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {std::pair{std::string("camera"), setLayout},
-         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+         std::pair{std::string("texture"), _defaultMaterialColor->getDescriptorSetLayoutTextures()}},
         {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
   // initialize depth directional

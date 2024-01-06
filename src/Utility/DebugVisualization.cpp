@@ -5,8 +5,10 @@
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
                                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                                       std::shared_ptr<ResourceManager> resourceManager,
                                        std::shared_ptr<State> state) {
   _camera = camera;
+  _resourceManager = resourceManager;
   _gui = gui;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
@@ -72,7 +74,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
   _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _state);
+                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
   _farPlaneCW = _spriteManager->createSprite();
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
@@ -83,7 +85,7 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _farPlaneCCW->enableDepth(false);
 
   _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _state);
+                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
 
   for (auto light : lightManager->getPointLights()) {
     auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
@@ -94,7 +96,8 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
     _pointLightModels.push_back(model);
 
     auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                           VK_CULL_MODE_NONE, lightManager, _commandBufferTransfer, _state);
+                                           VK_CULL_MODE_NONE, lightManager, _commandBufferTransfer, _resourceManager,
+                                           _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }

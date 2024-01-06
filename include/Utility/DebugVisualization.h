@@ -31,6 +31,7 @@ class DebugVisualization : public InputSubscriber {
   std::vector<std::shared_ptr<Model3D>> _pointLightModels, _directionalLightModels;
   std::vector<std::shared_ptr<Sphere>> _spheres;
   std::shared_ptr<LightManager> _lightManager = nullptr;
+  std::shared_ptr<ResourceManager> _resourceManager;
   bool _showLights = true;
   bool _registerLights = false;
   std::shared_ptr<Camera> _camera;
@@ -75,6 +76,7 @@ class DebugVisualization : public InputSubscriber {
   DebugVisualization(std::shared_ptr<Camera> camera,
                      std::shared_ptr<GUI> gui,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                     std::shared_ptr<ResourceManager> resourceManager,
                      std::shared_ptr<State> state);
   void setLights(std::shared_ptr<LightManager> lightManager);
   void setPostprocessing(std::shared_ptr<Postprocessing> postprocessing);

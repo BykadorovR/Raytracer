@@ -4,6 +4,7 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
          VkCullModeFlags cullMode,
          std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state) {
   _state = state;
   _mesh = std::make_shared<Mesh3D>(state);
@@ -35,6 +36,7 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
   _mesh->setIndexes(indices, commandBufferTransfer);
   _mesh->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
   _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterialColor->setBaseColor(resourceManager->getCubemapOne()->getTexture());
   _material = _defaultMaterialColor;
 
   // initialize camera UBO and descriptor sets for draw

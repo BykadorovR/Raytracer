@@ -4,8 +4,10 @@
 SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
                              std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                             std::shared_ptr<ResourceManager> resourceManager,
                              std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
+  _resourceManager = resourceManager;
   _state = state;
   _renderFormat = renderFormat;
   _lightManager = lightManager;
@@ -183,7 +185,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
 
 std::shared_ptr<Sprite> SpriteManager::createSprite() {
   _spritesCreated++;
-  auto sprite = std::make_shared<Sprite>(_defaultMesh, _commandBufferTransfer, _state);
+  auto sprite = std::make_shared<Sprite>(_defaultMesh, _commandBufferTransfer, _resourceManager, _state);
   return sprite;
 }
 

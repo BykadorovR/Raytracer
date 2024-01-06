@@ -3,6 +3,7 @@
 Skybox::Skybox(std::vector<VkFormat> renderFormat,
                VkCullModeFlags cullMode,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
   _state = state;
   _mesh = std::make_shared<Mesh3D>(state);
@@ -31,6 +32,7 @@ Skybox::Skybox(std::vector<VkFormat> renderFormat,
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
   _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
   _material = _defaultMaterialColor;
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),

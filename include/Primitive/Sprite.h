@@ -10,6 +10,7 @@
 #include "Light.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "ResourceManager.h"
 
 class Sprite {
  private:
@@ -33,6 +34,7 @@ class Sprite {
  public:
   Sprite(std::shared_ptr<Mesh2D> mesh,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);

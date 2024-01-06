@@ -80,6 +80,7 @@ std::shared_ptr<Swapchain> swapchain;
 std::shared_ptr<CameraFly> camera;
 std::shared_ptr<CameraOrtho> cameraOrtho;
 std::shared_ptr<LightManager> lightManager;
+std::shared_ptr<ResourceManager> resourceManager;
 std::shared_ptr<PointLight> pointLightHorizontal, pointLightVertical, pointLightHorizontal2, pointLightVertical2;
 std::shared_ptr<DirectionalLight> directionalLight, directionalLight2;
 std::shared_ptr<AmbientLight> ambientLight;
@@ -836,6 +837,7 @@ void initialize() {
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
   lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
+  resourceManager = std::make_shared<ResourceManager>(commandBufferTransfer, state);
   pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
@@ -870,13 +872,13 @@ void initialize() {
 
   spriteManager = std::make_shared<SpriteManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, state);
+      commandBufferTransfer, resourceManager, state);
   spriteManagerHUD = std::make_shared<SpriteManager>(std::vector{settings->getGraphicColorFormat()}, lightManager,
-                                                     commandBufferTransfer, state);
+                                                     commandBufferTransfer, resourceManager, state);
   modelManager = std::make_shared<Model3DManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, state);
-  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, state);
+      commandBufferTransfer, resourceManager, state);
+  debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, resourceManager, state);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
 
@@ -894,6 +896,7 @@ void initialize() {
     auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
     material->setBaseColor(texture);
     material->setNormal(normalMap);
+    material->setSpecular(resourceManager->getTextureZero());
 
     auto spriteForward = spriteManager->createSprite();
     spriteForward->setMaterial(material);
@@ -1048,7 +1051,7 @@ void initialize() {
   // non HDR
   spheres[0] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   spheres[0]->setCamera(camera);
   {
@@ -1057,7 +1060,7 @@ void initialize() {
   }
   spheres[1] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   spheres[1]->setCamera(camera);
   {
@@ -1066,7 +1069,7 @@ void initialize() {
   }
   spheres[2] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   spheres[2]->setCamera(camera);
   {
@@ -1076,7 +1079,7 @@ void initialize() {
   // HDR
   spheres[3] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   spheres[3]->setCamera(camera);
   {
@@ -1085,7 +1088,7 @@ void initialize() {
   }
   spheres[4] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   spheres[4]->setCamera(camera);
   {
@@ -1094,7 +1097,7 @@ void initialize() {
   }
   spheres[5] = std::make_shared<Sphere>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   spheres[5]->setCamera(camera);
   {
@@ -1135,9 +1138,9 @@ void initialize() {
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, state);
+                                VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, commandBufferTransfer, state);
+                                    VK_CULL_MODE_NONE, commandBufferTransfer, resourceManager, state);
   auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColor->setBaseColor(cubemap->getTexture());
   cube->setMaterial(materialColor);
@@ -1149,7 +1152,7 @@ void initialize() {
   }
 
   ibl = std::make_shared<IBL>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE, lightManager,
-                              commandBufferTransfer, state);
+                              commandBufferTransfer, resourceManager, state);
   auto cameraTemp = std::make_shared<CameraFly>(settings);
   cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
@@ -1161,7 +1164,7 @@ void initialize() {
   }
 
   equiCube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, state);
+                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   equiCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
@@ -1170,7 +1173,7 @@ void initialize() {
 
   diffuseCube = std::make_shared<Cube>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   diffuseCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
@@ -1179,7 +1182,7 @@ void initialize() {
 
   specularCube = std::make_shared<Cube>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      lightManager, commandBufferTransfer, state);
+      lightManager, commandBufferTransfer, resourceManager, state);
   specularCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
@@ -1188,8 +1191,6 @@ void initialize() {
 
   equirectangular = std::make_shared<Equirectangular>("../assets/Skybox/newport_loft.hdr", commandBufferTransfer,
                                                       state);
-  auto materialEq = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialEq->setBaseColor(equirectangular->getTexture());
   auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialColorEq->setBaseColor(equirectangular->getTexture());
   ibl->setMaterial(materialColorEq);
@@ -1501,6 +1502,8 @@ void initialize() {
   commandBufferTransfer->beginCommands(0);
   auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialBRDF->setBaseColor(brdfTexture);
+  materialBRDF->setNormal(resourceManager->getTextureZero());
+  materialBRDF->setSpecular(resourceManager->getTextureZero());
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
   auto spriteBRDF = spriteManager->createSprite();
   spriteBRDF->enableLighting(false);
