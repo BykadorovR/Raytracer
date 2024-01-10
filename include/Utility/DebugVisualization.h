@@ -3,7 +3,7 @@
 #include "GUI.h"
 #include "LightManager.h"
 #include "State.h"
-#include "Sphere.h"
+#include "Shape3D.h"
 #include "Line.h"
 #include "Sprite.h"
 #include "SpriteManager.h"
@@ -29,7 +29,7 @@ struct DepthPush {
 class DebugVisualization : public InputSubscriber {
  private:
   std::vector<std::shared_ptr<Model3D>> _pointLightModels, _directionalLightModels;
-  std::vector<std::shared_ptr<Sphere>> _spheres;
+  std::vector<std::shared_ptr<Shape3D>> _spheres;
   std::shared_ptr<LightManager> _lightManager = nullptr;
   std::shared_ptr<ResourceManager> _resourceManager;
   bool _showLights = true;

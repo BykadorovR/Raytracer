@@ -11,7 +11,6 @@
 #include "ModelManager.h"
 #include "ParticleSystem.h"
 #include "Terrain.h"
-#include "Cube.h"
 #include "Blur.h"
 #include "Skybox.h"
 #include "BS_thread_pool.hpp"
@@ -60,6 +59,7 @@ class Core {
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<Blur> _blur;
   std::shared_ptr<BS::thread_pool> _pool;
+  std::function<void()> _update;
 
   void _directionalLightCalculator(int index);
   void _pointLightCalculator(int index, int face);
@@ -83,4 +83,5 @@ class Core {
   std::shared_ptr<ResourceManager> getResourceManager();
   std::shared_ptr<State> getState();
   void draw();
+  void registerUpdate(std::function<void()> update);
 };

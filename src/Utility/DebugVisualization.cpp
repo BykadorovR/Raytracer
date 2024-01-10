@@ -95,9 +95,10 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
     _modelManager->registerModel3D(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                           VK_CULL_MODE_NONE, lightManager, _commandBufferTransfer, _resourceManager,
-                                           _state);
+    auto sphereMesh = std::make_shared<MeshSphere>(_commandBufferTransfer, _state);
+    auto sphere = std::make_shared<Shape3D>(
+        ShapeType::SPHERE, std::vector{_state->getSettings()->getSwapchainColorFormat()}, VK_CULL_MODE_NONE,
+        lightManager, _commandBufferTransfer, _resourceManager, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }

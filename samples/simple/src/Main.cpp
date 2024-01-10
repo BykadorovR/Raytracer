@@ -4,6 +4,8 @@
 #include "Main.h"
 #include "Sphere.h"
 
+std::shared_ptr<Cube> cubeTextured, cubeTexturedPhong;
+
 Main::Main() {
   auto settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
@@ -39,7 +41,7 @@ Main::Main() {
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   auto materialCubeTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialCubeTextured->setBaseColor(cubemap->getTexture());
-  auto cubeTextured = std::make_shared<Cube>(
+  cubeTextured = std::make_shared<Cube>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
       lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTextured->setCamera(_camera);
@@ -62,6 +64,33 @@ Main::Main() {
     cubeColored->setModel(model);
   }
   _core->addDrawable(cubeColored);
+
+  // cube Phong
+  auto cubemapColorPhong = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg",
+                               "../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg"},
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto cubemapNormalPhong = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto materialCubePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialCubePhong->setBaseColor(cubemapColorPhong->getTexture());
+  materialCubePhong->setNormal(cubemapNormalPhong->getTexture());
+
+  cubeTexturedPhong = std::make_shared<Cube>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
+      lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedPhong->setCamera(_camera);
+  cubeTexturedPhong->setMaterial(materialCubePhong);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+    cubeTexturedPhong->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedPhong);
 
   // sphere textured
   auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
@@ -94,6 +123,16 @@ Main::Main() {
 
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);
+
+  _core->registerUpdate(std::bind(&Main::update, this));
+}
+
+void Main::update() {
+  static float i = 0;
+  auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+  model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
+  cubeTextured->setModel(model);
+  i += 0.1f;
 }
 
 void Main::start() { _core->draw(); }

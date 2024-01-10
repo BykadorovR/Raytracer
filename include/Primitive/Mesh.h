@@ -64,6 +64,16 @@ class Mesh3D : public Mesh {
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 };
 
+class MeshCube : public Mesh3D {
+ public:
+  MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+};
+
+class MeshSphere : public Mesh3D {
+ public:
+  MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+};
+
 class Mesh2D : public Mesh {
  private:
   std::mutex _accessVertexMutex, _accessIndexMutex;

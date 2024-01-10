@@ -763,6 +763,8 @@ void Core::draw() {
     _timerFPSReal->tick();
     _timerFPSLimited->tick();
 
+    // business/application update loop callback
+    _update();
     uint32_t imageIndex;
     _getImageIndex(&imageIndex);
     _drawFrame(imageIndex);
@@ -797,3 +799,5 @@ void Core::addShadowable(std::shared_ptr<IShadowable> shadowable) { _shadowables
 void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);
 }
+
+void Core::registerUpdate(std::function<void()> update) { _update = update; }

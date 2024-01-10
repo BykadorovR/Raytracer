@@ -11,5 +11,6 @@ class Main {
 
  public:
   Main();
+  void update();
   void start();
 };

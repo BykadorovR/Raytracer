@@ -1,4 +1,6 @@
 #include "Mesh.h"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
@@ -132,6 +134,107 @@ std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
   attributeDescriptions[6].offset = offsetof(Vertex3D, tangent);
 
   return attributeDescriptions;
+}
+
+MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) : Mesh3D(state) {
+  std::vector<Vertex3D> vertices(8);
+  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
+  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
+  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
+  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
+  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
+  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
+  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
+  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
+
+  std::vector<uint32_t> indices{                    // Bottom
+                                0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
+                                                    //  Top
+                                2, 3, 7, 7, 6, 2,   // ccw if look to this face from up
+                                                    //  Left
+                                0, 2, 6, 6, 4, 0,   // ccw if look to this face from left
+                                                    //  Right
+                                1, 5, 7, 7, 3, 1,   // ccw if look to this face from right
+                                                    //  Front
+                                1, 3, 2, 2, 0, 1,   // ccw if look to this face from front
+                                                    //  Back
+                                5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
+  setVertices(vertices, commandBufferTransfer);
+  setIndexes(indices, commandBufferTransfer);
+  setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
+}
+
+MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
+    : Mesh3D(state) {
+  int radius = 1;
+  int sectorCount = 20;
+  int stackCount = 20;
+
+  float x, y, z, xz;                            // vertex position
+  float nx, ny, nz, lengthInv = 1.0f / radius;  // vertex normal
+  float s, t;                                   // vertex texCoord
+
+  float sectorStep = 2 * M_PI / sectorCount;
+  float stackStep = M_PI / stackCount;
+  float sectorAngle, stackAngle;
+
+  std::vector<Vertex3D> vertices;
+  for (int i = 0; i <= stackCount; ++i) {
+    Vertex3D vertex;
+    stackAngle = M_PI / 2 - i * stackStep;  // starting from pi/2 to -pi/2
+    xz = radius * cosf(stackAngle);         // r * cos(u)
+    y = radius * sinf(stackAngle);          // r * sin(u)
+
+    // add (sectorCount+1) vertices per stack
+    // first and last vertices have same position and normal, but different tex coords
+    for (int j = 0; j <= sectorCount; ++j) {
+      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 0 to 2pi
+
+      // vertex position (x, y, z)
+      x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
+      z = xz * sinf(sectorAngle);  // r * cos(u) * sin(v)
+      vertex.pos = glm::vec3(x, y, z);
+
+      // normalized vertex normal (nx, ny, nz)
+      nx = x * lengthInv;
+      ny = y * lengthInv;
+      nz = z * lengthInv;
+      vertex.normal = glm::vec3(nx, ny, nz);
+
+      // vertex tex coord (s, t) range between [0, 1]
+      s = (float)j / sectorCount;
+      t = (float)i / stackCount;
+      vertex.texCoord = glm::vec2(s, t);
+      vertices.push_back(vertex);
+    }
+  }
+
+  std::vector<uint32_t> indexes;
+  int k1, k2;
+  for (int i = 0; i < stackCount; ++i) {
+    k1 = i * (sectorCount + 1);  // beginning of current stack
+    k2 = k1 + sectorCount + 1;   // beginning of next stack
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      // 2 triangles per sector excluding first and last stacks
+      // k1 => k2 => k1+1
+      if (i != 0) {
+        indexes.push_back(k1);
+        indexes.push_back(k2);
+        indexes.push_back(k1 + 1);
+      }
+
+      // k1+1 => k2 => k2+1
+      if (i != (stackCount - 1)) {
+        indexes.push_back(k1 + 1);
+        indexes.push_back(k2);
+        indexes.push_back(k2 + 1);
+      }
+    }
+  }
+  setVertices(vertices, commandBufferTransfer);
+  setIndexes(indexes, commandBufferTransfer);
+  setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 
 Mesh2D::Mesh2D(std::shared_ptr<State> state) : Mesh(state) {
