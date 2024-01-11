@@ -35,7 +35,7 @@
 #include "Postprocessing.h"
 #include "Blur.h"
 #include "Loader.h"
-#include "Cube.h"
+#include "Shape3D.h"
 #include "Skybox.h"
 #include "Cubemap.h"
 #include "Equirectangular.h"
@@ -94,7 +94,7 @@ std::shared_ptr<Animation> animation;
 std::vector<std::shared_ptr<Texture>> graphicTexture, blurTextureIn, blurTextureOut;
 std::shared_ptr<Cubemap> cubemapEquirectangular, cubemapDiffuse, cubemapSpecular;
 
-std::shared_ptr<Cube> equiCube, diffuseCube, specularCube;
+std::shared_ptr<Shape3D> equiCube, diffuseCube, specularCube;
 
 std::shared_ptr<BS::thread_pool> pool;
 
@@ -111,12 +111,12 @@ std::mutex debugVisualizationMutex;
 uint64_t particleSignal;
 bool FPSChanged = false;
 
-std::vector<std::shared_ptr<Sphere>> spheres;
+std::vector<std::shared_ptr<Shape3D>> spheres;
 std::shared_ptr<Cubemap> cubemap;
-std::shared_ptr<Cube> cube;
+std::shared_ptr<Shape3D> cube;
 std::shared_ptr<Skybox> skybox;
 
-std::shared_ptr<Cube> cubeTemp;
+std::shared_ptr<Shape3D> cubeTemp;
 std::shared_ptr<IBL> ibl;
 std::shared_ptr<Equirectangular> equirectangular;
 std::shared_ptr<MaterialColor> materialColorDiffuse;
@@ -1049,27 +1049,27 @@ void initialize() {
 
   spheres.resize(6);
   // non HDR
-  spheres[0] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[0] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   spheres[0]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
     spheres[0]->setModel(model);
   }
-  spheres[1] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[1] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   spheres[1]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
     spheres[1]->setModel(model);
   }
-  spheres[2] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[2] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   spheres[2]->setCamera(camera);
   {
@@ -1077,27 +1077,27 @@ void initialize() {
     spheres[2]->setModel(model);
   }
   // HDR
-  spheres[3] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[3] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   spheres[3]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
     spheres[3]->setModel(model);
   }
-  spheres[4] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[4] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   spheres[4]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
     spheres[4]->setModel(model);
   }
-  spheres[5] = std::make_shared<Sphere>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_BACK_BIT,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  spheres[5] = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   spheres[5]->setCamera(camera);
   {
@@ -1137,8 +1137,9 @@ void initialize() {
                                "../assets/Skybox/back.jpg"},
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
-  cube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
+  cube = std::make_shared<Shape3D>(ShapeType::CUBE,
+                                   std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                   VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                     VK_CULL_MODE_NONE, commandBufferTransfer, resourceManager, state);
   auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
@@ -1163,26 +1164,27 @@ void initialize() {
     ibl->setModel(model);
   }
 
-  equiCube = std::make_shared<Cube>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
+  equiCube = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   equiCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
     equiCube->setModel(model);
   }
 
-  diffuseCube = std::make_shared<Cube>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  diffuseCube = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   diffuseCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
     diffuseCube->setModel(model);
   }
 
-  specularCube = std::make_shared<Cube>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-      lightManager, commandBufferTransfer, resourceManager, state);
+  specularCube = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   specularCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
