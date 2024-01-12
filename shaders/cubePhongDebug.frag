@@ -11,18 +11,14 @@ layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 2, binding = 0) uniform samplerCube texSampler;
-layout(set = 2, binding = 1) uniform samplerCube normalSampler;
-layout(set = 2, binding = 2) uniform samplerCube specularSampler;
+layout(set = 1, binding = 0) uniform samplerCube texSampler;
+layout(set = 1, binding = 1) uniform samplerCube normalSampler;
+layout(set = 1, binding = 2) uniform samplerCube specularSampler;
 
 void main() {
     vec3 normal = texture(normalSampler, fragTexCoord).rgb;
-    if (length(normal) > epsilon) {
-        normal = normal * 2.0 - 1.0;
-        normal = normalize(fragTBN * normal);
-    } else {
-        normal = fragNormal;
-    }
+    normal = normal * 2.0 - 1.0;
+    normal = normalize(fragTBN * normal);
 
     outColor = vec4(normal, 1.0);
 

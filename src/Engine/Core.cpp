@@ -559,8 +559,7 @@ void Core::_renderGraphic() {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame), _currentFrame);
-    drawable->draw(_currentFrame, _state->getSettings()->getResolution(), _commandBufferRender,
-                   _state->getSettings()->getDrawType());
+    drawable->draw(_currentFrame, _state->getSettings()->getResolution(), _commandBufferRender);
     _loggerGPU->end();
   }
 

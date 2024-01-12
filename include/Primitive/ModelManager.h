@@ -39,10 +39,7 @@ class Model3DManager : public IDrawable, IShadowable {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);
-  void draw(int currentFrame,
-            std::tuple<int, int> resolution,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType drawType = DrawType::FILL) override;
+  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

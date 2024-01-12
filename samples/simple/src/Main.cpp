@@ -4,7 +4,7 @@
 #include "Main.h"
 #include "Shape3D.h"
 
-std::shared_ptr<Shape3D> cubeTextured;
+std::shared_ptr<Shape3D> cubeTextured, cubeTexturedWireframe;
 
 Main::Main() {
   auto settings = std::make_shared<Settings>();
@@ -96,6 +96,73 @@ Main::Main() {
   _core->addDrawable(cubeTexturedPhong);
 
   // cube colored wireframe
+  auto cubeColoredWireframe = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeColoredWireframe->setCamera(_camera);
+  cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
+  cubeColoredWireframe->getMesh()->setColor(
+      std::vector{cubeColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+      commandBufferTransfer);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, -3.f));
+    cubeColoredWireframe->setModel(model);
+  }
+  _core->addDrawable(cubeColoredWireframe);
+
+  // cube texture wireframe
+  cubeTexturedWireframe = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedWireframe->setCamera(_camera);
+  cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
+  cubeTexturedWireframe->setMaterial(materialCubeTextured);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
+    cubeTexturedWireframe->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedWireframe);
+
+  // cube Phong wireframe
+  auto cubeTexturedWireframePhong = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedWireframePhong->setCamera(_camera);
+  cubeTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
+  cubeTexturedWireframePhong->setMaterial(materialCubePhong);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, -3.f, -3.f));
+    cubeTexturedWireframePhong->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedWireframePhong);
+
+  // cube color normal
+  auto cubeColoredNormal = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeColoredNormal->setCamera(_camera);
+  cubeColoredNormal->setDrawType(DrawType::NORMAL);
+  cubeColoredNormal->getMesh()->setColor(
+      std::vector{cubeColoredNormal->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+      commandBufferTransfer);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
+    cubeColoredNormal->setModel(model);
+  }
+  _core->addDrawable(cubeColoredNormal);
+
+  // cube Phong normal
+  auto cubeTexturedPhongNormal = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedPhongNormal->setCamera(_camera);
+  cubeTexturedPhongNormal->setDrawType(DrawType::NORMAL);
+  cubeTexturedPhongNormal->setMaterial(materialCubePhong);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
+    cubeTexturedPhongNormal->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedPhongNormal);
 
   //// sphere textured
   // auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
@@ -138,6 +205,10 @@ void Main::update() {
   auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
   model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
   cubeTextured->setModel(model);
+
+  model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
+  model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
+  cubeTexturedWireframe->setModel(model);
   i += 0.1f;
 }
 

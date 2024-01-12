@@ -107,6 +107,10 @@ void Sprite::setModel(glm::mat4 model) { _model = model; }
 
 void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
+void Sprite::setDrawType(DrawType drawType) { _drawType = drawType; }
+
+DrawType Sprite::getDrawType() { return _drawType; }
+
 void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;

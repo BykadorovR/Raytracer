@@ -44,6 +44,7 @@ class Model3D {
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
+  DrawType _drawType = DrawType::FILL;
 
   void _drawNode(int currentFrame,
                  std::shared_ptr<CommandBuffer> commandBuffer,
@@ -67,11 +68,15 @@ class Model3D {
 
   void setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials);
   void setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials);
-  MaterialType getMaterialType();
   void setAnimation(std::shared_ptr<Animation> animation);
+  void setDrawType(DrawType drawType);
+
   void setModel(glm::mat4 model);
   void enableDepth(bool enable);
   bool isDepthEnabled();
+
+  MaterialType getMaterialType();
+  DrawType getDrawType();
 
   void draw(int currentFrame,
             std::shared_ptr<CommandBuffer> commandBuffer,

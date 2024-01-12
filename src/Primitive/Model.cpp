@@ -104,7 +104,11 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
   _materialType = MaterialType::PBR;
 }
 
+void Model3D::setDrawType(DrawType drawType) { _drawType = drawType; }
+
 MaterialType Model3D::getMaterialType() { return _materialType; }
+
+DrawType Model3D::getDrawType() { return _drawType; }
 
 void Model3D::setAnimation(std::shared_ptr<Animation> animation) { _animation = animation; }
 

@@ -37,6 +37,7 @@ class Terrain : public IDrawable, IShadowable {
   bool _showLoD = false;
   bool _enableLighting = true;
   bool _enableShadow = true;
+  DrawType _drawType = DrawType::FILL;
 
  public:
   Terrain(std::array<std::string, 4> tiles,
@@ -48,12 +49,12 @@ class Terrain : public IDrawable, IShadowable {
           std::shared_ptr<State> state);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
+  void setDrawType(DrawType drawType);
+  DrawType getDrawType();
+
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  void draw(int currentFrame,
-            std::tuple<int, int> resolution,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType terrainType = DrawType::FILL) override;
+  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

@@ -23,7 +23,10 @@ Shape3D::Shape3D(ShapeType shapeType,
     _shapeShadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/cubePhong_vertex.spv",
                                                                 "shaders/cubePhong_fragment.spv"};
     _shapeShadersLight[ShapeType::CUBE] = {"shaders/cubeDepth_vertex.spv", "shaders/cubeDepth_fragment.spv"};
-    _shapeShadersNormal[ShapeType::CUBE] = {"shaders/cubeDebug_vertex.spv", "shaders/cubeDebug_fragment.spv"};
+    _shapeShadersNormal[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/cubeColor_vertex.spv",
+                                                                 "shaders/cubeColorDebug_fragment.spv"};
+    _shapeShadersNormal[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/cubePhong_vertex.spv",
+                                                                 "shaders/cubePhongDebug_fragment.spv"};
   }
 
   if (shapeType == ShapeType::SPHERE) {
@@ -33,7 +36,8 @@ Shape3D::Shape3D(ShapeType shapeType,
                                                                   "shaders/sphere_fragment.spv"};
     _shapeShadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"", ""};
     _shapeShadersLight[ShapeType::SPHERE] = {"shaders/sphereDepth_vertex.spv", "shaders/sphereDepth_fragment.spv"};
-    _shapeShadersNormal[ShapeType::SPHERE] = {"", ""};
+    _shapeShadersNormal[ShapeType::SPHERE][MaterialType::COLOR] = {"", ""};
+    _shapeShadersNormal[ShapeType::SPHERE][MaterialType::PHONG] = {"", ""};
   }
 
   _material = _defaultMaterialColor;
@@ -59,12 +63,19 @@ Shape3D::Shape3D(ShapeType shapeType,
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
 
+  // layout for Normal Color
+  _descriptorSetLayoutNormal[MaterialType::COLOR].push_back({"camera", layoutCamera});
+  _descriptorSetLayoutNormal[MaterialType::COLOR].push_back(
+      {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayoutNormal[MaterialType::COLOR].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+
   // layout for Normal Phong
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back({"camera", layoutCamera});
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
 
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), layoutCamera,
                                                          state->getDescriptorPool(), state->getDevice());
@@ -150,11 +161,34 @@ Shape3D::Shape3D(ShapeType shapeType,
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
-  // initialize Normal (Debug view) for Phong
+  // initialize Normal (Debug view) Color
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add(_shapeShadersNormal[_shapeType].first, VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add(_shapeShadersNormal[_shapeType].second, VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add(_shapeShadersNormal[_shapeType][MaterialType::COLOR].first, VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shapeShadersNormal[_shapeType][MaterialType::COLOR].second, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    _pipelineNormal[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormal[MaterialType::COLOR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                          _descriptorSetLayoutNormal[MaterialType::COLOR], {},
+                                                          _mesh->getBindingDescription(),
+                                                          _mesh->getAttributeDescriptions());
+    // wireframe one
+    _pipelineNormalWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                               _state->getDevice());
+    _pipelineNormalWireframe[MaterialType::COLOR]->createGraphic3D(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutNormal[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+  // initialize Normal (Debug view) Phong
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add(_shapeShadersNormal[_shapeType][MaterialType::PHONG].first, VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shapeShadersNormal[_shapeType][MaterialType::PHONG].second, VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormal[MaterialType::PHONG]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -218,18 +252,17 @@ void Shape3D::setModel(glm::mat4 model) { _model = model; }
 
 void Shape3D::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
+void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
+
 std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(int currentFrame,
-                   std::tuple<int, int> resolution,
-                   std::shared_ptr<CommandBuffer> commandBuffer,
-                   DrawType drawType) {
+void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
   auto pipeline = _pipeline[_materialType];
-  if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
+  if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
 
-  if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
+  if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) {
     pipeline = _pipelineNormal[_materialType];
-    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[_materialType];
+    if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[_materialType];
   }
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

@@ -234,8 +234,7 @@ void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camer
 // todo: choose appropriate pipeline using material from sprite
 void Model3DManager::draw(int currentFrame,
                           std::tuple<int, int> resolution,
-                          std::shared_ptr<CommandBuffer> commandBuffer,
-                          DrawType drawType) {
+                          std::shared_ptr<CommandBuffer> commandBuffer) {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -299,15 +298,19 @@ void Model3DManager::draw(int currentFrame,
     }
 
     for (auto model : _modelsGLTF) {
-      if (model->getMaterialType() == materialType) {
+      if (model->getMaterialType() == materialType && model->getDrawType() == drawType) {
         model->setCamera(_camera);
         model->draw(currentFrame, commandBuffer, pipeline, pipelineCullOff);
       }
     }
   };
 
-  drawModel(MaterialType::PHONG, drawType);
-  drawModel(MaterialType::PBR, drawType);
+  drawModel(MaterialType::PHONG, DrawType::FILL);
+  drawModel(MaterialType::PHONG, DrawType::WIREFRAME);
+  drawModel(MaterialType::PHONG, DrawType::NORMAL);
+  drawModel(MaterialType::PBR, DrawType::FILL);
+  drawModel(MaterialType::PBR, DrawType::WIREFRAME);
+  drawModel(MaterialType::PBR, DrawType::NORMAL);
 }
 
 void Model3DManager::drawShadow(int currentFrame,

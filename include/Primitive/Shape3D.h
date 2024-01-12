@@ -13,23 +13,20 @@ enum class ShapeType { CUBE = 0, SPHERE = 1 };
 
 class Shape3D : public IDrawable, IShadowable {
  private:
-  std::map<ShapeType, std::map<MaterialType, std::pair<std::string, std::string>>> _shapeShadersColor;
+  std::map<ShapeType, std::map<MaterialType, std::pair<std::string, std::string>>> _shapeShadersColor,
+      _shapeShadersNormal;
   std::map<ShapeType, std::pair<std::string, std::string>> _shapeShadersLight;
-  std::map<ShapeType, std::pair<std::string, std::string>> _shapeShadersNormal;
   ShapeType _shapeType;
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout;
-  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayoutNormal;
+      _descriptorSetLayout, _descriptorSetLayoutNormal;
   std::shared_ptr<UniformBuffer> _uniformBufferCamera;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineNormal, _pipelineNormalWireframe;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineNormal;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe, _pipelineNormalWireframe;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
@@ -38,6 +35,7 @@ class Shape3D : public IDrawable, IShadowable {
   std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
   glm::mat4 _model = glm::mat4(1.f);
+  DrawType _drawType = DrawType::FILL;
   bool _enableShadow = true;
   bool _enableLighting = true;
 
@@ -54,15 +52,13 @@ class Shape3D : public IDrawable, IShadowable {
   void enableLighting(bool enable);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setMaterial(std::shared_ptr<MaterialPhong> material);
+  void setDrawType(DrawType drawType);
 
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
   std::shared_ptr<Mesh3D> getMesh();
 
-  void draw(int currentFrame,
-            std::tuple<int, int> resolution,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType drawType = DrawType::FILL) override;
+  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

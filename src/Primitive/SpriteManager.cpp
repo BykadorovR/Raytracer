@@ -195,6 +195,7 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(
   auto sprite = createSprite();
   sprite->setMaterial();
 
+  // custom pipeline layout set from application
   _descriptorSetLayoutCustom[sprite] = layouts;
   _pipelineCustom[sprite] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
@@ -218,8 +219,7 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
 
 void SpriteManager::draw(int currentFrame,
                          std::tuple<int, int> resolution,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         DrawType drawType) {
+                         std::shared_ptr<CommandBuffer> commandBuffer) {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -285,15 +285,19 @@ void SpriteManager::draw(int currentFrame,
     bindPipeline(pipeline);
 
     for (auto sprite : _sprites) {
-      if (sprite->getMaterialType() == materialType) {
+      if (sprite->getMaterialType() == materialType && sprite->getDrawType() == drawType) {
         sprite->setCamera(_camera);
         sprite->draw(currentFrame, commandBuffer, pipeline);
       }
     }
   };
 
-  drawSprite(MaterialType::PHONG, drawType);
-  drawSprite(MaterialType::PBR, drawType);
+  drawSprite(MaterialType::PHONG, DrawType::FILL);
+  drawSprite(MaterialType::PHONG, DrawType::WIREFRAME);
+  drawSprite(MaterialType::PHONG, DrawType::NORMAL);
+  drawSprite(MaterialType::PBR, DrawType::FILL);
+  drawSprite(MaterialType::PBR, DrawType::WIREFRAME);
+  drawSprite(MaterialType::PBR, DrawType::NORMAL);
 
   // draw custom
   for (auto sprite : _sprites) {

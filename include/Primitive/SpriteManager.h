@@ -45,10 +45,7 @@ class SpriteManager : public IDrawable, IShadowable {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame,
-            std::tuple<int, int> resolution,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType drawType = DrawType::FILL) override;
+  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,

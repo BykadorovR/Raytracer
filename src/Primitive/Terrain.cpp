@@ -315,14 +315,15 @@ void Terrain::setModel(glm::mat4 model) { _model = model; }
 
 void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
+void Terrain::setDrawType(DrawType drawType) { _drawType = drawType; }
+
+DrawType Terrain::getDrawType() { return _drawType; }
+
 void Terrain::showLoD(bool enable) { _showLoD = enable; }
 
 void Terrain::patchEdge(bool enable) { _enableEdge = enable; }
 
-void Terrain::draw(int currentFrame,
-                   std::tuple<int, int> resolution,
-                   std::shared_ptr<CommandBuffer> commandBuffer,
-                   DrawType pipelineType) {
+void Terrain::draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
@@ -498,10 +499,10 @@ void Terrain::draw(int currentFrame,
   };
 
   std::shared_ptr<Pipeline> pipeline = _pipeline[TerrainRenderMode::FULL];
-  if ((pipelineType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
+  if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
   drawTerrain(pipeline);
 
-  if ((pipelineType & DrawType::NORMAL) == DrawType::NORMAL) drawTerrain(_pipelineNormal);
+  if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) drawTerrain(_pipelineNormal);
 }
 
 void Terrain::drawShadow(int currentFrame,

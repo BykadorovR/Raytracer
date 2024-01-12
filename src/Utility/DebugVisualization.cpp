@@ -418,7 +418,8 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
             int distance = _lightManager->getPointLights()[i]->getDistance();
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
-            _spheres[i]->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer, DrawType::WIREFRAME);
+            _spheres[i]->setDrawType(DrawType::WIREFRAME);
+            _spheres[i]->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
           }
         }
       }
