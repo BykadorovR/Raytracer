@@ -137,28 +137,76 @@ std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
 }
 
 MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) : Mesh3D(state) {
-  std::vector<Vertex3D> vertices(8);
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
-  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
-  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
-  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
-  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
-  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
-  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
-  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
+  std::vector<Vertex3D> vertices(24);
+  // 0
+  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);
+  vertices[0].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[1].pos = glm::vec3(-0.5, -0.5, 0.5);
+  vertices[1].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[2].pos = glm::vec3(-0.5, -0.5, 0.5);
+  vertices[2].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  // 1
+  vertices[3].pos = glm::vec3(0.5, -0.5, 0.5);
+  vertices[3].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[4].pos = glm::vec3(0.5, -0.5, 0.5);
+  vertices[4].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[5].pos = glm::vec3(0.5, -0.5, 0.5);
+  vertices[5].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  // 2
+  vertices[6].pos = glm::vec3(-0.5, 0.5, 0.5);
+  vertices[6].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[7].pos = glm::vec3(-0.5, 0.5, 0.5);
+  vertices[7].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[8].pos = glm::vec3(-0.5, 0.5, 0.5);
+  vertices[8].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  // 3
+  vertices[9].pos = glm::vec3(0.5, 0.5, 0.5);
+  vertices[9].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[10].pos = glm::vec3(0.5, 0.5, 0.5);
+  vertices[10].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[11].pos = glm::vec3(0.5, 0.5, 0.5);
+  vertices[11].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  // 4
+  vertices[12].pos = glm::vec3(-0.5, -0.5, -0.5);
+  vertices[12].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[13].pos = glm::vec3(-0.5, -0.5, -0.5);
+  vertices[13].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[14].pos = glm::vec3(-0.5, -0.5, -0.5);
+  vertices[14].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  // 5
+  vertices[15].pos = glm::vec3(0.5, -0.5, -0.5);
+  vertices[15].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[16].pos = glm::vec3(0.5, -0.5, -0.5);
+  vertices[16].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[17].pos = glm::vec3(0.5, -0.5, -0.5);
+  vertices[17].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  // 6
+  vertices[18].pos = glm::vec3(-0.5, 0.5, -0.5);
+  vertices[18].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[19].pos = glm::vec3(-0.5, 0.5, -0.5);
+  vertices[19].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[20].pos = glm::vec3(-0.5, 0.5, -0.5);
+  vertices[20].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  // 7
+  vertices[21].pos = glm::vec3(0.5, 0.5, -0.5);
+  vertices[21].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[22].pos = glm::vec3(0.5, 0.5, -0.5);
+  vertices[22].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[23].pos = glm::vec3(0.5, 0.5, -0.5);
+  vertices[23].normal = glm::vec3(1.0, 0.0, 0.0);  // right
 
-  std::vector<uint32_t> indices{                    // Bottom
-                                0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
-                                                    //  Top
-                                2, 3, 7, 7, 6, 2,   // ccw if look to this face from up
-                                                    //  Left
-                                0, 2, 6, 6, 4, 0,   // ccw if look to this face from left
-                                                    //  Right
-                                1, 5, 7, 7, 3, 1,   // ccw if look to this face from right
-                                                    //  Front
-                                1, 3, 2, 2, 0, 1,   // ccw if look to this face from front
-                                                    //  Back
-                                5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
+  std::vector<uint32_t> indices{                          // Bottom
+                                0, 12, 15, 15, 3, 0,      // ccw if look to this face from down
+                                                          //  Top
+                                6, 9, 21, 21, 18, 6,      // ccw if look to this face from up
+                                                          //  Left
+                                2, 8, 20, 20, 14, 2,      // ccw if look to this face from left
+                                                          //  Right
+                                5, 17, 23, 23, 11, 5,     // ccw if look to this face from right
+                                                          //  Front
+                                4, 10, 7, 7, 1, 4,        // ccw if look to this face from front
+                                                          //  Back
+                                16, 13, 19, 19, 22, 16};  // ccw if look to this face from back
   setVertices(vertices, commandBufferTransfer);
   setIndexes(indices, commandBufferTransfer);
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
