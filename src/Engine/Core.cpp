@@ -111,8 +111,8 @@ Core::Core(std::shared_ptr<Settings> settings) {
 }
 
 void Core::_directionalLightCalculator(int index) {
-  auto commandBuffer = _commandBufferDirectional[index];
-  auto loggerGPU = _loggerGPUDirectional[index];
+  auto commandBuffer = _lightManager->getDirectionalLightCommandBuffers()[index];
+  auto loggerGPU = _lightManager->getDirectionalLightLoggers()[index];
 
   // record command buffer
   commandBuffer->beginCommands(_currentFrame);
@@ -188,8 +188,8 @@ void Core::_directionalLightCalculator(int index) {
 }
 
 void Core::_pointLightCalculator(int index, int face) {
-  auto commandBuffer = _commandBufferPoint[index][face];
-  auto loggerGPU = _loggerGPUPoint[index][face];
+  auto commandBuffer = _lightManager->getPointLightCommandBuffers()[index][face];
+  auto loggerGPU = _lightManager->getPointLightLoggers()[index][face];
   // record command buffer
   loggerGPU->setCommandBufferName("Point " + std::to_string(index) + "x" + std::to_string(face) + " command buffer",
                                   _currentFrame, commandBuffer);

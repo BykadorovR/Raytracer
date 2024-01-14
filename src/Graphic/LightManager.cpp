@@ -392,12 +392,33 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
     _changed[LightType::POINT][i] = true;
   }
 
+  // should be unique command pool for every command buffer to work in parallel.
+  // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
+  std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
+  std::vector<std::shared_ptr<LoggerGPU>> loggerGPU(6);
+  for (int j = 0; j < commandBuffer.size(); j++) {
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+    commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
+                                                       _state->getDevice());
+    loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
+  }
+  _commandBufferPoint.push_back(commandBuffer);
+  _loggerGPUPoint.push_back(loggerGPU);
+
   return light;
 }
 
-std::vector<std::shared_ptr<PointLight>> LightManager::getPointLights() {
+const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _pointLights;
+}
+
+const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::getPointLightCommandBuffers() {
+  return _commandBufferPoint;
+}
+
+const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& LightManager::getPointLightLoggers() {
+  return _loggerGPUPoint;
 }
 
 std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
@@ -424,12 +445,25 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
     _changed[LightType::DIRECTIONAL][i] = true;
   }
 
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _commandBufferDirectional.push_back(
+      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state->getDevice()));
+  _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
+
   return light;
 }
 
-std::vector<std::shared_ptr<DirectionalLight>> LightManager::getDirectionalLights() {
+const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _directionalLights;
+}
+
+const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalLightCommandBuffers() {
+  return _commandBufferDirectional;
+}
+
+const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
+  return _loggerGPUDirectional;
 }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLViewProjection(VkShaderStageFlagBits stage) {

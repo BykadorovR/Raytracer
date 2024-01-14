@@ -5,6 +5,8 @@
 #include "Shape3D.h"
 
 std::shared_ptr<Shape3D> cubeTextured, cubeTexturedWireframe;
+std::shared_ptr<PointLight> pointLightVertical, pointLightHorizontal;
+std::shared_ptr<Shape3D> cubeColoredLightVertical, cubeColoredLightHorizontal;
 
 Main::Main() {
   auto settings = std::make_shared<Settings>();
@@ -24,10 +26,6 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-
-  auto lightManager = _core->getLightManager();
-  auto ambientLight = lightManager->createAmbientLight();
-  ambientLight->setColor(glm::vec3(0.5f, 0.5f, 0.5f));
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
   commandBufferTransfer->beginCommands(0);
   auto state = _core->getState();
@@ -35,10 +33,24 @@ Main::Main() {
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
 
+  auto lightManager = _core->getLightManager();
+  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
+
+  // cube colored light
+  cubeColoredLightVertical = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeColoredLightVertical->setCamera(_camera);
+  cubeColoredLightVertical->getMesh()->setColor(
+      std::vector{cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+      commandBufferTransfer);
+  _core->addDrawable(cubeColoredLightVertical);
+
   // cube colored
   auto cubeColored = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColored->setCamera(_camera);
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
@@ -58,7 +70,7 @@ Main::Main() {
   materialCubeTextured->setBaseColor(cubemap->getTexture());
   cubeTextured = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTextured->setCamera(_camera);
   cubeTextured->setMaterial(materialCubeTextured);
   {
@@ -86,7 +98,7 @@ Main::Main() {
 
   auto cubeTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTexturedPhong->setCamera(_camera);
   cubeTexturedPhong->setMaterial(materialCubePhong);
   {
@@ -98,7 +110,7 @@ Main::Main() {
   // cube colored wireframe
   auto cubeColoredWireframe = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredWireframe->setCamera(_camera);
   cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
   cubeColoredWireframe->getMesh()->setColor(
@@ -113,7 +125,7 @@ Main::Main() {
   // cube texture wireframe
   cubeTexturedWireframe = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTexturedWireframe->setCamera(_camera);
   cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   cubeTexturedWireframe->setMaterial(materialCubeTextured);
@@ -126,7 +138,7 @@ Main::Main() {
   // cube Phong wireframe
   auto cubeTexturedWireframePhong = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTexturedWireframePhong->setCamera(_camera);
   cubeTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   cubeTexturedWireframePhong->setMaterial(materialCubePhong);
@@ -139,7 +151,7 @@ Main::Main() {
   // cube Phong mesh normal
   auto cubeTexturedPhongNormalMesh = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTexturedPhongNormalMesh->setCamera(_camera);
   cubeTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
@@ -159,7 +171,7 @@ Main::Main() {
   materialCubeTexturedNormalFragment->setBaseColor(cubemapNormal->getTexture());
   auto cubeTexturedNormalFragment = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeTexturedNormalFragment->setCamera(_camera);
   cubeTexturedNormalFragment->setMaterial(materialCubeTexturedNormalFragment);
   {
@@ -167,6 +179,34 @@ Main::Main() {
     cubeTexturedNormalFragment->setModel(model);
   }
   _core->addDrawable(cubeTexturedNormalFragment);
+
+  // cube Phong: specular without normal
+  auto cubemapColorPhongContainer = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../assets/container.png", "../assets/container.png", "../assets/container.png",
+                               "../assets/container.png", "../assets/container.png", "../assets/container.png"},
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto cubemapSpecularPhong = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../assets/container_specular.png", "../assets/container_specular.png",
+                               "../assets/container_specular.png", "../assets/container_specular.png",
+                               "../assets/container_specular.png", "../assets/container_specular.png"},
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto materialCubePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialCubePhongSpecular->setBaseColor(cubemapColorPhongContainer->getTexture());
+  materialCubePhongSpecular->setNormal(_core->getResourceManager()->getCubemapZero()->getTexture());
+  materialCubePhongSpecular->setSpecular(cubemapSpecularPhong->getTexture());
+
+  auto cubeTexturedPhongSpecular = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedPhongSpecular->setCamera(_camera);
+  cubeTexturedPhongSpecular->setMaterial(materialCubePhongSpecular);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, -3.f));
+    cubeTexturedPhongSpecular->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedPhongSpecular);
 
   //// sphere textured
   // auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
@@ -213,7 +253,26 @@ void Main::update() {
   model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
   model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
   cubeTexturedWireframe->setModel(model);
+
+  // update light position
+  float radius = 15.f;
+  static float angleHorizontal = 90.f;
+  glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
+                                                radius * sin(glm::radians(angleHorizontal)));
+  static float angleVertical = 0.f;
+  glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
+                                              radius * cos(glm::radians(angleVertical)));
+
+  pointLightVertical->setPosition(lightPositionVertical);
+  {
+    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
+    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
+    cubeColoredLightVertical->setModel(model);
+  }
+
   i += 0.1f;
+  angleHorizontal += 0.1f;
+  angleVertical += 0.1f;
 }
 
 void Main::start() { _core->draw(); }

@@ -139,7 +139,7 @@ Shape3D::Shape3D(ShapeType shapeType,
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
@@ -148,7 +148,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     // wireframe one
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        renderFormat, cullMode, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
@@ -163,7 +163,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
     _pipelineNormalsMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormalsMesh->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+    _pipelineNormalsMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
