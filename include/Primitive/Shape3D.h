@@ -13,21 +13,21 @@ enum class ShapeType { CUBE = 0, SPHERE = 1 };
 
 class Shape3D : public IDrawable, IShadowable {
  private:
-  std::map<ShapeType, std::map<MaterialType, std::pair<std::string, std::string>>> _shapeShadersColor,
-      _shapeShadersNormal;
-  std::map<ShapeType, std::pair<std::string, std::string>> _shapeShadersLight;
+  std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
+  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh;
   ShapeType _shapeType;
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout, _descriptorSetLayoutNormal;
+      _descriptorSetLayout;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh;
   std::shared_ptr<UniformBuffer> _uniformBufferCamera;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetCameraGeometry;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineNormal;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe, _pipelineNormalWireframe;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
+  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalsMesh;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;

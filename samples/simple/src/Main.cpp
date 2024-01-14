@@ -136,33 +136,37 @@ Main::Main() {
   }
   _core->addDrawable(cubeTexturedWireframePhong);
 
-  // cube color normal
-  auto cubeColoredNormal = std::make_shared<Shape3D>(
+  // cube Phong mesh normal
+  auto cubeTexturedPhongNormalMesh = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredNormal->setCamera(_camera);
-  cubeColoredNormal->setDrawType(DrawType::NORMAL);
-  cubeColoredNormal->getMesh()->setColor(
-      std::vector{cubeColoredNormal->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
-    cubeColoredNormal->setModel(model);
-  }
-  _core->addDrawable(cubeColoredNormal);
-
-  // cube Phong normal
-  auto cubeTexturedPhongNormal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedPhongNormal->setCamera(_camera);
-  cubeTexturedPhongNormal->setDrawType(DrawType::NORMAL);
-  cubeTexturedPhongNormal->setMaterial(materialCubePhong);
+  cubeTexturedPhongNormalMesh->setCamera(_camera);
+  cubeTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
-    cubeTexturedPhongNormal->setModel(model);
+    cubeTexturedPhongNormalMesh->setModel(model);
   }
-  _core->addDrawable(cubeTexturedPhongNormal);
+  _core->addDrawable(cubeTexturedPhongNormalMesh);
+
+  // cube Color fragment normal
+  auto cubemapNormal = std::make_shared<Cubemap>(
+      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto materialCubeTexturedNormalFragment = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialCubeTexturedNormalFragment->setBaseColor(cubemapNormal->getTexture());
+  auto cubeTexturedNormalFragment = std::make_shared<Shape3D>(
+      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  cubeTexturedNormalFragment->setCamera(_camera);
+  cubeTexturedNormalFragment->setMaterial(materialCubeTexturedNormalFragment);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
+    cubeTexturedNormalFragment->setModel(model);
+  }
+  _core->addDrawable(cubeTexturedNormalFragment);
 
   //// sphere textured
   // auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),

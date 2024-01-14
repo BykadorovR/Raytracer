@@ -20,10 +20,11 @@ layout(location = 2) out vec3 texCoords;
 
 void main() {
     vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
-    mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
+    // normals should be in the same space as gl_Position, because we will sum position and normals
+    mat3 normalMatrix = mat3(transpose(inverse(mvp.view * mvp.model)));
     fragNormal = normalize(normalMatrix * inNormal);
 
     fragColor = inColor;
     texCoords = inPosition;
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    gl_Position = mvp.view * mvp.model * vec4(inPosition, 1.0);
 }  
