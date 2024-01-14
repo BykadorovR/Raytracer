@@ -138,62 +138,87 @@ std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
 
 MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) : Mesh3D(state) {
   std::vector<Vertex3D> vertices(24);
+  // normal - z, tangent - y, bitangent - x
   // 0
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);
   vertices[0].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[0].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
   vertices[1].pos = glm::vec3(-0.5, -0.5, 0.5);
   vertices[1].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[1].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   vertices[2].pos = glm::vec3(-0.5, -0.5, 0.5);
   vertices[2].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  vertices[2].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 1
   vertices[3].pos = glm::vec3(0.5, -0.5, 0.5);
   vertices[3].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[3].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
   vertices[4].pos = glm::vec3(0.5, -0.5, 0.5);
   vertices[4].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[4].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   vertices[5].pos = glm::vec3(0.5, -0.5, 0.5);
   vertices[5].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  vertices[5].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 2
   vertices[6].pos = glm::vec3(-0.5, 0.5, 0.5);
   vertices[6].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[6].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
   vertices[7].pos = glm::vec3(-0.5, 0.5, 0.5);
   vertices[7].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[7].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   vertices[8].pos = glm::vec3(-0.5, 0.5, 0.5);
   vertices[8].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  vertices[8].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 3
   vertices[9].pos = glm::vec3(0.5, 0.5, 0.5);
   vertices[9].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[9].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
   vertices[10].pos = glm::vec3(0.5, 0.5, 0.5);
   vertices[10].normal = glm::vec3(0.0, 0.0, 1.0);  // front
+  vertices[10].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   vertices[11].pos = glm::vec3(0.5, 0.5, 0.5);
   vertices[11].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  vertices[11].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 4
   vertices[12].pos = glm::vec3(-0.5, -0.5, -0.5);
   vertices[12].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[12].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
   vertices[13].pos = glm::vec3(-0.5, -0.5, -0.5);
   vertices[13].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[13].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
   vertices[14].pos = glm::vec3(-0.5, -0.5, -0.5);
   vertices[14].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  vertices[14].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 5
   vertices[15].pos = glm::vec3(0.5, -0.5, -0.5);
   vertices[15].normal = glm::vec3(0.0, -1.0, 0.0);  // down
+  vertices[15].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
   vertices[16].pos = glm::vec3(0.5, -0.5, -0.5);
   vertices[16].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[16].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
   vertices[17].pos = glm::vec3(0.5, -0.5, -0.5);
   vertices[17].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  vertices[17].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 6
   vertices[18].pos = glm::vec3(-0.5, 0.5, -0.5);
   vertices[18].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[18].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
   vertices[19].pos = glm::vec3(-0.5, 0.5, -0.5);
   vertices[19].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[19].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
   vertices[20].pos = glm::vec3(-0.5, 0.5, -0.5);
   vertices[20].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
+  vertices[20].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
   // 7
   vertices[21].pos = glm::vec3(0.5, 0.5, -0.5);
   vertices[21].normal = glm::vec3(0.0, 1.0, 0.0);  // top
+  vertices[21].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
   vertices[22].pos = glm::vec3(0.5, 0.5, -0.5);
   vertices[22].normal = glm::vec3(0.0, 0.0, -1.0);  // back
+  vertices[22].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
   vertices[23].pos = glm::vec3(0.5, 0.5, -0.5);
   vertices[23].normal = glm::vec3(1.0, 0.0, 0.0);  // right
+  vertices[23].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
 
   std::vector<uint32_t> indices{                          // Bottom
                                 0, 12, 15, 15, 3, 0,      // ccw if look to this face from down

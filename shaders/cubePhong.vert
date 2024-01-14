@@ -45,6 +45,7 @@ void main() {
     fragTBN = mat3(1.0);
     if (length(inTangent) > epsilon) {
         vec3 tangent = normalize(normalMatrix * inTangent.xyz);
+        //gram-schmidt process, if tangent isn't perpendicular to normal
         tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
         //w stores handness of tbn
         vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
