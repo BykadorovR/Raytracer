@@ -196,6 +196,7 @@ Main::Main() {
   materialCubePhongSpecular->setBaseColor(cubemapColorPhongContainer->getTexture());
   materialCubePhongSpecular->setNormal(_core->getResourceManager()->getCubemapZero()->getTexture());
   materialCubePhongSpecular->setSpecular(cubemapSpecularPhong->getTexture());
+  materialCubePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
 
   auto cubeTexturedPhongSpecular = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
