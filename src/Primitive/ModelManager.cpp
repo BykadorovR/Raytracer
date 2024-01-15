@@ -26,7 +26,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"lightPhong", _lightManager->getDSLLightPhong()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"alphaMask", _defaultMaterialPhong->getDescriptorSetLayoutAlphaCutoff()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
@@ -39,7 +39,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"lightPBR", _lightManager->getDSLLightPBR()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
@@ -278,12 +278,22 @@ void Model3DManager::draw(int currentFrame,
 
     auto lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                     [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                      return info.first == std::string("light");
+                                      return info.first == std::string("lightPhong");
                                     });
     if (lightLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 4, 1,
-                              &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_lightManager->getDSLightPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+
+    lightLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                               [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                 return info.first == std::string("lightPBR");
+                               });
+    if (lightLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 4, 1,
+                              &_lightManager->getDSLightPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),

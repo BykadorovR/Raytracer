@@ -8,6 +8,7 @@
 #include <memory>
 #include "State.h"
 #include "Logger.h"
+#include "Material.h"
 
 enum class LightType { DIRECTIONAL = 0, POINT = 1, AMBIENT = 2 };
 
@@ -26,8 +27,8 @@ class LightManager {
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetLight;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLight;
+  std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLightPhong, _descriptorSetLayoutLightPBR;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSet>> _descriptorSetViewProjection;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayoutViewProjection;
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
@@ -68,8 +69,10 @@ class LightManager {
   const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();
   const std::vector<std::shared_ptr<LoggerGPU>>& getDirectionalLightLoggers();
 
-  std::shared_ptr<DescriptorSetLayout> getDSLLight();
-  std::shared_ptr<DescriptorSet> getDSLight();
+  std::shared_ptr<DescriptorSetLayout> getDSLLightPhong();
+  std::shared_ptr<DescriptorSetLayout> getDSLLightPBR();
+  std::shared_ptr<DescriptorSet> getDSLightPhong();
+  std::shared_ptr<DescriptorSet> getDSLightPBR();
   std::shared_ptr<DescriptorSetLayout> getDSLViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();

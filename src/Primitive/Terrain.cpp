@@ -230,7 +230,7 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
       {std::pair{std::string("cameraControl"), setCameraControl},
        std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
        std::pair{std::string("terrainTiles"), setTerrainTiles},
-       std::pair{std::string("light"), lightManager->getDSLLight()},
+       std::pair{std::string("lightPhong"), lightManager->getDSLLightPhong()},
        std::pair{std::string("shadowTexture"), _lightManager->getDSLShadowTexture()},
        std::pair{std::string("lightVP"),
                  _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -259,7 +259,7 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
       {std::pair{std::string("cameraControl"), setCameraControl},
        std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
        std::pair{std::string("terrainTiles"), setTerrainTiles},
-       std::pair{std::string("light"), lightManager->getDSLLight()},
+       std::pair{std::string("lightPhong"), lightManager->getDSLLightPhong()},
        std::pair{std::string("shadowTexture"), _lightManager->getDSLShadowTexture()},
        std::pair{std::string("lightVP"),
                  _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -454,11 +454,11 @@ void Terrain::draw(int currentFrame, std::tuple<int, int> resolution, std::share
 
     auto lightLayout = std::find_if(
         pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "light"; });
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPhong"; });
     if (lightLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 4, 1,
-                              &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_lightManager->getDSLightPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),

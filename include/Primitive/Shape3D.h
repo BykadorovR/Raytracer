@@ -32,6 +32,7 @@ class Shape3D : public IDrawable, IShadowable {
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
   glm::mat4 _model = glm::mat4(1.f);
