@@ -13,9 +13,10 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
 layout(set = 2, binding = 0) uniform sampler2D texSampler;
 layout(set = 2, binding = 1) uniform sampler2D normalSampler;
-layout(set = 2, binding = 2) uniform sampler2D metallicRoughnessSampler;
-layout(set = 2, binding = 3) uniform sampler2D occlusionSampler;
-layout(set = 2, binding = 4) uniform sampler2D emissiveSampler;
+layout(set = 2, binding = 2) uniform sampler2D metallicSampler;
+layout(set = 2, binding = 3) uniform sampler2D roughnessSampler;
+layout(set = 2, binding = 4) uniform sampler2D occlusionSampler;
+layout(set = 2, binding = 5) uniform sampler2D emissiveSampler;
 
 struct LightDirectional {
     vec3 ambient;
@@ -71,7 +72,8 @@ void main() {
     //base color
     outColor = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     vec4 normalTest = texture(normalSampler, fragTexCoord);
-    vec4 metallicRoughnessSampler = texture(metallicRoughnessSampler, fragTexCoord);
+    vec4 metallicSampler = texture(metallicSampler, fragTexCoord);
+    vec4 roughnessSampler = texture(roughnessSampler, fragTexCoord);
     vec4 occlusionSampler = texture(occlusionSampler, fragTexCoord);
     vec4 emissiveSampler = texture(emissiveSampler, fragTexCoord);
     

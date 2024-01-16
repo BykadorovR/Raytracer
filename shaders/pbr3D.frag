@@ -13,12 +13,13 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
 layout(set = 3, binding = 0) uniform sampler2D texSampler;
 layout(set = 3, binding = 1) uniform sampler2D normalSampler;
-layout(set = 3, binding = 2) uniform sampler2D metallicRoughnessSampler;
-layout(set = 3, binding = 3) uniform sampler2D occlusionSampler;
-layout(set = 3, binding = 4) uniform sampler2D emissiveSampler;
-layout(set = 3, binding = 5) uniform samplerCube irradianceSampler;
-layout(set = 3, binding = 6) uniform samplerCube specularIBLSampler;
-layout(set = 3, binding = 7) uniform sampler2D specularBRDFSampler;
+layout(set = 3, binding = 2) uniform sampler2D metallicSampler;
+layout(set = 3, binding = 3) uniform sampler2D roughnessSampler;
+layout(set = 3, binding = 4) uniform sampler2D occlusionSampler;
+layout(set = 3, binding = 5) uniform sampler2D emissiveSampler;
+layout(set = 3, binding = 6) uniform samplerCube irradianceSampler;
+layout(set = 3, binding = 7) uniform samplerCube specularIBLSampler;
+layout(set = 3, binding = 8) uniform sampler2D specularBRDFSampler;
 
 struct LightDirectional {
     //
@@ -86,12 +87,13 @@ layout( push_constant ) uniform constants {
 void main() {
     vec4 albedoTexture = texture(texSampler, fragTexCoord) * vec4(fragColor, 1.0);
     vec4 normalTexture = texture(normalSampler, fragTexCoord);
-    vec4 metallicRoughnessTexture = texture(metallicRoughnessSampler, fragTexCoord);
+    vec4 metallicTexture = texture(metallicSampler, fragTexCoord);
+    vec4 roughnessTexture = texture(roughnessSampler, fragTexCoord);
     vec4 occlusionTexture = texture(occlusionSampler, fragTexCoord);
     vec4 emissiveTexture = texture(emissiveSampler, fragTexCoord);
     // ao .r, roughness .g, metallic .b
-    float metallicValue = metallicRoughnessTexture.b * material.metallicFactor;
-    float roughnessValue = metallicRoughnessTexture.g * material.roughnessFactor;
+    float metallicValue = metallicTexture.b * material.metallicFactor;
+    float roughnessValue = roughnessTexture.g * material.roughnessFactor;
 
     outColor = albedoTexture;
     if (alphaMask.alphaMask) {

@@ -26,7 +26,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
   _defaultMaterialPBR->setBaseColor(resourceManager->getTextureOne());
   _defaultMaterialPBR->setNormal(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setMetallicRoughness(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setMetallic(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setRoughness(resourceManager->getTextureZero());
   _defaultMaterialPBR->setEmissive(resourceManager->getTextureZero());
   _defaultMaterialPBR->setOccluded(resourceManager->getTextureZero());
   _defaultMaterialPBR->setDiffuseIBL(resourceManager->getCubemapZero()->getTexture());

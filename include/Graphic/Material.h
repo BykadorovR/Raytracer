@@ -57,7 +57,8 @@ class MaterialPBR : public Material {
 
   std::shared_ptr<Texture> _textureColor;
   std::shared_ptr<Texture> _textureNormal;
-  std::shared_ptr<Texture> _textureMetallicRoughness;
+  std::shared_ptr<Texture> _textureMetallic;
+  std::shared_ptr<Texture> _textureRoughness;
   std::shared_ptr<Texture> _textureOccluded;
   std::shared_ptr<Texture> _textureEmissive;
   std::shared_ptr<Texture> _textureDiffuseIBL;
@@ -74,7 +75,8 @@ class MaterialPBR : public Material {
 
   void setBaseColor(std::shared_ptr<Texture> color);
   void setNormal(std::shared_ptr<Texture> normal);
-  void setMetallicRoughness(std::shared_ptr<Texture> metallicRoughness);
+  void setMetallic(std::shared_ptr<Texture> metallic);
+  void setRoughness(std::shared_ptr<Texture> roughness);
   void setOccluded(std::shared_ptr<Texture> occluded);
   void setEmissive(std::shared_ptr<Texture> emissive);
   void setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL);

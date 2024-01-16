@@ -257,8 +257,11 @@ void Loader::_loadMaterials() {
         // set specular texture to Phong material
         materialPhong->setSpecular(
             _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
-        // set PBR texture to PBR material
-        materialPBR->setMetallicRoughness(
+        // set metallic texture to PBR material
+        materialPBR->setMetallic(
+            _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
+        // set roughness texture to PBR material
+        materialPBR->setRoughness(
             _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
       }
     }

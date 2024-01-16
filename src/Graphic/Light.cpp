@@ -71,7 +71,11 @@ void PointLight::setAttenuationIndex(int index) {
 
 int PointLight::getDistance() { return _light->distance; }
 
-DirectionalLight::DirectionalLight() { _light = std::make_shared<LightFields>(); }
+DirectionalLight::DirectionalLight() {
+  _light = std::make_shared<LightFields>();
+  _center = glm::vec3(0.f, 0.f, 0.f);
+  _up = glm::vec3(0.f, 0.f, -1.f);
+}
 
 int DirectionalLight::getSize() { return sizeof(LightFields); }
 

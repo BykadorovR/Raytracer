@@ -251,6 +251,11 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPhong> material) {
   _materialType = MaterialType::PHONG;
 }
 
+void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
+  _material = material;
+  _materialType = MaterialType::PBR;
+}
+
 void Shape3D::setModel(glm::mat4 model) { _model = model; }
 
 void Shape3D::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
