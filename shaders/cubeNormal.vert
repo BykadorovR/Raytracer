@@ -16,7 +16,6 @@ layout(location = 6) in vec4 inTangent;
 
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec3 fragColor;
-layout(location = 2) out vec3 texCoords;
 
 void main() {
     vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
@@ -25,6 +24,5 @@ void main() {
     fragNormal = normalize(normalMatrix * inNormal);
 
     fragColor = inColor;
-    texCoords = inPosition;
     gl_Position = mvp.view * mvp.model * vec4(inPosition, 1.0);
 }  
