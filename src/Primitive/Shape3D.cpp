@@ -33,12 +33,15 @@ Shape3D::Shape3D(ShapeType shapeType,
   if (shapeType == ShapeType::SPHERE) {
     _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
-    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/sphere_vertex.spv",
-                                                             "shaders/sphere_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"", ""};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"", ""};
+    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/sphereColor_vertex.spv",
+                                                             "shaders/sphereColor_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/spherePhong_vertex.spv",
+                                                             "shaders/spherePhong_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/cubePhong_vertex.spv",
+                                                           "shaders/cubePBR_fragment.spv"};
     _shadersLight[ShapeType::SPHERE] = {"shaders/sphereDepth_vertex.spv", "shaders/sphereDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::SPHERE] = {"", "", ""};
+    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
+                                              "shaders/cubeNormal_geometry.spv"};
   }
 
   _material = _defaultMaterialColor;

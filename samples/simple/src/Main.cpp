@@ -294,35 +294,34 @@ Main::Main() {
   }
   _core->addDrawable(cubeWireframePBR);
 
-  //// sphere textured
-  // auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
-  //                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  // auto materialSphereTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  // materialSphereTextured->setBaseColor(sphereTexture);
-  // auto sphereTextured = std::make_shared<Shape3D>(
-  //     ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-  //     VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  // sphereTextured->setCamera(_camera);
-  // sphereTextured->setMaterial(materialSphereTextured);
-  //{
-  //   auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-  //   sphereTextured->setModel(model);
-  // }
-  //_core->addDrawable(sphereTextured);
+  // sphere textured
+  auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
+                                                 VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+  auto materialSphereTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialSphereTextured->setBaseColor(sphereTexture);
+  auto sphereTextured = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTextured->setCamera(_camera);
+  sphereTextured->setMaterial(materialSphereTextured);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 3.f));
+    sphereTextured->setModel(model);
+  }
+  _core->addDrawable(sphereTextured);
 
-  //// sphere colored
-  // auto sphereColored = std::make_shared<Shape3D>(
-  //     ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-  //     VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  // sphereColored->setCamera(_camera);
-  // sphereColored->getMesh()->setColor(
-  //     std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-  //     commandBufferTransfer);
-  //{
-  //   auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, -3.f));
-  //   sphereColored->setModel(model);
-  // }
-  //_core->addDrawable(sphereColored);
+  // sphere colored
+  auto sphereColored = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereColored->setCamera(_camera);
+  sphereColored->getMesh()->setColor(
+      std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
+    sphereColored->setModel(model);
+  }
+  _core->addDrawable(sphereColored);
 
   commandBufferTransfer->endCommands();
   commandBufferTransfer->submitToQueue(true);

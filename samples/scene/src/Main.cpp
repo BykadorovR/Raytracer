@@ -653,7 +653,7 @@ void renderGraphic() {
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
-  spriteManager->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
+  spriteManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // wait model3D update
@@ -662,7 +662,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
-  modelManager->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
+  modelManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // submit model3D update
@@ -675,7 +675,7 @@ void renderGraphic() {
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
   // for terrain we have to draw both: fill and normal/wireframe
-  terrain->draw(currentFrame, settings->getResolution(), commandBufferRender, settings->getDrawType());
+  terrain->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
@@ -1487,7 +1487,7 @@ void initialize() {
     loggerGPU->begin("Render specular brdf", currentFrame);
     spriteManagerHUD->setCamera(cameraOrtho);
     spriteManagerHUD->draw(currentFrame, brdfTexture->getImageView()->getImage()->getResolution(),
-                           commandBufferEquirectangular, DrawType::FILL);
+                           commandBufferEquirectangular);
     loggerGPU->end();
 
     vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
