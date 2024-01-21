@@ -13,13 +13,18 @@ Cubemap::Cubemap(std::vector<std::string> path,
   // load texture
   std::vector<stbi_uc*> pixelsCubemap;
   int texWidth, texHeight, texChannels;
+  std::map<std::string, stbi_uc*> pixelsCached;
   for (auto currentPath : path) {
-    stbi_uc* pixels = stbi_load(currentPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-    if (!pixels) {
-      throw std::runtime_error("failed to load texture image!");
+    if (pixelsCached.find(currentPath) == pixelsCached.end()) {
+      stbi_uc* pixels = stbi_load(currentPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+      if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+      }
+
+      pixelsCached[currentPath] = pixels;
     }
 
-    pixelsCubemap.push_back(pixels);
+    pixelsCubemap.push_back(pixelsCached[currentPath]);
   }
 
   int imageSize = texWidth * texHeight * STBI_rgb_alpha;
@@ -38,7 +43,7 @@ Cubemap::Cubemap(std::vector<std::string> path,
   }
   vkUnmapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
 
-  for (auto& pixels : pixelsCubemap) stbi_image_free(pixels);
+  for (auto& [keys, pixels] : pixelsCached) stbi_image_free(pixels);
 
   // image
   auto [width, height] = state->getSettings()->getResolution();

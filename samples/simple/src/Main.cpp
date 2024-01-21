@@ -101,7 +101,6 @@ Main::Main() {
   }
   _core->addDrawable(cubeTextured);
 
-  // TODO: don't load the same texture 6 times for cubemap
   //  cube Phong
   auto cubemapColorPhong = std::make_shared<Cubemap>(
       std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg",
@@ -293,6 +292,19 @@ Main::Main() {
   }
   _core->addDrawable(cubeWireframePBR);
 
+  // sphere colored
+  auto sphereColored = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereColored->setCamera(_camera);
+  sphereColored->getMesh()->setColor(
+      std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 3.f));
+    sphereColored->setModel(model);
+  }
+  _core->addDrawable(sphereColored);
+
   // sphere textured
   auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
                                                  VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
@@ -304,23 +316,124 @@ Main::Main() {
   sphereTextured->setCamera(_camera);
   sphereTextured->setMaterial(materialSphereTextured);
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 3.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
     sphereTextured->setModel(model);
   }
   _core->addDrawable(sphereTextured);
 
-  // sphere colored
-  auto sphereColored = std::make_shared<Shape3D>(
+  // sphere Phong
+  auto sphereTexturePhong = std::make_shared<Texture>("../assets/brickwall.jpg",
+                                                      settings->getLoadTextureAuxilaryFormat(),
+                                                      VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+  auto sphereNormalPhong = std::make_shared<Texture>("../assets/brickwall_normal.jpg",
+                                                     settings->getLoadTextureAuxilaryFormat(),
+                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+  auto materialSpherePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialSpherePhong->setBaseColor(sphereTexturePhong);
+  materialSpherePhong->setNormal(sphereNormalPhong);
+  materialSpherePhong->setSpecular(_core->getResourceManager()->getTextureZero());
+
+  auto sphereTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereColored->setCamera(_camera);
-  sphereColored->getMesh()->setColor(
-      std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+  sphereTexturedPhong->setCamera(_camera);
+  sphereTexturedPhong->setMaterial(materialSpherePhong);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, 3.f));
+    sphereTexturedPhong->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedPhong);
+
+  // sphere colored wireframe
+  auto sphereColoredWireframe = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereColoredWireframe->setCamera(_camera);
+  sphereColoredWireframe->setDrawType(DrawType::WIREFRAME);
+  sphereColoredWireframe->getMesh()->setColor(
+      std::vector{sphereColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
+      commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
-    sphereColored->setModel(model);
+    sphereColoredWireframe->setModel(model);
   }
-  _core->addDrawable(sphereColored);
+  _core->addDrawable(sphereColoredWireframe);
+
+  // sphere texture wireframe
+  auto sphereTexturedWireframe = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTexturedWireframe->setCamera(_camera);
+  sphereTexturedWireframe->setDrawType(DrawType::WIREFRAME);
+  sphereTexturedWireframe->setMaterial(materialSphereTextured);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 3.f));
+    sphereTexturedWireframe->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedWireframe);
+
+  // sphere Phong wireframe
+  auto sphereTexturedWireframePhong = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTexturedWireframePhong->setCamera(_camera);
+  sphereTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
+  sphereTexturedWireframePhong->setMaterial(materialSpherePhong);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, -3.f, 3.f));
+    sphereTexturedWireframePhong->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedWireframePhong);
+
+  // sphere Phong mesh normal
+  auto sphereTexturedPhongNormalMesh = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTexturedPhongNormalMesh->setCamera(_camera);
+  sphereTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
+    sphereTexturedPhongNormalMesh->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedPhongNormalMesh);
+
+  // sphere Color fragment normal
+  auto materialSphereTexturedNormalFragment = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  materialSphereTexturedNormalFragment->setBaseColor(sphereNormalPhong);
+  auto sphereTexturedNormalFragment = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTexturedNormalFragment->setCamera(_camera);
+  sphereTexturedNormalFragment->setMaterial(materialSphereTexturedNormalFragment);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
+    sphereTexturedNormalFragment->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedNormalFragment);
+
+  // cube Phong: specular without normal
+  auto sphereColorPhongContainer = std::make_shared<Texture>(
+      "../assets/container.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+      commandBufferTransfer, state);
+  auto sphereSpecularPhongContainer = std::make_shared<Texture>(
+      "../assets/container_specular.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+      commandBufferTransfer, state);
+  auto materialSpherePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  materialSpherePhongSpecular->setBaseColor(sphereColorPhongContainer);
+  materialSpherePhongSpecular->setNormal(_core->getResourceManager()->getTextureZero());
+  materialSpherePhongSpecular->setSpecular(sphereSpecularPhongContainer);
+  materialSpherePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
+
+  auto sphereTexturedPhongSpecular = std::make_shared<Shape3D>(
+      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  sphereTexturedPhongSpecular->setCamera(_camera);
+  sphereTexturedPhongSpecular->setMaterial(materialSpherePhongSpecular);
+  {
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, 3.f));
+    sphereTexturedPhongSpecular->setModel(model);
+  }
+  _core->addDrawable(sphereTexturedPhongSpecular);
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore
