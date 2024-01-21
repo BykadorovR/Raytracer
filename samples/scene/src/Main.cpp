@@ -87,6 +87,7 @@ std::shared_ptr<AmbientLight> ambientLight;
 std::shared_ptr<DebugVisualization> debugVisualization;
 std::shared_ptr<LoggerGPU> loggerGPU, loggerPostprocessing, loggerParticles, loggerGPUDebug;
 std::shared_ptr<LoggerCPU> loggerCPU;
+std::mutex _frameSubmitMutexGraphic, _frameSubmitMutexCompute;
 
 std::future<void> updateJoints;
 std::shared_ptr<Animation> animation;
@@ -205,7 +206,12 @@ void directionalLightCalculator(int index) {
 
   // record command buffer
   commandBuffer->endCommands();
-  commandBuffer->submitToQueue(false);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
 }
 
 void pointLightCalculator(int index, int face) {
@@ -303,7 +309,12 @@ void pointLightCalculator(int index, int face) {
 
   // record command buffer
   commandBuffer->endCommands();
-  commandBuffer->submitToQueue(false);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[currentFrame];
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
 }
 
 void computeParticles() {
@@ -344,7 +355,8 @@ void computeParticles() {
 
   // end command buffer
   commandBufferParticleSystem->endCommands();
-  commandBufferParticleSystem->submitToQueue(submitInfoCompute, nullptr);
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexCompute);
+  vkQueueSubmit(device->getQueue(QueueType::COMPUTE), 1, &submitInfoCompute, nullptr);
 }
 
 void computePostprocessing(int swapchainImageIndex) {
@@ -1202,7 +1214,12 @@ void initialize() {
   pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
   commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[currentFrame];
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
 
   {
     // render equirectangular to cubemap
@@ -1273,7 +1290,12 @@ void initialize() {
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
     }
     commandBufferEquirectangular->endCommands();
-    commandBufferEquirectangular->submitToQueue(true);
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
+    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
   }
 
   commandBufferTransfer->beginCommands(0);
@@ -1285,7 +1307,12 @@ void initialize() {
   equiCube->setMaterial(materialColorCM);
   skybox->setMaterial(materialColorCM);
   commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  submitInfo = VkSubmitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[currentFrame];
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
 
   {
     // render cubemap to diffuse
@@ -1356,7 +1383,12 @@ void initialize() {
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
     }
     commandBufferEquirectangular->endCommands();
-    commandBufferEquirectangular->submitToQueue(true);
+    submitInfo = VkSubmitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
+    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
   }
 
   // render to specular
@@ -1435,7 +1467,12 @@ void initialize() {
       }
     }
     commandBufferEquirectangular->endCommands();
-    commandBufferEquirectangular->submitToQueue(true);
+    submitInfo = VkSubmitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
+    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
   }
 
   // display specular as texture
@@ -1493,7 +1530,12 @@ void initialize() {
     vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
 
     commandBufferEquirectangular->endCommands();
-    commandBufferEquirectangular->submitToQueue(true);
+    submitInfo = VkSubmitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
+    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
   }
 
   // set specular to material
@@ -1518,7 +1560,12 @@ void initialize() {
   }
   spriteManager->registerSprite(spriteBRDF);
   commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  submitInfo = VkSubmitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
+  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
 }
 
 void getImageIndex(uint32_t* imageIndex) {
@@ -1642,7 +1689,7 @@ void drawFrame(int imageIndex) {
   submitInfo.signalSemaphoreCount = 1;
   submitInfo.pSignalSemaphores = signalSemaphores;
 
-  commandBufferRender->submitToQueue(submitInfo, nullptr);
+  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
@@ -1667,7 +1714,7 @@ void drawFrame(int imageIndex) {
     submitInfoPostprocessing.pCommandBuffers = &commandBufferPostprocessing->getCommandBuffer()[currentFrame];
 
     // end command buffer
-    commandBufferPostprocessing->submitToQueue(submitInfoPostprocessing, nullptr);
+    vkQueueSubmit(device->getQueue(QueueType::COMPUTE), 1, &submitInfoPostprocessing, nullptr);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1695,7 +1742,7 @@ void drawFrame(int imageIndex) {
     // end command buffer
     // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
     // signal inFlightFences once all commands on GPU finish execution
-    commandBufferGUI->submitToQueue(submitInfo, inFlightFences[currentFrame]);
+    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, inFlightFences[currentFrame]->getFence());
   }
 }
 
