@@ -33,8 +33,6 @@ class Device {
   VkPhysicalDeviceFeatures _supportedFeatures;
   // supported queues
   std::map<QueueType, std::optional<uint32_t>> _family;
-  std::map<QueueType, std::mutex> _queueMutex;
-  std::mutex _mapMutex;
   // supported surface capabilities
   VkSurfaceCapabilitiesKHR _surfaceCapabilities;
   std::vector<VkSurfaceFormatKHR> _surfaceFormats;
@@ -53,7 +51,6 @@ class Device {
   VkSurfaceCapabilitiesKHR& getSupportedSurfaceCapabilities();
   std::optional<uint32_t> getSupportedFamilyIndex(QueueType type);
   VkQueue getQueue(QueueType type);
-  std::mutex& getQueueMutex(QueueType type);
   VkPhysicalDeviceLimits getDeviceLimits();
   VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
                                           VkImageTiling tiling,

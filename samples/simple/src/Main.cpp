@@ -9,7 +9,6 @@ std::shared_ptr<PointLight> pointLightVertical, pointLightHorizontal;
 std::shared_ptr<DirectionalLight> directionalLight;
 std::shared_ptr<Shape3D> cubeColoredLightVertical, cubeColoredLightHorizontal;
 
-// TODO: fix sporadic crash
 Main::Main() {
   auto settings = std::make_shared<Settings>();
   settings->setName("Vulkan");
@@ -324,7 +323,17 @@ Main::Main() {
   _core->addDrawable(sphereColored);
 
   commandBufferTransfer->endCommands();
-  commandBufferTransfer->submitToQueue(true);
+  // TODO: remove vkQueueWaitIdle, add fence or semaphore
+  // TODO: move this function to core
+  {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
+    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+  }
 
   _core->registerUpdate(std::bind(&Main::update, this));
 }

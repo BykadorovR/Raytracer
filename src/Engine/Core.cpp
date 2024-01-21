@@ -25,6 +25,9 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI,
                                                       _state->getDevice());
 
+  _frameSubmitInfoCompute.resize(settings->getMaxFramesInFlight());
+  _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
+
   // start transfer command buffer
   _commandBufferTransfer->beginCommands(0);
 
@@ -43,9 +46,14 @@ Core::Core(std::shared_ptr<Settings> settings) {
     _semaphoreRenderFinished.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
 
     // compute-graphic
-    _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, _state->getDevice()));
-    _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
+    _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
     _semaphoreGUI.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
+
+    // postprocessing semaphore
+    _graphicTimelineSemaphore.timelineInfo.push_back(VkTimelineSemaphoreSubmitInfo{});
+    _graphicTimelineSemaphore.particleSignal.push_back(uint64_t{0});
+    _graphicTimelineSemaphore.semaphore.push_back(
+        std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, _state->getDevice()));
   }
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
@@ -107,7 +115,17 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _state);
 
   _commandBufferTransfer->endCommands();
-  _commandBufferTransfer->submitToQueue(true);
+
+  // TODO: remove vkQueueWaitIdle, add fence or semaphore
+  {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[0];
+    auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+  }
 }
 
 void Core::_directionalLightCalculator(int index) {
@@ -184,7 +202,12 @@ void Core::_directionalLightCalculator(int index) {
 
   // record command buffer
   commandBuffer->endCommands();
-  commandBuffer->submitToQueue(false);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[_currentFrame];
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+  _frameSubmitInfoGraphic[_currentFrame].push_back(submitInfo);
 }
 
 void Core::_pointLightCalculator(int index, int face) {
@@ -275,7 +298,12 @@ void Core::_pointLightCalculator(int index, int face) {
 
   // record command buffer
   commandBuffer->endCommands();
-  commandBuffer->submitToQueue(false);
+  VkSubmitInfo submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submitInfo.commandBufferCount = 1;
+  submitInfo.pCommandBuffers = &commandBuffer->getCommandBuffer()[_currentFrame];
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+  _frameSubmitInfoGraphic[_currentFrame].push_back(submitInfo);
 }
 
 void Core::_computeParticles() {
@@ -300,25 +328,17 @@ void Core::_computeParticles() {
   }
   _loggerParticles->end();
 
-  auto particleSignal = _timer->getFrameCounter() + 1;
-  VkTimelineSemaphoreSubmitInfo timelineInfo{};
-  timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-  timelineInfo.pNext = NULL;
-  timelineInfo.signalSemaphoreValueCount = 1;
-  timelineInfo.pSignalSemaphoreValues = &particleSignal;
-
   VkSubmitInfo submitInfoCompute{};
   submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfoCompute.pNext = &timelineInfo;
-  VkSemaphore signalParticleSemaphores[] = {_semaphoreParticleSystem[_currentFrame]->getSemaphore()};
   submitInfoCompute.signalSemaphoreCount = 1;
-  submitInfoCompute.pSignalSemaphores = signalParticleSemaphores;
+  submitInfoCompute.pSignalSemaphores = &_semaphoreParticleSystem[_currentFrame]->getSemaphore();
   submitInfoCompute.commandBufferCount = 1;
   submitInfoCompute.pCommandBuffers = &_commandBufferParticleSystem->getCommandBuffer()[_currentFrame];
 
   // end command buffer
   _commandBufferParticleSystem->endCommands();
-  _commandBufferParticleSystem->submitToQueue(submitInfoCompute, nullptr);
+  std::unique_lock<std::mutex> lock(_frameSubmitMutexCompute);
+  _frameSubmitInfoCompute[_currentFrame].push_back(submitInfoCompute);
 }
 
 void Core::_computePostprocessing(int swapchainImageIndex) {
@@ -599,6 +619,9 @@ void Core::_getImageIndex(uint32_t* imageIndex) {
 
   result = vkResetFences(_state->getDevice()->getLogicalDevice(), waitFences.size(), waitFences.data());
   if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
+  _frameSubmitInfoCompute[_currentFrame].clear();
+  _frameSubmitInfoGraphic[_currentFrame].clear();
   // RETURNS ONLY INDEX, NOT IMAGE
   // semaphore to signal, once image is available
   result = vkAcquireNextImageKHR(_state->getDevice()->getLogicalDevice(), _state->getSwapchain()->getSwapchain(),
@@ -650,55 +673,62 @@ void Core::_drawFrame(int imageIndex) {
 
   // wait for particles to complete before render
   if (particlesFuture.valid()) particlesFuture.get();
+  {
+    // timeline signal structure
+    _graphicTimelineSemaphore.particleSignal[_currentFrame] = _timer->getFrameCounter() + 1;
+    _graphicTimelineSemaphore.timelineInfo[_currentFrame].sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    _graphicTimelineSemaphore.timelineInfo[_currentFrame].pNext = NULL;
+    _graphicTimelineSemaphore.timelineInfo[_currentFrame].signalSemaphoreValueCount = 1;
+    _graphicTimelineSemaphore.timelineInfo[_currentFrame].pSignalSemaphoreValues =
+        &_graphicTimelineSemaphore.particleSignal[_currentFrame];
+    // binary wait structure
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
 
-  VkSemaphore signalSemaphores[] = {_semaphorePostprocessing[_currentFrame]->getSemaphore()};
-  std::vector<VkSemaphore> waitSemaphores = {_semaphoreParticleSystem[_currentFrame]->getSemaphore()};
-  VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
-  auto particleSignal = _timer->getFrameCounter() + 1;
-  std::vector<uint64_t> waitSemaphoreValues = {particleSignal};
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = &_graphicTimelineSemaphore.timelineInfo[_currentFrame];
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &_semaphoreParticleSystem[_currentFrame]->getSemaphore();
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferRender->getCommandBuffer()[_currentFrame];
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &_graphicTimelineSemaphore.semaphore[_currentFrame]->getSemaphore();
 
-  VkTimelineSemaphoreSubmitInfo waitParticlesSemaphore{};
-  waitParticlesSemaphore.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-  waitParticlesSemaphore.pNext = NULL;
-  waitParticlesSemaphore.waitSemaphoreValueCount = waitSemaphores.size();
-  waitParticlesSemaphore.pWaitSemaphoreValues = waitSemaphoreValues.data();
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.pNext = &waitParticlesSemaphore;
-  submitInfo.waitSemaphoreCount = waitSemaphores.size();
-  submitInfo.pWaitSemaphores = waitSemaphores.data();
-  submitInfo.pWaitDstStageMask = waitStages;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &_commandBufferRender->getCommandBuffer()[_currentFrame];
-  submitInfo.signalSemaphoreCount = 1;
-  submitInfo.pSignalSemaphores = signalSemaphores;
-
-  _commandBufferRender->submitToQueue(submitInfo, nullptr);
-
+    std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+    _frameSubmitInfoGraphic[_currentFrame].push_back(submitInfo);
+  }
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
   //////////////////////////////////////////////////////////////////////////////////////////////////
+  std::vector<VkSemaphore> waitSemaphoresPostprocessing = {
+      _semaphoreImageAvailable[_currentFrame]->getSemaphore(),
+      _graphicTimelineSemaphore.semaphore[_currentFrame]->getSemaphore()};
+  // binary semaphore ignores wait value
+  std::vector<uint64_t> waitValuesPostprocessing = {_graphicTimelineSemaphore.particleSignal[_currentFrame],
+                                                    _graphicTimelineSemaphore.particleSignal[_currentFrame]};
   {
     if (postprocessingFuture.valid()) postprocessingFuture.get();
-
-    VkSubmitInfo submitInfoPostprocessing{};
-    submitInfoPostprocessing.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    std::vector<VkSemaphore> waitSemaphores = {_semaphoreImageAvailable[_currentFrame]->getSemaphore(),
-                                               _semaphorePostprocessing[_currentFrame]->getSemaphore()};
+    VkTimelineSemaphoreSubmitInfo waitParticlesSemaphore{};
+    waitParticlesSemaphore.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    waitParticlesSemaphore.pNext = NULL;
+    waitParticlesSemaphore.waitSemaphoreValueCount = waitSemaphoresPostprocessing.size();
+    waitParticlesSemaphore.pWaitSemaphoreValues = waitValuesPostprocessing.data();
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
-    submitInfoPostprocessing.waitSemaphoreCount = waitSemaphores.size();
-    submitInfoPostprocessing.pWaitSemaphores = waitSemaphores.data();
-    submitInfoPostprocessing.pWaitDstStageMask = waitStages;
 
-    VkSemaphore signalComputeSemaphores[] = {_semaphoreGUI[_currentFrame]->getSemaphore()};
-    submitInfoPostprocessing.signalSemaphoreCount = 1;
-    submitInfoPostprocessing.pSignalSemaphores = signalComputeSemaphores;
-    submitInfoPostprocessing.commandBufferCount = 1;
-    submitInfoPostprocessing.pCommandBuffers = &_commandBufferPostprocessing->getCommandBuffer()[_currentFrame];
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = &waitParticlesSemaphore;
+    submitInfo.waitSemaphoreCount = waitSemaphoresPostprocessing.size();
+    submitInfo.pWaitSemaphores = waitSemaphoresPostprocessing.data();
+    submitInfo.pWaitDstStageMask = waitStages;
 
-    // end command buffer
-    _commandBufferPostprocessing->submitToQueue(submitInfoPostprocessing, nullptr);
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &_semaphoreGUI[_currentFrame]->getSemaphore();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferPostprocessing->getCommandBuffer()[_currentFrame];
+    std::unique_lock<std::mutex> lock(_frameSubmitMutexCompute);
+    _frameSubmitInfoCompute[_currentFrame].push_back(submitInfo);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -710,24 +740,24 @@ void Core::_drawFrame(int imageIndex) {
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    std::vector<VkSemaphore> waitSemaphores = {_semaphoreGUI[_currentFrame]->getSemaphore()};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
-    submitInfo.waitSemaphoreCount = waitSemaphores.size();
-    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &_semaphoreGUI[_currentFrame]->getSemaphore();
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferGUI->getCommandBuffer()[_currentFrame];
 
-    VkSemaphore signalSemaphores[] = {_semaphoreRenderFinished[_currentFrame]->getSemaphore()};
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    // end command buffer
-    // to render, need to wait semaphore from vkAcquireNextImageKHR, so display surface is ready
-    // signal inFlightFences once all commands on GPU finish execution
-    _commandBufferGUI->submitToQueue(submitInfo, _fenceInFlight[_currentFrame]);
+    submitInfo.pSignalSemaphores = &_semaphoreRenderFinished[_currentFrame]->getSemaphore();
+    std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
+    _frameSubmitInfoGraphic[_currentFrame].push_back(submitInfo);
   }
+
+  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoCompute[_currentFrame].size(),
+                _frameSubmitInfoCompute[_currentFrame].data(), nullptr);
+  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoGraphic[_currentFrame].size(),
+                _frameSubmitInfoGraphic[_currentFrame].data(), _fenceInFlight[_currentFrame]->getFence());
 }
 
 void Core::_displayFrame(uint32_t* imageIndex) {

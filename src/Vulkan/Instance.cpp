@@ -54,20 +54,15 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
 
   // extensions
   std::vector<const char*> extensions = window->getExtensions();
-  if (_validation) {
-    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-  }
+  extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   createInfo.ppEnabledExtensionNames = extensions.data();
 
   // validation
-  createInfo.enabledLayerCount = 0;
-  createInfo.pNext = nullptr;
-  VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+  createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
+  createInfo.ppEnabledLayerNames = _validationLayers.data();
   if (_validation) {
-    createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
-    createInfo.ppEnabledLayerNames = _validationLayers.data();
-
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                                       VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -84,7 +79,7 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
     throw std::runtime_error("failed to create instance!");
   }
 
-  if (_validation) {
+  {
     VkDebugUtilsMessengerCreateInfoEXT createInfo{};
     createInfo.pNext = nullptr;
     createInfo.flags = 0;

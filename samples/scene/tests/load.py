@@ -23,10 +23,15 @@ while error == False:
         if p_cmd.returncode:
             error = True
             print(f"Application crashed: {p_cmd.returncode}")
+            print(str_err)
+            print(str_out)
+
         if timed_out:
             print(f"Iteration number {iteration}")
             iteration += 1
             
         if (re.search("Validation Error", str_err)):
             print(str_err)
+            print(str_out)
             error = True
+            
