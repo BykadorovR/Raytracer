@@ -3,7 +3,7 @@
 #include <string>
 #include "vulkan/vulkan.hpp"
 
-enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 4 };
+enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 3, TANGENT = 4 };
 
 inline DrawType operator|(DrawType a, DrawType b) {
   return static_cast<DrawType>(static_cast<int>(a) | static_cast<int>(b));

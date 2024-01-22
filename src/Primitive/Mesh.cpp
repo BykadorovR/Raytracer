@@ -274,6 +274,10 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
       nz = z * lengthInv;
       vertex.normal = glm::vec3(nx, ny, nz);
 
+      // calculate tangent as dp/du
+      // (https://computergraphics.stackexchange.com/questions/5498/compute-sphere-tangent-for-normal-mapping)
+      vertex.tangent = glm::vec4(-sinf(sectorAngle), 0.f, cosf(sectorAngle), 1.f);
+
       // vertex tex coord (s, t) range between [0, 1]
       s = (float)j / sectorCount;
       t = (float)i / stackCount;

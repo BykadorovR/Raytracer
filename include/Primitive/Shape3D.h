@@ -14,7 +14,7 @@ enum class ShapeType { CUBE = 0, SPHERE = 1 };
 class Shape3D : public IDrawable, IShadowable {
  private:
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
-  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh;
+  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
   ShapeType _shapeType;
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
@@ -27,7 +27,7 @@ class Shape3D : public IDrawable, IShadowable {
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalsMesh;
+  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalsMesh, _pipelineTangentMesh;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;

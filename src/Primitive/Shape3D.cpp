@@ -28,6 +28,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     _shadersLight[ShapeType::CUBE] = {"shaders/cubeDepth_vertex.spv", "shaders/cubeDepth_fragment.spv"};
     _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
                                             "shaders/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::CUBE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
+                                            "shaders/cubeNormal_geometry.spv"};
   }
 
   if (shapeType == ShapeType::SPHERE) {
@@ -37,10 +39,12 @@ Shape3D::Shape3D(ShapeType shapeType,
                                                              "shaders/sphereColor_fragment.spv"};
     _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/spherePhong_vertex.spv",
                                                              "shaders/spherePhong_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/cubePhong_vertex.spv",
-                                                           "shaders/cubePBR_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/spherePhong_vertex.spv",
+                                                           "shaders/spherePBR_fragment.spv"};
     _shadersLight[ShapeType::SPHERE] = {"shaders/sphereDepth_vertex.spv", "shaders/sphereDepth_fragment.spv"};
     _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
+                                              "shaders/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
                                               "shaders/cubeNormal_geometry.spv"};
   }
 
@@ -80,7 +84,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
 
-  // layout for Normals (per vertex)
+  // layout for Normals/Tangents (per vertex)
   _descriptorSetLayoutNormalsMesh.push_back({"camera", layoutCamera});
   _descriptorSetLayoutNormalsMesh.push_back({"cameraGeometry", layoutCameraGeometry});
 
@@ -207,6 +211,21 @@ Shape3D::Shape3D(ShapeType shapeType,
 
     _pipelineNormalsMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormalsMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                           shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                          _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
+                                          _mesh->getAttributeDescriptions());
+  }
+  // initialize Tangent (per vertex)
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add(_shadersTangentMesh[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersTangentMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add(_shadersTangentMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
+
+    _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineTangentMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
@@ -424,6 +443,7 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
   auto pipeline = _pipeline[_materialType];
   if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
   if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) pipeline = _pipelineNormalsMesh;
+  if ((_drawType & DrawType::TANGENT) == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawShape3D(pipeline);
 }
 
