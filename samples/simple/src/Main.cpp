@@ -99,10 +99,10 @@ Main::Main() {
 
   // cube textured
   auto cubemap = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/right.jpg", "../assets/left.jpg", "../assets/top.jpg", "../assets/bottom.jpg",
-                               "../assets/front.jpg", "../assets/back.jpg"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{"../assets/right.jpg", "../assets/left.jpg",
+                                                                 "../assets/top.jpg", "../assets/bottom.jpg",
+                                                                 "../assets/front.jpg", "../assets/back.jpg"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto materialCubeTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
@@ -120,18 +120,17 @@ Main::Main() {
 
   //  cube Phong
   auto cubemapColorPhong = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg",
-                               "../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg",
+                                                                 "../assets/brickwall.jpg", "../assets/brickwall.jpg",
+                                                                 "../assets/brickwall.jpg", "../assets/brickwall.jpg"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto cubemapNormalPhong = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{
+          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto materialCubePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
@@ -205,11 +204,10 @@ Main::Main() {
 
   // cube Color fragment normal
   auto cubemapNormal = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{
+          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto materialCubeTexturedNormalFragment = std::make_shared<MaterialColor>(commandBufferTransfer, state);
@@ -227,18 +225,17 @@ Main::Main() {
 
   // cube Phong: specular without normal
   auto cubemapColorPhongContainer = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/container.png", "../assets/container.png", "../assets/container.png",
-                               "../assets/container.png", "../assets/container.png", "../assets/container.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{"../assets/container.png", "../assets/container.png",
+                                                                 "../assets/container.png", "../assets/container.png",
+                                                                 "../assets/container.png", "../assets/container.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto cubemapSpecularPhong = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/container_specular.png", "../assets/container_specular.png",
-                               "../assets/container_specular.png", "../assets/container_specular.png",
-                               "../assets/container_specular.png", "../assets/container_specular.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{
+          "../assets/container_specular.png", "../assets/container_specular.png", "../assets/container_specular.png",
+          "../assets/container_specular.png", "../assets/container_specular.png", "../assets/container_specular.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto materialCubePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
@@ -261,35 +258,34 @@ Main::Main() {
   // cube PBR
   // TODO: fix mipmaping
   auto cubemapColorPBR = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
-                               "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
-                               "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(
+          std::vector<std::string>{"../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
+                                   "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
+                                   "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto cubemapNormalPBR = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
-                               "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
-                               "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(std::vector<std::string>{
+          "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
+          "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto cubemapMetallicPBR = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
-                               "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
-                               "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(
+          std::vector<std::string>{"../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
+                                   "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
+                                   "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto cubemapRoughnessPBR = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
-                               "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
-                               "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png"},
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _core->getResourceManager()->load(
+          std::vector<std::string>{"../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
+                                   "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
+                                   "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png"}),
+      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
   auto materialCubePBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
@@ -342,9 +338,9 @@ Main::Main() {
   _core->addDrawable(sphereColored);
 
   // sphere textured
-  auto sphereTexture = std::make_shared<Texture>("../assets/right.jpg", settings->getLoadTextureAuxilaryFormat(),
-                                                 VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-                                                 state);
+  auto sphereTexture = std::make_shared<Texture>(
+      _core->getResourceManager()->load({"../assets/right.jpg"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto materialSphereTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialSphereTextured->setBaseColor(sphereTexture);
   auto sphereTextured = std::make_shared<Shape3D>(
@@ -360,11 +356,11 @@ Main::Main() {
 
   // sphere Phong
   auto sphereTexturePhong = std::make_shared<Texture>(
-      "../assets/brickwall.jpg", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels,
-      commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/brickwall.jpg"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto sphereNormalPhong = std::make_shared<Texture>(
-      "../assets/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/brickwall_normal.jpg"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto materialSpherePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialSpherePhong->setBaseColor(sphereTexturePhong);
   materialSpherePhong->setNormal(sphereNormalPhong);
@@ -450,11 +446,11 @@ Main::Main() {
 
   // cube Phong: specular without normal
   auto sphereColorPhongContainer = std::make_shared<Texture>(
-      "../assets/container.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels,
-      commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/container.png"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto sphereSpecularPhongContainer = std::make_shared<Texture>(
-      "../assets/container_specular.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/container_specular.png"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto materialSpherePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialSpherePhongSpecular->setBaseColor(sphereColorPhongContainer);
   materialSpherePhongSpecular->setNormal(_core->getResourceManager()->getTextureZero());
@@ -475,17 +471,20 @@ Main::Main() {
   // TODO: color is not so bright in comparison with cube
   // sphere PBR
   auto sphereColorPBR = std::make_shared<Texture>(
-      "../assets/rustediron2_basecolor.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/rustediron2_basecolor.png"}),
+      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+      state);
   auto sphereNormalPBR = std::make_shared<Texture>(
-      "../assets/rustediron2_normal.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/rustediron2_normal.png"}), settings->getLoadTextureAuxilaryFormat(),
+      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
   auto sphereMetallicPBR = std::make_shared<Texture>(
-      "../assets/rustediron2_metallic.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/rustediron2_metallic.png"}),
+      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+      state);
   auto sphereRoughnessPBR = std::make_shared<Texture>(
-      "../assets/rustediron2_roughness.png", settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-      mipMapLevels, commandBufferTransfer, state);
+      _core->getResourceManager()->load({"../assets/rustediron2_roughness.png"}),
+      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+      state);
   auto materialSpherePBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
   // material can't have default state because it can be either cubemap or texture2D
   materialSpherePBR->setBaseColor(sphereColorPBR);

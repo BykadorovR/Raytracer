@@ -4,6 +4,7 @@
 #include "Material.h"
 #include "Mesh.h"
 #include <filesystem>
+#include "ResourceManager.h"
 
 // A node represents an object in the glTF scene graph
 struct NodeGLTF {
@@ -69,6 +70,7 @@ class Loader {
   std::filesystem::path _path;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<ResourceManager> _resourceManager;
   // pool of all used textures to conviniently take neccessary in materials
   tinygltf::Model _model;
   tinygltf::TinyGLTF _loader;
@@ -93,7 +95,10 @@ class Loader {
   void _loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, uint32_t nodeIndex);
 
  public:
-  Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Loader(std::string path,
+         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<ResourceManager> resourceManager,
+         std::shared_ptr<State> state);
   std::vector<std::shared_ptr<MaterialPhong>> getMaterialsPhong();
   std::vector<std::shared_ptr<MaterialPBR>> getMaterialsPBR();
 

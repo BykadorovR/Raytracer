@@ -68,7 +68,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _G = g;
   _B = b;
 
-  _loaderBox = std::make_shared<Loader>("assets/box/Box.gltf", commandBufferTransfer, state);
+  _loaderBox = std::make_shared<Loader>("assets/box/Box.gltf", commandBufferTransfer, resourceManager, state);
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {

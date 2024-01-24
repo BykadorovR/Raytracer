@@ -80,7 +80,10 @@ class Buffer {
 
  public:
   Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
-  void copyFrom(std::shared_ptr<Buffer> buffer, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void copyFrom(std::shared_ptr<Buffer> buffer,
+                VkDeviceSize srcOffset,
+                VkDeviceSize dstOffset,
+                std::shared_ptr<CommandBuffer> commandBufferTransfer);
   VkBuffer& getData();
   VkDeviceSize& getSize();
   VkDeviceMemory& getMemory();
@@ -89,6 +92,24 @@ class Buffer {
   void flush();
   void* getMappedMemory();
   ~Buffer();
+};
+
+class BufferImage : public Buffer {
+ private:
+  std::tuple<int, int> _resolution;
+  int _channels;
+  int _number;
+
+ public:
+  BufferImage(std::tuple<int, int> resolution,
+              int channels,
+              int number,
+              VkBufferUsageFlags usage,
+              VkMemoryPropertyFlags properties,
+              std::shared_ptr<Device> device);
+  std::tuple<int, int> getResolution();
+  int getChannels();
+  int getNumber();
 };
 
 template <class T>
@@ -126,7 +147,16 @@ class VertexBuffer {
                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
     }
 
-    _buffer->copyFrom(_stagingBuffer, commandBufferTransfer);
+    _buffer->copyFrom(_stagingBuffer, 0, 0, commandBufferTransfer);
+    // need to insert memory barrier so read in vertex shader waits for copy
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[commandBufferTransfer->getCurrentFrame()],
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0,
+                         nullptr, 0, nullptr);
   }
 
   std::shared_ptr<Buffer> getBuffer() { return _buffer; }

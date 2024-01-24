@@ -7,12 +7,11 @@
 
 class Texture {
  private:
-  std::string _path;
   std::shared_ptr<ImageView> _imageView;
   std::shared_ptr<Sampler> _sampler;
 
  public:
-  Texture(std::string path,
+  Texture(std::shared_ptr<BufferImage> data,
           VkFormat format,
           VkSamplerAddressMode mode,
           int mipMapLevels,

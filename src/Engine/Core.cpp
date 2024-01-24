@@ -112,16 +112,16 @@ Core::Core(std::shared_ptr<Settings> settings) {
 
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
-  _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _state);
+  _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
 
   _commandBufferTransfer->endCommands();
 
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
   {
+    // TODO: remove vkQueueWaitIdle, add fence or semaphore
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[0];
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()];
     auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);

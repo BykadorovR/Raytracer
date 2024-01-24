@@ -46,6 +46,7 @@ class Terrain : public IDrawable, IShadowable {
           std::vector<VkFormat> renderFormat,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<LightManager> lightManager,
+          std::shared_ptr<ResourceManager> resourceManager,
           std::shared_ptr<State> state);
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);

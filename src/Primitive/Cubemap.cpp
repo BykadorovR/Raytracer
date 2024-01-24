@@ -1,58 +1,23 @@
 #include "Cubemap.h"
 #include "Buffer.h"
 
-Cubemap::Cubemap(std::vector<std::string> path,
+Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
                  VkFormat format,
                  int mipMapLevels,
-                 VkImageLayout layout,
                  VkImageAspectFlagBits colorBits,
                  VkImageUsageFlags usage,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state) {
   _state = state;
-  // load texture
-  std::vector<stbi_uc*> pixelsCubemap;
-  int texWidth, texHeight, texChannels;
-  std::map<std::string, stbi_uc*> pixelsCached;
-  for (auto currentPath : path) {
-    if (pixelsCached.find(currentPath) == pixelsCached.end()) {
-      stbi_uc* pixels = stbi_load(currentPath.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-      if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-      }
-
-      pixelsCached[currentPath] = pixels;
-    }
-
-    pixelsCubemap.push_back(pixelsCached[currentPath]);
-  }
-
-  int imageSize = texWidth * texHeight * STBI_rgb_alpha;
-  int bufferSize = imageSize * pixelsCubemap.size();
-  // fill buffer
-  _stagingBuffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                            state->getDevice());
-  void* data;
-  vkMapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-
-  int offset = 0;
-  for (int i = 0; i < pixelsCubemap.size(); i++) {
-    memcpy((stbi_uc*)data + offset, pixelsCubemap[i], static_cast<size_t>(imageSize));
-    offset += imageSize;
-  }
-  vkUnmapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
-
-  for (auto& [keys, pixels] : pixelsCached) stbi_image_free(pixels);
-
   // image
-  auto [width, height] = state->getSettings()->getResolution();
   // usage VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
-  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 6, mipMapLevels, format, VK_IMAGE_TILING_OPTIMAL,
-                                   usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+  _image = std::make_shared<Image>(data->getResolution(), data->getNumber(), mipMapLevels, format,
+                                   VK_IMAGE_TILING_OPTIMAL, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                   state->getDevice());
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, colorBits, 6, mipMapLevels,
                        commandBufferTransfer);
-  _image->copyFrom(_stagingBuffer, {0, imageSize, imageSize * 2, imageSize * 3, imageSize * 4, imageSize * 5},
+  int imageSize = std::get<0>(data->getResolution()) * std::get<1>(data->getResolution()) * data->getChannels();
+  _image->copyFrom(data, {0, imageSize, imageSize * 2, imageSize * 3, imageSize * 4, imageSize * 5},
                    commandBufferTransfer);
 
   _image->generateMipmaps(mipMapLevels, 6, commandBufferTransfer);

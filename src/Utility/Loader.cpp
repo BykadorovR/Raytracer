@@ -6,10 +6,14 @@
 #include <filesystem>
 #include "mikktspace.h"
 
-Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Loader::Loader(std::string path,
+               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<ResourceManager> resourceManager,
+               std::shared_ptr<State> state) {
   _path = std::filesystem::path(path);
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
+  _resourceManager = resourceManager;
 
   std::string err, warn;
   bool loaded = _loader.LoadASCIIFromFile(&_model, &err, &warn, path);
@@ -134,8 +138,8 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
     tinygltf::Image& glTFImage = _model.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(filePath, format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
-                                          _state);
+      texture = std::make_shared<Texture>(_resourceManager->load({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                          _commandBufferTransfer, _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
