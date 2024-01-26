@@ -68,7 +68,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _G = g;
   _B = b;
 
-  _loaderBox = std::make_shared<Loader>("assets/box/Box.gltf", commandBufferTransfer, resourceManager, state);
+  _boxModel = resourceManager->loadModel("assets/box/Box.gltf");
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
@@ -88,7 +88,7 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
                                                    lightManager, _commandBufferTransfer, _resourceManager, _state);
 
   for (auto light : lightManager->getPointLights()) {
-    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
+    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
@@ -104,7 +104,7 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
-    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
+    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);

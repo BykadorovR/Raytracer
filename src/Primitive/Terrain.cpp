@@ -66,20 +66,20 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
 
   _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
 
-  _terrainTiles[0] = std::make_shared<Texture>(resourceManager->load({tiles[0]}),
+  _terrainTiles[0] = std::make_shared<Texture>(resourceManager->loadImage({tiles[0]}),
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[1] = std::make_shared<Texture>(resourceManager->load({tiles[1]}),
+  _terrainTiles[1] = std::make_shared<Texture>(resourceManager->loadImage({tiles[1]}),
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[2] = std::make_shared<Texture>(resourceManager->load({tiles[2]}),
+  _terrainTiles[2] = std::make_shared<Texture>(resourceManager->loadImage({tiles[2]}),
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[3] = std::make_shared<Texture>(resourceManager->load({tiles[3]}),
+  _terrainTiles[3] = std::make_shared<Texture>(resourceManager->loadImage({tiles[3]}),
                                                _state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
 
-  _heightMap = std::make_shared<Texture>(resourceManager->load({heightMap}),
+  _heightMap = std::make_shared<Texture>(resourceManager->loadImage({heightMap}),
                                          _state->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();

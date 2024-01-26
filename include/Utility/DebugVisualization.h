@@ -58,7 +58,7 @@ class DebugVisualization : public InputSubscriber {
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
   std::vector<std::string> _shadowKeys;
-  std::shared_ptr<Loader> _loaderBox;
+  std::shared_ptr<ModelGLTF> _boxModel;
   bool _frustumDraw = false;
   bool _showPlanes = false;
   bool _planesRegistered = false;

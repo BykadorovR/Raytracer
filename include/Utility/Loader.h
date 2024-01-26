@@ -4,7 +4,17 @@
 #include "Material.h"
 #include "Mesh.h"
 #include <filesystem>
-#include "ResourceManager.h"
+
+class LoaderImage {
+ private:
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<State> _state;
+  std::map<std::string, std::shared_ptr<BufferImage>> _images;
+
+ public:
+  LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  std::shared_ptr<BufferImage> load(std::vector<std::string> paths);
+};
 
 // A node represents an object in the glTF scene graph
 struct NodeGLTF {
@@ -65,17 +75,9 @@ struct AnimationGLTF {
   float currentTime = 0.0f;
 };
 
-class Loader {
+class ModelGLTF {
  private:
-  std::filesystem::path _path;
-  std::shared_ptr<State> _state;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  std::shared_ptr<ResourceManager> _resourceManager;
-  // pool of all used textures to conviniently take neccessary in materials
-  tinygltf::Model _model;
-  tinygltf::TinyGLTF _loader;
   std::vector<std::shared_ptr<Texture>> _textures;
-  //
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::shared_ptr<MaterialGLTF>> _materials;
   std::vector<std::shared_ptr<MaterialPhong>> _materialsPhong;
@@ -84,27 +86,60 @@ class Loader {
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
-  std::shared_ptr<Texture> _loadTexture(int imageIndex, VkFormat format);
-  void _loadMaterials();
-  void _loadAnimations();
-  void _loadSkins();
-  void _generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices);
-
-  std::shared_ptr<NodeGLTF> _findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index);
-  std::shared_ptr<NodeGLTF> _nodeFromIndex(uint32_t index);
-  void _loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, uint32_t nodeIndex);
-
  public:
-  Loader(std::string path,
-         std::shared_ptr<CommandBuffer> commandBufferTransfer,
-         std::shared_ptr<ResourceManager> resourceManager,
-         std::shared_ptr<State> state);
-  std::vector<std::shared_ptr<MaterialPhong>> getMaterialsPhong();
-  std::vector<std::shared_ptr<MaterialPBR>> getMaterialsPBR();
+  void setMaterialsPhong(std::vector<std::shared_ptr<MaterialPhong>>& materialsPhong);
+  void setMaterialsPBR(std::vector<std::shared_ptr<MaterialPBR>>& materialsPBR);
+  void setSkins(std::vector<std::shared_ptr<SkinGLTF>>& skins);
+  void setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& animations);
+  void setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes);
+  void setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes);
 
+  const std::vector<std::shared_ptr<MaterialPhong>>& getMaterialsPhong();
+  const std::vector<std::shared_ptr<MaterialPBR>>& getMaterialsPBR();
   const std::vector<std::shared_ptr<SkinGLTF>>& getSkins();
   const std::vector<std::shared_ptr<AnimationGLTF>>& getAnimations();
   // one mesh - one node
   const std::vector<std::shared_ptr<NodeGLTF>>& getNodes();
   const std::vector<std::shared_ptr<Mesh3D>>& getMeshes();
+};
+
+class LoaderGLTF {
+ private:
+  std::filesystem::path _path;
+  std::shared_ptr<State> _state;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
+  std::shared_ptr<LoaderImage> _loaderImage;
+  tinygltf::TinyGLTF _loader;
+  std::map<std::string, std::shared_ptr<ModelGLTF>> _models;
+
+  std::shared_ptr<Texture> _loadTexture(int imageIndex,
+                                        VkFormat format,
+                                        const tinygltf::Model& modelInternal,
+                                        std::vector<std::shared_ptr<Texture>>& textures);
+  void _loadMaterials(const tinygltf::Model& modelInternal,
+                      std::vector<std::shared_ptr<MaterialGLTF>> materialGLTF,
+                      std::shared_ptr<ModelGLTF> modelExternal);
+  void _loadAnimations(const tinygltf::Model& modelInternal,
+                       const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                       std::vector<std::shared_ptr<AnimationGLTF>> animations);
+  void _loadSkins(const tinygltf::Model& modelInternal,
+                  const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                  std::vector<std::shared_ptr<SkinGLTF>>& skins);
+  void _generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices);
+
+  std::shared_ptr<NodeGLTF> _findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index);
+  std::shared_ptr<NodeGLTF> _nodeFromIndex(uint32_t index, const std::vector<std::shared_ptr<NodeGLTF>>& nodes);
+  void _loadNode(const tinygltf::Model& modelInternal,
+                 const tinygltf::Node& input,
+                 std::shared_ptr<NodeGLTF> parent,
+                 uint32_t nodeIndex,
+                 const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
+                 const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+                 std::vector<std::shared_ptr<NodeGLTF>>& nodes);
+
+ public:
+  LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<LoaderImage> loaderImage,
+             std::shared_ptr<State> state);
+  std::shared_ptr<ModelGLTF> load(std::string path);
 };

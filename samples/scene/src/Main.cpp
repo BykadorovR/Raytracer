@@ -826,6 +826,7 @@ void initialize() {
       blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
   }
+  resourceManager = std::make_shared<ResourceManager>(commandBufferTransfer, state);
 
   gui = std::make_shared<GUI>(state);
   gui->initialize(commandBufferTransfer);
@@ -836,10 +837,12 @@ void initialize() {
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
   swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, commandBufferTransfer);
 
-  auto texture = std::make_shared<Texture>("../assets/brickwall.jpg", settings->getLoadTextureColorFormat(),
-                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  auto normalMap = std::make_shared<Texture>("../assets/brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(),
-                                             VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+  auto texture = std::make_shared<Texture>(resourceManager->loadImage({"../assets/brickwall.jpg"}),
+                                           settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                           commandBufferTransfer, state);
+  auto normalMap = std::make_shared<Texture>(resourceManager->loadImage({"../assets/brickwall_normal.jpg"}),
+                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             1, commandBufferTransfer, state);
   cameraOrtho = std::make_shared<CameraOrtho>();
   cameraOrtho->setProjectionParameters({-1, 1, 1, -1}, 0, 1);
   cameraOrtho->setViewParameters(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
@@ -848,8 +851,7 @@ void initialize() {
   camera->setProjectionParameters(60.f, 0.1f, 100.f);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(camera));
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(gui));
-  lightManager = std::make_shared<LightManager>(commandBufferTransfer, state);
-  resourceManager = std::make_shared<ResourceManager>(commandBufferTransfer, state);
+  lightManager = std::make_shared<LightManager>(commandBufferTransfer, resourceManager, state);
   pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
   pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
@@ -961,26 +963,24 @@ void initialize() {
     spriteManager->registerSprite(spriteTop);
     spriteManager->registerSprite(spriteBot);
   }
-  std::shared_ptr<Loader> loaderGLTF = std::make_shared<Loader>("../assets/DamagedHelmet/DamagedHelmet.gltf",
-                                                                commandBufferTransfer, state);
-  std::shared_ptr<Loader> loaderGLTFBox = std::make_shared<Loader>("../assets/Box/Box.gltf", commandBufferTransfer,
-                                                                   state);
+  auto modelGLTF = resourceManager->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
+  auto modelGLTFBox = resourceManager->loadModel("../assets/Box/Box.gltf");
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
-  auto modelGLTFPhong = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+  auto modelGLTFPhong = modelManager->createModel3D(modelGLTF->getNodes(), modelGLTF->getMeshes());
   modelManager->registerModel3D(modelGLTFPhong);
-  modelGLTFPhong->setMaterial(loaderGLTF->getMaterialsPhong());
+  modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
 
-  auto modelGLTFPBR = modelManager->createModel3D(loaderGLTF->getNodes(), loaderGLTF->getMeshes());
+  auto modelGLTFPBR = modelManager->createModel3D(modelGLTF->getNodes(), modelGLTF->getMeshes());
   modelManager->registerModel3D(modelGLTFPBR);
-  auto pbrMaterial = loaderGLTF->getMaterialsPBR();
+  auto pbrMaterial = modelGLTF->getMaterialsPBR();
   modelGLTFPBR->setMaterial(pbrMaterial);
 
-  auto modelBox = modelManager->createModel3D(loaderGLTFBox->getNodes(), loaderGLTFBox->getMeshes());
+  auto modelBox = modelManager->createModel3D(modelGLTFBox->getNodes(), modelGLTFBox->getMeshes());
   // modelManager->registerModel3D(modelBox);
-  modelBox->setMaterial(loaderGLTFBox->getMaterialsPBR());
+  modelBox->setMaterial(modelGLTFBox->getMaterialsPBR());
 
-  animation = std::make_shared<Animation>(loaderGLTF->getNodes(), loaderGLTF->getSkins(), loaderGLTF->getAnimations(),
+  animation = std::make_shared<Animation>(modelGLTF->getNodes(), modelGLTF->getSkins(), modelGLTF->getAnimations(),
                                           state);
   // modelGLTFPhong->setAnimation(animation);
   modelGLTFPBR->setAnimation(animation);
@@ -1037,7 +1037,7 @@ void initialize() {
                                  "../assets/Terrain/rock_gray.png", "../assets/Terrain/snow.png"},
       "../assets/Terrain/heightmap.png", std::pair{12, 12},
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      lightManager, state);
+      lightManager, resourceManager, state);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
@@ -1045,7 +1045,7 @@ void initialize() {
   }
   terrain->setCamera(camera);
 
-  auto particleTexture = std::make_shared<Texture>("../assets/Particles/gradient.png",
+  auto particleTexture = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Particles/gradient.png"}),
                                                    settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   particleSystem = std::make_shared<ParticleSystem>(
@@ -1144,10 +1144,10 @@ void initialize() {
   auto brdfTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
 
   cubemap = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
-                               "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg",
-                               "../assets/Skybox/back.jpg"},
-      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      resourceManager->loadImage(std::vector<std::string>{"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg",
+                                                          "../assets/Skybox/top.jpg", "../assets/Skybox/bottom.jpg",
+                                                          "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"}),
+      settings->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
   cube = std::make_shared<Shape3D>(ShapeType::CUBE,
                                    std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
