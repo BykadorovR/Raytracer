@@ -23,8 +23,8 @@ static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
 
 Input::Input(std::shared_ptr<Window> window) {
   glfwSetWindowUserPointer(window->getWindow(), this);
-  // glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  // glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   glfwSetCursorPosCallback(window->getWindow(), cursorCallback);
   glfwSetMouseButtonCallback(window->getWindow(), mouseCallback);
   glfwSetCharCallback(window->getWindow(), charCallback);
