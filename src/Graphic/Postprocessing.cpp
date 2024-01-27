@@ -13,6 +13,18 @@ struct ComputeConstants {
   }
 };
 
+void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
+                                 std::vector<std::shared_ptr<Texture>> blur,
+                                 std::vector<std::shared_ptr<ImageView>> dst) {
+  for (int i = 0; i < src.size(); i++) {
+    for (int j = 0; j < dst.size(); j++) {
+      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, _textureLayout, _state->getDescriptorPool(),
+                                                                        _state->getDevice());
+      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
+    }
+  }
+}
+
 Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
                                std::vector<std::shared_ptr<Texture>> blur,
                                std::vector<std::shared_ptr<ImageView>> dst,
@@ -22,21 +34,21 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
   auto shader = std::make_shared<Shader>(_state->getDevice());
   shader->add("shaders/postprocess_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
-  auto textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  textureLayout->createPostprocessing();
+  _textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  _textureLayout->createPostprocessing();
 
-  for (int i = 0; i < src.size(); i++) {
-    for (int j = 0; j < dst.size(); j++) {
-      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
-                                                                        _state->getDevice());
-      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
-    }
-  }
+  _initialize(src, blur, dst);
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _computePipeline->createParticleSystemCompute(
-      shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), textureLayout}},
+      shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), _textureLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("compute"), ComputeConstants::getPushConstant()}});
+}
+
+void Postprocessing::reset(std::vector<std::shared_ptr<Texture>> src,
+                           std::vector<std::shared_ptr<Texture>> blur,
+                           std::vector<std::shared_ptr<ImageView>> dst) {
+  _initialize(src, blur, dst);
 }
 
 void Postprocessing::setExposure(float exposure) { _exposure = exposure; }

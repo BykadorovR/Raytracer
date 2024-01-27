@@ -61,6 +61,40 @@ Core::Core(std::shared_ptr<Settings> settings) {
     _fenceParticleSystem.push_back(std::make_shared<Fence>(_state->getDevice()));
   }
 
+  _initializeTextures();
+
+  _gui = std::make_shared<GUI>(_state);
+  _gui->initialize(_commandBufferTransfer);
+
+  _blur = std::make_shared<Blur>(_textureBlurIn, _textureBlurOut, _state);
+  // for postprocessing descriptors GENERAL is needed
+  _state->getSwapchain()->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
+  _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn,
+                                                     _state->getSwapchain()->getImageViews(), _state);
+  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
+  _state->getSwapchain()->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferTransfer);
+  _state->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_gui));
+
+  _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
+
+  _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
+
+  _commandBufferTransfer->endCommands();
+
+  {
+    // TODO: remove vkQueueWaitIdle, add fence or semaphore
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()];
+    auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+  }
+}
+
+void Core::_initializeTextures() {
+  auto settings = _state->getSettings();
   _textureRender.resize(settings->getMaxFramesInFlight());
   _textureBlurIn.resize(settings->getMaxFramesInFlight());
   _textureBlurOut.resize(settings->getMaxFramesInFlight());
@@ -96,35 +130,6 @@ Core::Core(std::shared_ptr<Settings> settings) {
                                                        VK_IMAGE_ASPECT_COLOR_BIT, _state->getDevice());
       _textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
     }
-  }
-
-  _gui = std::make_shared<GUI>(_state);
-  _gui->initialize(_commandBufferTransfer);
-
-  _blur = std::make_shared<Blur>(_textureBlurIn, _textureBlurOut, _state);
-  // for postprocessing descriptors GENERAL is needed
-  _state->getSwapchain()->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
-  _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn,
-                                                     _state->getSwapchain()->getImageViews(), _state);
-  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
-  _state->getSwapchain()->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferTransfer);
-  _state->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_gui));
-
-  _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
-
-  _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
-
-  _commandBufferTransfer->endCommands();
-
-  {
-    // TODO: remove vkQueueWaitIdle, add fence or semaphore
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()];
-    auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
   }
 }
 
@@ -610,15 +615,12 @@ void Core::_renderGraphic() {
   _commandBufferRender->endCommands();
 }
 
-void Core::_getImageIndex(uint32_t* imageIndex) {
+VkResult Core::_getImageIndex(uint32_t* imageIndex) {
   _currentFrame = _timer->getFrameCounter() % _state->getSettings()->getMaxFramesInFlight();
   std::vector<VkFence> waitFences = {_fenceInFlight[_currentFrame]->getFence()};
   auto result = vkWaitForFences(_state->getDevice()->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE,
                                 UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
-
-  result = vkResetFences(_state->getDevice()->getLogicalDevice(), waitFences.size(), waitFences.data());
-  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
 
   _frameSubmitInfoCompute[_currentFrame].clear();
   _frameSubmitInfoGraphic[_currentFrame].clear();
@@ -629,11 +631,56 @@ void Core::_getImageIndex(uint32_t* imageIndex) {
                                  imageIndex);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    // TODO: recreate swapchain
-    throw std::runtime_error("failed to acquire swap chain image!");
+    _reset();
+    return result;
   } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
+
+  // Only reset the fence if we are submitting work
+  result = vkResetFences(_state->getDevice()->getLogicalDevice(), waitFences.size(), waitFences.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't reset fence");
+
+  return result;
+}
+
+void Core::_reset() {
+  auto surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
+  VkExtent2D extent = surfaceCapabilities.currentExtent;
+  while (extent.width == 0 || extent.height == 0) {
+    surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
+    extent = surfaceCapabilities.currentExtent;
+    glfwWaitEvents();
+  }
+  _state->getSwapchain()->reset();
+  _state->getSettings()->setResolution({extent.width, extent.height});
+  _textureRender.clear();
+  _textureBlurIn.clear();
+  _textureBlurOut.clear();
+
+  _commandBufferTransfer->beginCommands(0);
+
+  _initializeTextures();
+  _state->getSwapchain()->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
+  _postprocessing->reset(_textureRender, _textureBlurIn, _state->getSwapchain()->getImageViews());
+  _state->getSwapchain()->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferTransfer);
+  _gui->reset();
+  _blur->reset(_textureBlurIn, _textureBlurOut);
+
+  _commandBufferTransfer->endCommands();
+
+  {
+    // TODO: remove vkQueueWaitIdle, add fence or semaphore
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()];
+    auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+  }
+
+  _callbackReset(extent.width, extent.height);
 }
 
 void Core::_drawFrame(int imageIndex) {
@@ -778,8 +825,11 @@ void Core::_displayFrame(uint32_t* imageIndex) {
   // TODO: change to own present queue
   auto result = vkQueuePresentKHR(_state->getDevice()->getQueue(QueueType::PRESENT), &presentInfo);
 
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-    // TODO: support window resize
+  // getResized() can be valid only here, we can get inconsistencies in semaphores if VK_ERROR_OUT_OF_DATE_KHR is not
+  // reported by Vulkan
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || _state->getWindow()->getResized()) {
+    _state->getWindow()->setResized(false);
+    _reset();
   } else if (result != VK_SUCCESS) {
     throw std::runtime_error("failed to present swap chain image!");
   }
@@ -793,9 +843,10 @@ void Core::draw() {
     _timerFPSLimited->tick();
 
     // business/application update loop callback
-    _update();
+    _callbackUpdate();
     uint32_t imageIndex;
-    _getImageIndex(&imageIndex);
+    while (_getImageIndex(&imageIndex) != VK_SUCCESS)
+      ;
     _drawFrame(imageIndex);
     _timerFPSReal->tock();
     // if GPU frames are limited by driver it will happen during display
@@ -829,4 +880,6 @@ void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);
 }
 
-void Core::registerUpdate(std::function<void()> update) { _update = update; }
+void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
+
+void Core::registerReset(std::function<void(int width, int height)> reset) { _callbackReset = reset; }

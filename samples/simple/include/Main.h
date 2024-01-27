@@ -12,5 +12,6 @@ class Main {
  public:
   Main();
   void update();
+  void reset(int width, int height);
   void start();
 };

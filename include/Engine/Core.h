@@ -42,7 +42,6 @@ class Core {
   std::shared_ptr<GUI> _gui;
 
   std::shared_ptr<CameraOrtho> _cameraOrtho;
-  std::shared_ptr<CameraFly> _cameraFly;
   int _currentFrame;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
@@ -59,7 +58,8 @@ class Core {
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<Blur> _blur;
   std::shared_ptr<BS::thread_pool> _pool;
-  std::function<void()> _update;
+  std::function<void()> _callbackUpdate;
+  std::function<void(int width, int height)> _callbackReset;
 
   std::vector<std::vector<VkSubmitInfo>> _frameSubmitInfoGraphic, _frameSubmitInfoCompute;
   std::mutex _frameSubmitMutexGraphic, _frameSubmitMutexCompute;
@@ -78,11 +78,13 @@ class Core {
   void _computeParticles();
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
+  void _initializeTextures();
   void _renderGraphic();
 
-  void _getImageIndex(uint32_t* imageIndex);
+  VkResult _getImageIndex(uint32_t* imageIndex);
   void _displayFrame(uint32_t* imageIndex);
   void _drawFrame(int imageIndex);
+  void _reset();
 
  public:
   Core(std::shared_ptr<Settings> settings);
@@ -96,4 +98,5 @@ class Core {
   std::shared_ptr<State> getState();
   void draw();
   void registerUpdate(std::function<void()> update);
+  void registerReset(std::function<void(int width, int height)> reset);
 };

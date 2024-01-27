@@ -1,5 +1,9 @@
 #include "Window.h"
 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+  reinterpret_cast<Window*>(glfwGetWindowUserPointer(window))->setResized(true);
+}
+
 Window::Window(std::tuple<int, int> resolution) {
   _resolution = resolution;
   glfwInit();
@@ -8,7 +12,7 @@ Window::Window(std::tuple<int, int> resolution) {
 
   _window = glfwCreateWindow(std::get<0>(resolution), std::get<1>(resolution), "Vulkan", nullptr, nullptr);
   glfwSetWindowUserPointer(_window, this);
-  // glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
+  glfwSetFramebufferSizeCallback(_window, framebufferResizeCallback);
 }
 
 std::vector<const char*> Window::getExtensions() {
@@ -18,6 +22,10 @@ std::vector<const char*> Window::getExtensions() {
 
   return std::vector<const char*>(glfwExtensions, glfwExtensions + glfwExtensionCount);
 }
+
+bool Window::getResized() { return _resized; }
+
+void Window::setResized(bool resized) { _resized = resized; }
 
 GLFWwindow* Window::getWindow() { return _window; }
 

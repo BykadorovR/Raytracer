@@ -67,6 +67,7 @@ class GUI : public InputSubscriber {
 
  public:
   GUI(std::shared_ptr<State> state);
+  void reset();
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
   bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);

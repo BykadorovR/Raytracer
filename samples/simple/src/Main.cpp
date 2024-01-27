@@ -538,6 +538,8 @@ Main::Main() {
   }
 
   _core->registerUpdate(std::bind(&Main::update, this));
+  // can be lambda passed that calls reset
+  _core->registerReset(std::bind(&Main::reset, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void Main::update() {
@@ -576,6 +578,8 @@ void Main::update() {
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
 }
+
+void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }
 
 void Main::start() { _core->draw(); }
 

@@ -30,6 +30,12 @@ GUI::GUI(std::shared_ptr<State> state) {
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
 }
 
+void GUI::reset() {
+  ImGuiIO& io = ImGui::GetIO();
+  _resolution = _state->getSettings()->getResolution();
+  io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
+}
+
 void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGuiIO& io = ImGui::GetIO();
 

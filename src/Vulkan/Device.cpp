@@ -4,7 +4,10 @@ std::vector<VkPresentModeKHR>& Device::getSupportedSurfacePresentModes() { retur
 
 std::vector<VkSurfaceFormatKHR>& Device::getSupportedSurfaceFormats() { return _surfaceFormats; }
 
-VkSurfaceCapabilitiesKHR& Device::getSupportedSurfaceCapabilities() { return _surfaceCapabilities; }
+VkSurfaceCapabilitiesKHR& Device::getSupportedSurfaceCapabilities() {
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(getPhysicalDevice(), _surface->getSurface(), &_surfaceCapabilities);
+  return _surfaceCapabilities;
+}
 
 std::optional<uint32_t> Device::getSupportedFamilyIndex(QueueType type) { return _family[type]; }
 
@@ -82,8 +85,6 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
   // check surface capabilities
   bool swapChainAdequate = false;
   if (requiredExtensions.empty()) {
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, _surface->getSurface(), &_surfaceCapabilities);
-
     uint32_t formatCount;
     vkGetPhysicalDeviceSurfaceFormatsKHR(device, _surface->getSurface(), &formatCount, nullptr);
 
