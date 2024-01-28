@@ -1,7 +1,9 @@
 #include "LightManager.h"
 #include "Buffer.h"
 
-LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                           std::shared_ptr<ResourceManager> resourceManager,
+                           std::shared_ptr<State> state) {
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
 
@@ -9,24 +11,38 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // create descriptor layouts for light info for direct, point and ambient lights for fragment shaders
   {
-    _descriptorSetLayoutLight = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutLight(3);
-    layoutLight[0].binding = 0;
-    layoutLight[0].descriptorCount = 1;
-    layoutLight[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutLight[0].pImmutableSamplers = nullptr;
-    layoutLight[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutLight[1].binding = 1;
-    layoutLight[1].descriptorCount = 1;
-    layoutLight[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutLight[1].pImmutableSamplers = nullptr;
-    layoutLight[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutLight[2].binding = 2;
-    layoutLight[2].descriptorCount = 1;
-    layoutLight[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutLight[2].pImmutableSamplers = nullptr;
-    layoutLight[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    _descriptorSetLayoutLight->createCustom(layoutLight);
+    _descriptorSetLayoutLightPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutLightPBR(2);
+    layoutLightPBR[0].binding = 0;
+    layoutLightPBR[0].descriptorCount = 1;
+    layoutLightPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutLightPBR[0].pImmutableSamplers = nullptr;
+    layoutLightPBR[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutLightPBR[1].binding = 1;
+    layoutLightPBR[1].descriptorCount = 1;
+    layoutLightPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutLightPBR[1].pImmutableSamplers = nullptr;
+    layoutLightPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutLightPBR->createCustom(layoutLightPBR);
+
+    _descriptorSetLayoutLightPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutLightPhong(3);
+    layoutLightPhong[0].binding = 0;
+    layoutLightPhong[0].descriptorCount = 1;
+    layoutLightPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutLightPhong[0].pImmutableSamplers = nullptr;
+    layoutLightPhong[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutLightPhong[1].binding = 1;
+    layoutLightPhong[1].descriptorCount = 1;
+    layoutLightPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutLightPhong[1].pImmutableSamplers = nullptr;
+    layoutLightPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutLightPhong[2].binding = 2;
+    layoutLightPhong[2].descriptorCount = 1;
+    layoutLightPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutLightPhong[2].pImmutableSamplers = nullptr;
+    layoutLightPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutLightPhong->createCustom(layoutLightPhong);
   }
   // create descriptor layouts for VP matrices for direct and points light for vertex shader
   {
@@ -73,8 +89,12 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _lightPointSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
   _lightAmbientSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
 
-  _descriptorSetLight = std::make_shared<DescriptorSet>(
-      _state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutLight, _descriptorPool, _state->getDevice());
+  _descriptorSetLightPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                             _descriptorSetLayoutLightPhong, _descriptorPool,
+                                                             _state->getDevice());
+  _descriptorSetLightPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                           _descriptorSetLayoutLightPBR, _descriptorPool,
+                                                           _state->getDevice());
 
   // for models/sprites
   _descriptorSetViewProjection[VK_SHADER_STAGE_VERTEX_BIT] = std::make_shared<DescriptorSet>(
@@ -96,11 +116,12 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>("../data/Texture1x1.png", _state->getSettings()->getLoadTextureColorFormat(),
+  _stubTexture = std::make_shared<Texture>(resourceManager->loadImage({"assets/stubs/Texture1x1.png"}),
+                                           _state->getSettings()->getLoadTextureColorFormat(),
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
   _stubCubemap = std::make_shared<Cubemap>(
-      std::vector<std::string>(6, "../data/Texture1x1.png"), _state->getSettings()->getLoadTextureColorFormat(), 1,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      resourceManager->loadImage(std::vector<std::string>(6, "assets/stubs/Texture1x1.png")),
+      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, _state);
 
   _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
@@ -142,7 +163,7 @@ std::vector<std::shared_ptr<AmbientLight>> LightManager::getAmbientLights() {
 void LightManager::_setLightDescriptors(int currentFrame) {
   // light info descriptor sets
   {
-    std::map<int, VkDescriptorBufferInfo> bufferInfo;
+    std::map<int, VkDescriptorBufferInfo> bufferInfoPBR;
     VkDescriptorBufferInfo bufferDirectionalInfo{};
     bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
     bufferDirectionalInfo.offset = 0;
@@ -151,7 +172,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferDirectionalInfo.buffer = _lightDirectionalSSBO[currentFrame]->getData();
       bufferDirectionalInfo.range = _lightDirectionalSSBO[currentFrame]->getSize();
     }
-    bufferInfo[0] = bufferDirectionalInfo;
+    bufferInfoPBR[0] = bufferDirectionalInfo;
 
     VkDescriptorBufferInfo bufferPointInfo{};
     bufferPointInfo.buffer = VK_NULL_HANDLE;
@@ -161,7 +182,12 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferPointInfo.buffer = _lightPointSSBO[currentFrame]->getData();
       bufferPointInfo.range = _lightPointSSBO[currentFrame]->getSize();
     }
-    bufferInfo[1] = bufferPointInfo;
+    bufferInfoPBR[1] = bufferPointInfo;
+    _descriptorSetLightPBR->createCustom(currentFrame, bufferInfoPBR, {});
+
+    std::map<int, VkDescriptorBufferInfo> bufferInfoPhong;
+    bufferInfoPhong[0] = bufferDirectionalInfo;
+    bufferInfoPhong[1] = bufferPointInfo;
 
     VkDescriptorBufferInfo bufferAmbientInfo{};
     bufferAmbientInfo.buffer = VK_NULL_HANDLE;
@@ -171,8 +197,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferAmbientInfo.buffer = _lightAmbientSSBO[currentFrame]->getData();
       bufferAmbientInfo.range = _lightAmbientSSBO[currentFrame]->getSize();
     }
-    bufferInfo[2] = bufferAmbientInfo;
-    _descriptorSetLight->createCustom(currentFrame, bufferInfo, {});
+    bufferInfoPhong[2] = bufferAmbientInfo;
+    _descriptorSetLightPhong->createCustom(currentFrame, bufferInfoPhong, {});
   }
 
   // light VP matrices for models/sprites
@@ -391,12 +417,33 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
     _changed[LightType::POINT][i] = true;
   }
 
+  // should be unique command pool for every command buffer to work in parallel.
+  // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
+  std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
+  std::vector<std::shared_ptr<LoggerGPU>> loggerGPU(6);
+  for (int j = 0; j < commandBuffer.size(); j++) {
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+    commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
+                                                       _state->getDevice());
+    loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
+  }
+  _commandBufferPoint.push_back(commandBuffer);
+  _loggerGPUPoint.push_back(loggerGPU);
+
   return light;
 }
 
-std::vector<std::shared_ptr<PointLight>> LightManager::getPointLights() {
+const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _pointLights;
+}
+
+const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::getPointLightCommandBuffers() {
+  return _commandBufferPoint;
+}
+
+const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& LightManager::getPointLightLoggers() {
+  return _loggerGPUPoint;
 }
 
 std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
@@ -423,12 +470,25 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
     _changed[LightType::DIRECTIONAL][i] = true;
   }
 
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _commandBufferDirectional.push_back(
+      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state->getDevice()));
+  _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
+
   return light;
 }
 
-std::vector<std::shared_ptr<DirectionalLight>> LightManager::getDirectionalLights() {
+const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _directionalLights;
+}
+
+const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalLightCommandBuffers() {
+  return _commandBufferDirectional;
+}
+
+const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
+  return _loggerGPUDirectional;
 }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLViewProjection(VkShaderStageFlagBits stage) {
@@ -440,11 +500,17 @@ std::shared_ptr<DescriptorSet> LightManager::getDSViewProjection(VkShaderStageFl
   return _descriptorSetViewProjection[stage];
 }
 
-std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLight() { return _descriptorSetLayoutLight; }
+std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLightPhong() { return _descriptorSetLayoutLightPhong; }
+std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLightPBR() { return _descriptorSetLayoutLightPBR; }
 
-std::shared_ptr<DescriptorSet> LightManager::getDSLight() {
+std::shared_ptr<DescriptorSet> LightManager::getDSLightPhong() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetLight;
+  return _descriptorSetLightPhong;
+}
+
+std::shared_ptr<DescriptorSet> LightManager::getDSLightPBR() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _descriptorSetLightPBR;
 }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLShadowTexture() { return _descriptorSetLayoutDepthTexture; }

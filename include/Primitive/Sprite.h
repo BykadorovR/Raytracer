@@ -10,6 +10,7 @@
 #include "Light.h"
 #include "Material.h"
 #include "Mesh.h"
+#include "ResourceManager.h"
 
 class Sprite {
  private:
@@ -29,10 +30,12 @@ class Sprite {
   std::shared_ptr<Mesh2D> _mesh;
   MaterialType _materialType = MaterialType::PHONG;
   glm::mat4 _model = glm::mat4(1.f);
+  DrawType _drawType = DrawType::FILL;
 
  public:
   Sprite(std::shared_ptr<Mesh2D> mesh,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
@@ -45,6 +48,8 @@ class Sprite {
   MaterialType getMaterialType();
   void setModel(glm::mat4 model);
   void setCamera(std::shared_ptr<Camera> camera);
+  void setDrawType(DrawType drawType);
+  DrawType getDrawType();
 
   void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline);
   void drawShadow(int currentFrame,

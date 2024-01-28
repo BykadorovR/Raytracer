@@ -3,9 +3,9 @@
 #include "Descriptor.h"
 #include "Input.h"
 
-GUI::GUI(std::shared_ptr<Window> window, std::shared_ptr<State> state) {
+GUI::GUI(std::shared_ptr<State> state) {
   _state = state;
-  _window = window;
+  _window = state->getWindow();
   _resolution = state->getSettings()->getResolution();
 
   _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
@@ -28,6 +28,12 @@ GUI::GUI(std::shared_ptr<Window> window, std::shared_ptr<State> state) {
   // Dimensions
   io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
   io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+}
+
+void GUI::reset() {
+  ImGuiIO& io = ImGui::GetIO();
+  _resolution = _state->getSettings()->getResolution();
+  io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
 }
 
 void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
@@ -87,8 +93,8 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("../shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipeline->createHUD(_state->getSettings()->getSwapchainColorFormat(),

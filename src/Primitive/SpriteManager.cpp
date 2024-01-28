@@ -4,8 +4,10 @@
 SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
                              std::shared_ptr<LightManager> lightManager,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                             std::shared_ptr<ResourceManager> resourceManager,
                              std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
+  _resourceManager = resourceManager;
   _state = state;
   _renderFormat = renderFormat;
   _lightManager = lightManager;
@@ -31,7 +33,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"lightPhong", _lightManager->getDSLLightPhong()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
@@ -41,7 +43,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"light", _lightManager->getDSLLight()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"lightPBR", _lightManager->getDSLLightPBR()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
@@ -61,8 +63,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic2D(
@@ -86,8 +88,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/pbr2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/pbr2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphic2D(
@@ -110,8 +112,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Normal for Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPhong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPhong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormal[MaterialType::PHONG]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -133,8 +135,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize Normal for PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/debugPBR2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/debugPBR2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormal[MaterialType::PBR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -156,7 +158,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic2DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", cameraSetLayout}}, {},
@@ -169,8 +171,8 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("../shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("../shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelinePoint->createGraphic2DShadow(VK_CULL_MODE_NONE,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -183,7 +185,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
 
 std::shared_ptr<Sprite> SpriteManager::createSprite() {
   _spritesCreated++;
-  auto sprite = std::make_shared<Sprite>(_defaultMesh, _commandBufferTransfer, _state);
+  auto sprite = std::make_shared<Sprite>(_defaultMesh, _commandBufferTransfer, _resourceManager, _state);
   return sprite;
 }
 
@@ -193,6 +195,7 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(
   auto sprite = createSprite();
   sprite->setMaterial();
 
+  // custom pipeline layout set from application
   _descriptorSetLayoutCustom[sprite] = layouts;
   _pipelineCustom[sprite] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
@@ -216,8 +219,7 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
 
 void SpriteManager::draw(int currentFrame,
                          std::tuple<int, int> resolution,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         DrawType drawType) {
+                         std::shared_ptr<CommandBuffer> commandBuffer) {
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -251,11 +253,20 @@ void SpriteManager::draw(int currentFrame,
 
     auto lightLayout = std::find_if(
         pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "light"; });
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPhong"; });
     if (lightLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 3, 1,
-                              &_lightManager->getDSLight()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_lightManager->getDSLightPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+
+    lightLayout = std::find_if(
+        pipelineLayout.begin(), pipelineLayout.end(),
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPBR"; });
+    if (lightLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 3, 1,
+                              &_lightManager->getDSLightPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -283,15 +294,19 @@ void SpriteManager::draw(int currentFrame,
     bindPipeline(pipeline);
 
     for (auto sprite : _sprites) {
-      if (sprite->getMaterialType() == materialType) {
+      if (sprite->getMaterialType() == materialType && sprite->getDrawType() == drawType) {
         sprite->setCamera(_camera);
         sprite->draw(currentFrame, commandBuffer, pipeline);
       }
     }
   };
 
-  drawSprite(MaterialType::PHONG, drawType);
-  drawSprite(MaterialType::PBR, drawType);
+  drawSprite(MaterialType::PHONG, DrawType::FILL);
+  drawSprite(MaterialType::PHONG, DrawType::WIREFRAME);
+  drawSprite(MaterialType::PHONG, DrawType::NORMAL);
+  drawSprite(MaterialType::PBR, DrawType::FILL);
+  drawSprite(MaterialType::PBR, DrawType::WIREFRAME);
+  drawSprite(MaterialType::PBR, DrawType::NORMAL);
 
   // draw custom
   for (auto sprite : _sprites) {

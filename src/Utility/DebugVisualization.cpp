@@ -5,8 +5,10 @@
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
                                        std::shared_ptr<GUI> gui,
                                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                                       std::shared_ptr<ResourceManager> resourceManager,
                                        std::shared_ptr<State> state) {
   _camera = camera;
+  _resourceManager = resourceManager;
   _gui = gui;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
@@ -21,8 +23,8 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _meshSprite->setIndexes({0, 1, 3, 1, 2, 3}, commandBufferTransfer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("../shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/quad2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/quad2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _uniformBuffer = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(glm::mat4),
                                                    state->getDevice());
 
@@ -66,13 +68,13 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   _G = g;
   _B = b;
 
-  _loaderBox = std::make_shared<Loader>("../data/Box/Box.gltf", commandBufferTransfer, state);
+  _boxModel = resourceManager->loadModel("assets/box/Box.gltf");
 }
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
   _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _state);
+                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
   _farPlaneCW = _spriteManager->createSprite();
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
@@ -83,24 +85,26 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _farPlaneCCW->enableDepth(false);
 
   _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _state);
+                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
 
   for (auto light : lightManager->getPointLights()) {
-    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
+    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
     _modelManager->registerModel3D(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = std::make_shared<Sphere>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, _commandBufferTransfer, _state);
+    auto sphereMesh = std::make_shared<MeshSphere>(_commandBufferTransfer, _state);
+    auto sphere = std::make_shared<Shape3D>(
+        ShapeType::SPHERE, std::vector{_state->getSettings()->getSwapchainColorFormat()}, VK_CULL_MODE_NONE,
+        lightManager, _commandBufferTransfer, _resourceManager, _state);
     sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
-    auto model = _modelManager->createModel3D(_loaderBox->getNodes(), _loaderBox->getMeshes());
+    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
@@ -228,7 +232,7 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
 void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_frustumDraw) {
     for (auto& line : _lineFrustum) {
-      line->draw(currentFrame, commandBuffer);
+      line->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
     }
   }
 }
@@ -414,7 +418,8 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
             int distance = _lightManager->getPointLights()[i]->getDistance();
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
-            _spheres[i]->draw(currentFrame, commandBuffer);
+            _spheres[i]->setDrawType(DrawType::WIREFRAME);
+            _spheres[i]->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
           }
         }
       }
@@ -454,7 +459,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   }
 
   _modelManager->setCamera(_camera);
-  _modelManager->draw(currentFrame, commandBuffer);
+  _modelManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
 
   _spriteManager->setCamera(_camera);
   _spriteManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);

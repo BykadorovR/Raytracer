@@ -1,11 +1,14 @@
 #version 450
 
 layout(location = 0) in vec3 fragColor;
+layout(location = 1) in vec2 texCoords;
+layout(set = 1, binding = 0) uniform sampler2D texSampler;
+
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
 
 void main() {
-    outColor = vec4(fragColor, 1.0);
+    outColor = texture(texSampler, texCoords) * vec4(fragColor, 1.0);
     // check whether fragment output is higher than threshold, if so output as brightness color
     float brightness = dot(outColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     if(brightness > 1.0)

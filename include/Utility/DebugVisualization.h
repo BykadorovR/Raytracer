@@ -3,7 +3,7 @@
 #include "GUI.h"
 #include "LightManager.h"
 #include "State.h"
-#include "Sphere.h"
+#include "Shape3D.h"
 #include "Line.h"
 #include "Sprite.h"
 #include "SpriteManager.h"
@@ -29,8 +29,9 @@ struct DepthPush {
 class DebugVisualization : public InputSubscriber {
  private:
   std::vector<std::shared_ptr<Model3D>> _pointLightModels, _directionalLightModels;
-  std::vector<std::shared_ptr<Sphere>> _spheres;
+  std::vector<std::shared_ptr<Shape3D>> _spheres;
   std::shared_ptr<LightManager> _lightManager = nullptr;
+  std::shared_ptr<ResourceManager> _resourceManager;
   bool _showLights = true;
   bool _registerLights = false;
   std::shared_ptr<Camera> _camera;
@@ -57,7 +58,7 @@ class DebugVisualization : public InputSubscriber {
   bool _enableSpheres = false;
   std::vector<std::string> _attenuationKeys;
   std::vector<std::string> _shadowKeys;
-  std::shared_ptr<Loader> _loaderBox;
+  std::shared_ptr<ModelGLTF> _boxModel;
   bool _frustumDraw = false;
   bool _showPlanes = false;
   bool _planesRegistered = false;
@@ -75,6 +76,7 @@ class DebugVisualization : public InputSubscriber {
   DebugVisualization(std::shared_ptr<Camera> camera,
                      std::shared_ptr<GUI> gui,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                     std::shared_ptr<ResourceManager> resourceManager,
                      std::shared_ptr<State> state);
   void setLights(std::shared_ptr<LightManager> lightManager);
   void setPostprocessing(std::shared_ptr<Postprocessing> postprocessing);

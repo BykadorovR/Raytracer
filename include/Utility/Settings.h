@@ -3,7 +3,7 @@
 #include <string>
 #include "vulkan/vulkan.hpp"
 
-enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 4 };
+enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 3, TANGENT = 4 };
 
 inline DrawType operator|(DrawType a, DrawType b) {
   return static_cast<DrawType>(static_cast<int>(a) | static_cast<int>(b));
@@ -40,11 +40,16 @@ struct Settings {
   int _anisotropicSamples = 0;
   // TODO: protect by mutex?
   int _bloomPasses = 0;
-  int _desiredFPS;
+  int _desiredFPS = 250;
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},
                                                        {200, 0.0019}, {325, 0.0007}, {600, 0.0002}, {3250, 0.000007}};
   DrawType _drawType = DrawType::FILL;
+  // Depth bias (and slope) are used to avoid shadowing artifacts
+  // Constant depth bias factor (always applied)
+  float _depthBiasConstant = 1.25f;
+  // Slope depth bias factor, applied depending on polygon's slope
+  float _depthBiasSlope = 1.75f;
 
  public:
   // setters
@@ -86,4 +91,6 @@ struct Settings {
   std::tuple<int, int> getDiffuseIBLResolution();
   std::tuple<int, int> getSpecularIBLResolution();
   int getSpecularMipMap();
+  float getDepthBiasConstant();
+  float getDepthBiasSlope();
 };

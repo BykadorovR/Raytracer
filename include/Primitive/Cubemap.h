@@ -11,13 +11,11 @@ class Cubemap {
   std::vector<std::vector<std::shared_ptr<ImageView>>> _imageViewSeparate;
   std::shared_ptr<Texture> _texture;
   std::vector<std::vector<std::shared_ptr<Texture>>> _textureSeparate;
-  std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
-  Cubemap(std::vector<std::string> path,
+  Cubemap(std::shared_ptr<BufferImage> data,
           VkFormat format,
           int mipMapLevels,
-          VkImageLayout layout,
           VkImageAspectFlagBits colorBits,
           VkImageUsageFlags usage,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,

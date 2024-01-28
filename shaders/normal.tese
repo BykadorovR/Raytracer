@@ -67,7 +67,7 @@ void main()
     p += normal * (heightValue * push.heightScale - push.heightShift);
 
     // ----------------------------------------------------------------------
-    // output patch point position in clip space
+    // output patch point position in view space
     gl_Position = mvp.view * mvp.model * p;
 
     //

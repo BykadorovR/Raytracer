@@ -13,9 +13,10 @@ layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
 layout(set = 3, binding = 0) uniform sampler2D texSampler;
 layout(set = 3, binding = 1) uniform sampler2D normalSampler;
-layout(set = 3, binding = 2) uniform sampler2D metallicRoughnessSampler;
-layout(set = 3, binding = 3) uniform sampler2D occlusionSampler;
-layout(set = 3, binding = 4) uniform sampler2D emissiveSampler;
+layout(set = 3, binding = 2) uniform sampler2D metallicSampler;
+layout(set = 3, binding = 3) uniform sampler2D roughnessSampler;
+layout(set = 3, binding = 4) uniform sampler2D occlusionSampler;
+layout(set = 3, binding = 5) uniform sampler2D emissiveSampler;
 
 void main() {
     vec3 normal = texture(normalSampler, fragTexCoord).rgb;

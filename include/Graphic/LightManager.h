@@ -7,6 +7,9 @@
 #include <vector>
 #include <memory>
 #include "State.h"
+#include "Logger.h"
+#include "Material.h"
+#include "ResourceManager.h"
 
 enum class LightType { DIRECTIONAL = 0, POINT = 1, AMBIENT = 2 };
 
@@ -25,10 +28,14 @@ class LightManager {
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetLight;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLight;
+  std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLightPhong, _descriptorSetLayoutLightPBR;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSet>> _descriptorSetViewProjection;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayoutViewProjection;
+  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
+  std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
+  std::vector<std::shared_ptr<LoggerGPU>> _loggerGPUDirectional;
+  std::vector<std::vector<std::shared_ptr<LoggerGPU>>> _loggerGPUPoint;
   // for 2 frames
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetDepthTexture;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutDepthTexture;
@@ -48,18 +55,27 @@ class LightManager {
   void _setLightDescriptors(int currentFrame);
 
  public:
-  LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<ResourceManager> resourceManager,
+               std::shared_ptr<State> state);
 
   // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<AmbientLight> createAmbientLight();
   std::vector<std::shared_ptr<AmbientLight>> getAmbientLights();
-
   std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
-  std::vector<std::shared_ptr<PointLight>> getPointLights();
+  const std::vector<std::shared_ptr<PointLight>>& getPointLights();
+  const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& getPointLightCommandBuffers();
+  const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& getPointLightLoggers();
+
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
-  std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
-  std::shared_ptr<DescriptorSetLayout> getDSLLight();
-  std::shared_ptr<DescriptorSet> getDSLight();
+  const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
+  const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();
+  const std::vector<std::shared_ptr<LoggerGPU>>& getDirectionalLightLoggers();
+
+  std::shared_ptr<DescriptorSetLayout> getDSLLightPhong();
+  std::shared_ptr<DescriptorSetLayout> getDSLLightPBR();
+  std::shared_ptr<DescriptorSet> getDSLightPhong();
+  std::shared_ptr<DescriptorSet> getDSLightPBR();
   std::shared_ptr<DescriptorSetLayout> getDSLViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();

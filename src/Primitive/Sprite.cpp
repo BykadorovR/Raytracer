@@ -2,13 +2,27 @@
 
 Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
   _state = state;
   _mesh = mesh;
 
-  // default material if sprite doesn't have material at all, we still have to send data to shader
+  // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
+  _defaultMaterialPhong->setBaseColor(resourceManager->getTextureOne());
+  _defaultMaterialPhong->setNormal(resourceManager->getTextureZero());
+  _defaultMaterialPhong->setSpecular(resourceManager->getTextureZero());
+
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  _defaultMaterialPBR->setBaseColor(resourceManager->getTextureOne());
+  _defaultMaterialPBR->setNormal(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setMetallic(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setRoughness(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setEmissive(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setOccluded(resourceManager->getTextureZero());
+  _defaultMaterialPBR->setDiffuseIBL(resourceManager->getCubemapZero()->getTexture());
+  _defaultMaterialPBR->setSpecularIBL(resourceManager->getCubemapZero()->getTexture(),
+                                      resourceManager->getTextureZero());
   _material = _defaultMaterialPhong;
 
   // initialize camera UBO and descriptor sets for shadow
@@ -93,6 +107,10 @@ void Sprite::enableLighting(bool enable) { _enableLighting = enable; }
 void Sprite::setModel(glm::mat4 model) { _model = model; }
 
 void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+
+void Sprite::setDrawType(DrawType drawType) { _drawType = drawType; }
+
+DrawType Sprite::getDrawType() { return _drawType; }
 
 void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {

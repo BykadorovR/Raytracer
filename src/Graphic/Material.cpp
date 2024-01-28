@@ -20,20 +20,6 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
 
   _descriptorSetLayoutTextures = std::make_shared<DescriptorSetLayout>(state->getDevice());
 
-  _stubTextureOne = std::make_shared<Texture>("../data/Texture1x1.png",
-                                              _state->getSettings()->getLoadTextureColorFormat(),
-                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
-  _stubTextureZero = std::make_shared<Texture>("../data/Texture1x1Black.png",
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, _state);
-  _stubCubemapZero = std::make_shared<Cubemap>(
-      std::vector<std::string>{"../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
-                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png",
-                               "../data/Texture1x1Black.png", "../data/Texture1x1Black.png"},
-      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer,
-      state);
-
   _descriptorSetCoefficients = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutCoefficients,
                                                                state->getDescriptorPool(), state->getDevice());
@@ -104,43 +90,48 @@ void MaterialPBR::_updateTextureDescriptors(int currentFrame) {
   normalTextureInfo.imageView = _textureNormal->getImageView()->getImageView();
   normalTextureInfo.sampler = _textureNormal->getSampler()->getSampler();
   images[1] = normalTextureInfo;
-  VkDescriptorImageInfo metallicRoughnessTextureInfo{};
-  metallicRoughnessTextureInfo.imageLayout = _textureMetallicRoughness->getImageView()->getImage()->getImageLayout();
-  metallicRoughnessTextureInfo.imageView = _textureMetallicRoughness->getImageView()->getImageView();
-  metallicRoughnessTextureInfo.sampler = _textureMetallicRoughness->getSampler()->getSampler();
-  images[2] = metallicRoughnessTextureInfo;
+  VkDescriptorImageInfo metallicTextureInfo{};
+  metallicTextureInfo.imageLayout = _textureMetallic->getImageView()->getImage()->getImageLayout();
+  metallicTextureInfo.imageView = _textureMetallic->getImageView()->getImageView();
+  metallicTextureInfo.sampler = _textureMetallic->getSampler()->getSampler();
+  images[2] = metallicTextureInfo;
+  VkDescriptorImageInfo roughnessTextureInfo{};
+  roughnessTextureInfo.imageLayout = _textureRoughness->getImageView()->getImage()->getImageLayout();
+  roughnessTextureInfo.imageView = _textureRoughness->getImageView()->getImageView();
+  roughnessTextureInfo.sampler = _textureRoughness->getSampler()->getSampler();
+  images[3] = roughnessTextureInfo;
   VkDescriptorImageInfo occludedTextureInfo{};
   occludedTextureInfo.imageLayout = _textureOccluded->getImageView()->getImage()->getImageLayout();
   occludedTextureInfo.imageView = _textureOccluded->getImageView()->getImageView();
   occludedTextureInfo.sampler = _textureOccluded->getSampler()->getSampler();
-  images[3] = occludedTextureInfo;
+  images[4] = occludedTextureInfo;
   VkDescriptorImageInfo emissiveTextureInfo{};
   emissiveTextureInfo.imageLayout = _textureEmissive->getImageView()->getImage()->getImageLayout();
   emissiveTextureInfo.imageView = _textureEmissive->getImageView()->getImageView();
   emissiveTextureInfo.sampler = _textureEmissive->getSampler()->getSampler();
-  images[4] = emissiveTextureInfo;
+  images[5] = emissiveTextureInfo;
   VkDescriptorImageInfo diffuseIBLTextureInfo{};
   diffuseIBLTextureInfo.imageLayout = _textureDiffuseIBL->getImageView()->getImage()->getImageLayout();
   diffuseIBLTextureInfo.imageView = _textureDiffuseIBL->getImageView()->getImageView();
   diffuseIBLTextureInfo.sampler = _textureDiffuseIBL->getSampler()->getSampler();
-  images[5] = diffuseIBLTextureInfo;
+  images[6] = diffuseIBLTextureInfo;
   VkDescriptorImageInfo specularIBLTextureInfo{};
   specularIBLTextureInfo.imageLayout = _textureSpecularIBL->getImageView()->getImage()->getImageLayout();
   specularIBLTextureInfo.imageView = _textureSpecularIBL->getImageView()->getImageView();
   specularIBLTextureInfo.sampler = _textureSpecularIBL->getSampler()->getSampler();
-  images[6] = specularIBLTextureInfo;
+  images[7] = specularIBLTextureInfo;
   VkDescriptorImageInfo specularBRDFTextureInfo{};
   specularBRDFTextureInfo.imageLayout = _textureSpecularBRDF->getImageView()->getImage()->getImageLayout();
   specularBRDFTextureInfo.imageView = _textureSpecularBRDF->getImageView()->getImageView();
   specularBRDFTextureInfo.sampler = _textureSpecularBRDF->getSampler()->getSampler();
-  images[7] = specularBRDFTextureInfo;
+  images[8] = specularBRDFTextureInfo;
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
 MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
   // define textures
-  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(8);
+  std::vector<VkDescriptorSetLayoutBinding> layoutTextures(9);
   layoutTextures[0].binding = 0;
   layoutTextures[0].descriptorCount = 1;
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -173,6 +164,10 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   layoutTextures[7].descriptorCount = 1;
   layoutTextures[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  layoutTextures[8].binding = 8;
+  layoutTextures[8].descriptorCount = 1;
+  layoutTextures[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutTextures[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                            _descriptorSetLayoutTextures, state->getDescriptorPool(),
@@ -182,19 +177,8 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
                                                                sizeof(Coefficients), state->getDevice());
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
 
-  // initialize with empty/default data
-  _textureColor = _stubTextureOne;
-  _textureNormal = _stubTextureZero;
-  _textureMetallicRoughness = _stubTextureZero;
-  _textureEmissive = _stubTextureZero;
-  _textureOccluded = _stubTextureZero;
-  _textureDiffuseIBL = _stubCubemapZero->getTexture();
-  _textureSpecularIBL = _stubCubemapZero->getTexture();
-  _textureSpecularBRDF = _stubTextureZero;
-
-  // update layouts
+  // set default coefficients
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
     _updateCoefficientDescriptors(i);
   }
 }
@@ -220,9 +204,15 @@ void MaterialPBR::setNormal(std::shared_ptr<Texture> normal) {
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setMetallicRoughness(std::shared_ptr<Texture> metallicRoughness) {
+void MaterialPBR::setMetallic(std::shared_ptr<Texture> metallic) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  _textureMetallicRoughness = metallicRoughness;
+  _textureMetallic = metallic;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}
+
+void MaterialPBR::setRoughness(std::shared_ptr<Texture> roughness) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _textureRoughness = roughness;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
@@ -287,13 +277,8 @@ MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfe
   _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
                                                                sizeof(Coefficients), state->getDevice());
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
-
-  // initialize with empty/default data
-  _textureColor = _stubTextureOne;
-  _textureNormal = _stubTextureZero;
-  _textureSpecular = _stubTextureZero;
+  // set default coefficients
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
     _updateCoefficientDescriptors(i);
   }
 }
@@ -366,12 +351,6 @@ MaterialColor::MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfe
   _descriptorSetTextures = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                            _descriptorSetLayoutTextures, state->getDescriptorPool(),
                                                            state->getDevice());
-
-  // initialize with empty/default data
-  _textureColor = _stubTextureZero;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _updateTextureDescriptors(i);
-  }
 }
 
 void MaterialColor::_updateCoefficientDescriptors(int currentFrame) {}

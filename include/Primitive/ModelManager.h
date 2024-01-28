@@ -1,8 +1,9 @@
 #pragma once
+#include "Drawable.h"
 #include "Model.h"
 #include "Mesh.h"
 
-class Model3DManager {
+class Model3DManager : public IDrawable, IShadowable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
@@ -24,11 +25,13 @@ class Model3DManager {
   std::shared_ptr<State> _state;
   std::shared_ptr<Camera> _camera;
   std::vector<std::shared_ptr<Model3D>> _modelsGLTF;
+  std::shared_ptr<ResourceManager> _resourceManager;
 
  public:
   Model3DManager(std::vector<VkFormat> renderFormat,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state);
 
   std::shared_ptr<Model3D> createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
@@ -36,10 +39,10 @@ class Model3DManager {
   void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, DrawType drawType = DrawType::FILL);
+  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(int currentFrame,
                   std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
                   int lightIndex,
-                  int face = 0);
+                  int face = 0) override;
 };

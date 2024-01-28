@@ -6,38 +6,136 @@
 #include <filesystem>
 #include "mikktspace.h"
 
-Loader::Loader(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _path = std::filesystem::path(path);
+LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
-
-  std::string err, warn;
-  bool loaded = _loader.LoadASCIIFromFile(&_model, &err, &warn, path);
-  if (loaded == false) throw std::runtime_error("Can't load model");
-
-  // allocate meshes
-  for (int i = 0; i < _model.meshes.size(); i++) {
-    auto mesh = std::make_shared<Mesh3D>(_state);
-    _meshes.push_back(mesh);
-  }
-
-  _textures.resize(_model.images.size(), nullptr);
-
-  // load material
-  _loadMaterials();
-  // load nodes
-  const tinygltf::Scene& scene = _model.scenes[0];
-  for (size_t i = 0; i < scene.nodes.size(); i++) {
-    tinygltf::Node& node = _model.nodes[scene.nodes[i]];
-    _loadNode(node, nullptr, scene.nodes[i]);
-  }
-  // load bones/joints
-  _loadSkins();
-  // load animations
-  _loadAnimations();
 }
 
-void Loader::_generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices) {
+std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
+  for (auto& path : paths) {
+    if (_images.contains(path) == false) {
+      // load texture
+      int texWidth, texHeight, texChannels;
+      stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+      VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+      if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+      }
+      // fill buffer
+      _images[path] = std::make_shared<BufferImage>(
+          std::tuple{texWidth, texHeight}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      _images[path]->map();
+      memcpy(_images[path]->getMappedMemory(), pixels, static_cast<size_t>(imageSize));
+      _images[path]->unmap();
+
+      stbi_image_free(pixels);
+    }
+  }
+
+  std::shared_ptr<BufferImage> bufferDst = _images[paths.front()];
+  if (paths.size() > 1) {
+    bufferDst = std::make_shared<BufferImage>(
+        bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+    for (int i = 0; i < paths.size(); i++) {
+      auto bufferSrc = _images[paths[i]];
+      bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
+    }
+    // barrier for further image copy from buffer
+    VkMemoryBarrier memoryBarrier = {};
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()],
+                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
+                         nullptr, 0, nullptr);
+  }
+
+  return bufferDst;
+}
+
+void ModelGLTF::setMaterialsPhong(std::vector<std::shared_ptr<MaterialPhong>>& materialsPhong) {
+  _materialsPhong = materialsPhong;
+}
+
+void ModelGLTF::setMaterialsPBR(std::vector<std::shared_ptr<MaterialPBR>>& materialsPBR) {
+  _materialsPBR = materialsPBR;
+}
+
+void ModelGLTF::setSkins(std::vector<std::shared_ptr<SkinGLTF>>& skins) { _skins = skins; }
+
+void ModelGLTF::setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& animations) { _animations = animations; }
+
+void ModelGLTF::setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes) { _nodes = nodes; }
+
+void ModelGLTF::setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes) { _meshes = meshes; }
+
+const std::vector<std::shared_ptr<MaterialPhong>>& ModelGLTF::getMaterialsPhong() { return _materialsPhong; }
+
+const std::vector<std::shared_ptr<MaterialPBR>>& ModelGLTF::getMaterialsPBR() { return _materialsPBR; }
+
+const std::vector<std::shared_ptr<SkinGLTF>>& ModelGLTF::getSkins() { return _skins; }
+
+const std::vector<std::shared_ptr<AnimationGLTF>>& ModelGLTF::getAnimations() { return _animations; }
+// one mesh - one node
+const std::vector<std::shared_ptr<NodeGLTF>>& ModelGLTF::getNodes() { return _nodes; }
+
+const std::vector<std::shared_ptr<Mesh3D>>& ModelGLTF::getMeshes() { return _meshes; }
+
+LoaderGLTF::LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<LoaderImage> loaderImage,
+                       std::shared_ptr<State> state) {
+  _commandBufferTransfer = commandBufferTransfer;
+  _state = state;
+  _loaderImage = loaderImage;
+}
+
+std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
+  if (_models.contains(path) == false) {
+    std::shared_ptr<ModelGLTF> modelExternal = std::make_shared<ModelGLTF>();
+    std::vector<std::shared_ptr<NodeGLTF>> nodes;
+    std::vector<std::shared_ptr<MaterialGLTF>> materials;
+    std::vector<std::shared_ptr<SkinGLTF>> skins;
+    std::vector<std::shared_ptr<AnimationGLTF>> animations;
+    std::vector<std::shared_ptr<Mesh3D>> meshes;
+    tinygltf::Model modelInternal;
+    std::string err, warn;
+    bool loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
+    if (loaded == false) throw std::runtime_error("Can't load model");
+
+    // allocate meshes
+    for (int i = 0; i < modelInternal.meshes.size(); i++) {
+      auto mesh = std::make_shared<Mesh3D>(_state);
+      meshes.push_back(mesh);
+    }
+    // load material
+    _loadMaterials(modelInternal, materials, modelExternal);
+    // load nodes
+    const tinygltf::Scene& scene = modelInternal.scenes[0];
+    for (size_t i = 0; i < scene.nodes.size(); i++) {
+      tinygltf::Node& node = modelInternal.nodes[scene.nodes[i]];
+      _loadNode(modelInternal, node, nullptr, scene.nodes[i], materials, meshes, nodes);
+    }
+    // load bones/joints
+    _loadSkins(modelInternal, nodes, skins);
+    // load animations
+    _loadAnimations(modelInternal, nodes, animations);
+
+    modelExternal->setAnimations(animations);
+    modelExternal->setMeshes(meshes);
+    modelExternal->setNodes(nodes);
+    modelExternal->setSkins(skins);
+    _models[path] = modelExternal;
+  }
+
+  return _models[path];
+}
+
+void LoaderGLTF::_generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex3D>& vertices) {
   struct VertexIndex {
     std::vector<uint32_t>& indexes;
     std::vector<Vertex3D>& vertices;
@@ -128,14 +226,17 @@ void Loader::_generateTangent(std::vector<uint32_t>& indexes, std::vector<Vertex
 }
 
 // load all textures here
-std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
-  std::shared_ptr<Texture> texture = _textures[imageIndex];
+std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
+                                                  VkFormat format,
+                                                  const tinygltf::Model& modelInternal,
+                                                  std::vector<std::shared_ptr<Texture>>& textures) {
+  std::shared_ptr<Texture> texture = textures[imageIndex];
   if (texture == nullptr) {
-    tinygltf::Image& glTFImage = _model.images[imageIndex];
+    const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(filePath, format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer,
-                                          _state);
+      texture = std::make_shared<Texture>(_loaderImage->load({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+                                          _commandBufferTransfer, _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -187,15 +288,20 @@ std::shared_ptr<Texture> Loader::_loadTexture(int imageIndex, VkFormat format) {
         delete[] buffer;
       }
     }
-    _textures[imageIndex] = texture;
+    textures[imageIndex] = texture;
   }
   return texture;
 }
 
 // TODO: we can store baseColorFactor only in GLTF material, rest will go to PBR/Phong
-void Loader::_loadMaterials() {
-  for (size_t i = 0; i < _model.materials.size(); i++) {
-    tinygltf::Material glTFMaterial = _model.materials[i];
+void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
+                                std::vector<std::shared_ptr<MaterialGLTF>> materialGLTF,
+                                std::shared_ptr<ModelGLTF> modelExternal) {
+  std::vector<std::shared_ptr<MaterialPBR>> materialsPBR;
+  std::vector<std::shared_ptr<MaterialPhong>> materialsPhong;
+  std::vector<std::shared_ptr<Texture>> textures(modelInternal.images.size(), nullptr);
+  for (size_t i = 0; i < modelInternal.materials.size(); i++) {
+    tinygltf::Material glTFMaterial = modelInternal.materials[i];
     std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
     std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(_commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
@@ -227,13 +333,13 @@ void Loader::_loadMaterials() {
       auto baseColorTextureIndex = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
       if (baseColorTextureIndex >= 0) {
         // glTF image index
-        auto baseColorImageIndex = _model.textures[baseColorTextureIndex].source;
+        auto baseColorImageIndex = modelInternal.textures[baseColorTextureIndex].source;
         // set texture to phong material
-        materialPhong->setBaseColor(
-            _loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
+        materialPhong->setBaseColor(_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures));
         // set texture to PBR material
-        materialPBR->setBaseColor(
-            _loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
+        materialPBR->setBaseColor(_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                               modelInternal, textures));
       }
     }
     // Get normal texture
@@ -241,11 +347,13 @@ void Loader::_loadMaterials() {
       auto normalTextureIndex = glTFMaterial.normalTexture.index;
       if (normalTextureIndex >= 0) {
         // glTF image index
-        auto normalImageIndex = _model.textures[normalTextureIndex].source;
+        auto normalImageIndex = modelInternal.textures[normalTextureIndex].source;
         // set normal texture to phong material
-        materialPhong->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
+        materialPhong->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                              modelInternal, textures));
         // set normal texture to PBR material
-        materialPBR->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
+        materialPBR->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                            modelInternal, textures));
       }
     }
     // Get metallic-roughness texture
@@ -253,40 +361,55 @@ void Loader::_loadMaterials() {
       auto metallicRoughnessTextureIndex = glTFMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
       if (metallicRoughnessTextureIndex >= 0) {
         // glTF image index
-        auto metallicRoughnessImageIndex = _model.textures[metallicRoughnessTextureIndex].source;
+        auto metallicRoughnessImageIndex = modelInternal.textures[metallicRoughnessTextureIndex].source;
         // set specular texture to Phong material
-        materialPhong->setSpecular(
-            _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
-        // set PBR texture to PBR material
-        materialPBR->setMetallicRoughness(
-            _loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
+        materialPhong->setSpecular(_loadTexture(metallicRoughnessImageIndex,
+                                                _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
+                                                textures));
+        // set metallic texture to PBR material
+        materialPBR->setMetallic(_loadTexture(metallicRoughnessImageIndex,
+                                              _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
+                                              textures));
+        // set roughness texture to PBR material
+        materialPBR->setRoughness(_loadTexture(metallicRoughnessImageIndex,
+                                               _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
+                                               textures));
       }
     }
     // Get occlusion texture
     {
       auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
       if (occlusionTextureIndex >= 0) {
-        auto occlusionImageIndex = _model.textures[occlusionTextureIndex].source;
-        materialPBR->setOccluded(
-            _loadTexture(occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat()));
+        auto occlusionImageIndex = modelInternal.textures[occlusionTextureIndex].source;
+        materialPBR->setOccluded(_loadTexture(
+            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures));
       }
     }
     // Get emissive texture
     {
       auto emissiveTextureIndex = glTFMaterial.emissiveTexture.index;
       if (emissiveTextureIndex >= 0) {
-        auto emissiveImageIndex = _model.textures[emissiveTextureIndex].source;
-        materialPBR->setEmissive(_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat()));
+        auto emissiveImageIndex = modelInternal.textures[emissiveTextureIndex].source;
+        materialPBR->setEmissive(_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                              modelInternal, textures));
       }
     }
 
-    _materials.push_back(material);
-    _materialsPhong.push_back(materialPhong);
-    _materialsPBR.push_back(materialPBR);
+    materialGLTF.push_back(material);
+    materialsPhong.push_back(materialPhong);
+    materialsPBR.push_back(materialPBR);
   }
+  if (materialsPBR.size() > 0) modelExternal->setMaterialsPBR(materialsPBR);
+  if (materialsPhong.size() > 0) modelExternal->setMaterialsPhong(materialsPhong);
 }
 
-void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, uint32_t nodeIndex) {
+void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
+                           const tinygltf::Node& input,
+                           std::shared_ptr<NodeGLTF> parent,
+                           uint32_t nodeIndex,
+                           const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
+                           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+                           std::vector<std::shared_ptr<NodeGLTF>>& nodes) {
   std::shared_ptr<NodeGLTF> node = std::make_shared<NodeGLTF>();
   node->parent = parent;
   node->matrix = glm::mat4(1.f);
@@ -314,7 +437,8 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
   // Load node's children
   if (input.children.size() > 0) {
     for (size_t i = 0; i < input.children.size(); i++) {
-      _loadNode(_model.nodes[input.children[i]], node, input.children[i]);
+      _loadNode(modelInternal, modelInternal.nodes[input.children[i]], node, input.children[i], materials, meshes,
+                nodes);
     }
   }
 
@@ -322,9 +446,9 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
   // In glTF this is done via accessors and buffer views
   if (input.mesh > -1) {
     // GLTF mesh
-    const tinygltf::Mesh meshGLTF = _model.meshes[input.mesh];
+    const tinygltf::Mesh meshGLTF = modelInternal.meshes[input.mesh];
     // internal engine mesh
-    auto mesh = _meshes[input.mesh];
+    auto mesh = meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
     bool generateTangent = true;
@@ -354,48 +478,52 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
         int tangentByteStride;
         // Get buffer data for vertex positions
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("POSITION")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
+          const tinygltf::Accessor& accessor =
+              modelInternal.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(
-              &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+              &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           vertexCount = accessor.count;
           positionByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                          : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
         }
         // Get buffer data for vertex normals
         if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
+          const tinygltf::Accessor& accessor = modelInternal.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           normalsBuffer = reinterpret_cast<const float*>(
-              &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+              &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           normalByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                        : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
         }
         // Get buffer data for vertex texture coordinates
         // glTF supports multiple sets, we only load the first one
         if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
+          const tinygltf::Accessor& accessor =
+              modelInternal.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           texCoordsBuffer = reinterpret_cast<const float*>(
-              &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+              &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           uv0ByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                     : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC2);
         }
 
         if (glTFPrimitive.attributes.find("TANGENT") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("TANGENT")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
+          const tinygltf::Accessor& accessor =
+              modelInternal.accessors[glTFPrimitive.attributes.find("TANGENT")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           tangentsBuffer = reinterpret_cast<const float*>(
-              &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+              &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           tangentByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                         : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC4);
         }
 
         // Get vertex joint indices
         if (glTFPrimitive.attributes.find("JOINTS_0") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("JOINTS_0")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
-          jointIndicesBuffer = &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]);
+          const tinygltf::Accessor& accessor =
+              modelInternal.accessors[glTFPrimitive.attributes.find("JOINTS_0")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
+          jointIndicesBuffer = &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]);
           jointComponentType = accessor.componentType;
           jointByteStride = accessor.ByteStride(view)
                                 ? (accessor.ByteStride(view) / tinygltf::GetComponentSizeInBytes(jointComponentType))
@@ -403,10 +531,11 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
         }
         // Get vertex joint weights
         if (glTFPrimitive.attributes.find("WEIGHTS_0") != glTFPrimitive.attributes.end()) {
-          const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.attributes.find("WEIGHTS_0")->second];
-          const tinygltf::BufferView& view = _model.bufferViews[accessor.bufferView];
+          const tinygltf::Accessor& accessor =
+              modelInternal.accessors[glTFPrimitive.attributes.find("WEIGHTS_0")->second];
+          const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           jointWeightsBuffer = reinterpret_cast<const float*>(
-              &(_model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
+              &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
           weightByteStride = accessor.ByteStride(view) ? (accessor.ByteStride(view) / sizeof(float))
                                                        : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC4);
         }
@@ -445,8 +574,8 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
             }
           }
           vertex.color = glm::vec3(1.f);
-          if (_materials.size() > glTFPrimitive.material)
-            vertex.color = _materials[glTFPrimitive.material]->baseColorFactor;
+          if (materials.size() > glTFPrimitive.material)
+            vertex.color = materials[glTFPrimitive.material]->baseColorFactor;
 
           vertex.tangent = glm::vec4(0.0f);
           if (tangentsBuffer) {
@@ -459,9 +588,9 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
       }
       // Indices
       {
-        const tinygltf::Accessor& accessor = _model.accessors[glTFPrimitive.indices];
-        const tinygltf::BufferView& bufferView = _model.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer& buffer = _model.buffers[bufferView.buffer];
+        const tinygltf::Accessor& accessor = modelInternal.accessors[glTFPrimitive.indices];
+        const tinygltf::BufferView& bufferView = modelInternal.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = modelInternal.buffers[bufferView.buffer];
 
         indexCount += static_cast<uint32_t>(accessor.count);
 
@@ -517,12 +646,12 @@ void Loader::_loadNode(tinygltf::Node& input, std::shared_ptr<NodeGLTF> parent, 
   if (parent) {
     parent->children.push_back(node);
   } else {
-    _nodes.push_back(node);
+    nodes.push_back(node);
   }
 }
 
 // Helper functions for locating glTF nodes
-std::shared_ptr<NodeGLTF> Loader::_findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index) {
+std::shared_ptr<NodeGLTF> LoaderGLTF::_findNode(std::shared_ptr<NodeGLTF> parent, uint32_t index) {
   std::shared_ptr<NodeGLTF> nodeFound = nullptr;
   if (parent->index == index) {
     return parent;
@@ -536,9 +665,10 @@ std::shared_ptr<NodeGLTF> Loader::_findNode(std::shared_ptr<NodeGLTF> parent, ui
   return nodeFound;
 }
 
-std::shared_ptr<NodeGLTF> Loader::_nodeFromIndex(uint32_t index) {
+std::shared_ptr<NodeGLTF> LoaderGLTF::_nodeFromIndex(uint32_t index,
+                                                     const std::vector<std::shared_ptr<NodeGLTF>>& nodes) {
   std::shared_ptr<NodeGLTF> nodeFound = nullptr;
-  for (auto& node : _nodes) {
+  for (auto& node : nodes) {
     nodeFound = _findNode(node, index);
     if (nodeFound) {
       break;
@@ -548,14 +678,16 @@ std::shared_ptr<NodeGLTF> Loader::_nodeFromIndex(uint32_t index) {
 }
 
 // TODO: ssbo matrix copy is missing
-void Loader::_loadSkins() {
-  for (size_t i = 0; i < _model.skins.size(); i++) {
+void LoaderGLTF::_loadSkins(const tinygltf::Model& modelInternal,
+                            const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                            std::vector<std::shared_ptr<SkinGLTF>>& skins) {
+  for (size_t i = 0; i < modelInternal.skins.size(); i++) {
     std::shared_ptr<SkinGLTF> skin = std::make_shared<SkinGLTF>();
-    tinygltf::Skin glTFSkin = _model.skins[i];
+    tinygltf::Skin glTFSkin = modelInternal.skins[i];
     skin->name = glTFSkin.name;
     // Find joint nodes
     for (int jointIndex : glTFSkin.joints) {
-      auto node = _nodeFromIndex(jointIndex);
+      auto node = _nodeFromIndex(jointIndex, nodes);
       if (node) {
         skin->joints.push_back(node);
       }
@@ -563,22 +695,24 @@ void Loader::_loadSkins() {
 
     // Get the inverse bind matrices from the buffer associated to this skin
     if (glTFSkin.inverseBindMatrices > -1) {
-      const tinygltf::Accessor& accessor = _model.accessors[glTFSkin.inverseBindMatrices];
-      const tinygltf::BufferView& bufferView = _model.bufferViews[accessor.bufferView];
-      const tinygltf::Buffer& buffer = _model.buffers[bufferView.buffer];
+      const tinygltf::Accessor& accessor = modelInternal.accessors[glTFSkin.inverseBindMatrices];
+      const tinygltf::BufferView& bufferView = modelInternal.bufferViews[accessor.bufferView];
+      const tinygltf::Buffer& buffer = modelInternal.buffers[bufferView.buffer];
       skin->inverseBindMatrices.resize(accessor.count);
       std::memcpy(skin->inverseBindMatrices.data(), &buffer.data[accessor.byteOffset + bufferView.byteOffset],
                   accessor.count * sizeof(glm::mat4));
     }
 
-    _skins.push_back(skin);
+    skins.push_back(skin);
   }
 }
 
-void Loader::_loadAnimations() {
-  for (size_t i = 0; i < _model.animations.size(); i++) {
+void LoaderGLTF::_loadAnimations(const tinygltf::Model& modelInternal,
+                                 const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                                 std::vector<std::shared_ptr<AnimationGLTF>> animations) {
+  for (size_t i = 0; i < modelInternal.animations.size(); i++) {
     std::shared_ptr<AnimationGLTF> animation = std::make_shared<AnimationGLTF>();
-    tinygltf::Animation glTFAnimation = _model.animations[i];
+    tinygltf::Animation glTFAnimation = modelInternal.animations[i];
     animation->name = glTFAnimation.name;
 
     // Samplers
@@ -590,9 +724,9 @@ void Loader::_loadAnimations() {
 
       // Read sampler keyframe input time values
       {
-        const tinygltf::Accessor& accessor = _model.accessors[glTFSampler.input];
-        const tinygltf::BufferView& bufferView = _model.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer& buffer = _model.buffers[bufferView.buffer];
+        const tinygltf::Accessor& accessor = modelInternal.accessors[glTFSampler.input];
+        const tinygltf::BufferView& bufferView = modelInternal.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = modelInternal.buffers[bufferView.buffer];
         const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
         const float* buf = static_cast<const float*>(dataPtr);
         for (size_t index = 0; index < accessor.count; index++) {
@@ -611,9 +745,9 @@ void Loader::_loadAnimations() {
 
       // Read sampler keyframe output translate/rotate/scale values
       {
-        const tinygltf::Accessor& accessor = _model.accessors[glTFSampler.output];
-        const tinygltf::BufferView& bufferView = _model.bufferViews[accessor.bufferView];
-        const tinygltf::Buffer& buffer = _model.buffers[bufferView.buffer];
+        const tinygltf::Accessor& accessor = modelInternal.accessors[glTFSampler.output];
+        const tinygltf::BufferView& bufferView = modelInternal.bufferViews[accessor.bufferView];
+        const tinygltf::Buffer& buffer = modelInternal.buffers[bufferView.buffer];
         const void* dataPtr = &buffer.data[accessor.byteOffset + bufferView.byteOffset];
         switch (accessor.type) {
           case TINYGLTF_TYPE_VEC3: {
@@ -645,21 +779,9 @@ void Loader::_loadAnimations() {
       AnimationChannelGLTF& dstChannel = animation->channels[j];
       dstChannel.path = glTFChannel.target_path;
       dstChannel.samplerIndex = glTFChannel.sampler;
-      dstChannel.node = _nodeFromIndex(glTFChannel.target_node);
+      dstChannel.node = _nodeFromIndex(glTFChannel.target_node, nodes);
     }
 
-    _animations.push_back(animation);
+    animations.push_back(animation);
   }
 }
-
-std::vector<std::shared_ptr<MaterialPhong>> Loader::getMaterialsPhong() { return _materialsPhong; }
-
-std::vector<std::shared_ptr<MaterialPBR>> Loader::getMaterialsPBR() { return _materialsPBR; }
-
-const std::vector<std::shared_ptr<SkinGLTF>>& Loader::getSkins() { return _skins; }
-
-const std::vector<std::shared_ptr<AnimationGLTF>>& Loader::getAnimations() { return _animations; }
-
-const std::vector<std::shared_ptr<Mesh3D>>& Loader::getMeshes() { return _meshes; }
-
-const std::vector<std::shared_ptr<NodeGLTF>>& Loader::getNodes() { return _nodes; }

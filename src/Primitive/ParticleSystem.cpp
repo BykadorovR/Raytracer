@@ -29,8 +29,8 @@ ParticleSystem::ParticleSystem(int particlesNumber,
 
 void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("../shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("../shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   cameraLayout->createUniformBuffer();
 
@@ -113,7 +113,7 @@ void ParticleSystem::_initializeCompute() {
   }
 
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("../shaders/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  shader->add("shaders/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),

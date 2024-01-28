@@ -71,3 +71,7 @@ std::tuple<int, int> Settings::getDiffuseIBLResolution() { return _diffuseIBLRes
 std::tuple<int, int> Settings::getSpecularIBLResolution() { return _specularIBLResolution; }
 
 int Settings::getSpecularMipMap() { return _specularIBLMipMap; }
+
+float Settings::getDepthBiasConstant() { return _depthBiasConstant; }
+
+float Settings::getDepthBiasSlope() { return _depthBiasSlope; }
