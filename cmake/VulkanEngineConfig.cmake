@@ -6,6 +6,7 @@
 # This will define the following variables:
 #
 #   VulkanEngine_FOUND        -- True if the system has the VulkanEngine library
+#   VulkanEngine_ROOT         -- Path to root folder
 #   VulkanEngine_INCLUDE_DIRS -- The include directories for VulkanEngine
 #   VulkanEngine_LIBRARIES    -- Libraries to link against
 #   VulkanEngine_DLL_PATH     -- DLLs required by VulkanEngine, valid on Windows platform only
@@ -24,6 +25,8 @@ else()
   get_filename_component(CMAKE_CURRENT_LIST_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
   get_filename_component(VulkanEngine_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../" ABSOLUTE)
 endif()
+
+set(VulkanEngine_ROOT ${VulkanEngine_INSTALL_PREFIX})
 
 # Include shaders.
 set(VulkanEngine_SHADERS ${VulkanEngine_INSTALL_PREFIX}/shaders/)
