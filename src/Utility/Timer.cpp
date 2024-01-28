@@ -52,10 +52,13 @@ void Timer::tock() {
 
 float Timer::getElapsedCurrent() { return _elapsedCurrent; }
 
-void Timer::sleep(int maxFPS, std::shared_ptr<LoggerCPU> loggerCPU) {
+void Timer::sleep(int FPSMax, std::shared_ptr<LoggerCPU> loggerCPU) {
+  // have to reset timer if FPS has been changed
+  if (_FPSMaxPrevious && _FPSMaxPrevious != FPSMax) reset();
   auto end = std::chrono::high_resolution_clock::now();
+  _FPSMaxPrevious = FPSMax;
   auto elapsedSleep = std::chrono::duration_cast<std::chrono::milliseconds>(end - _startTime).count();
-  uint64_t expected = (1000.f / maxFPS) * _frameCounterSleep;
+  uint64_t expected = (1000.f / FPSMax) * _frameCounterSleep;
   if (elapsedSleep < expected) {
     loggerCPU->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
     std::this_thread::sleep_for(std::chrono::milliseconds(expected - elapsedSleep));

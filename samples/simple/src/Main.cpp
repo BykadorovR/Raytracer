@@ -2,17 +2,31 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Shape3D.h"
 
-std::shared_ptr<Shape3D> cubeTextured, cubeTexturedWireframe;
-std::shared_ptr<PointLight> pointLightVertical, pointLightHorizontal;
-std::shared_ptr<DirectionalLight> directionalLight;
-std::shared_ptr<Shape3D> cubeColoredLightVertical, cubeColoredLightHorizontal;
+void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+
+void InputHandler::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+
+void InputHandler::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
+    if (_cursorEnabled) {
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      _cursorEnabled = false;
+    } else {
+      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      _cursorEnabled = true;
+    }
+  }
+}
+
+void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
+
+void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
-  settings->setName("Vulkan");
+  settings->setName("Simple");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
@@ -37,38 +51,40 @@ Main::Main() {
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _inputHandler = std::make_shared<InputHandler>();
+  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
 
   auto lightManager = _core->getLightManager();
-  pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
-  pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
-  directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
+  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
+  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
+  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
+  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
   //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  directionalLight->setCenter({0.f, 0.f, 0.f});
-  directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->setCenter({0.f, 0.f, 0.f});
+  _directionalLight->setUp({0.f, 0.f, -1.f});
 
   // cube colored light
-  cubeColoredLightVertical = std::make_shared<Shape3D>(
+  _cubeColoredLightVertical = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredLightVertical->setCamera(_camera);
-  cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+  _cubeColoredLightVertical->setCamera(_camera);
+  _cubeColoredLightVertical->getMesh()->setColor(
+      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
-  _core->addDrawable(cubeColoredLightVertical);
+  _core->addDrawable(_cubeColoredLightVertical);
 
-  cubeColoredLightHorizontal = std::make_shared<Shape3D>(
+  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredLightHorizontal->setCamera(_camera);
-  cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+  _cubeColoredLightHorizontal->setCamera(_camera);
+  _cubeColoredLightHorizontal->getMesh()->setColor(
+      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
-  _core->addDrawable(cubeColoredLightHorizontal);
+  _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -107,16 +123,16 @@ Main::Main() {
       commandBufferTransfer, state);
   auto materialCubeTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   materialCubeTextured->setBaseColor(cubemap->getTexture());
-  cubeTextured = std::make_shared<Shape3D>(
+  _cubeTextured = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTextured->setCamera(_camera);
-  cubeTextured->setMaterial(materialCubeTextured);
+  _cubeTextured->setCamera(_camera);
+  _cubeTextured->setMaterial(materialCubeTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-    cubeTextured->setModel(model);
+    _cubeTextured->setModel(model);
   }
-  _core->addDrawable(cubeTextured);
+  _core->addDrawable(_cubeTextured);
 
   //  cube Phong
   auto cubemapColorPhong = std::make_shared<Cubemap>(
@@ -165,17 +181,17 @@ Main::Main() {
   _core->addDrawable(cubeColoredWireframe);
 
   // cube texture wireframe
-  cubeTexturedWireframe = std::make_shared<Shape3D>(
+  _cubeTexturedWireframe = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedWireframe->setCamera(_camera);
-  cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
-  cubeTexturedWireframe->setMaterial(materialCubeTextured);
+  _cubeTexturedWireframe->setCamera(_camera);
+  _cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
+  _cubeTexturedWireframe->setMaterial(materialCubeTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-    cubeTexturedWireframe->setModel(model);
+    _cubeTexturedWireframe->setModel(model);
   }
-  _core->addDrawable(cubeTexturedWireframe);
+  _core->addDrawable(_cubeTexturedWireframe);
 
   // cube Phong wireframe
   auto cubeTexturedWireframePhong = std::make_shared<Shape3D>(
@@ -546,11 +562,11 @@ void Main::update() {
   static float i = 0;
   auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
   model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
-  cubeTextured->setModel(model);
+  _cubeTextured->setModel(model);
 
   model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
   model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
-  cubeTexturedWireframe->setModel(model);
+  _cubeTexturedWireframe->setModel(model);
 
   // update light position
   float radius = 15.f;
@@ -561,22 +577,27 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightVertical->setModel(model);
+    _cubeColoredLightVertical->setModel(model);
   }
-  pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightHorizontal->setModel(model);
+    _cubeColoredLightHorizontal->setModel(model);
   }
 
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
+
+  auto [FPSLimited, FPSReal] = _core->getFPS();
+  _core->getGUI()->drawText("Help", {20, 20}, {"Limited FPS: " + std::to_string(FPSLimited)});
+  _core->getGUI()->drawText("Help", {20, 20}, {"Maximum FPS: " + std::to_string(FPSReal)});
+  _core->getGUI()->drawText("Help", {20, 20}, {"Press 'c' to turn cursor on/off"});
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

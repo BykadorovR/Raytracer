@@ -514,7 +514,6 @@ void debugVisualizations(int swapchainImageIndex) {
                 {std::to_string(timerFPSLimited->getFPS()) + "/" + std::to_string(timerFPSReal->getFPS())});
   if (gui->drawInputInt("FPS", {20, 20}, {{"##current", &desiredFPS}})) {
     settings->setDesiredFPS(desiredFPS);
-    FPSChanged = true;
   }
   {
     std::map<std::string, bool*> terrainGUI;
@@ -1759,11 +1758,6 @@ void mainLoop() {
     timerFPSReal->tock();
     // if GPU frames are limited by driver it will happen during display
     displayFrame(&imageIndex);
-
-    if (FPSChanged) {
-      FPSChanged = false;
-      timer->reset();
-    }
 
     timer->sleep(settings->getDesiredFPS(), loggerCPU);
     timer->tock();

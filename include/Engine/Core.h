@@ -96,6 +96,8 @@ class Core {
   std::shared_ptr<LightManager> getLightManager();
   std::shared_ptr<ResourceManager> getResourceManager();
   std::shared_ptr<State> getState();
+  std::shared_ptr<GUI> getGUI();
+  std::tuple<int, int> getFPS();
   void draw();
   void registerUpdate(std::function<void()> update);
   void registerReset(std::function<void(int width, int height)> reset);

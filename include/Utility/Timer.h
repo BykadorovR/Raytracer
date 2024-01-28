@@ -26,13 +26,14 @@ class Timer {
   uint64_t _frameCounterSleep;
   std::chrono::high_resolution_clock::time_point _startTimeCurrent;
   float _elapsedCurrent;
+  int _FPSMaxPrevious = 0;
 
  public:
   Timer();
   void tick();
   void tock();
   void reset();
-  void sleep(int maxFPS, std::shared_ptr<LoggerCPU> loggerCPU);
+  void sleep(int FPSMax, std::shared_ptr<LoggerCPU> loggerCPU);
   float getElapsedCurrent();
   uint64_t getFrameCounter();
 };

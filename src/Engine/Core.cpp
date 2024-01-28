@@ -440,7 +440,45 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   _commandBufferGUI->beginCommands(_currentFrame);
   _loggerGPUDebug->setCommandBufferName("GUI command buffer", _currentFrame, _commandBufferGUI);
 
-  _loggerGPUDebug->begin("Change layout before display", _currentFrame);
+  VkClearValue clearColor;
+  clearColor.color = _state->getSettings()->getClearColor();
+  const VkRenderingAttachmentInfo colorAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = _state->getSwapchain()->getImageViews()[swapchainImageIndex]->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearColor,
+  };
+
+  const VkRenderingAttachmentInfo depthAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = _state->getSwapchain()->getDepthImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+  };
+
+  auto [width, height] = _state->getSwapchain()->getImageViews()[swapchainImageIndex]->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+      .renderArea = renderArea,
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &colorAttachmentInfo,
+      .pDepthAttachment = &depthAttachmentInfo,
+  };
+
+  vkCmdBeginRendering(_commandBufferGUI->getCommandBuffer()[_currentFrame], &renderInfo);
+  _loggerGPUDebug->begin("Render GUI " + std::to_string(_timer->getFrameCounter()), _currentFrame);
+  _gui->updateBuffers(_currentFrame);
+  _gui->drawFrame(_currentFrame, _commandBufferGUI);
+  _loggerGPUDebug->end();
+  vkCmdEndRendering(_commandBufferGUI->getCommandBuffer()[_currentFrame]);
+
   VkImageMemoryBarrier colorBarrier{
       .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
       .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
@@ -852,11 +890,6 @@ void Core::draw() {
     // if GPU frames are limited by driver it will happen during display
     _displayFrame(&imageIndex);
 
-    /*if (FPSChanged) {
-      FPSChanged = false;
-      _timer->reset();
-    }*/
-
     _timer->sleep(_state->getSettings()->getDesiredFPS(), _loggerCPU);
     _timer->tock();
     _timerFPSLimited->tock();
@@ -871,6 +904,10 @@ std::shared_ptr<ResourceManager> Core::getResourceManager() { return _resourceMa
 std::shared_ptr<LightManager> Core::getLightManager() { return _lightManager; }
 
 std::shared_ptr<State> Core::getState() { return _state; }
+
+std::shared_ptr<GUI> Core::getGUI() { return _gui; }
+
+std::tuple<int, int> Core::getFPS() { return {_timerFPSLimited->getFPS(), _timerFPSReal->getFPS()}; }
 
 void Core::addDrawable(std::shared_ptr<IDrawable> drawable) { _drawables.push_back(drawable); }
 
