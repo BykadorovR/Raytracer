@@ -295,7 +295,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
 
 // TODO: we can store baseColorFactor only in GLTF material, rest will go to PBR/Phong
 void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
-                                std::vector<std::shared_ptr<MaterialGLTF>> materialGLTF,
+                                std::vector<std::shared_ptr<MaterialGLTF>>& materialGLTF,
                                 std::shared_ptr<ModelGLTF> modelExternal) {
   std::vector<std::shared_ptr<MaterialPBR>> materialsPBR;
   std::vector<std::shared_ptr<MaterialPhong>> materialsPhong;

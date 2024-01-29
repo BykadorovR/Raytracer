@@ -312,6 +312,12 @@ void MaterialPhong::_updateTextureDescriptors(int currentFrame) {
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
+const std::shared_ptr<Texture> MaterialPhong::getBaseColor() { return _textureColor; }
+
+const std::shared_ptr<Texture> MaterialPhong::getNormal() { return _textureNormal; }
+
+const std::shared_ptr<Texture> MaterialPhong::getSpecular() { return _textureSpecular; }
+
 void MaterialPhong::setBaseColor(std::shared_ptr<Texture> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureColor = color;

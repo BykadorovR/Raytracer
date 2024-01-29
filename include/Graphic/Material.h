@@ -104,6 +104,9 @@ class MaterialPhong : public Material {
 
  public:
   MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  const std::shared_ptr<Texture> getBaseColor();
+  const std::shared_ptr<Texture> getNormal();
+  const std::shared_ptr<Texture> getSpecular();
 
   void setBaseColor(std::shared_ptr<Texture> color);
   void setNormal(std::shared_ptr<Texture> normal);
