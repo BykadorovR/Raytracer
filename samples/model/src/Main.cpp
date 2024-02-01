@@ -222,7 +222,7 @@ Main::Main() {
     auto animation = std::make_shared<Animation>(gltfModelMan->getNodes(), gltfModelMan->getSkins(),
                                                  gltfModelMan->getAnimations(), state);
     auto animationNames = animation->getAnimations();
-    animation->setAnimation(animationNames[2]);
+    animation->setAnimation(animationNames[0]);
     // set animation to model, so joints will be passed to shader
     modelMan->setAnimation(animation);
     // play animation, if don't call there will not be any animation, even model can disappear because of zero start

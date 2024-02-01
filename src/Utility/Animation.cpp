@@ -44,25 +44,16 @@ std::shared_ptr<DescriptorSetLayout> Animation::getDescriptorSetLayoutJoints() {
 
 std::vector<std::shared_ptr<DescriptorSet>> Animation::getDescriptorSetJoints() { return _descriptorSetJoints; }
 
-// Traverse the node hierarchy to the top-most parent to get the final matrix of the current node
-glm::mat4 Animation::_getNodeMatrix(std::shared_ptr<NodeGLTF> node) {
-  glm::mat4 nodeMatrix = node->getLocalMatrix();
-  std::shared_ptr<NodeGLTF> currentParent = node->parent;
-  while (currentParent) {
-    nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
-    currentParent = currentParent->parent;
-  }
-  return nodeMatrix;
-}
-
 void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
   if (node->skin > -1) {
     // Update the joint matrices
-    glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
+    // glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
+    glm::mat4 inverseTransform = glm::inverse(_matricesJoint[node->index]);
     std::shared_ptr<SkinGLTF> skin = _skins[node->skin];
     std::vector<glm::mat4> jointMatrices(skin->joints.size());
     for (size_t i = 0; i < jointMatrices.size(); i++) {
-      jointMatrices[i] = _getNodeMatrix(skin->joints[i]) * skin->inverseBindMatrices[i];
+      // jointMatrices[i] = _getNodeMatrix(skin->joints[i]) * skin->inverseBindMatrices[i];
+      jointMatrices[i] = _matricesJoint[skin->joints[i]->index] * skin->inverseBindMatrices[i];
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
 
@@ -74,6 +65,13 @@ void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
 
   for (auto& child : node->children) {
     _updateJoints(frame, child);
+  }
+}
+
+void Animation::_fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent) {
+  _matricesJoint[node->index] = matrixParent * node->getLocalMatrix();
+  for (auto& child : node->children) {
+    _fillMatricesJoint(child, _matricesJoint[node->index]);
   }
 }
 
@@ -142,6 +140,9 @@ void Animation::updateAnimation(int frame, float deltaTime) {
   _loggerCPU->end();
 
   _loggerCPU->begin("Update matrixes");
+  for (auto& node : _nodes) {
+    _fillMatricesJoint(node, glm::mat4(1.f));
+  }
   for (auto& node : _nodes) {
     _updateJoints(frame, node);
   }

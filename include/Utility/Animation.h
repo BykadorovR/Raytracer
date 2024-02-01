@@ -15,8 +15,9 @@ class Animation {
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
   int _animationIndex = 0;
+  std::map<int, glm::mat4> _matricesJoint;
   void _updateJoints(int frame, std::shared_ptr<NodeGLTF> node);
-  glm::mat4 _getNodeMatrix(std::shared_ptr<NodeGLTF> node);
+  void _fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent);
 
  public:
   Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
