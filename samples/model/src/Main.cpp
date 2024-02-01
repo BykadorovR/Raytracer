@@ -100,27 +100,140 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  // draw simple non-textured cube
+  auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
+    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
+    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
+    if (material->getSpecular() == nullptr) material->setSpecular(core->getResourceManager()->getTextureZero());
+  };
+
+  auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
+    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
+    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
+    if (material->getMetallic() == nullptr) material->setMetallic(core->getResourceManager()->getTextureZero());
+    if (material->getRoughness() == nullptr) material->setRoughness(core->getResourceManager()->getTextureZero());
+    if (material->getOccluded() == nullptr) material->setOccluded(core->getResourceManager()->getTextureZero());
+    if (material->getEmissive() == nullptr) material->setEmissive(core->getResourceManager()->getTextureZero());
+    material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
+    material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
+                             core->getResourceManager()->getTextureZero());
+  };
+
   auto modelManagerStatic = std::make_shared<Model3DManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, _core->getResourceManager(), state);
-  auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
-  auto modelBox = modelManagerStatic->createModel3D(gltfModelBox->getNodes(), gltfModelBox->getMeshes());
-  modelManagerStatic->registerModel3D(modelBox);
-  modelManagerStatic->setCamera(_camera);
-  auto materialModelBox = gltfModelBox->getMaterialsPhong();
-  for (auto& material : materialModelBox) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(_core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(_core->getResourceManager()->getTextureZero());
-    if (material->getSpecular() == nullptr) material->setSpecular(_core->getResourceManager()->getTextureZero());
-  }
-  modelBox->setMaterial(materialModelBox);
+  // draw simple non-textured cube
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
-    modelBox->setModel(model);
+    auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
+    auto modelBox = modelManagerStatic->createModel3D(gltfModelBox->getNodes(), gltfModelBox->getMeshes());
+    modelManagerStatic->registerModel3D(modelBox);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelBox = gltfModelBox->getMaterialsPBR();
+    for (auto& material : materialModelBox) {
+      fillMaterialPBR(material);
+    }
+    modelBox->setMaterial(materialModelBox);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
+      modelBox->setModel(model);
+    }
+  }
+  // draw simple textured model Phong
+  {
+    auto gltfModelAvocado = _core->getResourceManager()->loadModel("../assets/Avocado/Avocado.gltf");
+    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
+    modelManagerStatic->registerModel3D(modelAvocado);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelAvocado = gltfModelAvocado->getMaterialsPhong();
+    for (auto& material : materialModelAvocado) {
+      fillMaterialPhong(material);
+    }
+    modelAvocado->setMaterial(materialModelAvocado);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+      modelAvocado->setModel(model);
+    }
+  }
+  // draw simple textured model PBR
+  {
+    auto gltfModelAvocado = _core->getResourceManager()->loadModel("../assets/Avocado/Avocado.gltf");
+    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
+    modelManagerStatic->registerModel3D(modelAvocado);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelAvocado = gltfModelAvocado->getMaterialsPBR();
+    for (auto& material : materialModelAvocado) {
+      fillMaterialPBR(material);
+    }
+    modelAvocado->setMaterial(materialModelAvocado);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
+      modelAvocado->setModel(model);
+    }
   }
 
-  //
+  // draw advanced textured model Phong
+  {
+    auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
+    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
+    modelManagerStatic->registerModel3D(modelBottle);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
+    for (auto& material : materialModelBottle) {
+      fillMaterialPhong(material);
+    }
+    modelBottle->setMaterial(materialModelBottle);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 0.f, -3.f));
+      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
+      modelBottle->setModel(model);
+    }
+  }
+
+  // draw advanced textured model PBR
+  {
+    auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
+    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
+    modelManagerStatic->registerModel3D(modelBottle);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
+    for (auto& material : materialModelBottle) {
+      fillMaterialPBR(material);
+    }
+    modelBottle->setMaterial(materialModelBottle);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
+      modelBottle->setModel(model);
+    }
+  }
+
+  // draw skeletal textured model
+  {
+    auto gltfModelMan = _core->getResourceManager()->loadModel("../assets/Boss/scene.gltf");
+    auto modelMan = modelManagerStatic->createModel3D(gltfModelMan->getNodes(), gltfModelMan->getMeshes());
+    modelManagerStatic->registerModel3D(modelMan);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelMan = gltfModelMan->getMaterialsPhong();
+    for (auto& material : materialModelMan) {
+      fillMaterialPhong(material);
+    }
+    modelMan->setMaterial(materialModelMan);
+    auto animation = std::make_shared<Animation>(gltfModelMan->getNodes(), gltfModelMan->getSkins(),
+                                                 gltfModelMan->getAnimations(), state);
+    auto animationNames = animation->getAnimations();
+    animation->setAnimation(animationNames[2]);
+    // set animation to model, so joints will be passed to shader
+    modelMan->setAnimation(animation);
+    // play animation, if don't call there will not be any animation, even model can disappear because of zero start
+    // weights
+    _core->addAnimation(animation);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+      modelMan->setModel(model);
+    }
+  }
 
   _core->addDrawable(modelManagerStatic);
 

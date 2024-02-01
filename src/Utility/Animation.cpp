@@ -77,15 +77,28 @@ void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
   }
 }
 
+std::vector<std::string> Animation::getAnimations() {
+  std::vector<std::string> names(_animations.size());
+  for (int i = 0; i < _animations.size(); i++) {
+    names[i] = _animations[i]->name;
+  }
+  return names;
+}
+
+void Animation::setAnimation(std::string name) {
+  for (int i = 0; i < _animations.size(); i++) {
+    if (_animations[i]->name == name) _animationIndex = i;
+  }
+}
+
 void Animation::updateAnimation(int frame, float deltaTime) {
   // TODO: animation index
-  auto animationIndex = 0;
-  if (_animations.size() == 0 || animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
+  if (_animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
 
   _loggerCPU->begin("Update translate/scale/rotation");
-  std::shared_ptr<AnimationGLTF> animation = _animations[animationIndex];
+  std::shared_ptr<AnimationGLTF> animation = _animations[_animationIndex];
   animation->currentTime += deltaTime;
   animation->currentTime = fmod(animation->currentTime, animation->end);
   for (auto& channel : animation->channels) {
@@ -94,33 +107,35 @@ void Animation::updateAnimation(int frame, float deltaTime) {
       std::cout << "This sample only supports linear interpolations\n";
       continue;
     }
-
-    auto lower = std::upper_bound(sampler.inputs.begin(), sampler.inputs.end(), animation->currentTime);
+    if (sampler.inputs.size() <= 1) continue;
+    auto higher = std::find_if(sampler.inputs.begin(), sampler.inputs.end(),
+                               [current = animation->currentTime](float value) { return value > current; });
     // Get the input keyframe values for the current time stamp
-    if (lower != sampler.inputs.begin()) {
-      lower = std::prev(lower);
-      int i = std::distance(sampler.inputs.begin(), lower);
-      float a = (animation->currentTime - sampler.inputs[i]) / (sampler.inputs[i + 1] - sampler.inputs[i]);
+    if (higher != sampler.inputs.begin()) {
+      if (higher == sampler.inputs.end() && animation->currentTime > sampler.inputs.back()) continue;
+      int right = std::distance(sampler.inputs.begin(), higher);
+      int left = right - 1;
+      float a = (animation->currentTime - sampler.inputs[left]) / (sampler.inputs[right] - sampler.inputs[left]);
       if (channel.path == "translation") {
-        channel.node->translation = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+        channel.node->translation = glm::mix(sampler.outputsVec4[left], sampler.outputsVec4[right], a);
       }
       if (channel.path == "rotation") {
         glm::quat q1;
-        q1.x = sampler.outputsVec4[i].x;
-        q1.y = sampler.outputsVec4[i].y;
-        q1.z = sampler.outputsVec4[i].z;
-        q1.w = sampler.outputsVec4[i].w;
+        q1.x = sampler.outputsVec4[left].x;
+        q1.y = sampler.outputsVec4[left].y;
+        q1.z = sampler.outputsVec4[left].z;
+        q1.w = sampler.outputsVec4[left].w;
 
         glm::quat q2;
-        q2.x = sampler.outputsVec4[i + 1].x;
-        q2.y = sampler.outputsVec4[i + 1].y;
-        q2.z = sampler.outputsVec4[i + 1].z;
-        q2.w = sampler.outputsVec4[i + 1].w;
+        q2.x = sampler.outputsVec4[right].x;
+        q2.y = sampler.outputsVec4[right].y;
+        q2.z = sampler.outputsVec4[right].z;
+        q2.w = sampler.outputsVec4[right].w;
 
         channel.node->rotation = glm::normalize(glm::slerp(q1, q2, a));
       }
       if (channel.path == "scale") {
-        channel.node->scale = glm::mix(sampler.outputsVec4[i], sampler.outputsVec4[i + 1], a);
+        channel.node->scale = glm::mix(sampler.outputsVec4[left], sampler.outputsVec4[right], a);
       }
     }
   }

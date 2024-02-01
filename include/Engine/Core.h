@@ -90,6 +90,7 @@ class Core {
   Core(std::shared_ptr<Settings> settings);
   void addDrawable(std::shared_ptr<IDrawable> drawable);
   void addShadowable(std::shared_ptr<IShadowable> shadowable);
+  void addAnimation(std::shared_ptr<Animation> animation);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();

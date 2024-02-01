@@ -121,7 +121,7 @@ class LoaderGLTF {
                       std::shared_ptr<ModelGLTF> modelExternal);
   void _loadAnimations(const tinygltf::Model& modelInternal,
                        const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-                       std::vector<std::shared_ptr<AnimationGLTF>> animations);
+                       std::vector<std::shared_ptr<AnimationGLTF>>& animations);
   void _loadSkins(const tinygltf::Model& modelInternal,
                   const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                   std::vector<std::shared_ptr<SkinGLTF>>& skins);

@@ -26,7 +26,7 @@ class Timer {
   uint64_t _frameCounterSleep;
   std::chrono::high_resolution_clock::time_point _startTimeCurrent;
   float _elapsedCurrent;
-  int _FPSMaxPrevious = 0;
+  int _FPSMaxPrevious;
 
  public:
   Timer();

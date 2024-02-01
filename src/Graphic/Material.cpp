@@ -192,6 +192,18 @@ void MaterialPBR::_updateCoefficientDescriptors(int currentFrame) {
                 _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory());
 }
 
+const std::shared_ptr<Texture> MaterialPBR::getBaseColor() { return _textureColor; }
+
+const std::shared_ptr<Texture> MaterialPBR::getNormal() { return _textureNormal; }
+
+const std::shared_ptr<Texture> MaterialPBR::getMetallic() { return _textureMetallic; }
+
+const std::shared_ptr<Texture> MaterialPBR::getRoughness() { return _textureRoughness; }
+
+const std::shared_ptr<Texture> MaterialPBR::getOccluded() { return _textureOccluded; }
+
+const std::shared_ptr<Texture> MaterialPBR::getEmissive() { return _textureEmissive; }
+
 void MaterialPBR::setBaseColor(std::shared_ptr<Texture> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _textureColor = color;

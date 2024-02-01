@@ -72,6 +72,12 @@ class MaterialPBR : public Material {
 
  public:
   MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  const std::shared_ptr<Texture> getBaseColor();
+  const std::shared_ptr<Texture> getNormal();
+  const std::shared_ptr<Texture> getMetallic();
+  const std::shared_ptr<Texture> getRoughness();
+  const std::shared_ptr<Texture> getOccluded();
+  const std::shared_ptr<Texture> getEmissive();
 
   void setBaseColor(std::shared_ptr<Texture> color);
   void setNormal(std::shared_ptr<Texture> normal);
@@ -122,6 +128,7 @@ class MaterialColor : public Material {
 
  public:
   MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
-  void setBaseColor(std::shared_ptr<Texture> color);
   std::shared_ptr<Texture> getBaseColor();
+
+  void setBaseColor(std::shared_ptr<Texture> color);
 };

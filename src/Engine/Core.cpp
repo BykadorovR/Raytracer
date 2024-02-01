@@ -913,6 +913,8 @@ void Core::addDrawable(std::shared_ptr<IDrawable> drawable) { _drawables.push_ba
 
 void Core::addShadowable(std::shared_ptr<IShadowable> shadowable) { _shadowables.push_back(shadowable); }
 
+void Core::addAnimation(std::shared_ptr<Animation> animation) { _animations.push_back(animation); }
+
 void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);
 }

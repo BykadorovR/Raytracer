@@ -14,7 +14,7 @@ class Animation {
   // separate descriptor for each skin
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
-
+  int _animationIndex = 0;
   void _updateJoints(int frame, std::shared_ptr<NodeGLTF> node);
   glm::mat4 _getNodeMatrix(std::shared_ptr<NodeGLTF> node);
 
@@ -23,6 +23,9 @@ class Animation {
             const std::vector<std::shared_ptr<SkinGLTF>>& skins,
             const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
             std::shared_ptr<State> state);
+  std::vector<std::string> getAnimations();
+  void setAnimation(std::string name);
+
   void updateAnimation(int frame, float deltaTime);
 
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutJoints();

@@ -709,7 +709,7 @@ void LoaderGLTF::_loadSkins(const tinygltf::Model& modelInternal,
 
 void LoaderGLTF::_loadAnimations(const tinygltf::Model& modelInternal,
                                  const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-                                 std::vector<std::shared_ptr<AnimationGLTF>> animations) {
+                                 std::vector<std::shared_ptr<AnimationGLTF>>& animations) {
   for (size_t i = 0; i < modelInternal.animations.size(); i++) {
     std::shared_ptr<AnimationGLTF> animation = std::make_shared<AnimationGLTF>();
     tinygltf::Animation glTFAnimation = modelInternal.animations[i];
