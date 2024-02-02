@@ -36,7 +36,7 @@ Skybox::Skybox(std::vector<VkFormat> renderFormat,
   _material = _defaultMaterialColor;
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state->getDevice());
+                                                   state);
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,

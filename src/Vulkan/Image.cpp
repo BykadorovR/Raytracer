@@ -1,8 +1,8 @@
 #include "Image.h"
 
-Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device) {
+Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state) {
   _image = image;
-  _device = device;
+  _state = state;
   _resolution = resolution;
   _format = format;
 
@@ -16,8 +16,8 @@ Image::Image(std::tuple<int, int> resolution,
              VkImageTiling tiling,
              VkImageUsageFlags usage,
              VkMemoryPropertyFlags properties,
-             std::shared_ptr<Device> device) {
-  _device = device;
+             std::shared_ptr<State> state) {
+  _state = state;
   _resolution = resolution;
   _format = format;
   _layers = layers;
@@ -41,12 +41,12 @@ Image::Image(std::tuple<int, int> resolution,
   // for cubemap need to set flag
   if (layers == 6) imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-  if (vkCreateImage(device->getLogicalDevice(), &imageInfo, nullptr, &_image) != VK_SUCCESS) {
+  if (vkCreateImage(_state->getDevice()->getLogicalDevice(), &imageInfo, nullptr, &_image) != VK_SUCCESS) {
     throw std::runtime_error("failed to create image!");
   }
 
   VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(device->getLogicalDevice(), _image, &memRequirements);
+  vkGetImageMemoryRequirements(_state->getDevice()->getLogicalDevice(), _image, &memRequirements);
 
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -55,7 +55,7 @@ Image::Image(std::tuple<int, int> resolution,
   allocInfo.memoryTypeIndex = -1;
   // TODO: findMemoryType to device
   VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(device->getPhysicalDevice(), &memProperties);
+  vkGetPhysicalDeviceMemoryProperties(_state->getDevice()->getPhysicalDevice(), &memProperties);
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((memRequirements.memoryTypeBits & (1 << i)) &&
@@ -66,11 +66,11 @@ Image::Image(std::tuple<int, int> resolution,
   }
   if (allocInfo.memoryTypeIndex < 0) throw std::runtime_error("failed to find suitable memory type!");
 
-  if (vkAllocateMemory(device->getLogicalDevice(), &allocInfo, nullptr, &_imageMemory) != VK_SUCCESS) {
+  if (vkAllocateMemory(_state->getDevice()->getLogicalDevice(), &allocInfo, nullptr, &_imageMemory) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate image memory!");
   }
 
-  vkBindImageMemory(device->getLogicalDevice(), _image, _imageMemory, 0);
+  vkBindImageMemory(_state->getDevice()->getLogicalDevice(), _image, _imageMemory, 0);
 }
 
 int Image::getLayersNumber() { return _layers; }
@@ -82,7 +82,7 @@ void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 std::tuple<int, int> Image::getResolution() { return _resolution; }
 
 void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = commandBuffer->getCurrentFrame();
+  int currentFrame = _state->getFrameInFlight();
 
   VkImageMemoryBarrier barrier{};
   barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -263,9 +263,9 @@ void Image::changeLayout(VkImageLayout oldLayout,
       break;
   }
 
-  int currentFrame = commandBufferTransfer->getCurrentFrame();
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
+                       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0,
+                       nullptr, 1, &barrier);
 }
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
@@ -290,7 +290,7 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
     bufferCopyRegions.push_back(region);
   }
 
-  int currentFrame = commandBufferTransfer->getCurrentFrame();
+  int currentFrame = _state->getFrameInFlight();
   vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
   // need to insert memory barrier so read in fragment shader waits for copy
@@ -309,8 +309,8 @@ VkImage& Image::getImage() { return _image; }
 
 Image::~Image() {
   if (_external == false) {
-    vkDestroyImage(_device->getLogicalDevice(), _image, nullptr);
-    vkFreeMemory(_device->getLogicalDevice(), _imageMemory, nullptr);
+    vkDestroyImage(_state->getDevice()->getLogicalDevice(), _image, nullptr);
+    vkFreeMemory(_state->getDevice()->getLogicalDevice(), _imageMemory, nullptr);
   }
 }
 
@@ -321,8 +321,8 @@ ImageView::ImageView(std::shared_ptr<Image> image,
                      int baseMipMap,
                      int mipMapNumber,
                      VkImageAspectFlags aspectFlags,
-                     std::shared_ptr<Device> device) {
-  _device = device;
+                     std::shared_ptr<State> state) {
+  _state = state;
   _image = image;
 
   VkImageViewCreateInfo viewInfo{};
@@ -340,7 +340,7 @@ ImageView::ImageView(std::shared_ptr<Image> image,
   viewInfo.subresourceRange.layerCount = arrayLayerNumber;
   viewInfo.subresourceRange.levelCount = mipMapNumber;
 
-  if (vkCreateImageView(device->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
+  if (vkCreateImageView(_state->getDevice()->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");
   }
 }
@@ -349,4 +349,4 @@ VkImageView& ImageView::getImageView() { return _imageView; }
 
 std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
-ImageView::~ImageView() { vkDestroyImageView(_device->getLogicalDevice(), _imageView, nullptr); }
+ImageView::~ImageView() { vkDestroyImageView(_state->getDevice()->getLogicalDevice(), _imageView, nullptr); }

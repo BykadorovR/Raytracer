@@ -16,7 +16,9 @@ class Animation {
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
   int _animationIndex = 0;
   std::map<int, glm::mat4> _matricesJoint;
-  void _updateJoints(int frame, std::shared_ptr<NodeGLTF> node);
+  bool _play = true;
+
+  void _updateJoints(std::shared_ptr<NodeGLTF> node);
   void _fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent);
 
  public:
@@ -26,8 +28,13 @@ class Animation {
             std::shared_ptr<State> state);
   std::vector<std::string> getAnimations();
   void setAnimation(std::string name);
+  void setPlay(bool play);
+  void setTime(float time);
 
-  void updateAnimation(int frame, float deltaTime);
+  std::tuple<float, float> getTimeline();
+  float getCurrentTime();
+
+  void updateAnimation(float deltaTime);
 
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutJoints();
   std::vector<std::shared_ptr<DescriptorSet>> getDescriptorSetJoints();

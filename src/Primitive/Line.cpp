@@ -9,7 +9,7 @@ Line::Line(int thick,
   _mesh->setIndexes({0, 1}, commandBufferTransfer);
   _mesh->setVertices({Vertex3D{}, Vertex3D{}}, commandBufferTransfer);
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state->getDevice());
+                                                   state);
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,

@@ -23,6 +23,7 @@ void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
 
 void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
 
+std::shared_ptr<Animation> animation;
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
@@ -46,7 +47,7 @@ Main::Main() {
 
   _core = std::make_shared<Core>(settings);
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands(0);
+  commandBufferTransfer->beginCommands();
   auto state = _core->getState();
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
@@ -219,8 +220,8 @@ Main::Main() {
       fillMaterialPhong(material);
     }
     modelMan->setMaterial(materialModelMan);
-    auto animation = std::make_shared<Animation>(gltfModelMan->getNodes(), gltfModelMan->getSkins(),
-                                                 gltfModelMan->getAnimations(), state);
+    animation = std::make_shared<Animation>(gltfModelMan->getNodes(), gltfModelMan->getSkins(),
+                                            gltfModelMan->getAnimations(), state);
     auto animationNames = animation->getAnimations();
     animation->setAnimation(animationNames[0]);
     // set animation to model, so joints will be passed to shader
@@ -282,6 +283,9 @@ void Main::update() {
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
+  if (i > 100.f) animation->setPlay(false);
+  if (i > 200.f) animation->setPlay(true);
+  if (i > 300.f) animation->setAnimation("idle");
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
   _core->getGUI()->drawText("Help", {20, 20}, {"Limited FPS: " + std::to_string(FPSLimited)});

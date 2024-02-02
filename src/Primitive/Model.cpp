@@ -38,15 +38,15 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // initialize UBO
   int lightNumber = _state->getSettings()->getMaxDirectionalLights() + _state->getSettings()->getMaxPointLights();
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(BufferMVP), _state->getDevice())});
+    _cameraUBODepth.push_back(
+        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
   }
 
   for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
       facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state->getDevice());
+                                                       _state);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
@@ -78,7 +78,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // initialize camera UBO and descriptor sets for draw pass
   // initialize UBO
   _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   _state->getDevice());
+                                                   _state);
   // initialize descriptor sets
   {
     auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),

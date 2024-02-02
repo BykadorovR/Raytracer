@@ -268,7 +268,7 @@ void LightManager::_reallocateAmbientDescriptors(int currentFrame) {
   if (_ambientLights.size() > 0) {
     _lightAmbientSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   }
 }
 
@@ -295,7 +295,7 @@ void LightManager::_reallocateDirectionalDescriptors(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   }
 
   size = 0;
@@ -306,7 +306,7 @@ void LightManager::_reallocateDirectionalDescriptors(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   }
 }
 
@@ -350,7 +350,7 @@ void LightManager::_reallocatePointDescriptors(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   }
 
   size = 0;
@@ -361,7 +361,7 @@ void LightManager::_reallocatePointDescriptors(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   }
 }
 
@@ -424,7 +424,7 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   for (int j = 0; j < commandBuffer.size(); j++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
     commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _state->getDevice());
+                                                       _state);
     loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
   }
   _commandBufferPoint.push_back(commandBuffer);
@@ -452,11 +452,11 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
     std::shared_ptr<Image> image = std::make_shared<Image>(
         resolution, 1, 1, _state->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        _state->getDevice());
+        _state);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
                         VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, _commandBufferTransfer);
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                 _state->getDevice());
+                                                 _state);
     depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, imageView, _state));
   }
 
@@ -472,7 +472,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
 
   auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
   _commandBufferDirectional.push_back(
-      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state->getDevice()));
+      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state));
   _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
 
   return light;

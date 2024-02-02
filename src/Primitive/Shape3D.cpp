@@ -52,7 +52,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
   _uniformBufferCamera = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(BufferMVP), state->getDevice());
+                                                         sizeof(BufferMVP), state);
   auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
   layoutCamera->createUniformBuffer();
   auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
@@ -99,15 +99,15 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(BufferMVP), _state->getDevice())});
+    _cameraUBODepth.push_back(
+        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
   }
 
   for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
       facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state->getDevice());
+                                                       _state);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }

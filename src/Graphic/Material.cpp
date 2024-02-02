@@ -28,7 +28,7 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
                                                               _descriptorSetLayoutAlphaCutoff,
                                                               state->getDescriptorPool(), state->getDevice());
   _uniformBufferAlphaCutoff = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                              sizeof(AlphaCutoff), state->getDevice());
+                                                              sizeof(AlphaCutoff), state);
   _descriptorSetAlphaCutoff->createUniformBuffer(_uniformBufferAlphaCutoff);
 
   _changedTexture.resize(_state->getSettings()->getMaxFramesInFlight(), false);
@@ -174,7 +174,7 @@ MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
                                                            state->getDevice());
   // define coefficients
   _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), state->getDevice());
+                                                               sizeof(Coefficients), state);
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
 
   // set default coefficients
@@ -287,7 +287,7 @@ MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfe
                                                            state->getDevice());
 
   _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), state->getDevice());
+                                                               sizeof(Coefficients), state);
   _descriptorSetCoefficients->createUniformBuffer(_uniformBufferCoefficients);
   // set default coefficients
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {

@@ -62,7 +62,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   auto stagingBuffer = std::make_shared<Buffer>(
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
@@ -72,14 +72,14 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
                                        _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
                                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           _state->getDevice());
+                                           _state);
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _imageView, _state);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
@@ -87,7 +87,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSetLayout->createGUI();
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformData),
-                                                   _state->getDevice());
+                                                   _state);
   _descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
                                                    _descriptorPool, _state->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
@@ -212,7 +212,7 @@ void GUI::updateBuffers(int current) {
 
   if ((_vertexBuffer[current] == nullptr) || (_vertexCount[current] != imDrawData->TotalVtxCount)) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
     _vertexCount[current] = imDrawData->TotalVtxCount;
     _vertexBuffer[current]->map();
   }
@@ -220,7 +220,7 @@ void GUI::updateBuffers(int current) {
   // Index buffer
   if ((_indexBuffer[current] == nullptr) || (_indexCount[current] != imDrawData->TotalIdxCount)) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
     _indexCount[current] = imDrawData->TotalIdxCount;
     _indexBuffer[current]->map();
   }

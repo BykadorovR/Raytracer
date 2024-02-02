@@ -118,18 +118,18 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
   _mesh->setVertices(vertices, commandBufferTransfer);
 
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                  state->getDevice());
+                                                  state);
 
   for (int i = 0; i < state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraBufferDepth.push_back({std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(),
-                                                                  sizeof(BufferMVP), state->getDevice())});
+    _cameraBufferDepth.push_back(
+        {std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), state)});
   }
 
   for (int i = 0; i < state->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
       facesBuffer[j] = std::make_shared<UniformBuffer>(state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       state->getDevice());
+                                                       state);
     }
     _cameraBufferDepth.push_back(facesBuffer);
   }

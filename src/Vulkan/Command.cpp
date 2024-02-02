@@ -1,8 +1,8 @@
 #include "Command.h"
 
-CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device) {
+CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<State> state) {
   _pool = pool;
-  _device = device;
+  _state = state;
 
   _buffer.resize(number);
 
@@ -12,27 +12,29 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = number;
 
-  if (vkAllocateCommandBuffers(device->getLogicalDevice(), &allocInfo, _buffer.data()) != VK_SUCCESS) {
+  if (vkAllocateCommandBuffers(_state->getDevice()->getLogicalDevice(), &allocInfo, _buffer.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to allocate command buffers!");
   }
 }
 
-void CommandBuffer::beginCommands(int currentFrame) {
-  _currentFrame = currentFrame;
+void CommandBuffer::beginCommands() {
+  int frameInFlight = _state->getFrameInFlight();
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-  vkBeginCommandBuffer(_buffer[currentFrame], &beginInfo);
+  vkBeginCommandBuffer(_buffer[frameInFlight], &beginInfo);
 }
 
-void CommandBuffer::endCommands() { vkEndCommandBuffer(_buffer[_currentFrame]); }
-
-int CommandBuffer::getCurrentFrame() { return _currentFrame; }
+void CommandBuffer::endCommands() {
+  int frameInFlight = _state->getFrameInFlight();
+  vkEndCommandBuffer(_buffer[frameInFlight]);
+}
 
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }
 
 CommandBuffer::~CommandBuffer() {
-  for (auto& buffer : _buffer) vkFreeCommandBuffers(_device->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
+  for (auto& buffer : _buffer)
+    vkFreeCommandBuffers(_state->getDevice()->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
 }

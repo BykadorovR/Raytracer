@@ -1,5 +1,6 @@
 #pragma once
 #include "State.h"
+#include "Command.h"
 
 class LoggerCPU {
  public:
@@ -16,11 +17,10 @@ class LoggerGPU {
   PFN_vkSetDebugUtilsObjectNameEXT _setDebugUtilsObjectNameEXT;
   std::shared_ptr<CommandBuffer> _buffer;
   std::shared_ptr<State> _state;
-  int _currentFrame;
 
  public:
   LoggerGPU(std::shared_ptr<State> state);
-  void setCommandBufferName(std::string bufferName, int currentFrame, std::shared_ptr<CommandBuffer> buffer);
-  void begin(std::string marker, int currentFrame);
+  void setCommandBufferName(std::string bufferName, std::shared_ptr<CommandBuffer> buffer);
+  void begin(std::string marker);
   void end();
 };

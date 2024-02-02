@@ -15,7 +15,7 @@ Equirectangular::Equirectangular(std::string path,
   // fill buffer
   _stagingBuffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                            state->getDevice());
+                                            state);
   void* data;
   vkMapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
   memcpy((stbi_uc*)data, pixels, static_cast<size_t>(bufferSize));
@@ -24,17 +24,15 @@ Equirectangular::Equirectangular(std::string path,
 
   // image
   auto [width, height] = state->getSettings()->getResolution();
-  _image = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1, state->getSettings()->getGraphicColorFormat(),
-                                   VK_IMAGE_TILING_OPTIMAL,
-                                   VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+  _image = std::make_shared<Image>(
+      std::tuple{texWidth, texHeight}, 1, 1, state->getSettings()->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                        commandBufferTransfer);
   _image->copyFrom(_stagingBuffer, {0}, commandBufferTransfer);
   _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           state->getDevice());
+  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT, state);
   _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, _imageView, state);
 }
 

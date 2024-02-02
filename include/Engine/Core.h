@@ -1,5 +1,6 @@
 #pragma once
 #include "State.h"
+#include "Swapchain.h"
 #include "Settings.h"
 #include "Logger.h"
 #include "GUI.h"
@@ -19,6 +20,7 @@
 class Core {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
       _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
@@ -42,7 +44,6 @@ class Core {
   std::shared_ptr<GUI> _gui;
 
   std::shared_ptr<CameraOrtho> _cameraOrtho;
-  int _currentFrame;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;

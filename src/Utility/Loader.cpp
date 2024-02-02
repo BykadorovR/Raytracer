@@ -25,7 +25,7 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
       // fill buffer
       _images[path] = std::make_shared<BufferImage>(
           std::tuple{texWidth, texHeight}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
       _images[path]->map();
       memcpy(_images[path]->getMappedMemory(), pixels, static_cast<size_t>(imageSize));
       _images[path]->unmap();
@@ -39,7 +39,7 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
     bufferDst = std::make_shared<BufferImage>(
         bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     for (int i = 0; i < paths.size(); i++) {
       auto bufferSrc = _images[paths[i]];
       bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
@@ -50,7 +50,7 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
     memoryBarrier.pNext = nullptr;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()],
+    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
                          nullptr, 0, nullptr);
   }
@@ -262,7 +262,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
       // copy buffer to Texture
       auto stagingBuffer = std::make_shared<Buffer>(
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
       void* data;
       vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
@@ -270,10 +270,9 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
       vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
 
       // for some textures SRGB is used but for others linear format
-      auto image = std::make_shared<Image>(std::tuple{glTFImage.width, glTFImage.height}, 1, 1, format,
-                                           VK_IMAGE_TILING_OPTIMAL,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
+      auto image = std::make_shared<Image>(
+          std::tuple{glTFImage.width, glTFImage.height}, 1, 1, format, VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
 
       image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                           1, _commandBufferTransfer);
@@ -282,7 +281,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
                           1, _commandBufferTransfer);
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                   _state->getDevice());
+                                                   _state);
       texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
       if (deleteBuffer) {
         delete[] buffer;

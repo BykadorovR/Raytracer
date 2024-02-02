@@ -3,11 +3,6 @@
 #include "Instance.h"
 #include "Surface.h"
 #include "Device.h"
-#include "Swapchain.h"
-#include "Shader.h"
-#include "Command.h"
-#include "Sync.h"
-#include "Command.h"
 #include "Settings.h"
 #include "Input.h"
 #include "Pool.h"
@@ -20,8 +15,8 @@ class State {
   std::shared_ptr<Instance> _instance;
   std::shared_ptr<Surface> _surface;
   std::shared_ptr<Device> _device;
-  std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<DescriptorPool> _descriptorPool;
+  int _frameInFlight = 0;
 
  public:
   State(std::shared_ptr<Settings> settings);
@@ -31,6 +26,8 @@ class State {
   std::shared_ptr<Instance> getInstance();
   std::shared_ptr<Surface> getSurface();
   std::shared_ptr<Device> getDevice();
-  std::shared_ptr<Swapchain> getSwapchain();
   std::shared_ptr<DescriptorPool> getDescriptorPool();
+
+  void setFrameInFlight(int frameInFlight);
+  int getFrameInFlight();
 };

@@ -8,8 +8,6 @@ State::State(std::shared_ptr<Settings> settings) {
   _instance = std::make_shared<Instance>(settings->getName(), true, _window);
   _surface = std::make_shared<Surface>(_window, _instance);
   _device = std::make_shared<Device>(_surface, _instance);
-  _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), settings->getDepthFormat(), _window,
-                                           _surface, _device);
   _descriptorPool = std::make_shared<DescriptorPool>(3000, _device);
 }
 
@@ -25,6 +23,8 @@ std::shared_ptr<Surface> State::getSurface() { return _surface; }
 
 std::shared_ptr<Device> State::getDevice() { return _device; }
 
-std::shared_ptr<Swapchain> State::getSwapchain() { return _swapchain; }
-
 std::shared_ptr<DescriptorPool> State::getDescriptorPool() { return _descriptorPool; }
+
+void State::setFrameInFlight(int frameInFlight) { _frameInFlight = frameInFlight; }
+
+int State::getFrameInFlight() { return _frameInFlight; }

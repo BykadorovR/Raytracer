@@ -25,7 +25,7 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
       _ssboJoints[i][j] = std::make_shared<Buffer>(
           _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     }
     _descriptorSetJoints[i]->createJoints(_ssboJoints[i]);
   }
@@ -44,7 +44,7 @@ std::shared_ptr<DescriptorSetLayout> Animation::getDescriptorSetLayoutJoints() {
 
 std::vector<std::shared_ptr<DescriptorSet>> Animation::getDescriptorSetJoints() { return _descriptorSetJoints; }
 
-void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
+void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
   if (node->skin > -1) {
     // Update the joint matrices
     // glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
@@ -56,15 +56,16 @@ void Animation::_updateJoints(int frame, std::shared_ptr<NodeGLTF> node) {
       jointMatrices[i] = _matricesJoint[skin->joints[i]->index] * skin->inverseBindMatrices[i];
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
-
-    _ssboJoints[node->skin][frame]->map();
-    memcpy(_ssboJoints[node->skin][frame]->getMappedMemory(), jointMatrices.data(),
+    // we update for the next frame
+    auto frameInFlight = 1 - _state->getFrameInFlight();
+    _ssboJoints[node->skin][frameInFlight]->map();
+    memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), jointMatrices.data(),
            jointMatrices.size() * sizeof(glm::mat4));
-    _ssboJoints[node->skin][frame]->unmap();
+    _ssboJoints[node->skin][frameInFlight]->unmap();
   }
 
   for (auto& child : node->children) {
-    _updateJoints(frame, child);
+    _updateJoints(child);
   }
 }
 
@@ -89,9 +90,23 @@ void Animation::setAnimation(std::string name) {
   }
 }
 
-void Animation::updateAnimation(int frame, float deltaTime) {
-  // TODO: animation index
-  if (_animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
+void Animation::setPlay(bool play) { _play = play; }
+
+std::tuple<float, float> Animation::getTimeline() {
+  return {_animations[_animationIndex]->start, _animations[_animationIndex]->end};
+}
+
+void Animation::setTime(float time) {
+  setPlay(false);
+  _animations[_animationIndex]->currentTime = time;
+  updateAnimation(time);
+}
+
+// TODO: mutex?
+float Animation::getCurrentTime() { return _animations[_animationIndex]->currentTime; }
+
+void Animation::updateAnimation(float deltaTime) {
+  if (_play == false || _animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
 
@@ -140,11 +155,12 @@ void Animation::updateAnimation(int frame, float deltaTime) {
   _loggerCPU->end();
 
   _loggerCPU->begin("Update matrixes");
+  _matricesJoint.clear();
   for (auto& node : _nodes) {
     _fillMatricesJoint(node, glm::mat4(1.f));
   }
   for (auto& node : _nodes) {
-    _updateJoints(frame, node);
+    _updateJoints(node);
   }
   _loggerCPU->end();
 }

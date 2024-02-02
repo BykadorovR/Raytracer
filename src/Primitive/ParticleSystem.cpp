@@ -35,7 +35,7 @@ void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
   cameraLayout->createUniformBuffer();
 
   _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(BufferMVP), _state->getDevice());
+                                                         sizeof(BufferMVP), _state);
 
   _descriptorSetCamera = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), cameraLayout,
                                                          _state->getDescriptorPool(), _state->getDevice());
@@ -90,14 +90,14 @@ void ParticleSystem::_initializeCompute() {
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     _particlesBuffer[i] = std::make_shared<Buffer>(
         _particlesNumber * sizeof(Particle), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     _particlesBuffer[i]->map();
     memcpy((uint8_t*)(_particlesBuffer[i]->getMappedMemory()), particles.data(), _particlesNumber * sizeof(Particle));
     _particlesBuffer[i]->unmap();
   }
 
   _deltaUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(float),
-                                                        _state->getDevice());
+                                                        _state);
 
   auto setLayoutSSBOCompute = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   setLayoutSSBOCompute->createParticleComputeBuffer();

@@ -28,15 +28,15 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(BufferMVP), _state->getDevice())});
+    _cameraUBODepth.push_back(
+        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
   }
 
   for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
       facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state->getDevice());
+                                                       _state);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
@@ -67,7 +67,7 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
   // initialize camera UBO and descriptor sets for draw pass
   // initialize UBO
   _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   _state->getDevice());
+                                                   _state);
   {
     auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                      cameraDescriptorSetLayout, _state->getDescriptorPool(),

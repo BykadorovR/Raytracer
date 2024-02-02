@@ -44,7 +44,7 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
   _uniformBuffer.resize(6);
   for (int i = 0; i < 6; i++) {
     _uniformBuffer[i] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                        sizeof(BufferMVP), state->getDevice());
+                                                        sizeof(BufferMVP), state);
   }
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
