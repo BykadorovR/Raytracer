@@ -26,6 +26,7 @@ class Main {
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
+  std::shared_ptr<Animation> _animationFish;
 
  public:
   Main();

@@ -30,6 +30,7 @@ class Animation {
   void setAnimation(std::string name);
   void setPlay(bool play);
   void setTime(float time);
+  std::tuple<float, float> getTimeRange();
 
   std::tuple<float, float> getTimeline();
   float getCurrentTime();

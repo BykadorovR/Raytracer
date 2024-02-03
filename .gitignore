@@ -5,6 +5,7 @@
 *.hdr
 *.png
 *.obj
+assets/
 
 # Distribution / packaging
 *.spv

@@ -88,6 +88,7 @@ void Animation::setAnimation(std::string name) {
   for (int i = 0; i < _animations.size(); i++) {
     if (_animations[i]->name == name) _animationIndex = i;
   }
+  setPlay(true);
 }
 
 void Animation::setPlay(bool play) { _play = play; }
@@ -97,9 +98,14 @@ std::tuple<float, float> Animation::getTimeline() {
 }
 
 void Animation::setTime(float time) {
-  setPlay(false);
+  setPlay(true);
   _animations[_animationIndex]->currentTime = time;
   updateAnimation(time);
+  setPlay(false);
+}
+
+std::tuple<float, float> Animation::getTimeRange() {
+  return {0, _animations[_animationIndex]->end - _animations[_animationIndex]->start};
 }
 
 // TODO: mutex?
@@ -113,7 +119,7 @@ void Animation::updateAnimation(float deltaTime) {
   _loggerCPU->begin("Update translate/scale/rotation");
   std::shared_ptr<AnimationGLTF> animation = _animations[_animationIndex];
   animation->currentTime += deltaTime;
-  animation->currentTime = fmod(animation->currentTime, animation->end);
+  animation->currentTime = fmod(animation->currentTime, animation->end - animation->start);
   for (auto& channel : animation->channels) {
     AnimationSamplerGLTF& sampler = animation->samplers[channel.samplerIndex];
     if (sampler.interpolation != "LINEAR") {
@@ -122,13 +128,17 @@ void Animation::updateAnimation(float deltaTime) {
     }
     if (sampler.inputs.size() <= 1) continue;
     auto higher = std::find_if(sampler.inputs.begin(), sampler.inputs.end(),
-                               [current = animation->currentTime](float value) { return value > current; });
+                               [current = animation->currentTime, start = animation->start](float value) {
+                                 return value > (current + start);
+                               });
     // Get the input keyframe values for the current time stamp
     if (higher != sampler.inputs.begin()) {
-      if (higher == sampler.inputs.end() && animation->currentTime > sampler.inputs.back()) continue;
+      if (higher == sampler.inputs.end() && (animation->currentTime + animation->start) > sampler.inputs.back())
+        continue;
       int right = std::distance(sampler.inputs.begin(), higher);
       int left = right - 1;
-      float a = (animation->currentTime - sampler.inputs[left]) / (sampler.inputs[right] - sampler.inputs[left]);
+      float a = (animation->currentTime + animation->start - sampler.inputs[left]) /
+                (sampler.inputs[right] - sampler.inputs[left]);
       if (channel.path == "translation") {
         channel.node->translation = glm::mix(sampler.outputsVec4[left], sampler.outputsVec4[right], a);
       }

@@ -23,7 +23,6 @@ void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
 
 void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
 
-std::shared_ptr<Animation> animation;
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
@@ -134,7 +133,7 @@ Main::Main() {
     }
     modelBox->setMaterial(materialModelBox);
     {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
       modelBox->setModel(model);
     }
   }
@@ -209,30 +208,75 @@ Main::Main() {
     }
   }
 
-  // draw skeletal textured model
+  // draw skeletal textured model with multiple animations
   {
-    auto gltfModelMan = _core->getResourceManager()->loadModel("../assets/Boss/scene.gltf");
-    auto modelMan = modelManagerStatic->createModel3D(gltfModelMan->getNodes(), gltfModelMan->getMeshes());
-    modelManagerStatic->registerModel3D(modelMan);
+    auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
+    auto modelFish = modelManagerStatic->createModel3D(gltfModelFish->getNodes(), gltfModelFish->getMeshes());
+    modelManagerStatic->registerModel3D(modelFish);
     modelManagerStatic->setCamera(_camera);
-    auto materialModelMan = gltfModelMan->getMaterialsPhong();
-    for (auto& material : materialModelMan) {
+    auto materialModelFish = gltfModelFish->getMaterialsPhong();
+    for (auto& material : materialModelFish) {
       fillMaterialPhong(material);
     }
-    modelMan->setMaterial(materialModelMan);
-    animation = std::make_shared<Animation>(gltfModelMan->getNodes(), gltfModelMan->getSkins(),
-                                            gltfModelMan->getAnimations(), state);
-    auto animationNames = animation->getAnimations();
-    animation->setAnimation(animationNames[0]);
+    modelFish->setMaterial(materialModelFish);
+    _animationFish = std::make_shared<Animation>(gltfModelFish->getNodes(), gltfModelFish->getSkins(),
+                                                 gltfModelFish->getAnimations(), state);
+    _animationFish->setAnimation("swim");
     // set animation to model, so joints will be passed to shader
-    modelMan->setAnimation(animation);
-    // play animation, if don't call there will not be any animation, even model can disappear because of zero start
-    // weights
-    _core->addAnimation(animation);
+    modelFish->setAnimation(_animationFish);
+    // register to play animation, if don't call, there will not be any animation,
+    // even model can disappear because of zero start weights
+    _core->addAnimation(_animationFish);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-      modelMan->setModel(model);
+      model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
+      modelFish->setModel(model);
+    }
+  }
+
+  // draw skeletal dancing model with one animation
+  {
+    auto gltfModelDancing = _core->getResourceManager()->loadModel("../assets/BrainStem/BrainStem.gltf");
+    auto modelDancing = modelManagerStatic->createModel3D(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes());
+    modelManagerStatic->registerModel3D(modelDancing);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
+    for (auto& material : materialModelDancing) {
+      fillMaterialPBR(material);
+    }
+    modelDancing->setMaterial(materialModelDancing);
+    auto animationDancing = std::make_shared<Animation>(gltfModelDancing->getNodes(), gltfModelDancing->getSkins(),
+                                                        gltfModelDancing->getAnimations(), state);
+    // set animation to model, so joints will be passed to shader
+    modelDancing->setAnimation(animationDancing);
+    _core->addAnimation(animationDancing);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelDancing->setModel(model);
+    }
+  }
+
+  // draw skeletal walking model with one animation
+  {
+    auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
+    auto modelWalking = modelManagerStatic->createModel3D(gltfModelWalking->getNodes(), gltfModelWalking->getMeshes());
+    modelManagerStatic->registerModel3D(modelWalking);
+    modelManagerStatic->setCamera(_camera);
+    auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
+    for (auto& material : materialModelWalking) {
+      fillMaterialPhong(material);
+    }
+    modelWalking->setMaterial(materialModelWalking);
+    auto animationWalking = std::make_shared<Animation>(gltfModelWalking->getNodes(), gltfModelWalking->getSkins(),
+                                                        gltfModelWalking->getAnimations(), state);
+    // set animation to model, so joints will be passed to shader
+    modelWalking->setAnimation(animationWalking);
+    _core->addAnimation(animationWalking);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelWalking->setModel(model);
     }
   }
 
@@ -283,9 +327,12 @@ void Main::update() {
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
-  if (i > 100.f) animation->setPlay(false);
-  if (i > 200.f) animation->setPlay(true);
-  if (i > 300.f) animation->setAnimation("idle");
+  if (i > 150.f) _animationFish->setPlay(false);
+  if (i > 200.f) _animationFish->setPlay(true);
+  if (i > 250.f) _animationFish->setAnimation("bite");
+  if (i > 350.f) _animationFish->setTime(0);
+  if (i > 400.f) _animationFish->setTime(0.5f);
+  if (i > 500.f) _animationFish->setAnimation(_animationFish->getAnimations()[0]);
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
   _core->getGUI()->drawText("Help", {20, 20}, {"Limited FPS: " + std::to_string(FPSLimited)});
