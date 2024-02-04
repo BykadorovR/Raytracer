@@ -19,33 +19,37 @@ Shape3D::Shape3D(ShapeType shapeType,
   if (shapeType == ShapeType::CUBE) {
     _mesh = std::make_shared<MeshCube>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor(resourceManager->getCubemapOne()->getTexture());
-    _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/cubeColor_vertex.spv",
-                                                           "shaders/cubeColor_fragment.spv"};
-    _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/cubePhong_vertex.spv",
-                                                           "shaders/cubePhong_fragment.spv"};
-    _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/cubePhong_vertex.spv",
-                                                         "shaders/cubePBR_fragment.spv"};
-    _shadersLight[ShapeType::CUBE] = {"shaders/cubeDepth_vertex.spv", "shaders/cubeDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
-                                            "shaders/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::CUBE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
-                                            "shaders/cubeNormal_geometry.spv"};
+    _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
+                                                           "shaders/shape/cubeColor_fragment.spv"};
+    _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/shape/cubePhong_vertex.spv",
+                                                           "shaders/shape/cubePhong_fragment.spv"};
+    _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/shape/cubePhong_vertex.spv",
+                                                         "shaders/shape/cubePBR_fragment.spv"};
+    _shadersLight[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv", "shaders/shape/cubeDepth_fragment.spv"};
+    _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/shape/cubeNormal_vertex.spv",
+                                            "shaders/shape/cubeNormal_fragment.spv",
+                                            "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::CUBE] = {"shaders/shape/cubeTangent_vertex.spv",
+                                            "shaders/shape/cubeNormal_fragment.spv",
+                                            "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   if (shapeType == ShapeType::SPHERE) {
     _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
-    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/sphereColor_vertex.spv",
-                                                             "shaders/sphereColor_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/spherePhong_vertex.spv",
-                                                             "shaders/spherePhong_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/spherePhong_vertex.spv",
-                                                           "shaders/spherePBR_fragment.spv"};
-    _shadersLight[ShapeType::SPHERE] = {"shaders/sphereDepth_vertex.spv", "shaders/sphereDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
-                                              "shaders/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
-                                              "shaders/cubeNormal_geometry.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
+                                                             "shaders/shape/sphereColor_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
+                                                             "shaders/shape/spherePhong_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
+                                                           "shaders/shape/spherePBR_fragment.spv"};
+    _shadersLight[ShapeType::SPHERE] = {"shaders/shape/sphereDepth_vertex.spv",
+                                        "shaders/shape/sphereDepth_fragment.spv"};
+    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/shape/cubeNormal_vertex.spv",
+                                              "shaders/shape/cubeNormal_fragment.spv",
+                                              "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
+                                              "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   _material = _defaultMaterialColor;
@@ -441,9 +445,9 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
   };
 
   auto pipeline = _pipeline[_materialType];
-  if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
-  if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) pipeline = _pipelineNormalsMesh;
-  if ((_drawType & DrawType::TANGENT) == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
+  if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
+  if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalsMesh;
+  if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawShape3D(pipeline);
 }
 

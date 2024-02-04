@@ -81,12 +81,14 @@ class ModelGLTF {
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::shared_ptr<MaterialGLTF>> _materials;
   std::vector<std::shared_ptr<MaterialPhong>> _materialsPhong;
+  std::vector<std::shared_ptr<MaterialColor>> _materialsColor;
   std::vector<std::shared_ptr<MaterialPBR>> _materialsPBR;
   std::vector<std::shared_ptr<SkinGLTF>> _skins;
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
 
  public:
+  void setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor);
   void setMaterialsPhong(std::vector<std::shared_ptr<MaterialPhong>>& materialsPhong);
   void setMaterialsPBR(std::vector<std::shared_ptr<MaterialPBR>>& materialsPBR);
   void setSkins(std::vector<std::shared_ptr<SkinGLTF>>& skins);
@@ -94,6 +96,7 @@ class ModelGLTF {
   void setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes);
   void setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes);
 
+  const std::vector<std::shared_ptr<MaterialColor>>& getMaterialsColor();
   const std::vector<std::shared_ptr<MaterialPhong>>& getMaterialsPhong();
   const std::vector<std::shared_ptr<MaterialPBR>>& getMaterialsPBR();
   const std::vector<std::shared_ptr<SkinGLTF>>& getSkins();

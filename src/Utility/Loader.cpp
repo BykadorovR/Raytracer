@@ -58,6 +58,10 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
   return bufferDst;
 }
 
+void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
+  _materialsColor = materialsColor;
+}
+
 void ModelGLTF::setMaterialsPhong(std::vector<std::shared_ptr<MaterialPhong>>& materialsPhong) {
   _materialsPhong = materialsPhong;
 }
@@ -73,6 +77,8 @@ void ModelGLTF::setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& anima
 void ModelGLTF::setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes) { _nodes = nodes; }
 
 void ModelGLTF::setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes) { _meshes = meshes; }
+
+const std::vector<std::shared_ptr<MaterialColor>>& ModelGLTF::getMaterialsColor() { return _materialsColor; }
 
 const std::vector<std::shared_ptr<MaterialPhong>>& ModelGLTF::getMaterialsPhong() { return _materialsPhong; }
 
@@ -298,11 +304,13 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
                                 std::shared_ptr<ModelGLTF> modelExternal) {
   std::vector<std::shared_ptr<MaterialPBR>> materialsPBR;
   std::vector<std::shared_ptr<MaterialPhong>> materialsPhong;
+  std::vector<std::shared_ptr<MaterialColor>> materialsColor;
   std::vector<std::shared_ptr<Texture>> textures(modelInternal.images.size(), nullptr);
   for (size_t i = 0; i < modelInternal.materials.size(); i++) {
     tinygltf::Material glTFMaterial = modelInternal.materials[i];
     std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
     std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(_commandBufferTransfer, _state);
+    std::shared_ptr<MaterialColor> materialColor = std::make_shared<MaterialColor>(_commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
     float metallicFactor = 0;
     float roughnessFactor = 0;
@@ -339,6 +347,8 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // set texture to PBR material
         materialPBR->setBaseColor(_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
                                                modelInternal, textures));
+        materialColor->setBaseColor(_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures));
       }
     }
     // Get normal texture
@@ -397,9 +407,11 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
     materialGLTF.push_back(material);
     materialsPhong.push_back(materialPhong);
     materialsPBR.push_back(materialPBR);
+    materialsColor.push_back(materialColor);
   }
   if (materialsPBR.size() > 0) modelExternal->setMaterialsPBR(materialsPBR);
   if (materialsPhong.size() > 0) modelExternal->setMaterialsPhong(materialsPhong);
+  if (materialsColor.size() > 0) modelExternal->setMaterialsColor(materialsColor);
 }
 
 void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,

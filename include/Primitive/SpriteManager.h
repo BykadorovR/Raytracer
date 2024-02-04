@@ -39,6 +39,7 @@ class SpriteManager : public IDrawable, IShadowable {
                 std::shared_ptr<ResourceManager> resourceManager,
                 std::shared_ptr<State> state);
   std::shared_ptr<Sprite> createSprite();
+  // used for specular IBL (requires custom shader)
   std::shared_ptr<Sprite> createSprite(
       std::shared_ptr<Shader> shader,
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> layouts);

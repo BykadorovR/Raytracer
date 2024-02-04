@@ -45,7 +45,6 @@
 std::shared_ptr<Timer> timer = std::make_shared<Timer>();
 std::shared_ptr<TimerFPS> timerFPSReal = std::make_shared<TimerFPS>();
 std::shared_ptr<TimerFPS> timerFPSLimited = std::make_shared<TimerFPS>();
-int currentFrame = 0;
 // Depth bias (and slope) are used to avoid shadowing artifacts
 // Constant depth bias factor (always applied)
 float depthBiasConstant = 1.25f;
@@ -125,12 +124,12 @@ std::shared_ptr<MaterialColor> materialColorDiffuse;
 void directionalLightCalculator(int index) {
   auto commandBuffer = commandBufferDirectional[index];
   auto loggerGPU = loggerGPUDirectional[index];
-
+  auto currentFrame = state->getFrameInFlight();
   // record command buffer
-  commandBuffer->beginCommands(currentFrame);
-  loggerGPU->setCommandBufferName("Directional command buffer", currentFrame, commandBuffer);
+  commandBuffer->beginCommands();
+  loggerGPU->setCommandBufferName("Directional command buffer", commandBuffer);
 
-  loggerGPU->begin("Directional to depth buffer " + std::to_string(timer->getFrameCounter()), currentFrame);
+  loggerGPU->begin("Directional to depth buffer " + std::to_string(timer->getFrameCounter()));
   // change layout to write one
   VkImageMemoryBarrier imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -184,19 +183,19 @@ void directionalLightCalculator(int index) {
 
   // draw scene here
   auto globalFrame = timer->getFrameCounter();
-  loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame));
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-  loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame));
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-  loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame));
   terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-  loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame));
   cube->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
-  loggerGPU->begin("Sphere to directional depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Sphere to directional depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
     sphere->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
   }
@@ -217,11 +216,12 @@ void directionalLightCalculator(int index) {
 void pointLightCalculator(int index, int face) {
   auto commandBuffer = commandBufferPoint[index][face];
   auto loggerGPU = loggerGPUPoint[index][face];
+  auto currentFrame = state->getFrameInFlight();
   // record command buffer
   loggerGPU->setCommandBufferName("Point " + std::to_string(index) + "x" + std::to_string(face) + " command buffer",
-                                  currentFrame, commandBuffer);
-  commandBuffer->beginCommands(currentFrame);
-  loggerGPU->begin("Point to depth buffer " + std::to_string(timer->getFrameCounter()), currentFrame);
+                                  commandBuffer);
+  commandBuffer->beginCommands();
+  loggerGPU->begin("Point to depth buffer " + std::to_string(timer->getFrameCounter()));
   // cubemap is the only image, rest is image views, so we need to perform change only once
   if (face == 0) {
     // change layout to write one
@@ -287,19 +287,19 @@ void pointLightCalculator(int index, int face) {
   // draw scene here
   auto globalFrame = timer->getFrameCounter();
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
-  loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame));
   spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
-  loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame));
   modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
-  loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame));
   terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
-  loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame));
   cube->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
-  loggerGPU->begin("Sphere to point depth buffer " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Sphere to point depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
     sphere->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
   }
@@ -318,8 +318,9 @@ void pointLightCalculator(int index, int face) {
 }
 
 void computeParticles() {
-  commandBufferParticleSystem->beginCommands(currentFrame);
-  loggerParticles->setCommandBufferName("Particles compute command buffer", currentFrame, commandBufferParticleSystem);
+  auto currentFrame = state->getFrameInFlight();
+  commandBufferParticleSystem->beginCommands();
+  loggerParticles->setCommandBufferName("Particles compute command buffer", commandBufferParticleSystem);
 
   // any read from SSBO should wait for write to SSBO
   // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer.
@@ -331,7 +332,7 @@ void computeParticles() {
                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-  loggerParticles->begin("Particle system compute " + std::to_string(timer->getFrameCounter()), currentFrame);
+  loggerParticles->begin("Particle system compute " + std::to_string(timer->getFrameCounter()));
   particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
   loggerParticles->end();
 
@@ -360,15 +361,15 @@ void computeParticles() {
 }
 
 void computePostprocessing(int swapchainImageIndex) {
-  commandBufferPostprocessing->beginCommands(currentFrame);
-  loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", currentFrame,
-                                             commandBufferPostprocessing);
+  auto currentFrame = state->getFrameInFlight();
+  commandBufferPostprocessing->beginCommands();
+  loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", commandBufferPostprocessing);
   int bloomPasses = settings->getBloomPasses();
   // blur cycle:
   // in - out - horizontal
   // out - in - vertical
   for (int i = 0; i < bloomPasses; i++) {
-    loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(timer->getFrameCounter()), currentFrame);
+    loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(timer->getFrameCounter()));
     blur->drawCompute(currentFrame, true, commandBufferPostprocessing);
     loggerPostprocessing->end();
 
@@ -395,7 +396,7 @@ void computePostprocessing(int swapchainImageIndex) {
       );
     }
 
-    loggerPostprocessing->begin("Blur vertical compute " + std::to_string(timer->getFrameCounter()), currentFrame);
+    loggerPostprocessing->begin("Blur vertical compute " + std::to_string(timer->getFrameCounter()));
     blur->drawCompute(currentFrame, false, commandBufferPostprocessing);
     loggerPostprocessing->end();
 
@@ -442,15 +443,16 @@ void computePostprocessing(int swapchainImageIndex) {
     );
   }
 
-  loggerPostprocessing->begin("Postprocessing compute " + std::to_string(timer->getFrameCounter()), currentFrame);
+  loggerPostprocessing->begin("Postprocessing compute " + std::to_string(timer->getFrameCounter()));
   postprocessing->drawCompute(currentFrame, swapchainImageIndex, commandBufferPostprocessing);
   loggerPostprocessing->end();
   commandBufferPostprocessing->endCommands();
 }
 
 void debugVisualizations(int swapchainImageIndex) {
-  commandBufferGUI->beginCommands(currentFrame);
-  loggerGPUDebug->setCommandBufferName("GUI command buffer", currentFrame, commandBufferGUI);
+  auto currentFrame = state->getFrameInFlight();
+  commandBufferGUI->beginCommands();
+  loggerGPUDebug->setCommandBufferName("GUI command buffer", commandBufferGUI);
 
   VkClearValue clearColor;
   clearColor.color = settings->getClearColor();
@@ -485,16 +487,16 @@ void debugVisualizations(int swapchainImageIndex) {
   };
 
   auto globalFrame = timer->getFrameCounter();
-  loggerGPUDebug->begin("Calculate debug visualization " + std::to_string(globalFrame), currentFrame);
+  loggerGPUDebug->begin("Calculate debug visualization " + std::to_string(globalFrame));
   debugVisualization->calculate(commandBufferGUI);
   loggerGPUDebug->end();
 
   vkCmdBeginRendering(commandBufferGUI->getCommandBuffer()[currentFrame], &renderInfo);
-  loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame), currentFrame);
+  loggerGPUDebug->begin("Render debug visualization " + std::to_string(globalFrame));
   debugVisualization->draw(currentFrame, commandBufferGUI);
   loggerGPUDebug->end();
 
-  loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame), currentFrame);
+  loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame));
   // TODO: move to debug visualization
   int blurKernelSize = blur->getKernelSize();
   if (gui->drawInputInt("Bloom", {20, 500}, {{"Kernel", &blurKernelSize}})) {
@@ -556,9 +558,10 @@ void debugVisualizations(int swapchainImageIndex) {
 
 // TODO: pass appropriate command buffer here as in lighting
 void renderGraphic() {
+  auto currentFrame = state->getFrameInFlight();
   // record command buffer
-  commandBufferRender->beginCommands(currentFrame);
-  loggerGPU->setCommandBufferName("Draw command buffer", currentFrame, commandBufferRender);
+  commandBufferRender->beginCommands();
+  loggerGPU->setCommandBufferName("Draw command buffer", commandBufferRender);
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
@@ -658,12 +661,12 @@ void renderGraphic() {
 
   auto globalFrame = timer->getFrameCounter();
   vkCmdBeginRendering(commandBufferRender->getCommandBuffer()[currentFrame], &renderInfo);
-  loggerGPU->begin("Render light " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render light " + std::to_string(globalFrame));
   lightManager->draw(currentFrame);
   loggerGPU->end();
 
   // draw scene here
-  loggerGPU->begin("Render sprites " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render sprites " + std::to_string(globalFrame));
   spriteManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
@@ -672,7 +675,7 @@ void renderGraphic() {
     updateJoints.get();
   }
 
-  loggerGPU->begin("Render models " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render models " + std::to_string(globalFrame));
   modelManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
@@ -680,22 +683,22 @@ void renderGraphic() {
   updateJoints = pool->submit([&]() {
     loggerCPU->begin("Update animation " + std::to_string(globalFrame));
     // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
-    animation->updateAnimation(1 - currentFrame, timer->getElapsedCurrent());
+    animation->updateAnimation(timer->getElapsedCurrent());
     loggerCPU->end();
   });
 
-  loggerGPU->begin("Render terrain " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render terrain " + std::to_string(globalFrame));
   // for terrain we have to draw both: fill and normal/wireframe
   terrain->draw(currentFrame, settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
-  loggerGPU->begin("Render spheres " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render spheres " + std::to_string(globalFrame));
   for (auto sphere : spheres) {
     sphere->draw(currentFrame, settings->getResolution(), commandBufferRender);
   }
   loggerGPU->end();
 
-  loggerGPU->begin("Render cube " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render cube " + std::to_string(globalFrame));
   cube->draw(currentFrame, settings->getResolution(), commandBufferRender);
   equiCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
   diffuseCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
@@ -703,12 +706,12 @@ void renderGraphic() {
   loggerGPU->end();
 
   // contains transparency, should be drawn last
-  loggerGPU->begin("Render particles " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render particles " + std::to_string(globalFrame));
   particleSystem->drawGraphic(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   // should be drawn last
-  loggerGPU->begin("Render skybox " + std::to_string(globalFrame), currentFrame);
+  loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
   skybox->draw(currentFrame, commandBufferRender);
   loggerGPU->end();
 
@@ -739,36 +742,36 @@ void initialize() {
   instance = state->getInstance();
   surface = state->getSurface();
   device = state->getDevice();
-  swapchain = state->getSwapchain();
+  swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), settings->getDepthFormat(), state);
   descriptorPool = state->getDescriptorPool();
-
+  auto currentFrame = state->getFrameInFlight();
   auto nullHandle = vkGetDeviceProcAddr(state->getDevice()->getLogicalDevice(),
                                         "VkPhysicalDeviceRobustness2FeaturesEXT");
 
   // allocate commands
   commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolRender, device);
+  commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolRender, state);
 
   commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
   commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                 commandPoolEquirectangular, device);
+                                                                 commandPoolEquirectangular, state);
 
   // TODO: transfer doesn't work
   commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPoolTransfer, device);
+  commandBufferTransfer = std::make_shared<CommandBuffer>(1, commandPoolTransfer, state);
 
   commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
   commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                commandPoolParticleSystem, device);
+                                                                commandPoolParticleSystem, state);
 
   commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, device);
   commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                commandPoolPostprocessing, device);
+                                                                commandPoolPostprocessing, state);
 
   commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, device);
-  commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, device);
+  commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPoolGUI, state);
   // start transfer command buffer
-  commandBufferTransfer->beginCommands(0);
+  commandBufferTransfer->beginCommands();
 
   //
   loggerGPU = std::make_shared<LoggerGPU>(state);
@@ -793,35 +796,32 @@ void initialize() {
   blurTextureIn.resize(settings->getMaxFramesInFlight());
   blurTextureOut.resize(settings->getMaxFramesInFlight());
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    auto graphicImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                                VK_IMAGE_TILING_OPTIMAL,
-                                                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+    auto graphicImage = std::make_shared<Image>(
+        settings->getResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
     graphicImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                                commandBufferTransfer);
     auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                        VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+                                                        VK_IMAGE_ASPECT_COLOR_BIT, state);
     graphicTexture[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, state);
     {
-      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                               VK_IMAGE_TILING_OPTIMAL,
-                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+      auto blurImage = std::make_shared<Image>(
+          settings->getResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
       blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                               commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                       VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, state);
       blurTextureIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
     {
-      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                               VK_IMAGE_TILING_OPTIMAL,
-                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+      auto blurImage = std::make_shared<Image>(
+          settings->getResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
       blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                               commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                       VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, state);
       blurTextureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, state);
     }
   }
@@ -1016,7 +1016,7 @@ void initialize() {
   for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
     commandBufferDirectional.push_back(
-        std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+        std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state));
     loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(state));
   }
 
@@ -1026,7 +1026,7 @@ void initialize() {
     for (int j = 0; j < 6; j++) {
       auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, state->getDevice());
       commandBufferPoint[i].push_back(
-          std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state->getDevice()));
+          std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), commandPool, state));
       loggerGPUPoint[i].push_back(std::make_shared<LoggerGPU>(state));
     }
   }
@@ -1132,14 +1132,13 @@ void initialize() {
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
 
-  auto brdfImage = std::make_shared<Image>(settings->getDepthResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                           VK_IMAGE_TILING_OPTIMAL,
-                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state->getDevice());
+  auto brdfImage = std::make_shared<Image>(
+      settings->getDepthResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
   brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                           commandBufferTransfer);
   auto brdfImageView = std::make_shared<ImageView>(brdfImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                   VK_IMAGE_ASPECT_COLOR_BIT, state->getDevice());
+                                                   VK_IMAGE_ASPECT_COLOR_BIT, state);
   auto brdfTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
 
   cubemap = std::make_shared<Cubemap>(
@@ -1222,8 +1221,8 @@ void initialize() {
 
   {
     // render equirectangular to cubemap
-    commandBufferEquirectangular->beginCommands(currentFrame);
-    loggerGPU->setCommandBufferName("Draw equirectangular buffer", currentFrame, commandBufferEquirectangular);
+    commandBufferEquirectangular->beginCommands();
+    loggerGPU->setCommandBufferName("Draw equirectangular buffer", commandBufferEquirectangular);
     /////////////////////////////////////////////////////////////////////////////////////////
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -1254,7 +1253,7 @@ void initialize() {
 
       vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
-      loggerGPU->begin("Render equirectangular", currentFrame);
+      loggerGPU->begin("Render equirectangular");
       // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
       switch (i) {
         case 0:
@@ -1297,7 +1296,7 @@ void initialize() {
     vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
   }
 
-  commandBufferTransfer->beginCommands(0);
+  commandBufferTransfer->beginCommands();
   auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   auto materialColorDiffuse = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   auto materialColorSpecular = std::make_shared<MaterialColor>(commandBufferTransfer, state);
@@ -1315,8 +1314,8 @@ void initialize() {
 
   {
     // render cubemap to diffuse
-    commandBufferEquirectangular->beginCommands(currentFrame);
-    loggerGPU->setCommandBufferName("Draw diffuse buffer", currentFrame, commandBufferEquirectangular);
+    commandBufferEquirectangular->beginCommands();
+    loggerGPU->setCommandBufferName("Draw diffuse buffer", commandBufferEquirectangular);
     /////////////////////////////////////////////////////////////////////////////////////////
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -1347,7 +1346,7 @@ void initialize() {
 
       vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
-      loggerGPU->begin("Render diffuse", currentFrame);
+      loggerGPU->begin("Render diffuse");
       // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
       switch (i) {
         case 0:
@@ -1392,8 +1391,8 @@ void initialize() {
 
   // render to specular
   {
-    commandBufferEquirectangular->beginCommands(currentFrame);
-    loggerGPU->setCommandBufferName("Draw specular buffer", currentFrame, commandBufferEquirectangular);
+    commandBufferEquirectangular->beginCommands();
+    loggerGPU->setCommandBufferName("Draw specular buffer", commandBufferEquirectangular);
     /////////////////////////////////////////////////////////////////////////////////////////
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -1425,7 +1424,7 @@ void initialize() {
 
         vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
-        loggerGPU->begin("Render specular", currentFrame);
+        loggerGPU->begin("Render specular");
         // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
         switch (i) {
           case 0:
@@ -1489,8 +1488,8 @@ void initialize() {
 
   // render to specular
   {
-    commandBufferEquirectangular->beginCommands(currentFrame);
-    loggerGPU->setCommandBufferName("Draw specular brdf", currentFrame, commandBufferEquirectangular);
+    commandBufferEquirectangular->beginCommands();
+    loggerGPU->setCommandBufferName("Draw specular brdf", commandBufferEquirectangular);
     /////////////////////////////////////////////////////////////////////////////////////////
     // render graphic
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -1520,7 +1519,7 @@ void initialize() {
 
     vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
-    loggerGPU->begin("Render specular brdf", currentFrame);
+    loggerGPU->begin("Render specular brdf");
     spriteManagerHUD->setCamera(cameraOrtho);
     spriteManagerHUD->draw(currentFrame, brdfTexture->getImageView()->getImage()->getResolution(),
                            commandBufferEquirectangular);
@@ -1542,7 +1541,7 @@ void initialize() {
     material->setSpecularIBL(cubemapSpecular->getTexture(), brdfTexture);
   }
 
-  commandBufferTransfer->beginCommands(0);
+  commandBufferTransfer->beginCommands();
   auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   materialBRDF->setBaseColor(brdfTexture);
   materialBRDF->setNormal(resourceManager->getTextureZero());
@@ -1568,7 +1567,7 @@ void initialize() {
 }
 
 void getImageIndex(uint32_t* imageIndex) {
-  currentFrame = timer->getFrameCounter() % settings->getMaxFramesInFlight();
+  auto currentFrame = state->getFrameInFlight();
   std::vector<VkFence> waitFences = {inFlightFences[currentFrame]->getFence()};
   auto result = vkWaitForFences(device->getLogicalDevice(), waitFences.size(), waitFences.data(), VK_TRUE, UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
@@ -1589,6 +1588,7 @@ void getImageIndex(uint32_t* imageIndex) {
 }
 
 void displayFrame(uint32_t* imageIndex) {
+  auto currentFrame = state->getFrameInFlight();
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -1614,8 +1614,7 @@ void displayFrame(uint32_t* imageIndex) {
 }
 
 void drawFrame(int imageIndex) {
-  currentFrame = timer->getFrameCounter() % settings->getMaxFramesInFlight();
-
+  auto currentFrame = state->getFrameInFlight();
   // update positions
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(15.f * cos(glm::radians(angleHorizontal)), 15.f,
@@ -1751,6 +1750,7 @@ void mainLoop() {
     timer->tick();
     timerFPSReal->tick();
     timerFPSLimited->tick();
+    state->setFrameInFlight(timer->getFrameCounter() % state->getSettings()->getMaxFramesInFlight());
 
     uint32_t imageIndex;
     getImageIndex(&imageIndex);

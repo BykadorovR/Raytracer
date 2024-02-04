@@ -16,6 +16,7 @@ class Model3DManager : public IDrawable, IShadowable {
 
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
+  std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<Mesh3D> _mesh;
   std::shared_ptr<Animation> _defaultAnimation;
 

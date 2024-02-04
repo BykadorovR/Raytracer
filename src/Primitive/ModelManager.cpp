@@ -12,20 +12,26 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _state = state;
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
   _mesh = std::make_shared<Mesh3D>(state);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
 
-  // layout for Phong
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
+  // layout for Color
+  _descriptorSetLayout[MaterialType::COLOR].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(
+      {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
+
+  // layout for Phong
   _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
-  _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"lightPhong", _lightManager->getDSLLightPhong()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"alphaMask", _defaultMaterialPhong->getDescriptorSetLayoutAlphaCutoff()});
@@ -35,10 +41,10 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
 
   // layout for PBR
   _descriptorSetLayout[MaterialType::PBR].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"lightPBR", _lightManager->getDSLLightPBR()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
@@ -49,18 +55,48 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // layout for Normal Phong
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+      {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   // layout for Normal PBR
   _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
       {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  // initialize Color
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/color3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/color3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+
+    _pipeline[MaterialType::COLOR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                                    {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                     shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                    _descriptorSetLayout[MaterialType::COLOR], {},
+                                                    _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+
+    _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineCullOff[MaterialType::COLOR]->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                           _descriptorSetLayout[MaterialType::COLOR], {},
+                                                           _mesh->getBindingDescription(),
+                                                           _mesh->getAttributeDescriptions());
+
+    _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                             _descriptorSetLayout[MaterialType::COLOR], {},
+                                                             _mesh->getBindingDescription(),
+                                                             _mesh->getAttributeDescriptions());
+  }
 
   // initialize Phong
   {
@@ -252,14 +288,14 @@ void Model3DManager::draw(int currentFrame,
   auto drawModel = [&](MaterialType materialType, DrawType drawType) {
     auto pipeline = _pipeline[materialType];
     auto pipelineCullOff = _pipelineCullOff[materialType];
-    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) {
+    if (drawType == DrawType::WIREFRAME) {
       pipeline = _pipelineWireframe[materialType];
     }
 
-    if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
+    if (drawType == DrawType::NORMAL) {
       pipeline = _pipelineNormal[materialType];
       pipelineCullOff = _pipelineNormalCullOff[materialType];
-      if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
+      if (drawType == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
     }
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -321,6 +357,8 @@ void Model3DManager::draw(int currentFrame,
   drawModel(MaterialType::PBR, DrawType::FILL);
   drawModel(MaterialType::PBR, DrawType::WIREFRAME);
   drawModel(MaterialType::PBR, DrawType::NORMAL);
+  drawModel(MaterialType::COLOR, DrawType::FILL);
+  drawModel(MaterialType::COLOR, DrawType::WIREFRAME);
 }
 
 void Model3DManager::drawShadow(int currentFrame,

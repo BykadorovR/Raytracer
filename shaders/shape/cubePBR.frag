@@ -4,19 +4,19 @@
 layout(location = 0) in vec3 fragPosition;
 layout(location = 1) in vec3 fragNormal;
 layout(location = 2) in vec3 fragColor;
-layout(location = 3) in vec2 fragTexCoord;
+layout(location = 3) in vec3 fragTexCoord;
 layout(location = 4) in mat3 fragTBN;
 //mat3 takes 3 slots
 layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
-layout(set = 1, binding = 1) uniform sampler2D normalSampler;
-layout(set = 1, binding = 2) uniform sampler2D metallicSampler;
-layout(set = 1, binding = 3) uniform sampler2D roughnessSampler;
-layout(set = 1, binding = 4) uniform sampler2D occlusionSampler;
-layout(set = 1, binding = 5) uniform sampler2D emissiveSampler;
+layout(set = 1, binding = 0) uniform samplerCube texSampler;
+layout(set = 1, binding = 1) uniform samplerCube normalSampler;
+layout(set = 1, binding = 2) uniform samplerCube metallicSampler;
+layout(set = 1, binding = 3) uniform samplerCube roughnessSampler;
+layout(set = 1, binding = 4) uniform samplerCube occlusionSampler;
+layout(set = 1, binding = 5) uniform samplerCube emissiveSampler;
 layout(set = 1, binding = 6) uniform samplerCube irradianceSampler;
 layout(set = 1, binding = 7) uniform samplerCube specularIBLSampler;
 layout(set = 1, binding = 8) uniform sampler2D specularBRDFSampler;
@@ -75,7 +75,7 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
-#include "pbr.glsl"
+#include "../pbr.glsl"
 
 //TODO: add support for shadows, right now there is no PBR objects on which shadows should be casted that's why everything is fine
 void main() {

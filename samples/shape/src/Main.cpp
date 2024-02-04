@@ -26,7 +26,7 @@ void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffs
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
-  settings->setName("Simple");
+  settings->setName("Shape");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
@@ -46,7 +46,7 @@ Main::Main() {
 
   _core = std::make_shared<Core>(settings);
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands(0);
+  commandBufferTransfer->beginCommands();
   auto state = _core->getState();
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);

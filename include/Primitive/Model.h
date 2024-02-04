@@ -68,6 +68,7 @@ class Model3D {
 
   void setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials);
   void setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials);
+  void setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials);
   void setAnimation(std::shared_ptr<Animation> animation);
   void setDrawType(DrawType drawType);
 

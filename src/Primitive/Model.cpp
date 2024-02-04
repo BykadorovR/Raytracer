@@ -23,17 +23,6 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _defaultMaterialPhong->setNormal(resourceManager->getTextureZero());
   _defaultMaterialPhong->setSpecular(resourceManager->getTextureZero());
 
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-  _defaultMaterialPBR->setBaseColor(resourceManager->getTextureOne());
-  _defaultMaterialPBR->setNormal(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setMetallic(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setRoughness(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setEmissive(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setOccluded(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setDiffuseIBL(resourceManager->getCubemapZero()->getTexture());
-  _defaultMaterialPBR->setSpecularIBL(resourceManager->getCubemapZero()->getTexture(),
-                                      resourceManager->getTextureZero());
-
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   int lightNumber = _state->getSettings()->getMaxDirectionalLights() + _state->getSettings()->getMaxPointLights();
@@ -87,6 +76,14 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     cameraSet->createUniformBuffer(_cameraUBOFull);
     _descriptorSetCameraFull = cameraSet;
   }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+  _materialType = MaterialType::COLOR;
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
@@ -167,7 +164,7 @@ void Model3D::_drawNode(int currentFrame,
       // if node->skin == -1 then use 0 index that contains identity matrix because of animation default behavior
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 1, 1,
+          pipeline->getPipelineLayout(), 3, 1,
           &_animation->getDescriptorSetJoints()[std::max(0, node->skin)]->getDescriptorSets()[currentFrame], 0,
           nullptr);
     }
@@ -189,7 +186,6 @@ void Model3D::_drawNode(int currentFrame,
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
       if (primitive.indexCount > 0) {
         std::shared_ptr<Material> material = _defaultMaterialPhong;
-        if (_materialType == MaterialType::PBR) material = _defaultMaterialPBR;
         // Get the texture index for this primitive
         if (_materials.size() > 0) {
           material = _materials.front();
@@ -207,7 +203,7 @@ void Model3D::_drawNode(int currentFrame,
         // assign material textures
         if (textureLayout != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipeline->getPipelineLayout(), 3, 1,
+                                  pipeline->getPipelineLayout(), 1, 1,
                                   &material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame],
                                   0, nullptr);
         }

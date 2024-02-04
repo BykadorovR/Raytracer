@@ -26,7 +26,7 @@ void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffs
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
-  settings->setName("Model");
+  settings->setName("Sprite");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
@@ -117,208 +117,22 @@ Main::Main() {
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
   };
-  auto modelManagerStatic = std::make_shared<Model3DManager>(
+
+  auto spriteManager = std::make_shared<SpriteManager>(
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, _core->getResourceManager(), state);
-  modelManagerStatic->setCamera(_camera);
-  /*
-  // draw simple non-textured cube
+  spriteManager->setCamera(_camera);
+  // draw textured Sprite without lighting
   {
-    auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
-    auto modelBox = modelManagerStatic->createModel3D(gltfModelBox->getNodes(), gltfModelBox->getMeshes());
-    modelManagerStatic->registerModel3D(modelBox);
-    auto materialModelBox = gltfModelBox->getMaterialsPBR();
-    for (auto& material : materialModelBox) {
-      fillMaterialPBR(material);
-    }
-    modelBox->setMaterial(materialModelBox);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-      modelBox->setModel(model);
-    }
+    auto textureTree = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"tree.png"}), settings->getLoadTextureAuxilaryFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto spriteTree = spriteManager->createSprite();
+    spriteManager->registerSprite(spriteTree);
+    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+    materialColor->setBaseColor(textureTree);
+    spriteTree->setMaterial(materialColor);
   }
-
-  // draw simple textured model Phong
-  auto gltfModelAvocado = _core->getResourceManager()->loadModel("../assets/Avocado/Avocado.gltf");
-  {
-    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
-    modelManagerStatic->registerModel3D(modelAvocado);
-    auto materialModelAvocado = gltfModelAvocado->getMaterialsPhong();
-    for (auto& material : materialModelAvocado) {
-      fillMaterialPhong(material);
-    }
-    modelAvocado->setMaterial(materialModelAvocado);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-      modelAvocado->setModel(model);
-    }
-  }
-  // draw simple textured model PBR
-  {
-    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
-    modelManagerStatic->registerModel3D(modelAvocado);
-    auto materialModelAvocado = gltfModelAvocado->getMaterialsPBR();
-    for (auto& material : materialModelAvocado) {
-      fillMaterialPBR(material);
-    }
-    modelAvocado->setMaterial(materialModelAvocado);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-      modelAvocado->setModel(model);
-    }
-  }
-
-  // draw advanced textured model Phong
-  auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
-    for (auto& material : materialModelBottle) {
-      fillMaterialPhong(material);
-    }
-    modelBottle->setMaterial(materialModelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-
-  // draw advanced textured model PBR
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
-    for (auto& material : materialModelBottle) {
-      fillMaterialPBR(material);
-    }
-    modelBottle->setMaterial(materialModelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-  // draw textured model without lighting model
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsColor();
-    modelBottle->setMaterial(materialModelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-  // draw model without material
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-  */
-  // draw material normal
-  auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelBottle->setDrawType(DrawType::NORMAL);
-    modelManagerStatic->registerModel3D(modelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-  /*
-  // draw wireframe
-  {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelBottle->setDrawType(DrawType::WIREFRAME);
-    modelManagerStatic->registerModel3D(modelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
-  }
-  // draw skeletal textured model with multiple animations
-  {
-    auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
-    auto modelFish = modelManagerStatic->createModel3D(gltfModelFish->getNodes(), gltfModelFish->getMeshes());
-    modelManagerStatic->registerModel3D(modelFish);
-    auto materialModelFish = gltfModelFish->getMaterialsPhong();
-    for (auto& material : materialModelFish) {
-      fillMaterialPhong(material);
-    }
-    modelFish->setMaterial(materialModelFish);
-    _animationFish = std::make_shared<Animation>(gltfModelFish->getNodes(), gltfModelFish->getSkins(),
-                                                 gltfModelFish->getAnimations(), state);
-    _animationFish->setAnimation("swim");
-    // set animation to model, so joints will be passed to shader
-    modelFish->setAnimation(_animationFish);
-    // register to play animation, if don't call, there will not be any animation,
-    // even model can disappear because of zero start weights
-    _core->addAnimation(_animationFish);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
-      modelFish->setModel(model);
-    }
-  }
-
-  // draw skeletal dancing model with one animation
-  {
-    auto gltfModelDancing = _core->getResourceManager()->loadModel("../assets/BrainStem/BrainStem.gltf");
-    auto modelDancing = modelManagerStatic->createModel3D(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes());
-    modelManagerStatic->registerModel3D(modelDancing);
-    auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
-    for (auto& material : materialModelDancing) {
-      fillMaterialPBR(material);
-    }
-    modelDancing->setMaterial(materialModelDancing);
-    auto animationDancing = std::make_shared<Animation>(gltfModelDancing->getNodes(), gltfModelDancing->getSkins(),
-                                                        gltfModelDancing->getAnimations(), state);
-    // set animation to model, so joints will be passed to shader
-    modelDancing->setAnimation(animationDancing);
-    _core->addAnimation(animationDancing);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelDancing->setModel(model);
-    }
-  }
-
-  // draw skeletal walking model with one animation
-  {
-    auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
-    auto modelWalking = modelManagerStatic->createModel3D(gltfModelWalking->getNodes(), gltfModelWalking->getMeshes());
-    modelManagerStatic->registerModel3D(modelWalking);
-    auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
-    for (auto& material : materialModelWalking) {
-      fillMaterialPhong(material);
-    }
-    modelWalking->setMaterial(materialModelWalking);
-    auto animationWalking = std::make_shared<Animation>(gltfModelWalking->getNodes(), gltfModelWalking->getSkins(),
-                                                        gltfModelWalking->getAnimations(), state);
-    // set animation to model, so joints will be passed to shader
-    modelWalking->setAnimation(animationWalking);
-    _core->addAnimation(animationWalking);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelWalking->setModel(model);
-    }
-  }
-  */
-  _core->addDrawable(modelManagerStatic);
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore
