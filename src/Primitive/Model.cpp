@@ -40,13 +40,14 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _cameraUBODepth.push_back(facesBuffer);
   }
   // initialize descriptor sets
-  auto cameraDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraDescriptorSetLayout->createUniformBuffer();
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCamera->createUniformBuffer();
+  auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
   {
     for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                       cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                       _state->getDevice());
+      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                       _state->getDescriptorPool(), _state->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
@@ -55,9 +56,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                      cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                      _state->getDevice());
+        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                      _state->getDescriptorPool(), _state->getDevice());
         facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
@@ -70,11 +70,14 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                    _state);
   // initialize descriptor sets
   {
-    auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                     cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                     _state->getDevice());
-    cameraSet->createUniformBuffer(_cameraUBOFull);
-    _descriptorSetCameraFull = cameraSet;
+    _descriptorSetCameraFull = std::make_shared<DescriptorSet>(
+        _state->getSettings()->getMaxFramesInFlight(), layoutCamera, _state->getDescriptorPool(), _state->getDevice());
+    _descriptorSetCameraFull->createUniformBuffer(_cameraUBOFull);
+
+    _descriptorSetCameraGeometry = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
+                                                                   layoutCameraGeometry, state->getDescriptorPool(),
+                                                                   state->getDevice());
+    _descriptorSetCameraGeometry->createUniformBuffer(_cameraUBOFull);
   }
 }
 
@@ -145,6 +148,7 @@ void Model3D::_drawNode(int currentFrame,
     vkUnmapMemory(_state->getDevice()->getLogicalDevice(), cameraUBO->getBuffer()[currentFrame]->getMemory());
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
+    // camera
     auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                        return info.first == std::string("camera");
@@ -153,6 +157,17 @@ void Model3D::_drawNode(int currentFrame,
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets()[currentFrame], 0,
                               nullptr);
+    }
+
+    // camera geometry
+    auto cameraLayoutGeometry = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                             [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                               return info.first == std::string("cameraGeometry");
+                                             });
+    if (cameraLayoutGeometry != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 1, 1,
+                              &_descriptorSetCameraGeometry->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     auto jointLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -216,6 +231,7 @@ void Model3D::_drawNode(int currentFrame,
         }
 
         auto currentPipeline = pipeline;
+        // by default double side is false
         if (material->getDoubleSided()) currentPipeline = pipelineCullOff;
         vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           currentPipeline->getPipeline());

@@ -18,15 +18,17 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
 
-  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraSetLayout->createUniformBuffer();
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCamera->createUniformBuffer();
+  auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
   // layout for Color
-  _descriptorSetLayout[MaterialType::COLOR].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout[MaterialType::COLOR].push_back({"camera", layoutCamera});
   _descriptorSetLayout[MaterialType::COLOR].push_back(
       {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
 
   // layout for Phong
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", layoutCamera});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
@@ -40,7 +42,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
       {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
 
   // layout for PBR
-  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", layoutCamera});
   _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
@@ -53,20 +55,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
       {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
 
   // layout for Normal Phong
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
-  // layout for Normal PBR
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
-      {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
+  _descriptorSetLayoutNormal.push_back({"camera", layoutCamera});
+  _descriptorSetLayoutNormal.push_back({"cameraGeometry", layoutCameraGeometry});
   // initialize Color
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
@@ -162,67 +152,57 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
                                                            defaultPushConstants, _mesh->getBindingDescription(),
                                                            _mesh->getAttributeDescriptions());
   }
-  // initialize Normals Phong
+
+  // initialize Normal (per vertex)
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/debugPhong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineNormal[MaterialType::PHONG]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                          _descriptorSetLayoutNormal[MaterialType::PHONG], {},
-                                                          _mesh->getBindingDescription(),
-                                                          _mesh->getAttributeDescriptions());
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                         _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
+                                         _mesh->getAttributeDescriptions());
 
-    _pipelineNormalCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineNormalCullOff[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
-
-    _pipelineNormalWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(),
-                                                                               state->getDevice());
-    _pipelineNormalWireframe[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+    // it's kind of pointless, but if material is set, double sided property can be handled
+    _pipelineNormalMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMeshCullOff->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+                                                {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                 shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                                 shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                                _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
+                                                _mesh->getAttributeDescriptions());
   }
-  // initialize Normals PBR
+
+  // initialize Tangent (per vertex)
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/debugPBR3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineNormal[MaterialType::PBR]->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                        _descriptorSetLayoutNormal[MaterialType::PBR], {},
-                                                        _mesh->getBindingDescription(),
-                                                        _mesh->getAttributeDescriptions());
+    _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineTangentMesh->createGraphic3D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                           shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                          _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
+                                          _mesh->getAttributeDescriptions());
 
-    _pipelineNormalCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineNormalCullOff[MaterialType::PBR]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PBR], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
-
-    _pipelineNormalWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineNormalWireframe[MaterialType::PBR]->createGraphic3D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PBR], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+    // it's kind of pointless, but if material is set, double sided property can be handled
+    _pipelineTangentMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineTangentMeshCullOff->createGraphic3D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+                                                 {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                  shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                                  shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                                 _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
+                                                 _mesh->getAttributeDescriptions());
   }
+
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
@@ -230,7 +210,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
-        {{"camera", cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, {},
+        {{"camera", layoutCamera}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, {},
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
 
@@ -246,8 +226,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {{"camera", cameraSetLayout}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}},
-        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        {{"camera", layoutCamera}, {"joint", _defaultAnimation->getDescriptorSetLayoutJoints()}}, defaultPushConstants,
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
 }
 
@@ -293,9 +273,11 @@ void Model3DManager::draw(int currentFrame,
     }
 
     if (drawType == DrawType::NORMAL) {
-      pipeline = _pipelineNormal[materialType];
-      pipelineCullOff = _pipelineNormalCullOff[materialType];
-      if (drawType == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
+      pipeline = _pipelineNormalMesh;
+    }
+
+    if (drawType == DrawType::TANGENT) {
+      pipeline = _pipelineTangentMesh;
     }
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -351,14 +333,35 @@ void Model3DManager::draw(int currentFrame,
     }
   };
 
+  auto drawModelNormal = [&](DrawType drawType) {
+    auto pipeline = _pipelineNormalMesh;
+    auto pipelineCullOff = _pipelineNormalMeshCullOff;
+
+    if (drawType == DrawType::TANGENT) {
+      pipeline = _pipelineTangentMesh;
+      pipelineCullOff = _pipelineTangentMeshCullOff;
+    }
+
+    auto pipelineLayout = pipeline->getDescriptorSetLayout();
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipeline->getPipeline());
+
+    for (auto model : _modelsGLTF) {
+      if (model->getDrawType() == drawType) {
+        model->setCamera(_camera);
+        model->draw(currentFrame, commandBuffer, pipeline, pipelineCullOff);
+      }
+    }
+  };
+
   drawModel(MaterialType::PHONG, DrawType::FILL);
   drawModel(MaterialType::PHONG, DrawType::WIREFRAME);
-  drawModel(MaterialType::PHONG, DrawType::NORMAL);
   drawModel(MaterialType::PBR, DrawType::FILL);
   drawModel(MaterialType::PBR, DrawType::WIREFRAME);
-  drawModel(MaterialType::PBR, DrawType::NORMAL);
   drawModel(MaterialType::COLOR, DrawType::FILL);
   drawModel(MaterialType::COLOR, DrawType::WIREFRAME);
+  drawModelNormal(DrawType::NORMAL);
+  drawModelNormal(DrawType::TANGENT);
 }
 
 void Model3DManager::drawShadow(int currentFrame,

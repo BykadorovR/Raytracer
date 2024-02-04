@@ -24,7 +24,7 @@ class Model3D {
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
+  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)

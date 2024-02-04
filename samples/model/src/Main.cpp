@@ -121,10 +121,9 @@ Main::Main() {
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
       commandBufferTransfer, _core->getResourceManager(), state);
   modelManagerStatic->setCamera(_camera);
-  /*
   // draw simple non-textured cube
+  auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
   {
-    auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
     auto modelBox = modelManagerStatic->createModel3D(gltfModelBox->getNodes(), gltfModelBox->getMeshes());
     modelManagerStatic->registerModel3D(modelBox);
     auto materialModelBox = gltfModelBox->getMaterialsPBR();
@@ -224,9 +223,7 @@ Main::Main() {
       modelBottle->setModel(model);
     }
   }
-  */
   // draw material normal
-  auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
   {
     auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
     modelBottle->setDrawType(DrawType::NORMAL);
@@ -237,7 +234,6 @@ Main::Main() {
       modelBottle->setModel(model);
     }
   }
-  /*
   // draw wireframe
   {
     auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
@@ -250,8 +246,8 @@ Main::Main() {
     }
   }
   // draw skeletal textured model with multiple animations
+  auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
   {
-    auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
     auto modelFish = modelManagerStatic->createModel3D(gltfModelFish->getNodes(), gltfModelFish->getMeshes());
     modelManagerStatic->registerModel3D(modelFish);
     auto materialModelFish = gltfModelFish->getMaterialsPhong();
@@ -317,7 +313,6 @@ Main::Main() {
       modelWalking->setModel(model);
     }
   }
-  */
   _core->addDrawable(modelManagerStatic);
 
   commandBufferTransfer->endCommands();

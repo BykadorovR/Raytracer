@@ -1,4 +1,5 @@
 #include "Shape3D.h"
+#undef far
 
 Shape3D::Shape3D(ShapeType shapeType,
                  std::vector<VkFormat> renderFormat,
@@ -48,7 +49,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/shape/cubeNormal_vertex.spv",
                                               "shaders/shape/cubeNormal_fragment.spv",
                                               "shaders/shape/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
+    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv",
+                                              "shaders/shape/cubeNormal_fragment.spv",
                                               "shaders/shape/cubeNormal_geometry.spv"};
   }
 
@@ -213,13 +215,13 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersNormalsMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormalsMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormalsMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
-                                          _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
-                                          _mesh->getAttributeDescriptions());
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+                                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                         _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
+                                         _mesh->getAttributeDescriptions());
   }
   // initialize Tangent (per vertex)
   {
@@ -446,7 +448,7 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
 
   auto pipeline = _pipeline[_materialType];
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
-  if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalsMesh;
+  if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalMesh;
   if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawShape3D(pipeline);
 }
