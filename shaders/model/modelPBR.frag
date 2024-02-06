@@ -81,7 +81,7 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
-#include "pbr.glsl"
+#include "../pbr.glsl"
 
 //TODO: add support for shadows, right now there is no PBR objects on which shadows should be casted that's why everything is fine
 void main() {

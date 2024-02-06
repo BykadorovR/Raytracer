@@ -41,7 +41,6 @@ class Model3D {
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
-  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;

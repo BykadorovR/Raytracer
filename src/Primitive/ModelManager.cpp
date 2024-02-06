@@ -54,14 +54,14 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
 
-  // layout for Normal Phong
+  // layout for Normal
   _descriptorSetLayoutNormal.push_back({"camera", layoutCamera});
   _descriptorSetLayoutNormal.push_back({"cameraGeometry", layoutCameraGeometry});
   // initialize Color
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/color3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/color3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
 
@@ -91,8 +91,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/phong3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/phong3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelPhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -123,8 +123,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/pbr3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/pbr3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelPBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -206,7 +206,7 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
@@ -217,8 +217,8 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   // initialize depth point
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/depth3D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/depth3D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
@@ -270,14 +270,6 @@ void Model3DManager::draw(int currentFrame,
     auto pipelineCullOff = _pipelineCullOff[materialType];
     if (drawType == DrawType::WIREFRAME) {
       pipeline = _pipelineWireframe[materialType];
-    }
-
-    if (drawType == DrawType::NORMAL) {
-      pipeline = _pipelineNormalMesh;
-    }
-
-    if (drawType == DrawType::TANGENT) {
-      pipeline = _pipelineTangentMesh;
     }
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();

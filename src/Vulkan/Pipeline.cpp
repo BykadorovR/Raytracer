@@ -38,7 +38,6 @@ Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> d
   _blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
   _blendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   _blendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
-  //_blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   _blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
   _blendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   _blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
@@ -638,6 +637,7 @@ void Pipeline::createGraphic2D(
     std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
+    bool enableAlphaBlending,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
@@ -681,6 +681,7 @@ void Pipeline::createGraphic2D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
   _rasterizer.polygonMode = polygonMode;
+  if (enableAlphaBlending == false) _blendAttachmentState.blendEnable = VK_FALSE;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();

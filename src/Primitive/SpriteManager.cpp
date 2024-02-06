@@ -13,6 +13,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   _lightManager = lightManager;
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
 
   _defaultMesh = std::make_shared<Mesh2D>(state);
   // 3   0
@@ -25,50 +26,72 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
       commandBufferTransfer);
   _defaultMesh->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
 
-  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraSetLayout->createUniformBuffer();
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCamera->createUniformBuffer();
+  auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
+  // layout for Color
+  _descriptorSetLayout[MaterialType::COLOR].push_back({"camera", layoutCamera});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(
+      {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
+
   // layout for PHONG
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayout[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", layoutCamera});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"lightPhong", _lightManager->getDSLLightPhong()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
 
   // layout for PBR
-  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", cameraSetLayout});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"camera", layoutCamera});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"lightPBR", _lightManager->getDSLLightPBR()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"shadowTexture", _lightManager->getDSLShadowTexture()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
 
-  // layout for Normal Phong
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayoutNormal[MaterialType::PHONG].push_back(
-      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
-  // layout for Normal PBR
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back({"camera", cameraSetLayout});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
-      {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayoutNormal[MaterialType::PBR].push_back(
-      {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+  // layout for Normal
+  _descriptorSetLayoutNormal.push_back({"camera", layoutCamera});
+  _descriptorSetLayoutNormal.push_back({"cameraGeometry", layoutCameraGeometry});
+
+  // initialize Color
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/sprite/spriteColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+    _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipeline[MaterialType::COLOR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+                                                    {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                     shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                    _descriptorSetLayout[MaterialType::COLOR], {},
+                                                    _defaultMesh->getBindingDescription(),
+                                                    _defaultMesh->getAttributeDescriptions());
+    // wireframe one
+    _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineWireframe[MaterialType::COLOR]->createGraphic2D(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayout[MaterialType::COLOR], {}, _defaultMesh->getBindingDescription(),
+        _defaultMesh->getAttributeDescriptions());
+  }
+
   // initialize Phong
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/phong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spritePhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spritePhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
@@ -77,7 +100,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     // wireframe one
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
@@ -88,12 +111,12 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   // initialize PBR
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/pbr2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spritePBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spritePBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
@@ -102,66 +125,52 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     // wireframe one
     _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PBR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
         _defaultMesh->getBindingDescription(), _defaultMesh->getAttributeDescriptions());
   }
-  // initialize Normal for Phong
+  // initialize Normal (per vertex)
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/phong2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/debugPhong2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spriteNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormal[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormal[MaterialType::PHONG]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                          _descriptorSetLayoutNormal[MaterialType::PHONG], {},
-                                                          _defaultMesh->getBindingDescription(),
-                                                          _defaultMesh->getAttributeDescriptions());
-    // wireframe one
-    _pipelineNormalWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                               _state->getDevice());
-    _pipelineNormalWireframe[MaterialType::PHONG]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PHONG], {}, _defaultMesh->getBindingDescription(),
-        _defaultMesh->getAttributeDescriptions());
+    _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormal->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+                                     {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                      shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
+                                      shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                     _descriptorSetLayoutNormal, {}, _defaultMesh->getBindingDescription(),
+                                     _defaultMesh->getAttributeDescriptions());
   }
-  // initialize Normal for PBR
+
+  // initialize Tangent (per vertex)
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/pbr2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/debugPBR2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spriteTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormal[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormal[MaterialType::PBR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                        _descriptorSetLayoutNormal[MaterialType::PBR], {},
-                                                        _defaultMesh->getBindingDescription(),
-                                                        _defaultMesh->getAttributeDescriptions());
-    // wireframe one
-    _pipelineNormalWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                             _state->getDevice());
-    _pipelineNormalWireframe[MaterialType::PBR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayoutNormal[MaterialType::PBR], {}, _defaultMesh->getBindingDescription(),
-        _defaultMesh->getAttributeDescriptions());
+    _pipelineTangent = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineTangent->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                       shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
+                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                      _descriptorSetLayoutNormal, {}, _defaultMesh->getBindingDescription(),
+                                      _defaultMesh->getAttributeDescriptions());
   }
+
   // initialize depth directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic2DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", cameraSetLayout}}, {},
+        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", layoutCamera}}, {},
         _defaultMesh->getBindingDescription(), _defaultMesh->getAttributeDescriptions());
   }
 
@@ -171,13 +180,13 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state->getDevice());
-    shader->add("shaders/depth2D_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/depth2D_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelinePoint->createGraphic2DShadow(VK_CULL_MODE_NONE,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                          {{"camera", cameraSetLayout}}, defaultPushConstants,
+                                          {{"camera", layoutCamera}}, defaultPushConstants,
                                           _defaultMesh->getBindingDescription(),
                                           _defaultMesh->getAttributeDescriptions());
   }
@@ -198,7 +207,7 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(
   // custom pipeline layout set from application
   _descriptorSetLayoutCustom[sprite] = layouts;
   _pipelineCustom[sprite] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+  _pipelineCustom[sprite]->createGraphic2D(_renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
                                            {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                             shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                            _descriptorSetLayoutCustom[sprite], {},
@@ -246,7 +255,7 @@ void SpriteManager::draw(int currentFrame,
     if (lightVPLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 1, 1,
+          pipeline->getPipelineLayout(), 2, 1,
           &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0,
           nullptr);
     }
@@ -284,12 +293,7 @@ void SpriteManager::draw(int currentFrame,
   // define draw spirte lambda
   auto drawSprite = [&](MaterialType materialType, DrawType drawType) {
     auto pipeline = _pipeline[materialType];
-    if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[materialType];
-
-    if ((drawType & DrawType::NORMAL) == DrawType::NORMAL) {
-      pipeline = _pipelineNormal[materialType];
-      if ((drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineNormalWireframe[materialType];
-    }
+    if (drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[materialType];
 
     bindPipeline(pipeline);
 
@@ -301,14 +305,32 @@ void SpriteManager::draw(int currentFrame,
     }
   };
 
+  auto drawSpriteNormal = [&](DrawType drawType) {
+    auto pipeline = _pipelineNormal;
+    if (drawType == DrawType::TANGENT) pipeline = _pipelineTangent;
+
+    auto pipelineLayout = pipeline->getDescriptorSetLayout();
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                      pipeline->getPipeline());
+
+    for (auto sprite : _sprites) {
+      if (sprite->getDrawType() == drawType) {
+        sprite->setCamera(_camera);
+        sprite->draw(currentFrame, commandBuffer, pipeline);
+      }
+    }
+  };
+
   drawSprite(MaterialType::PHONG, DrawType::FILL);
   drawSprite(MaterialType::PHONG, DrawType::WIREFRAME);
-  drawSprite(MaterialType::PHONG, DrawType::NORMAL);
   drawSprite(MaterialType::PBR, DrawType::FILL);
   drawSprite(MaterialType::PBR, DrawType::WIREFRAME);
-  drawSprite(MaterialType::PBR, DrawType::NORMAL);
+  drawSprite(MaterialType::COLOR, DrawType::FILL);
+  drawSprite(MaterialType::COLOR, DrawType::WIREFRAME);
+  drawSpriteNormal(DrawType::NORMAL);
+  drawSpriteNormal(DrawType::TANGENT);
 
-  // draw custom
+  // draw custom (IBL specular / any other with custom shaders)
   for (auto sprite : _sprites) {
     if (sprite->getMaterialType() == MaterialType::CUSTOM) {
       auto pipeline = _pipelineCustom[sprite];

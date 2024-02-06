@@ -28,6 +28,7 @@ class Pipeline {
   void createGraphic2D(std::vector<VkFormat> renderFormat,
                        VkCullModeFlags cullMode,
                        VkPolygonMode polygonMode,
+                       bool enableAlphaBlending,
                        std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                        std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                        std::map<std::string, VkPushConstantRange> pushConstants,

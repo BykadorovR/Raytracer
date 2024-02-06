@@ -9,11 +9,10 @@ class SpriteManager : public IDrawable, IShadowable {
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
-  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayoutNormal;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineNormal, _pipelineNormalWireframe;
+  std::shared_ptr<Pipeline> _pipelineNormal, _pipelineTangent;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
 
   std::map<std::shared_ptr<Sprite>, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
@@ -28,6 +27,7 @@ class SpriteManager : public IDrawable, IShadowable {
   std::shared_ptr<LightManager> _lightManager;
   std::vector<std::shared_ptr<Sprite>> _sprites;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh2D> _defaultMesh;
   std::shared_ptr<ResourceManager> _resourceManager;

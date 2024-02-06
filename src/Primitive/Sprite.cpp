@@ -13,16 +13,6 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
   _defaultMaterialPhong->setNormal(resourceManager->getTextureZero());
   _defaultMaterialPhong->setSpecular(resourceManager->getTextureZero());
 
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-  _defaultMaterialPBR->setBaseColor(resourceManager->getTextureOne());
-  _defaultMaterialPBR->setNormal(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setMetallic(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setRoughness(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setEmissive(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setOccluded(resourceManager->getTextureZero());
-  _defaultMaterialPBR->setDiffuseIBL(resourceManager->getCubemapZero()->getTexture());
-  _defaultMaterialPBR->setSpecularIBL(resourceManager->getCubemapZero()->getTexture(),
-                                      resourceManager->getTextureZero());
   _material = _defaultMaterialPhong;
 
   // initialize camera UBO and descriptor sets for shadow
@@ -40,13 +30,14 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
-  auto cameraDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraDescriptorSetLayout->createUniformBuffer();
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCamera->createUniformBuffer();
+  auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
   {
     for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                       cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                       _state->getDevice());
+      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                       _state->getDescriptorPool(), _state->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
@@ -55,9 +46,8 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
     for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                      cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                      _state->getDevice());
+        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                      _state->getDescriptorPool(), _state->getDevice());
         facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
@@ -69,14 +59,15 @@ Sprite::Sprite(std::shared_ptr<Mesh2D> mesh,
   _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    _state);
   {
-    auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                     cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                     _state->getDevice());
-    cameraSet->createUniformBuffer(_cameraUBOFull);
-    _descriptorSetCameraFull = cameraSet;
-  }
+    _descriptorSetCameraFull = std::make_shared<DescriptorSet>(
+        _state->getSettings()->getMaxFramesInFlight(), layoutCamera, _state->getDescriptorPool(), _state->getDevice());
+    _descriptorSetCameraFull->createUniformBuffer(_cameraUBOFull);
 
-  // texture descriptors are taken from material
+    _descriptorSetCameraGeometry = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
+                                                                   layoutCameraGeometry, state->getDescriptorPool(),
+                                                                   state->getDevice());
+    _descriptorSetCameraGeometry->createUniformBuffer(_cameraUBOFull);
+  }
 }
 
 void Sprite::setMaterial(std::shared_ptr<MaterialPBR> material) {
@@ -147,6 +138,7 @@ void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
                        0, VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
+  // camera
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                      return info.first == std::string("camera");
@@ -157,6 +149,17 @@ void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
                             &_descriptorSetCameraFull->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
+  // camera geometry
+  auto cameraLayoutGeometry = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                           [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                             return info.first == std::string("cameraGeometry");
+                                           });
+  if (cameraLayoutGeometry != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 1, 1,
+                            &_descriptorSetCameraGeometry->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
   auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                     [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
                                       return info.first == std::string("texture");
@@ -164,7 +167,7 @@ void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
   if (textureLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
         commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        2, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
+        1, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto materialCoefficientsLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),

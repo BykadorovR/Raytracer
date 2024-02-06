@@ -16,7 +16,7 @@ class Sprite {
  private:
   std::shared_ptr<State> _state;
 
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
+  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::shared_ptr<Camera> _camera;
   bool _enableShadow = true;
@@ -26,7 +26,6 @@ class Sprite {
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
-  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<Mesh2D> _mesh;
   MaterialType _materialType = MaterialType::PHONG;
   glm::mat4 _model = glm::mat4(1.f);
