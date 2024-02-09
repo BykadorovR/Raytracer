@@ -113,8 +113,7 @@ DrawType Model3D::getDrawType() { return _drawType; }
 
 void Model3D::setAnimation(std::shared_ptr<Animation> animation) { _animation = animation; }
 
-void Model3D::_drawNode(int currentFrame,
-                        std::shared_ptr<CommandBuffer> commandBuffer,
+void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         std::shared_ptr<Pipeline> pipeline,
                         std::shared_ptr<Pipeline> pipelineCullOff,
                         std::shared_ptr<DescriptorSet> cameraDS,
@@ -122,6 +121,7 @@ void Model3D::_drawNode(int currentFrame,
                         glm::mat4 view,
                         glm::mat4 projection,
                         std::shared_ptr<NodeGLTF> node) {
+  int currentFrame = _state->getFrameInFlight();
   if (node->mesh >= 0 && _meshes[node->mesh]->getPrimitives().size() > 0) {
     VkBuffer vertexBuffers[] = {_meshes[node->mesh]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -179,7 +179,7 @@ void Model3D::_drawNode(int currentFrame,
       // if node->skin == -1 then use 0 index that contains identity matrix because of animation default behavior
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 3, 1,
+          pipeline->getPipelineLayout(), 1, 1,
           &_animation->getDescriptorSetJoints()[std::max(0, node->skin)]->getDescriptorSets()[currentFrame], 0,
           nullptr);
     }
@@ -218,7 +218,7 @@ void Model3D::_drawNode(int currentFrame,
         // assign material textures
         if (textureLayout != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                  pipeline->getPipelineLayout(), 1, 1,
+                                  pipeline->getPipelineLayout(), 2, 1,
                                   &material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame],
                                   0, nullptr);
         }
@@ -242,7 +242,7 @@ void Model3D::_drawNode(int currentFrame,
   }
 
   for (auto& child : node->children) {
-    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, cameraDS, cameraUBO, view, projection, child);
   }
 }
 
@@ -250,8 +250,7 @@ void Model3D::enableShadow(bool enable) { _enableShadow = enable; }
 
 void Model3D::enableLighting(bool enable) { _enableLighting = enable; }
 
-void Model3D::draw(int currentFrame,
-                   std::shared_ptr<CommandBuffer> commandBuffer,
+void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer,
                    std::shared_ptr<Pipeline> pipeline,
                    std::shared_ptr<Pipeline> pipelineCullOff) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
@@ -259,19 +258,18 @@ void Model3D::draw(int currentFrame,
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _camera->getEye();
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_state->getFrameInFlight()], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraFull, _cameraUBOFull,
-              _camera->getView(), _camera->getProjection(), node);
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraFull, _cameraUBOFull, _camera->getView(),
+              _camera->getProjection(), node);
   }
 }
 
-void Model3D::drawShadow(int currentFrame,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
+void Model3D::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                          std::shared_ptr<Pipeline> pipeline,
                          std::shared_ptr<Pipeline> pipelineCullOff,
                          int lightIndex,
@@ -280,7 +278,7 @@ void Model3D::drawShadow(int currentFrame,
                          int face) {
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(currentFrame, commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],
               _cameraUBODepth[lightIndex][face], view, projection, node);
   }
 }

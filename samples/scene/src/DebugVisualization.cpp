@@ -150,8 +150,7 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
     if (_lightManager->getDirectionalLights().size() + _lightManager->getPointLights().size() > 0) {
       std::map<std::string, int*> toggleShadows;
       toggleShadows["##Shadows"] = &_shadowMapIndex;
-      _gui->drawListBox("Shadows", {std::get<0>(_state->getSettings()->getResolution()) - 240, 490}, _shadowKeys,
-                        toggleShadows);
+      _gui->drawListBox(_shadowKeys, toggleShadows);
 
       // check if directional
       std::shared_ptr<DescriptorSet> shadowDescriptorSet;
@@ -248,11 +247,10 @@ void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer)
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
   _gui->drawText(
-      "Camera", {resX - 160, 20},
+
       {std::string("eye x: ") + std::format("{:.2f}", eye.x), std::string("eye y: ") + std::format("{:.2f}", eye.y),
        std::string("eye z: ") + std::format("{:.2f}", eye.z)});
-  _gui->drawText("Camera", {resX - 160, 20},
-                 {std::string("dir x: ") + std::format("{:.2f}", direction.x),
+  _gui->drawText({std::string("dir x: ") + std::format("{:.2f}", direction.x),
                   std::string("dir y: ") + std::format("{:.2f}", direction.y),
                   std::string("dir z: ") + std::format("{:.2f}", direction.z)});
 
@@ -261,30 +259,30 @@ void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer)
     buttonText = "Show frustum";
   }
 
-  if (_gui->drawInputFloat("Camera", {resX - 160, 20}, {{"near", &_near}})) {
+  if (_gui->drawInputFloat({{"near", &_near}})) {
     auto cameraFly = std::dynamic_pointer_cast<CameraFly>(_camera);
     cameraFly->setProjectionParameters(cameraFly->getFOV(), _near, _camera->getFar());
   }
 
-  if (_gui->drawInputFloat("Camera", {resX - 160, 20}, {{"far", &_far}})) {
+  if (_gui->drawInputFloat({{"far", &_far}})) {
     auto cameraFly = std::dynamic_pointer_cast<CameraFly>(_camera);
     cameraFly->setProjectionParameters(cameraFly->getFOV(), _camera->getNear(), _far);
   }
 
-  if (_gui->drawButton("Camera", {resX - 160, 20}, "Save camera")) {
+  if (_gui->drawButton("Save camera")) {
     _eyeSave = _camera->getEye();
     _dirSave = _camera->getDirection();
     _upSave = _camera->getUp();
     _angles = std::dynamic_pointer_cast<CameraFly>(_camera)->getAngles();
   }
 
-  if (_gui->drawButton("Camera", {resX - 160, 20}, "Load camera")) {
+  if (_gui->drawButton("Load camera")) {
     _camera->setViewParameters(_eyeSave, _dirSave, _upSave);
     std::dynamic_pointer_cast<CameraFly>(_camera)->setAngles(_angles.x, _angles.y, _angles.z);
   }
 
-  auto clicked = _gui->drawButton("Frustum", {resX - 160, 260}, buttonText);
-  _gui->drawCheckbox("Frustum", {resX - 160, 260}, {{"Show planes", &_showPlanes}});
+  auto clicked = _gui->drawButton(buttonText);
+  _gui->drawCheckbox({{"Show planes", &_showPlanes}});
   if (_frustumDraw && _showPlanes) {
     if (_planesRegistered == false) {
       _spriteManager->registerSprite(_farPlaneCW);
@@ -369,11 +367,11 @@ void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer)
 void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   std::map<std::string, bool*> toggleDepth;
   toggleDepth["Depth"] = &_showDepth;
-  _gui->drawCheckbox("Debug", {20, 100}, toggleDepth);
+  _gui->drawCheckbox(toggleDepth);
 
   std::map<std::string, bool*> toggleNormals;
   toggleNormals["Normals"] = &_showNormals;
-  if (_gui->drawCheckbox("Debug", {20, 100}, toggleNormals)) {
+  if (_gui->drawCheckbox(toggleNormals)) {
     if (_showNormals) {
       _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() | DrawType::NORMAL);
     } else {
@@ -382,7 +380,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   }
   std::map<std::string, bool*> toggleWireframe;
   toggleWireframe["Wireframe"] = &_showWireframe;
-  if (_gui->drawCheckbox("Debug", {20, 100}, toggleWireframe)) {
+  if (_gui->drawCheckbox(toggleWireframe)) {
     if (_showWireframe) {
       _state->getSettings()->setDrawType(_state->getSettings()->getDrawType() | DrawType::WIREFRAME);
     } else {
@@ -393,15 +391,15 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
   if (_lightManager) {
     std::map<std::string, bool*> toggle;
     toggle["Lights"] = &_showLights;
-    _gui->drawCheckbox("Debug", {20, 100}, toggle);
+    _gui->drawCheckbox(toggle);
     if (_showLights) {
       std::map<std::string, bool*> toggle;
       toggle["Spheres"] = &_enableSpheres;
-      _gui->drawCheckbox("Debug", {20, 100}, toggle);
+      _gui->drawCheckbox(toggle);
       if (_enableSpheres) {
         std::map<std::string, int*> toggleSpheres;
         toggleSpheres["##Spheres"] = &_lightSpheresIndex;
-        _gui->drawListBox("Debug Spheres", {20, 255}, _attenuationKeys, toggleSpheres);
+        _gui->drawListBox(_attenuationKeys, toggleSpheres);
       }
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
         if (_registerLights) _modelManager->registerModel3D(_pointLightModels[i]);
@@ -419,7 +417,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
             _spheres[i]->setDrawType(DrawType::WIREFRAME);
-            _spheres[i]->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
+            _spheres[i]->draw(_state->getSettings()->getResolution(), commandBuffer);
           }
         }
       }
@@ -442,27 +440,27 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       }
     }
 
-    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"gamma", &_gamma}});
+    _gui->drawInputFloat({{"gamma", &_gamma}});
     _postprocessing->setGamma(_gamma);
-    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"exposure", &_exposure}});
+    _gui->drawInputFloat({{"exposure", &_exposure}});
     _postprocessing->setExposure(_exposure);
-    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"R", &_R}});
+    _gui->drawInputFloat({{"R", &_R}});
     _R = std::min(_R, 1.f);
     _R = std::max(_R, 0.f);
-    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"G", &_G}});
+    _gui->drawInputFloat({{"G", &_G}});
     _G = std::min(_G, 1.f);
     _G = std::max(_G, 0.f);
-    _gui->drawInputFloat("Postprocessing", {20, 340}, {{"B", &_B}});
+    _gui->drawInputFloat({{"B", &_B}});
     _B = std::min(_B, 1.f);
     _B = std::max(_B, 0.f);
     _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
   }
 
   _modelManager->setCamera(_camera);
-  _modelManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
+  _modelManager->draw(_state->getSettings()->getResolution(), commandBuffer);
 
   _spriteManager->setCamera(_camera);
-  _spriteManager->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
+  _spriteManager->draw(_state->getSettings()->getResolution(), commandBuffer);
 
   _drawFrustum(currentFrame, commandBuffer);
 

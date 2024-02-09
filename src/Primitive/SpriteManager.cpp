@@ -64,7 +64,7 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("shaders/sprite/spriteColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/sprite/spriteColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::COLOR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
@@ -226,9 +226,8 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());
 }
 
-void SpriteManager::draw(int currentFrame,
-                         std::tuple<int, int> resolution,
-                         std::shared_ptr<CommandBuffer> commandBuffer) {
+void SpriteManager::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -300,7 +299,7 @@ void SpriteManager::draw(int currentFrame,
     for (auto sprite : _sprites) {
       if (sprite->getMaterialType() == materialType && sprite->getDrawType() == drawType) {
         sprite->setCamera(_camera);
-        sprite->draw(currentFrame, commandBuffer, pipeline);
+        sprite->draw(commandBuffer, pipeline);
       }
     }
   };
@@ -316,7 +315,7 @@ void SpriteManager::draw(int currentFrame,
     for (auto sprite : _sprites) {
       if (sprite->getDrawType() == drawType) {
         sprite->setCamera(_camera);
-        sprite->draw(currentFrame, commandBuffer, pipeline);
+        sprite->draw(commandBuffer, pipeline);
       }
     }
   };
@@ -336,16 +335,16 @@ void SpriteManager::draw(int currentFrame,
       auto pipeline = _pipelineCustom[sprite];
       bindPipeline(pipeline);
       sprite->setCamera(_camera);
-      sprite->draw(currentFrame, commandBuffer, pipeline);
+      sprite->draw(commandBuffer, pipeline);
     }
   }
 }
 
-void SpriteManager::drawShadow(int currentFrame,
-                               std::shared_ptr<CommandBuffer> commandBuffer,
+void SpriteManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                                LightType lightType,
                                int lightIndex,
                                int face) {
+  int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
@@ -413,13 +412,13 @@ void SpriteManager::drawShadow(int currentFrame,
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(currentFrame, commandBuffer, pipeline, lightIndexTotal, view, projection, face);
+      sprite->drawShadow(commandBuffer, pipeline, lightIndexTotal, view, projection, face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(currentFrame, commandBuffer, pipeline, lightIndexTotal, view, projection, face);
+      sprite->drawShadow(commandBuffer, pipeline, lightIndexTotal, view, projection, face);
     }
   }
 }

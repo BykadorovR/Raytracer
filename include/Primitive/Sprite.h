@@ -51,9 +51,8 @@ class Sprite {
   void setDrawType(DrawType drawType);
   DrawType getDrawType();
 
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline);
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline);
+  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                   std::shared_ptr<Pipeline> pipeline,
                   int lightIndex,
                   glm::mat4 view,

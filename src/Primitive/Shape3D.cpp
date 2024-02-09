@@ -292,7 +292,8 @@ void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Shape3D::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
@@ -453,11 +454,8 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
   drawShape3D(pipeline);
 }
 
-void Shape3D::drawShadow(int currentFrame,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         LightType lightType,
-                         int lightIndex,
-                         int face) {
+void Shape3D::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer, LightType lightType, int lightIndex, int face) {
+  int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 

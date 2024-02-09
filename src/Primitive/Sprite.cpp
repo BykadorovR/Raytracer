@@ -108,7 +108,8 @@ void Sprite::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 DrawType Sprite::getDrawType() { return _drawType; }
 
-void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
+void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
+  int currentFrame = _state->getFrameInFlight();
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
@@ -184,13 +185,13 @@ void Sprite::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
                    1, 0, 0, 0);
 }
 
-void Sprite::drawShadow(int currentFrame,
-                        std::shared_ptr<CommandBuffer> commandBuffer,
+void Sprite::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                         std::shared_ptr<Pipeline> pipeline,
                         int lightIndex,
                         glm::mat4 view,
                         glm::mat4 projection,
                         int face) {
+  int currentFrame = _state->getFrameInFlight();
   BufferMVP cameraMVP{};
   cameraMVP.model = _model;
   cameraMVP.view = view;

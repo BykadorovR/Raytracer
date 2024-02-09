@@ -199,7 +199,7 @@ void Core::_directionalLightCalculator(int index) {
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame));
-    shadowable->drawShadow(frameInFlight, commandBuffer, LightType::DIRECTIONAL, index);
+    shadowable->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
@@ -297,7 +297,7 @@ void Core::_pointLightCalculator(int index, int face) {
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame));
-    shadowable->drawShadow(frameInFlight, commandBuffer, LightType::POINT, index);
+    shadowable->drawShadow(commandBuffer, LightType::POINT, index, face);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
@@ -628,7 +628,7 @@ void Core::_renderGraphic() {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
-    drawable->draw(frameInFlight, _state->getSettings()->getResolution(), _commandBufferRender);
+    drawable->draw(_state->getSettings()->getResolution(), _commandBufferRender);
     _loggerGPU->end();
   }
 

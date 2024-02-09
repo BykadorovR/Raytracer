@@ -11,7 +11,7 @@
 
 enum class ShapeType { CUBE = 0, SPHERE = 1 };
 
-class Shape3D : public IDrawable, IShadowable {
+class Shape3D : public IDrawable, public IShadowable {
  private:
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
   std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
@@ -60,9 +60,8 @@ class Shape3D : public IDrawable, IShadowable {
   void setCamera(std::shared_ptr<Camera> camera);
   std::shared_ptr<Mesh3D> getMesh();
 
-  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
+  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
                   int lightIndex,
                   int face = 0) override;

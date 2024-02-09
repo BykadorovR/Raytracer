@@ -376,9 +376,11 @@ void Main::update() {
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  _core->getGUI()->drawText("Help", {20, 20}, {"Limited FPS: " + std::to_string(FPSLimited)});
-  _core->getGUI()->drawText("Help", {20, 20}, {"Maximum FPS: " + std::to_string(FPSReal)});
-  _core->getGUI()->drawText("Help", {20, 20}, {"Press 'c' to turn cursor on/off"});
+  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
+  _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
+  _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

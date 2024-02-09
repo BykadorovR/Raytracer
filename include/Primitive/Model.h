@@ -45,8 +45,7 @@ class Model3D {
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
 
-  void _drawNode(int currentFrame,
-                 std::shared_ptr<CommandBuffer> commandBuffer,
+  void _drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
                  std::shared_ptr<DescriptorSet> cameraDS,
@@ -78,12 +77,10 @@ class Model3D {
   MaterialType getMaterialType();
   DrawType getDrawType();
 
-  void draw(int currentFrame,
-            std::shared_ptr<CommandBuffer> commandBuffer,
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer,
             std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<Pipeline> pipelineCullOff);
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
+  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                   std::shared_ptr<Pipeline> pipeline,
                   std::shared_ptr<Pipeline> pipelineCullOff,
                   int lightIndex,

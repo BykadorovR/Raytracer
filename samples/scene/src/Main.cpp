@@ -184,20 +184,20 @@ void directionalLightCalculator(int index) {
   // draw scene here
   auto globalFrame = timer->getFrameCounter();
   loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  spriteManager->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  modelManager->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame));
-  terrain->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  terrain->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame));
-  cube->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+  cube->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
   loggerGPU->end();
   loggerGPU->begin("Sphere to directional depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
-    sphere->drawShadow(currentFrame, commandBuffer, LightType::DIRECTIONAL, index);
+    sphere->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
   }
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -288,20 +288,20 @@ void pointLightCalculator(int index, int face) {
   auto globalFrame = timer->getFrameCounter();
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
   loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  spriteManager->drawShadow(commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  modelManager->drawShadow(commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame));
-  terrain->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  terrain->drawShadow(commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame));
-  cube->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+  cube->drawShadow(commandBuffer, LightType::POINT, index, face);
   loggerGPU->end();
   loggerGPU->begin("Sphere to point depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
-    sphere->drawShadow(currentFrame, commandBuffer, LightType::POINT, index, face);
+    sphere->drawShadow(commandBuffer, LightType::POINT, index, face);
   }
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -487,6 +487,8 @@ void debugVisualizations(int swapchainImageIndex) {
   };
 
   auto globalFrame = timer->getFrameCounter();
+
+  gui->startWindow("Scene", {20, 20}, {0, 0});
   loggerGPUDebug->begin("Calculate debug visualization " + std::to_string(globalFrame));
   debugVisualization->calculate(commandBufferGUI);
   loggerGPUDebug->end();
@@ -499,36 +501,34 @@ void debugVisualizations(int swapchainImageIndex) {
   loggerGPUDebug->begin("Render GUI " + std::to_string(globalFrame));
   // TODO: move to debug visualization
   int blurKernelSize = blur->getKernelSize();
-  if (gui->drawInputInt("Bloom", {20, 500}, {{"Kernel", &blurKernelSize}})) {
+  if (gui->drawInputInt({{"Kernel", &blurKernelSize}})) {
     blur->setKernelSize(blurKernelSize);
   }
   int blurSigma = blur->getSigma();
-  if (gui->drawInputInt("Bloom", {20, 500}, {{"Sigma", &blurSigma}})) {
+  if (gui->drawInputInt({{"Sigma", &blurSigma}})) {
     blur->setSigma(blurSigma);
   }
   int bloomPasses = settings->getBloomPasses();
-  if (gui->drawInputInt("Bloom", {20, 500}, {{"Passes", &bloomPasses}})) {
+  if (gui->drawInputInt({{"Passes", &bloomPasses}})) {
     settings->setBloomPasses(bloomPasses);
   }
 
   int desiredFPS = settings->getDesiredFPS();
-  gui->drawText("FPS", {20, 20},
-                {std::to_string(timerFPSLimited->getFPS()) + "/" + std::to_string(timerFPSReal->getFPS())});
-  if (gui->drawInputInt("FPS", {20, 20}, {{"##current", &desiredFPS}})) {
+  gui->drawText({std::to_string(timerFPSLimited->getFPS()) + "/" + std::to_string(timerFPSReal->getFPS())});
+  if (gui->drawInputInt({{"##current", &desiredFPS}})) {
     settings->setDesiredFPS(desiredFPS);
   }
   {
     std::map<std::string, bool*> terrainGUI;
     terrainGUI["Patches"] = &terrainPatch;
-    if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-      std::dynamic_pointer_cast<Terrain>(terrain)->patchEdge(terrainPatch);
+    if (gui->drawCheckbox(terrainGUI)) terrain->patchEdge(terrainPatch);
   }
   {
     std::map<std::string, bool*> terrainGUI;
     terrainGUI["LoD"] = &showLoD;
-    if (gui->drawCheckbox("Terrain", {std::get<0>(settings->getResolution()) - 160, 350}, terrainGUI))
-      std::dynamic_pointer_cast<Terrain>(terrain)->showLoD(showLoD);
+    if (gui->drawCheckbox(terrainGUI)) terrain->showLoD(showLoD);
   }
+  gui->endWindow();
   gui->updateBuffers(currentFrame);
   gui->drawFrame(currentFrame, commandBufferGUI);
   loggerGPUDebug->end();
@@ -667,7 +667,7 @@ void renderGraphic() {
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame));
-  spriteManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  spriteManager->draw(settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // wait model3D update
@@ -676,7 +676,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame));
-  modelManager->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  modelManager->draw(settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // submit model3D update
@@ -689,20 +689,20 @@ void renderGraphic() {
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame));
   // for terrain we have to draw both: fill and normal/wireframe
-  terrain->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  terrain->draw(settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame));
   for (auto sphere : spheres) {
-    sphere->draw(currentFrame, settings->getResolution(), commandBufferRender);
+    sphere->draw(settings->getResolution(), commandBufferRender);
   }
   loggerGPU->end();
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame));
-  cube->draw(currentFrame, settings->getResolution(), commandBufferRender);
-  equiCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
-  diffuseCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
-  specularCube->draw(currentFrame, settings->getResolution(), commandBufferRender);
+  cube->draw(settings->getResolution(), commandBufferRender);
+  equiCube->draw(settings->getResolution(), commandBufferRender);
+  diffuseCube->draw(settings->getResolution(), commandBufferRender);
+  specularCube->draw(settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
@@ -1521,8 +1521,7 @@ void initialize() {
 
     loggerGPU->begin("Render specular brdf");
     spriteManagerHUD->setCamera(cameraOrtho);
-    spriteManagerHUD->draw(currentFrame, brdfTexture->getImageView()->getImage()->getResolution(),
-                           commandBufferEquirectangular);
+    spriteManagerHUD->draw(brdfTexture->getImageView()->getImage()->getResolution(), commandBufferEquirectangular);
     loggerGPU->end();
 
     vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);

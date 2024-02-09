@@ -329,7 +329,8 @@ void Terrain::showLoD(bool enable) { _showLoD = enable; }
 
 void Terrain::patchEdge(bool enable) { _enableEdge = enable; }
 
-void Terrain::draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
@@ -511,11 +512,8 @@ void Terrain::draw(int currentFrame, std::tuple<int, int> resolution, std::share
   if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) drawTerrain(_pipelineNormal);
 }
 
-void Terrain::drawShadow(int currentFrame,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         LightType lightType,
-                         int lightIndex,
-                         int face) {
+void Terrain::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer, LightType lightType, int lightIndex, int face) {
+  int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipeline[(TerrainRenderMode)lightType];
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

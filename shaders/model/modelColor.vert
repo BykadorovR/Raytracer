@@ -17,11 +17,25 @@ layout(location = 6) in vec4 inTangent;
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 texCoords;
 
+layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
+    mat4 jointMatrices[];
+};
+
 void main() {
-    vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
-    mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
+mat4 skinMat = mat4(1.0);
+    if (jointMatrices.length() > 0) {
+        skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
+                  inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
+                  inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
+                  inJointWeights.w * jointMatrices[int(inJointIndices.w)];
+    }
+
+    mat4 model = mvp.model * skinMat;
+    
+    vec4 afterModel = model * vec4(inPosition, 1.0);
+    mat3 normalMatrix = mat3(transpose(inverse(model)));
 
     fragColor = inColor;
     texCoords = inTexCoord;
-    gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);
+    gl_Position = mvp.proj * mvp.view * model * vec4(inPosition, 1.0);
 }  

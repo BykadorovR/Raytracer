@@ -4,7 +4,7 @@
 #include "Sprite.h"
 #include "Mesh.h"
 
-class SpriteManager : public IDrawable, IShadowable {
+class SpriteManager : public IDrawable, public IShadowable {
  private:
   // position in vector is set number
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
@@ -46,9 +46,8 @@ class SpriteManager : public IDrawable, IShadowable {
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
   void setCamera(std::shared_ptr<Camera> camera);
-  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
+  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                   LightType lightType,
                   int lightIndex,
                   int face = 0) override;

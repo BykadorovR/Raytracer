@@ -24,16 +24,17 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
   // layout for Color
   _descriptorSetLayout[MaterialType::COLOR].push_back({"camera", layoutCamera});
+  _descriptorSetLayout[MaterialType::COLOR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::COLOR].push_back(
       {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
 
   // layout for Phong
   _descriptorSetLayout[MaterialType::PHONG].push_back({"camera", layoutCamera});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayout[MaterialType::PHONG].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PHONG].push_back({"lightPhong", _lightManager->getDSLLightPhong()});
   _descriptorSetLayout[MaterialType::PHONG].push_back(
       {"alphaMask", _defaultMaterialPhong->getDescriptorSetLayoutAlphaCutoff()});
@@ -43,10 +44,10 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
 
   // layout for PBR
   _descriptorSetLayout[MaterialType::PBR].push_back({"camera", layoutCamera});
+  _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"lightVP", _lightManager->getDSLViewProjection(VK_SHADER_STAGE_VERTEX_BIT)});
-  _descriptorSetLayout[MaterialType::PBR].push_back({"joint", _defaultAnimation->getDescriptorSetLayoutJoints()});
   _descriptorSetLayout[MaterialType::PBR].push_back({"lightPBR", _lightManager->getDSLLightPBR()});
   _descriptorSetLayout[MaterialType::PBR].push_back(
       {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
@@ -248,9 +249,8 @@ void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
 void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 
 // todo: choose appropriate pipeline using material from sprite
-void Model3DManager::draw(int currentFrame,
-                          std::tuple<int, int> resolution,
-                          std::shared_ptr<CommandBuffer> commandBuffer) {
+void Model3DManager::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -281,7 +281,7 @@ void Model3DManager::draw(int currentFrame,
     if (lightVPLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 2, 1,
+          pipeline->getPipelineLayout(), 3, 1,
           &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0,
           nullptr);
     }
@@ -320,7 +320,7 @@ void Model3DManager::draw(int currentFrame,
     for (auto model : _modelsGLTF) {
       if (model->getMaterialType() == materialType && model->getDrawType() == drawType) {
         model->setCamera(_camera);
-        model->draw(currentFrame, commandBuffer, pipeline, pipelineCullOff);
+        model->draw(commandBuffer, pipeline, pipelineCullOff);
       }
     }
   };
@@ -341,7 +341,7 @@ void Model3DManager::draw(int currentFrame,
     for (auto model : _modelsGLTF) {
       if (model->getDrawType() == drawType) {
         model->setCamera(_camera);
-        model->draw(currentFrame, commandBuffer, pipeline, pipelineCullOff);
+        model->draw(commandBuffer, pipeline, pipelineCullOff);
       }
     }
   };
@@ -356,11 +356,11 @@ void Model3DManager::draw(int currentFrame,
   drawModelNormal(DrawType::TANGENT);
 }
 
-void Model3DManager::drawShadow(int currentFrame,
-                                std::shared_ptr<CommandBuffer> commandBuffer,
+void Model3DManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
                                 LightType lightType,
                                 int lightIndex,
                                 int face) {
+  int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
@@ -427,13 +427,13 @@ void Model3DManager::drawShadow(int currentFrame,
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(currentFrame, commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
+      model->drawShadow(commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(currentFrame, commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
+      model->drawShadow(commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
     }
   }
 }
