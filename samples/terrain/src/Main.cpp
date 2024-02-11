@@ -144,9 +144,10 @@ Main::Main() {
       _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
       lightManager, state);
-  auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
-  materialColor->setBaseColor({tile0, tile1, tile2, tile3});
-  _terrain->setMaterial(materialColor);
+  auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  materialPhong->setBaseColor({tile0, tile1, tile2, tile3});
+  fillMaterialPhong(materialPhong);
+  _terrain->setMaterial(materialPhong);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));

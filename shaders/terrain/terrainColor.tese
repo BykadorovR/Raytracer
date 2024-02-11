@@ -17,7 +17,7 @@ layout(set = 2, binding = 0) uniform sampler2D heightMap;
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
-layout (location = 2) out vec3 normalVertex;
+layout (location = 2) out vec3 normalCross;
 layout (location = 3) out vec3 outTessColor;
 layout (location = 4) out vec3 fragPosition;
 layout (location = 5) out mat3 fragTBN;
@@ -117,7 +117,7 @@ void main() {
     //we don't depend on p
     vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
-    vec3 normalCross = normalize(cross(tangent, bitangent));
+    normalCross = normalize(cross(tangent, bitangent));    
     fragTBN = mat3(tangent, bitangent, normalCross);
 
 
