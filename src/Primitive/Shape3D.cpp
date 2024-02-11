@@ -13,13 +13,13 @@ Shape3D::Shape3D(ShapeType shapeType,
   _lightManager = lightManager;
 
   // needed for layout
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   if (shapeType == ShapeType::CUBE) {
     _mesh = std::make_shared<MeshCube>(commandBufferTransfer, state);
-    _defaultMaterialColor->setBaseColor(resourceManager->getCubemapOne()->getTexture());
+    _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
     _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
                                                            "shaders/shape/cubeColor_fragment.spv"};
     _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/shape/cubePhong_vertex.spv",
@@ -37,7 +37,7 @@ Shape3D::Shape3D(ShapeType shapeType,
 
   if (shapeType == ShapeType::SPHERE) {
     _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
-    _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
+    _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
     _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
                                                              "shaders/shape/sphereColor_fragment.spv"};
     _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
@@ -238,7 +238,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                                           _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
                                           _mesh->getAttributeDescriptions());
   }
-  // initialize light directional
+  // initialize shadows directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
@@ -248,7 +248,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
 
-  // initialize light point
+  // initialize shadows point
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);

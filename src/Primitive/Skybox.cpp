@@ -31,8 +31,8 @@ Skybox::Skybox(std::vector<VkFormat> renderFormat,
                                 5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
   _material = _defaultMaterialColor;
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),

@@ -14,21 +14,9 @@ layout(set = 1, binding = 0) uniform UniformCamera {
 
 layout(set = 2, binding = 0) uniform sampler2D heightMap;
 
+layout (location = 0) out vec3 tangentVertex;
 // send to Fragment Shader for coloring
-layout (location = 0) out float Height;
-layout (location = 1) out vec2 TexCoord;
-layout (location = 2) out vec3 normalVertex;
-layout (location = 3) out vec3 outTessColor;
-layout (location = 4) out vec3 fragPosition;
-layout (location = 5) out vec4 fragLightDirectionalCoord[2];
-
-layout(std140, set = 6, binding = 0) readonly buffer LightMatrixDirectional {
-    mat4 lightDirectionalVP[];
-};
-
-layout(std140, set = 6, binding = 1) readonly buffer LightMatrixPoint {
-    mat4 lightPointVP[];
-};
+layout (location = 1) out vec3 colorVertex;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -37,20 +25,11 @@ layout( push_constant ) uniform constants {
     float heightShift;
 } push;
 
-void main() {
+void main()
+{
     // get patch coordinate (2D)
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
-
-    // debug color
-    vec3 tc00 = tessColor[0];
-    vec3 tc01 = tessColor[1];
-    vec3 tc10 = tessColor[2];
-    vec3 tc11 = tessColor[3];
-    // bilinearly interpolate texture coordinate across patch
-    vec3 tc0 = (tc01 - tc00) * u + tc00;
-    vec3 tc1 = (tc11 - tc10) * u + tc10;
-    outTessColor = (tc1 - tc0) * v + tc0;
 
     // ----------------------------------------------------------------------
     // retrieve control point texture coordinates
@@ -62,14 +41,10 @@ void main() {
     // bilinearly interpolate texture coordinate across patch
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
-    TexCoord = (t1 - t0) * v + t0;
-    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
+    vec2 TexCoord = (t1 - t0) * v + t0;
     // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
-    // lookup texel at patch coordinate for height and scale + shift as desired
-    float heightValue = texture(heightMap, texCoord).y;
-    // we don't want to deal with negative values in fragment shaders, 
-    // so all thresholds are positive even though real height can be negative
-    Height = heightValue * 256.0;
+    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
+    float heightValue = texture(heightMap, texCoord).y;    
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -86,18 +61,16 @@ void main() {
     // bilinearly interpolate position coordinate across patch
     vec4 p0 = (p01 - p00) * u + p00;
     vec4 p1 = (p11 - p10) * u + p10;
-    vec4 p = (p1 - p0) * v + p0;
+    vec4 p = (p1 - p0) * v + p0;    
 
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
 
     // ----------------------------------------------------------------------
-    // output patch point position in clip space
-    gl_Position = mvp.proj * mvp.view * mvp.model * p;
+    // output patch point position in view space
+    gl_Position = mvp.view * mvp.model * p;
 
-    fragPosition = (mvp.model * p).xyz;
     //
-    //we sample from full size texture only, because we use stepCoords
     vec2 textureSize = textureSize(heightMap, 0);
     //classic implementation
     //vec2 stepCoords = vec2(1.0, 1.0);
@@ -116,9 +89,6 @@ void main() {
     //we don't depend on p
     vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
     vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
-    vec3 colorVertex = normalize(cross(tangent, bitangent));
-    normalVertex = normalize(vec3(mvp.model * vec4(colorVertex, 0.0)));
-
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
-        fragLightDirectionalCoord[i] = lightDirectionalVP[i] * mvp.model * p;
+    colorVertex = normalize(cross(tangent, bitangent));
+    tangentVertex = normalize(vec3(mvp.view * mvp.model * vec4(tangent, 0.0)));
 }

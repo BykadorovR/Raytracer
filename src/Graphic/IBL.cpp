@@ -35,8 +35,8 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
   _mesh->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  _defaultMaterialColor->setBaseColor(resourceManager->getCubemapOne()->getTexture());
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
   _material = _defaultMaterialColor;
 
   // initialize camera UBO and descriptor sets for draw

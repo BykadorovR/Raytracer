@@ -87,10 +87,10 @@ void main() {
         if (length(normal) > epsilon) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, fragNormal, specularTexture, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectional.length(), fragPosition, normal, specularTexture, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.05);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, fragNormal, specularTexture, 
+            lightFactor += pointLight(lightPoint.length(), fragPosition, normal, specularTexture, 
                                       push.cameraPosition, push.enableShadow, shadowPointSampler, 0.15);
             //calculate ambient light
             for (int i = 0;i < lightAmbient.length(); i++) {

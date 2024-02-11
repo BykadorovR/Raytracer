@@ -10,9 +10,9 @@ Model3DManager::Model3DManager(std::vector<VkFormat> renderFormat,
   _resourceManager = resourceManager;
   _lightManager = lightManager;
   _state = state;
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _mesh = std::make_shared<Mesh3D>(state);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},

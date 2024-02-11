@@ -101,18 +101,18 @@ Main::Main() {
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getSpecular() == nullptr) material->setSpecular(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getSpecular().size() == 0) material->setSpecular({core->getResourceManager()->getTextureZero()});
   };
 
   auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getMetallic() == nullptr) material->setMetallic(core->getResourceManager()->getTextureZero());
-    if (material->getRoughness() == nullptr) material->setRoughness(core->getResourceManager()->getTextureZero());
-    if (material->getOccluded() == nullptr) material->setOccluded(core->getResourceManager()->getTextureZero());
-    if (material->getEmissive() == nullptr) material->setEmissive(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getMetallic().size() == 0) material->setMetallic({core->getResourceManager()->getTextureZero()});
+    if (material->getRoughness().size() == 0) material->setRoughness({core->getResourceManager()->getTextureZero()});
+    if (material->getOccluded().size() == 0) material->setOccluded({core->getResourceManager()->getTextureZero()});
+    if (material->getEmissive().size() == 0) material->setEmissive({core->getResourceManager()->getTextureZero()});
     material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
@@ -130,8 +130,8 @@ Main::Main() {
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
     auto spriteTree = spriteManager->createSprite();
     spriteManager->registerSprite(spriteTree);
-    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-    materialColor->setBaseColor(textureTree);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({textureTree});
     spriteTree->setMaterial(materialColor);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
@@ -147,8 +147,8 @@ Main::Main() {
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
     auto spriteTree = spriteManager->createSprite();
     spriteManager->registerSprite(spriteTree);
-    auto materialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    materialPhong->setBaseColor(textureTree);
+    auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialPhong->setBaseColor({textureTree});
     fillMaterialPhong(materialPhong);
     spriteTree->setMaterial(materialPhong);
     {
@@ -164,8 +164,8 @@ Main::Main() {
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
     auto spriteTree = spriteManager->createSprite();
     spriteManager->registerSprite(spriteTree);
-    auto materialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-    materialPBR->setBaseColor(textureTree);
+    auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
     spriteTree->setMaterial(materialPBR);
     {
@@ -182,8 +182,8 @@ Main::Main() {
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-    materialColor->setBaseColor(texture);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -2.5f));
@@ -199,8 +199,8 @@ Main::Main() {
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-    materialColor->setBaseColor(texture);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::WIREFRAME);
     {
@@ -217,8 +217,8 @@ Main::Main() {
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-    materialColor->setBaseColor(texture);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::NORMAL);
     {
@@ -235,8 +235,8 @@ Main::Main() {
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-    materialColor->setBaseColor(texture);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::TANGENT);
     {
@@ -257,9 +257,9 @@ Main::Main() {
         state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    material->setBaseColor(textureColor);
-    material->setSpecular(textureSpecular);
+    auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    material->setBaseColor({textureColor});
+    material->setSpecular({textureSpecular});
     material->setCoefficients(glm::vec3{0.2f}, glm::vec3{0.2f}, glm::vec3{1.f}, 32.f);
     fillMaterialPhong(material);
     sprite->setMaterial(material);
@@ -281,9 +281,9 @@ Main::Main() {
         state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    material->setBaseColor(textureColor);
-    material->setNormal(textureNormal);
+    auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    material->setBaseColor({textureColor});
+    material->setNormal({textureNormal});
     fillMaterialPhong(material);
     sprite->setMaterial(material);
     {
@@ -313,11 +313,11 @@ Main::Main() {
         state);
     auto sprite = spriteManager->createSprite();
     spriteManager->registerSprite(sprite);
-    auto material = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-    material->setBaseColor(textureColor);
-    material->setNormal(textureNormal);
-    material->setMetallic(textureMetallic);
-    material->setRoughness(textureRoughness);
+    auto material = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    material->setBaseColor({textureColor});
+    material->setNormal({textureNormal});
+    material->setMetallic({textureMetallic});
+    material->setRoughness({textureRoughness});
     fillMaterialPBR(material);
     sprite->setMaterial(material);
     {

@@ -38,10 +38,6 @@ struct LightPoint {
     vec3 position;
 };
 
-struct LightAmbient {
-    vec3 color; //radiance
-};
-
 layout(std140, set = 3, binding = 0) readonly buffer LightBufferDirectional {
     LightDirectional lightDirectional[];
 };

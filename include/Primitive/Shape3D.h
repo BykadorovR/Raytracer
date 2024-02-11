@@ -25,8 +25,7 @@ class Shape3D : public IDrawable, public IShadowable {
   std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetCameraGeometry;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;

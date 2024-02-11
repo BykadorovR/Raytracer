@@ -26,7 +26,7 @@ void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffs
 Main::Main() {
   int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
-  settings->setName("Sprite");
+  settings->setName("Terrain");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
@@ -101,29 +101,52 @@ Main::Main() {
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getSpecular() == nullptr) material->setSpecular(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0)
+      material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0)
+      material->setNormal(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getSpecular().size() == 0)
+      material->setSpecular(std::vector{4, core->getResourceManager()->getTextureZero()});
   };
 
   auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getMetallic() == nullptr) material->setMetallic(core->getResourceManager()->getTextureZero());
-    if (material->getRoughness() == nullptr) material->setRoughness(core->getResourceManager()->getTextureZero());
-    if (material->getOccluded() == nullptr) material->setOccluded(core->getResourceManager()->getTextureZero());
-    if (material->getEmissive() == nullptr) material->setEmissive(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0)
+      material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0)
+      material->setNormal(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getMetallic().size() == 0)
+      material->setMetallic(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getRoughness().size() == 0)
+      material->setRoughness(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getOccluded().size() == 0)
+      material->setOccluded(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getEmissive().size() == 0)
+      material->setEmissive(std::vector{4, core->getResourceManager()->getTextureZero()});
     material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
   };
 
+  auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/dirt.jpg"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                         mipMapLevels, commandBufferTransfer, state);
+  auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass.jpg"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                         mipMapLevels, commandBufferTransfer, state);
+  auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock_gray.png"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                         mipMapLevels, commandBufferTransfer, state);
+  auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/snow.png"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                         mipMapLevels, commandBufferTransfer, state);
+
   _terrain = std::make_shared<Terrain>(
-      std::array<std::string, 4>{"../assets/dirt.jpg", "../assets/grass.jpg", "../assets/rock_gray.png",
-                                 "../assets/snow.png"},
-      "../assets/heightmap.png", std::pair{12, 12},
+      _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      lightManager, _core->getResourceManager(), state);
+      lightManager, state);
+  auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  materialColor->setBaseColor({tile0, tile1, tile2, tile3});
+  _terrain->setMaterial(materialColor);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));

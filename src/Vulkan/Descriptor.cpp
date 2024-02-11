@@ -545,8 +545,8 @@ void DescriptorSet::createShaderStorageBuffer(int currentFrame,
 }
 
 void DescriptorSet::createCustom(int currentFrame,
-                                 std::map<int, VkDescriptorBufferInfo> buffers,
-                                 std::map<int, VkDescriptorImageInfo> images) {
+                                 std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
+                                 std::map<int, std::vector<VkDescriptorImageInfo>> images) {
   auto info = _layout->getLayoutInfo();
   std::vector<VkWriteDescriptorSet> descriptorWrites(info.size());
   for (int i = 0; i < info.size(); i++) {
@@ -559,11 +559,11 @@ void DescriptorSet::createCustom(int currentFrame,
     switch (descriptorWrites[i].descriptorType) {
       case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
       case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-        descriptorWrites[i].pBufferInfo = &buffers[descriptorWrites[i].dstBinding];
+        descriptorWrites[i].pBufferInfo = buffers[descriptorWrites[i].dstBinding].data();
         break;
       case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
       case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-        descriptorWrites[i].pImageInfo = &images[descriptorWrites[i].dstBinding];
+        descriptorWrites[i].pImageInfo = images[descriptorWrites[i].dstBinding].data();
     }
   }
 

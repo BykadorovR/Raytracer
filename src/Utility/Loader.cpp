@@ -308,9 +308,12 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
   std::vector<std::shared_ptr<Texture>> textures(modelInternal.images.size(), nullptr);
   for (size_t i = 0; i < modelInternal.materials.size(); i++) {
     tinygltf::Material glTFMaterial = modelInternal.materials[i];
-    std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
-    std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(_commandBufferTransfer, _state);
-    std::shared_ptr<MaterialColor> materialColor = std::make_shared<MaterialColor>(_commandBufferTransfer, _state);
+    std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE,
+                                                                                   _commandBufferTransfer, _state);
+    std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE,
+                                                                             _commandBufferTransfer, _state);
+    std::shared_ptr<MaterialColor> materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
+                                                                                   _commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
     float metallicFactor = 0;
     float roughnessFactor = 0;
@@ -342,13 +345,13 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto baseColorImageIndex = modelInternal.textures[baseColorTextureIndex].source;
         // set texture to phong material
-        materialPhong->setBaseColor(_loadTexture(
-            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures));
+        materialPhong->setBaseColor({_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
         // set texture to PBR material
-        materialPBR->setBaseColor(_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                               modelInternal, textures));
-        materialColor->setBaseColor(_loadTexture(
-            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures));
+        materialPBR->setBaseColor({_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                                modelInternal, textures)});
+        materialColor->setBaseColor({_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
       }
     }
     // Get normal texture
@@ -358,11 +361,11 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto normalImageIndex = modelInternal.textures[normalTextureIndex].source;
         // set normal texture to phong material
-        materialPhong->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                              modelInternal, textures));
+        materialPhong->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                               modelInternal, textures)});
         // set normal texture to PBR material
-        materialPBR->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                            modelInternal, textures));
+        materialPBR->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                             modelInternal, textures)});
       }
     }
     // Get metallic-roughness texture
@@ -372,17 +375,17 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto metallicRoughnessImageIndex = modelInternal.textures[metallicRoughnessTextureIndex].source;
         // set specular texture to Phong material
-        materialPhong->setSpecular(_loadTexture(metallicRoughnessImageIndex,
-                                                _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                                textures));
+        materialPhong->setSpecular(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
         // set metallic texture to PBR material
-        materialPBR->setMetallic(_loadTexture(metallicRoughnessImageIndex,
-                                              _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                              textures));
+        materialPBR->setMetallic(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
         // set roughness texture to PBR material
-        materialPBR->setRoughness(_loadTexture(metallicRoughnessImageIndex,
-                                               _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                               textures));
+        materialPBR->setRoughness(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
       }
     }
     // Get occlusion texture
@@ -390,8 +393,8 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
       if (occlusionTextureIndex >= 0) {
         auto occlusionImageIndex = modelInternal.textures[occlusionTextureIndex].source;
-        materialPBR->setOccluded(_loadTexture(
-            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures));
+        materialPBR->setOccluded({_loadTexture(
+            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures)});
       }
     }
     // Get emissive texture
@@ -399,8 +402,8 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       auto emissiveTextureIndex = glTFMaterial.emissiveTexture.index;
       if (emissiveTextureIndex >= 0) {
         auto emissiveImageIndex = modelInternal.textures[emissiveTextureIndex].source;
-        materialPBR->setEmissive(_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                              modelInternal, textures));
+        materialPBR->setEmissive({_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                               modelInternal, textures)});
       }
     }
 

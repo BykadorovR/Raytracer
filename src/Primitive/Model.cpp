@@ -18,10 +18,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _meshes = meshes;
 
   // default material if model doesn't have material at all, we still have to send data to shader
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMaterialPhong->setBaseColor(resourceManager->getTextureOne());
-  _defaultMaterialPhong->setNormal(resourceManager->getTextureZero());
-  _defaultMaterialPhong->setSpecular(resourceManager->getTextureZero());
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPhong->setBaseColor({resourceManager->getTextureOne()});
+  _defaultMaterialPhong->setNormal({resourceManager->getTextureZero()});
+  _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
 
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO

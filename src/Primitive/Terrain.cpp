@@ -52,35 +52,21 @@ struct HeightLevels {
   }
 };
 
-Terrain::Terrain(std::array<std::string, 4> tiles,
-                 std::string heightMap,
+Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::pair<int, int> patchNumber,
                  std::vector<VkFormat> renderFormat,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<LightManager> lightManager,
-                 std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state) {
   _state = state;
   _patchNumber = patchNumber;
   _lightManager = lightManager;
 
-  _defaultMaterial = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-
-  _terrainTiles[0] = std::make_shared<Texture>(resourceManager->loadImage({tiles[0]}),
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[1] = std::make_shared<Texture>(resourceManager->loadImage({tiles[1]}),
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[2] = std::make_shared<Texture>(resourceManager->loadImage({tiles[2]}),
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-  _terrainTiles[3] = std::make_shared<Texture>(resourceManager->loadImage({tiles[3]}),
-                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, _mipMap, commandBufferTransfer, state);
-
-  _heightMap = std::make_shared<Texture>(resourceManager->loadImage({heightMap}),
-                                         _state->getSettings()->getLoadTextureAuxilaryFormat(),
+  // needed for layout
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  _heightMap = std::make_shared<Texture>(heightMap, _state->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   // vertex generation
@@ -117,6 +103,70 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
   }
   _mesh->setVertices(vertices, commandBufferTransfer);
 
+  auto setCameraControl = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setCameraControl->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+
+  auto setCameraEvaluation = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setCameraEvaluation->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+
+  auto setCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
+
+  auto setHeight = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  setHeight->createTexture(1, 0, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+
+  // layout for Color
+  _descriptorSetLayout[MaterialType::COLOR].push_back({std::string("cameraControl"), setCameraControl});
+  _descriptorSetLayout[MaterialType::COLOR].push_back({std::string("cameraEvaluation"), setCameraEvaluation});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(std::pair{std::string("height"), setHeight});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(
+      {std::string("lightVP"), _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(
+      {std::string("texture"), _defaultMaterialColor->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::COLOR].push_back(
+      {std::string("shadowTexture"), _lightManager->getDSLShadowTexture()});
+
+  // layout for Phong
+  _descriptorSetLayout[MaterialType::PHONG].push_back({std::string("cameraControl"), setCameraControl});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({std::string("cameraEvaluation"), setCameraEvaluation});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(std::pair{std::string("height"), setHeight});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {std::string("lightVP"), _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {std::string("texture"), _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {std::string("shadowTexture"), _lightManager->getDSLShadowTexture()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back({std::string("lightPhong"), lightManager->getDSLLightPhong()});
+  _descriptorSetLayout[MaterialType::PHONG].push_back(
+      {"materialCoefficients", _defaultMaterialPhong->getDescriptorSetLayoutCoefficients()});
+
+  // layout for PBR
+  _descriptorSetLayout[MaterialType::PBR].push_back({std::string("cameraControl"), setCameraControl});
+  _descriptorSetLayout[MaterialType::PBR].push_back({std::string("cameraEvaluation"), setCameraEvaluation});
+  _descriptorSetLayout[MaterialType::PBR].push_back(std::pair{std::string("height"), setHeight});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {std::string("lightVP"), _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {std::string("texture"), _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {std::string("shadowTexture"), _lightManager->getDSLShadowTexture()});
+  _descriptorSetLayout[MaterialType::PBR].push_back({std::string("lightPBR"), lightManager->getDSLLightPBR()});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {"materialCoefficients", _defaultMaterialPBR->getDescriptorSetLayoutCoefficients()});
+  _descriptorSetLayout[MaterialType::PBR].push_back(
+      {"alphaMask", _defaultMaterialPBR->getDescriptorSetLayoutAlphaCutoff()});
+
+  // layout for Normal
+  _descriptorSetLayoutNormalsMesh.push_back({std::string("cameraControl"), setCameraControl});
+  _descriptorSetLayoutNormalsMesh.push_back({std::string("cameraEvaluation"), setCameraEvaluation});
+  _descriptorSetLayoutNormalsMesh.push_back({std::string("height"), setHeight});
+  _descriptorSetLayoutNormalsMesh.push_back({std::string("cameraGeometry"), setCameraGeometry});
+
+  // layout for Shadows
+  _descriptorSetLayoutShadows.push_back({std::string("cameraControl"), setCameraControl});
+  _descriptorSetLayoutShadows.push_back({std::string("cameraEvaluation"), setCameraEvaluation});
+  _descriptorSetLayoutShadows.push_back({std::string("height"), setHeight});
+
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                   state);
 
@@ -134,21 +184,6 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
     _cameraBufferDepth.push_back(facesBuffer);
   }
 
-  auto setCameraControl = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraControl->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-
-  auto setCameraEvaluation = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraEvaluation->createUniformBuffer(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-
-  auto setCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
-
-  auto setHeight = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setHeight->createTexture(1, 0, VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-
-  auto setTerrainTiles = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setTerrainTiles->createTexture(4);
-
   _descriptorSetCameraControl = std::make_shared<DescriptorSet>(
       state->getSettings()->getMaxFramesInFlight(), setCameraControl, state->getDescriptorPool(), state->getDevice());
   _descriptorSetCameraControl->createUniformBuffer(_cameraBuffer);
@@ -165,11 +200,6 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
   _descriptorSetHeight = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setHeight,
                                                          state->getDescriptorPool(), state->getDevice());
   _descriptorSetHeight->createTexture({_heightMap});
-
-  _descriptorSetTerrainTiles = std::make_shared<DescriptorSet>(
-      state->getSettings()->getMaxFramesInFlight(), setTerrainTiles, state->getDescriptorPool(), state->getDevice());
-  _descriptorSetTerrainTiles->createTexture(
-      std::vector<std::shared_ptr<Texture>>(_terrainTiles.begin(), _terrainTiles.end()));
 
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
     {
@@ -209,112 +239,144 @@ Terrain::Terrain(std::array<std::string, 4> tiles,
     _descriptorSetCameraDepthEvaluation.push_back(facesSetEvaluation);
   }
 
-  auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("shaders/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/terrain_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shader->add("shaders/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-  shader->add("shaders/terrain_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-
-  auto shaderNormal = std::make_shared<Shader>(state->getDevice());
-  shaderNormal->add("shaders/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shaderNormal->add("shaders/normal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  shaderNormal->add("shaders/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-  shaderNormal->add("shaders/normal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-  shaderNormal->add("shaders/normal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
-
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();
   defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
   defaultPushConstants["fragment"] = HeightLevels::getPushConstant();
 
-  _pipeline[TerrainRenderMode::FULL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline[TerrainRenderMode::FULL]->createGraphicTerrain(
-      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
-       shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
-       shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
-      {std::pair{std::string("cameraControl"), setCameraControl},
-       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
-       std::pair{std::string("terrainTiles"), setTerrainTiles},
-       std::pair{std::string("lightPhong"), lightManager->getDSLLightPhong()},
-       std::pair{std::string("shadowTexture"), _lightManager->getDSLShadowTexture()},
-       std::pair{std::string("lightVP"),
-                 _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
-       std::pair{"phongCoefficients", _defaultMaterial->getDescriptorSetLayoutCoefficients()}},
-      defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
-
-  _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineNormal->createGraphicTerrain(
-      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-      {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
-       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
-       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
-       shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
-      {std::pair{std::string("cameraControl"), setCameraControl},
-       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
-       std::pair{std::string("cameraGeometry"), setCameraGeometry}},
-      defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
-
-  _pipelineWireframe = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipelineWireframe->createGraphicTerrain(
-      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT), shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
-       shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
-       shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
-      {std::pair{std::string("cameraControl"), setCameraControl},
-       std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight},
-       std::pair{std::string("terrainTiles"), setTerrainTiles},
-       std::pair{std::string("lightPhong"), lightManager->getDSLLightPhong()},
-       std::pair{std::string("shadowTexture"), _lightManager->getDSLShadowTexture()},
-       std::pair{std::string("lightVP"),
-                 _lightManager->getDSLViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
-       std::pair{"phongCoefficients", _defaultMaterial->getDescriptorSetLayoutCoefficients()}},
-      defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
-
+  // initialize Color
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("shaders/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrain/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrain/terrainColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipeline[MaterialType::COLOR]->createGraphicTerrain(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
+        _descriptorSetLayout[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+
+    _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineWireframe[MaterialType::COLOR]->createGraphicTerrain(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
+        _descriptorSetLayout[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+
+  // initialize Normal (per vertex)
+  {
+    auto shaderNormal = std::make_shared<Shader>(state->getDevice());
+    shaderNormal->add("shaders/terrain/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shaderNormal->add("shaders/terrain/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shaderNormal->add("shaders/terrain/terrainNormal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
+
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh->createGraphicTerrain(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+        _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+
+  // initialize Tangent (per vertex)
+  {
+    auto shaderNormal = std::make_shared<Shader>(state->getDevice());
+    shaderNormal->add("shaders/terrain/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shaderNormal->add("shaders/terrain/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shaderNormal->add("shaders/terrain/terrainTangent_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
+
+    _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineTangentMesh->createGraphicTerrain(
+        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
+         shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+        _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+
+  // initialize Shadows (Directional)
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();
     defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
 
-    _pipeline[TerrainRenderMode::DIRECTIONAL] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline[TerrainRenderMode::DIRECTIONAL]->createGraphicTerrainShadowGPU(
+    _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional->createGraphicTerrainShadowGPU(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
-        {std::pair{std::string("cameraControl"), setCameraControl},
-         std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight}},
-        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _descriptorSetLayoutShadows, defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
   }
+
+  // initialize Shadows (Point)
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-    shader->add("shaders/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-    shader->add("shaders/terrainDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    shader->add("shaders/terrain/terrainDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["control"] = LoDConstants::getPushConstant();
     defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(sizeof(LoDConstants) + sizeof(PatchConstants));
 
-    _pipeline[TerrainRenderMode::POINT] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline[TerrainRenderMode::POINT]->createGraphicTerrainShadowGPU(
+    _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint->createGraphicTerrainShadowGPU(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {std::pair{std::string("cameraControl"), setCameraControl},
-         std::pair{std::string("cameraEvaluation"), setCameraEvaluation}, std::pair{std::string("height"), setHeight}},
-        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _descriptorSetLayoutShadows, defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
   }
+}
+
+void Terrain::enableShadow(bool enable) { _enableShadow = enable; }
+
+void Terrain::enableLighting(bool enable) { _enableLighting = enable; }
+
+void Terrain::setMaterial(std::shared_ptr<MaterialColor> material) {
+  _material = material;
+  _materialType = MaterialType::COLOR;
+}
+
+void Terrain::setMaterial(std::shared_ptr<MaterialPhong> material) {
+  _material = material;
+  _materialType = MaterialType::PHONG;
+}
+
+void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
+  _material = material;
+  _materialType = MaterialType::PBR;
 }
 
 void Terrain::setModel(glm::mat4 model) { _model = model; }
@@ -450,12 +512,13 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
     {
       auto terrainLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                         [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                          return info.first == std::string("terrainTiles");
+                                          return info.first == std::string("texture");
                                         });
       if (terrainLayout != pipelineLayout.end()) {
         vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                pipeline->getPipelineLayout(), 3, 1,
-                                &_descriptorSetTerrainTiles->getDescriptorSets()[currentFrame], 0, nullptr);
+                                pipeline->getPipelineLayout(), 4, 1,
+                                &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame],
+                                0, nullptr);
       }
     }
 
@@ -464,8 +527,17 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
         [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPhong"; });
     if (lightLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 4, 1,
+                              pipeline->getPipelineLayout(), 6, 1,
                               &_lightManager->getDSLightPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    }
+
+    lightLayout = std::find_if(
+        pipelineLayout.begin(), pipelineLayout.end(),
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPBR"; });
+    if (lightLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 6, 1,
+                              &_lightManager->getDSLightPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -484,37 +556,50 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
         [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
     if (lightVPLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 6, 1,
+                              pipeline->getPipelineLayout(), 3, 1,
                               &_lightManager->getDSViewProjection(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)
                                    ->getDescriptorSets()[currentFrame],
                               0, nullptr);
     }
 
-    auto phongCoefficientsLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                                [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                                  return info.first == std::string("phongCoefficients");
-                                                });
+    auto materialCoefficientsLayout = std::find_if(
+        pipelineLayout.begin(), pipelineLayout.end(),
+        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+          return info.first == std::string("materialCoefficients");
+        });
     // assign coefficients
-    if (phongCoefficientsLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(
-          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 7, 1,
-          &_defaultMaterial->getDescriptorSetCoefficients(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
+    if (materialCoefficientsLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 7, 1,
+                              &_material->getDescriptorSetCoefficients(currentFrame)->getDescriptorSets()[currentFrame],
+                              0, nullptr);
+    }
+
+    // alpha mask
+    auto alphaMaskLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                          return info.first == std::string("alphaMask");
+                                        });
+    if (alphaMaskLayout != pipelineLayout.end()) {
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 8, 1,
+                              &_material->getDescriptorSetAlphaCutoff()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
   };
 
-  std::shared_ptr<Pipeline> pipeline = _pipeline[TerrainRenderMode::FULL];
-  if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
+  auto pipeline = _pipeline[_materialType];
+  if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
+  if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalMesh;
+  if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawTerrain(pipeline);
-
-  if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) drawTerrain(_pipelineNormal);
 }
 
 void Terrain::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer, LightType lightType, int lightIndex, int face) {
   int currentFrame = _state->getFrameInFlight();
-  auto pipeline = _pipeline[(TerrainRenderMode)lightType];
+  auto pipeline = _pipelineDirectional;
+  if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());

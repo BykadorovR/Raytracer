@@ -120,8 +120,8 @@ Main::Main() {
       settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  auto materialCubeTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialCubeTextured->setBaseColor(cubemap->getTexture());
+  auto materialCubeTextured = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialCubeTextured->setBaseColor({cubemap->getTexture()});
   _cubeTextured = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
@@ -148,10 +148,10 @@ Main::Main() {
       settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  auto materialCubePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialCubePhong->setBaseColor(cubemapColorPhong->getTexture());
-  materialCubePhong->setNormal(cubemapNormalPhong->getTexture());
-  materialCubePhong->setSpecular(_core->getResourceManager()->getCubemapZero()->getTexture());
+  auto materialCubePhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialCubePhong->setBaseColor({cubemapColorPhong->getTexture()});
+  materialCubePhong->setNormal({cubemapNormalPhong->getTexture()});
+  materialCubePhong->setSpecular({_core->getResourceManager()->getCubemapZero()->getTexture()});
 
   auto cubeTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -225,8 +225,9 @@ Main::Main() {
       settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  auto materialCubeTexturedNormalFragment = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialCubeTexturedNormalFragment->setBaseColor(cubemapNormal->getTexture());
+  auto materialCubeTexturedNormalFragment = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
+                                                                            commandBufferTransfer, state);
+  materialCubeTexturedNormalFragment->setBaseColor({cubemapNormal->getTexture()});
   auto cubeTexturedNormalFragment = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
@@ -253,10 +254,11 @@ Main::Main() {
       settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  auto materialCubePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialCubePhongSpecular->setBaseColor(cubemapColorPhongContainer->getTexture());
-  materialCubePhongSpecular->setNormal(_core->getResourceManager()->getCubemapZero()->getTexture());
-  materialCubePhongSpecular->setSpecular(cubemapSpecularPhong->getTexture());
+  auto materialCubePhongSpecular = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer,
+                                                                   state);
+  materialCubePhongSpecular->setBaseColor({cubemapColorPhongContainer->getTexture()});
+  materialCubePhongSpecular->setNormal({_core->getResourceManager()->getCubemapZero()->getTexture()});
+  materialCubePhongSpecular->setSpecular({cubemapSpecularPhong->getTexture()});
   materialCubePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
 
   auto cubeTexturedPhongSpecular = std::make_shared<Shape3D>(
@@ -303,14 +305,14 @@ Main::Main() {
       settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       commandBufferTransfer, state);
-  auto materialCubePBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  auto materialCubePBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   // material can't have default state because it can be either cubemap or texture2D
-  materialCubePBR->setBaseColor(cubemapColorPBR->getTexture());
-  materialCubePBR->setNormal(cubemapNormalPBR->getTexture());
-  materialCubePBR->setMetallic(cubemapMetallicPBR->getTexture());
-  materialCubePBR->setRoughness(cubemapRoughnessPBR->getTexture());
-  materialCubePBR->setEmissive(_core->getResourceManager()->getCubemapZero()->getTexture());
-  materialCubePBR->setOccluded(_core->getResourceManager()->getCubemapZero()->getTexture());
+  materialCubePBR->setBaseColor({cubemapColorPBR->getTexture()});
+  materialCubePBR->setNormal({cubemapNormalPBR->getTexture()});
+  materialCubePBR->setMetallic({cubemapMetallicPBR->getTexture()});
+  materialCubePBR->setRoughness({cubemapRoughnessPBR->getTexture()});
+  materialCubePBR->setEmissive({_core->getResourceManager()->getCubemapZero()->getTexture()});
+  materialCubePBR->setOccluded({_core->getResourceManager()->getCubemapZero()->getTexture()});
   materialCubePBR->setDiffuseIBL(_core->getResourceManager()->getCubemapZero()->getTexture());
   materialCubePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                   _core->getResourceManager()->getTextureZero());
@@ -356,8 +358,8 @@ Main::Main() {
   auto sphereTexture = std::make_shared<Texture>(
       _core->getResourceManager()->loadImage({"../assets/right.jpg"}), settings->getLoadTextureAuxilaryFormat(),
       VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-  auto materialSphereTextured = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialSphereTextured->setBaseColor(sphereTexture);
+  auto materialSphereTextured = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialSphereTextured->setBaseColor({sphereTexture});
   auto sphereTextured = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
@@ -377,10 +379,10 @@ Main::Main() {
       _core->getResourceManager()->loadImage({"../assets/brickwall_normal.jpg"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
-  auto materialSpherePhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialSpherePhong->setBaseColor(sphereTexturePhong);
-  materialSpherePhong->setNormal(sphereNormalPhong);
-  materialSpherePhong->setSpecular(_core->getResourceManager()->getTextureZero());
+  auto materialSpherePhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialSpherePhong->setBaseColor({sphereTexturePhong});
+  materialSpherePhong->setNormal({sphereNormalPhong});
+  materialSpherePhong->setSpecular({_core->getResourceManager()->getTextureZero()});
 
   auto sphereTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -447,8 +449,9 @@ Main::Main() {
   _core->addDrawable(sphereTexturedPhongNormalMesh);
 
   // sphere Color fragment normal
-  auto materialSphereTexturedNormalFragment = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialSphereTexturedNormalFragment->setBaseColor(sphereNormalPhong);
+  auto materialSphereTexturedNormalFragment = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
+                                                                              commandBufferTransfer, state);
+  materialSphereTexturedNormalFragment->setBaseColor({sphereNormalPhong});
   auto sphereTexturedNormalFragment = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
@@ -468,10 +471,11 @@ Main::Main() {
       _core->getResourceManager()->loadImage({"../assets/container_specular.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
-  auto materialSpherePhongSpecular = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialSpherePhongSpecular->setBaseColor(sphereColorPhongContainer);
-  materialSpherePhongSpecular->setNormal(_core->getResourceManager()->getTextureZero());
-  materialSpherePhongSpecular->setSpecular(sphereSpecularPhongContainer);
+  auto materialSpherePhongSpecular = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer,
+                                                                     state);
+  materialSpherePhongSpecular->setBaseColor({sphereColorPhongContainer});
+  materialSpherePhongSpecular->setNormal({_core->getResourceManager()->getTextureZero()});
+  materialSpherePhongSpecular->setSpecular({sphereSpecularPhongContainer});
   materialSpherePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
 
   auto sphereTexturedPhongSpecular = std::make_shared<Shape3D>(
@@ -503,14 +507,14 @@ Main::Main() {
       _core->getResourceManager()->loadImage({"../assets/rustediron2_roughness.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
-  auto materialSpherePBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  auto materialSpherePBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   // material can't have default state because it can be either cubemap or texture2D
-  materialSpherePBR->setBaseColor(sphereColorPBR);
-  materialSpherePBR->setNormal(sphereNormalPBR);
-  materialSpherePBR->setMetallic(sphereMetallicPBR);
-  materialSpherePBR->setRoughness(sphereRoughnessPBR);
-  materialSpherePBR->setEmissive(_core->getResourceManager()->getTextureZero());
-  materialSpherePBR->setOccluded(_core->getResourceManager()->getTextureZero());
+  materialSpherePBR->setBaseColor({sphereColorPBR});
+  materialSpherePBR->setNormal({sphereNormalPBR});
+  materialSpherePBR->setMetallic({sphereMetallicPBR});
+  materialSpherePBR->setRoughness({sphereRoughnessPBR});
+  materialSpherePBR->setEmissive({_core->getResourceManager()->getTextureZero()});
+  materialSpherePBR->setOccluded({_core->getResourceManager()->getTextureZero()});
   materialSpherePBR->setDiffuseIBL(_core->getResourceManager()->getCubemapZero()->getTexture());
   materialSpherePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                     _core->getResourceManager()->getTextureZero());

@@ -101,18 +101,18 @@ Main::Main() {
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getSpecular() == nullptr) material->setSpecular(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getSpecular().size() == 0) material->setSpecular({core->getResourceManager()->getTextureZero()});
   };
 
   auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
-    if (material->getBaseColor() == nullptr) material->setBaseColor(core->getResourceManager()->getTextureOne());
-    if (material->getNormal() == nullptr) material->setNormal(core->getResourceManager()->getTextureZero());
-    if (material->getMetallic() == nullptr) material->setMetallic(core->getResourceManager()->getTextureZero());
-    if (material->getRoughness() == nullptr) material->setRoughness(core->getResourceManager()->getTextureZero());
-    if (material->getOccluded() == nullptr) material->setOccluded(core->getResourceManager()->getTextureZero());
-    if (material->getEmissive() == nullptr) material->setEmissive(core->getResourceManager()->getTextureZero());
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getMetallic().size() == 0) material->setMetallic({core->getResourceManager()->getTextureZero()});
+    if (material->getRoughness().size() == 0) material->setRoughness({core->getResourceManager()->getTextureZero()});
+    if (material->getOccluded().size() == 0) material->setOccluded({core->getResourceManager()->getTextureZero()});
+    if (material->getEmissive().size() == 0) material->setEmissive({core->getResourceManager()->getTextureZero()});
     material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());

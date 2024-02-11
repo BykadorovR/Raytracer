@@ -79,81 +79,96 @@ std::shared_ptr<DescriptorSetLayout> Material::getDescriptorSetLayoutAlphaCutoff
 }
 
 void MaterialPBR::_updateTextureDescriptors(int currentFrame) {
-  std::map<int, VkDescriptorImageInfo> images;
-  VkDescriptorImageInfo colorTextureInfo{};
-  colorTextureInfo.imageLayout = _textureColor->getImageView()->getImage()->getImageLayout();
-  colorTextureInfo.imageView = _textureColor->getImageView()->getImageView();
-  colorTextureInfo.sampler = _textureColor->getSampler()->getSampler();
+  std::map<int, std::vector<VkDescriptorImageInfo>> images;
+  std::vector<VkDescriptorImageInfo> colorTextureInfo(_textureColor.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    colorTextureInfo[i].imageLayout = _textureColor[i]->getImageView()->getImage()->getImageLayout();
+    colorTextureInfo[i].imageView = _textureColor[i]->getImageView()->getImageView();
+    colorTextureInfo[i].sampler = _textureColor[i]->getSampler()->getSampler();
+  }
   images[0] = colorTextureInfo;
-  VkDescriptorImageInfo normalTextureInfo{};
-  normalTextureInfo.imageLayout = _textureNormal->getImageView()->getImage()->getImageLayout();
-  normalTextureInfo.imageView = _textureNormal->getImageView()->getImageView();
-  normalTextureInfo.sampler = _textureNormal->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> normalTextureInfo(_textureNormal.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    normalTextureInfo[i].imageLayout = _textureNormal[i]->getImageView()->getImage()->getImageLayout();
+    normalTextureInfo[i].imageView = _textureNormal[i]->getImageView()->getImageView();
+    normalTextureInfo[i].sampler = _textureNormal[i]->getSampler()->getSampler();
+  }
   images[1] = normalTextureInfo;
-  VkDescriptorImageInfo metallicTextureInfo{};
-  metallicTextureInfo.imageLayout = _textureMetallic->getImageView()->getImage()->getImageLayout();
-  metallicTextureInfo.imageView = _textureMetallic->getImageView()->getImageView();
-  metallicTextureInfo.sampler = _textureMetallic->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> metallicTextureInfo(_textureMetallic.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    metallicTextureInfo[i].imageLayout = _textureMetallic[i]->getImageView()->getImage()->getImageLayout();
+    metallicTextureInfo[i].imageView = _textureMetallic[i]->getImageView()->getImageView();
+    metallicTextureInfo[i].sampler = _textureMetallic[i]->getSampler()->getSampler();
+  }
   images[2] = metallicTextureInfo;
-  VkDescriptorImageInfo roughnessTextureInfo{};
-  roughnessTextureInfo.imageLayout = _textureRoughness->getImageView()->getImage()->getImageLayout();
-  roughnessTextureInfo.imageView = _textureRoughness->getImageView()->getImageView();
-  roughnessTextureInfo.sampler = _textureRoughness->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> roughnessTextureInfo(_textureRoughness.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    roughnessTextureInfo[i].imageLayout = _textureRoughness[i]->getImageView()->getImage()->getImageLayout();
+    roughnessTextureInfo[i].imageView = _textureRoughness[i]->getImageView()->getImageView();
+    roughnessTextureInfo[i].sampler = _textureRoughness[i]->getSampler()->getSampler();
+  }
   images[3] = roughnessTextureInfo;
-  VkDescriptorImageInfo occludedTextureInfo{};
-  occludedTextureInfo.imageLayout = _textureOccluded->getImageView()->getImage()->getImageLayout();
-  occludedTextureInfo.imageView = _textureOccluded->getImageView()->getImageView();
-  occludedTextureInfo.sampler = _textureOccluded->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> occludedTextureInfo(_textureOccluded.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    occludedTextureInfo[i].imageLayout = _textureOccluded[i]->getImageView()->getImage()->getImageLayout();
+    occludedTextureInfo[i].imageView = _textureOccluded[i]->getImageView()->getImageView();
+    occludedTextureInfo[i].sampler = _textureOccluded[i]->getSampler()->getSampler();
+  }
   images[4] = occludedTextureInfo;
-  VkDescriptorImageInfo emissiveTextureInfo{};
-  emissiveTextureInfo.imageLayout = _textureEmissive->getImageView()->getImage()->getImageLayout();
-  emissiveTextureInfo.imageView = _textureEmissive->getImageView()->getImageView();
-  emissiveTextureInfo.sampler = _textureEmissive->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> emissiveTextureInfo(_textureEmissive.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    emissiveTextureInfo[i].imageLayout = _textureEmissive[i]->getImageView()->getImage()->getImageLayout();
+    emissiveTextureInfo[i].imageView = _textureEmissive[i]->getImageView()->getImageView();
+    emissiveTextureInfo[i].sampler = _textureEmissive[i]->getSampler()->getSampler();
+  }
   images[5] = emissiveTextureInfo;
   VkDescriptorImageInfo diffuseIBLTextureInfo{};
   diffuseIBLTextureInfo.imageLayout = _textureDiffuseIBL->getImageView()->getImage()->getImageLayout();
   diffuseIBLTextureInfo.imageView = _textureDiffuseIBL->getImageView()->getImageView();
   diffuseIBLTextureInfo.sampler = _textureDiffuseIBL->getSampler()->getSampler();
-  images[6] = diffuseIBLTextureInfo;
+  images[6] = {diffuseIBLTextureInfo};
   VkDescriptorImageInfo specularIBLTextureInfo{};
   specularIBLTextureInfo.imageLayout = _textureSpecularIBL->getImageView()->getImage()->getImageLayout();
   specularIBLTextureInfo.imageView = _textureSpecularIBL->getImageView()->getImageView();
   specularIBLTextureInfo.sampler = _textureSpecularIBL->getSampler()->getSampler();
-  images[7] = specularIBLTextureInfo;
+  images[7] = {specularIBLTextureInfo};
   VkDescriptorImageInfo specularBRDFTextureInfo{};
   specularBRDFTextureInfo.imageLayout = _textureSpecularBRDF->getImageView()->getImage()->getImageLayout();
   specularBRDFTextureInfo.imageView = _textureSpecularBRDF->getImageView()->getImageView();
   specularBRDFTextureInfo.sampler = _textureSpecularBRDF->getSampler()->getSampler();
-  images[8] = specularBRDFTextureInfo;
+  images[8] = {specularBRDFTextureInfo};
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
-MaterialPBR::MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
+MaterialPBR::MaterialPBR(MaterialTarget target,
+                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                         std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
+  _target = target;
   // define textures
   std::vector<VkDescriptorSetLayoutBinding> layoutTextures(9);
   layoutTextures[0].binding = 0;
-  layoutTextures[0].descriptorCount = 1;
+  layoutTextures[0].descriptorCount = static_cast<int>(target);
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[1].binding = 1;
-  layoutTextures[1].descriptorCount = 1;
+  layoutTextures[1].descriptorCount = static_cast<int>(target);
   layoutTextures[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[2].binding = 2;
-  layoutTextures[2].descriptorCount = 1;
+  layoutTextures[2].descriptorCount = static_cast<int>(target);
   layoutTextures[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[3].binding = 3;
-  layoutTextures[3].descriptorCount = 1;
+  layoutTextures[3].descriptorCount = static_cast<int>(target);
   layoutTextures[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[4].binding = 4;
-  layoutTextures[4].descriptorCount = 1;
+  layoutTextures[4].descriptorCount = static_cast<int>(target);
   layoutTextures[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[5].binding = 5;
-  layoutTextures[5].descriptorCount = 1;
+  layoutTextures[5].descriptorCount = static_cast<int>(target);
   layoutTextures[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[6].binding = 6;
@@ -192,45 +207,63 @@ void MaterialPBR::_updateCoefficientDescriptors(int currentFrame) {
                 _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory());
 }
 
-const std::shared_ptr<Texture> MaterialPBR::getBaseColor() { return _textureColor; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getBaseColor() { return _textureColor; }
 
-const std::shared_ptr<Texture> MaterialPBR::getNormal() { return _textureNormal; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getNormal() { return _textureNormal; }
 
-const std::shared_ptr<Texture> MaterialPBR::getMetallic() { return _textureMetallic; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getMetallic() { return _textureMetallic; }
 
-const std::shared_ptr<Texture> MaterialPBR::getRoughness() { return _textureRoughness; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getRoughness() { return _textureRoughness; }
 
-const std::shared_ptr<Texture> MaterialPBR::getOccluded() { return _textureOccluded; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getOccluded() { return _textureOccluded; }
 
-const std::shared_ptr<Texture> MaterialPBR::getEmissive() { return _textureEmissive; }
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getEmissive() { return _textureEmissive; }
 
-void MaterialPBR::setBaseColor(std::shared_ptr<Texture> color) {
+void MaterialPBR::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != color.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureColor = color;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setNormal(std::shared_ptr<Texture> normal) {
+void MaterialPBR::setNormal(std::vector<std::shared_ptr<Texture>> normal) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != normal.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureNormal = normal;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setMetallic(std::shared_ptr<Texture> metallic) {
+void MaterialPBR::setMetallic(std::vector<std::shared_ptr<Texture>> metallic) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != metallic.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureMetallic = metallic;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setRoughness(std::shared_ptr<Texture> roughness) {
+void MaterialPBR::setRoughness(std::vector<std::shared_ptr<Texture>> roughness) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != roughness.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureRoughness = roughness;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setOccluded(std::shared_ptr<Texture> occluded) {
+void MaterialPBR::setOccluded(std::vector<std::shared_ptr<Texture>> occluded) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != occluded.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureOccluded = occluded;
+  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
+}
+
+void MaterialPBR::setEmissive(std::vector<std::shared_ptr<Texture>> emissive) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != emissive.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
+  _textureEmissive = emissive;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
@@ -247,12 +280,6 @@ void MaterialPBR::setSpecularIBL(std::shared_ptr<Texture> specularIBL, std::shar
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPBR::setEmissive(std::shared_ptr<Texture> emissive) {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  _textureEmissive = emissive;
-  for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
-}
-
 void MaterialPBR::setCoefficients(float metallicFactor,
                                   float roughnessFactor,
                                   float occlusionStrength,
@@ -265,19 +292,23 @@ void MaterialPBR::setCoefficients(float metallicFactor,
   for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
 }
 
-MaterialPhong::MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
+MaterialPhong::MaterialPhong(MaterialTarget target,
+                             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                             std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
+  _target = target;
+
   std::vector<VkDescriptorSetLayoutBinding> layoutTextures(3);
   layoutTextures[0].binding = 0;
-  layoutTextures[0].descriptorCount = 1;
+  layoutTextures[0].descriptorCount = static_cast<int>(target);
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[1].binding = 1;
-  layoutTextures[1].descriptorCount = 1;
+  layoutTextures[1].descriptorCount = static_cast<int>(target);
   layoutTextures[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   layoutTextures[2].binding = 2;
-  layoutTextures[2].descriptorCount = 1;
+  layoutTextures[2].descriptorCount = static_cast<int>(target);
   layoutTextures[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
@@ -305,45 +336,57 @@ void MaterialPhong::_updateCoefficientDescriptors(int currentFrame) {
 }
 
 void MaterialPhong::_updateTextureDescriptors(int currentFrame) {
-  std::map<int, VkDescriptorImageInfo> images;
-  VkDescriptorImageInfo colorTextureInfo{};
-  colorTextureInfo.imageLayout = _textureColor->getImageView()->getImage()->getImageLayout();
-  colorTextureInfo.imageView = _textureColor->getImageView()->getImageView();
-  colorTextureInfo.sampler = _textureColor->getSampler()->getSampler();
+  std::map<int, std::vector<VkDescriptorImageInfo>> images;
+  std::vector<VkDescriptorImageInfo> colorTextureInfo(_textureColor.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    colorTextureInfo[i].imageLayout = _textureColor[i]->getImageView()->getImage()->getImageLayout();
+    colorTextureInfo[i].imageView = _textureColor[i]->getImageView()->getImageView();
+    colorTextureInfo[i].sampler = _textureColor[i]->getSampler()->getSampler();
+  }
   images[0] = colorTextureInfo;
-  VkDescriptorImageInfo normalTextureInfo{};
-  normalTextureInfo.imageLayout = _textureNormal->getImageView()->getImage()->getImageLayout();
-  normalTextureInfo.imageView = _textureNormal->getImageView()->getImageView();
-  normalTextureInfo.sampler = _textureNormal->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> normalTextureInfo(_textureNormal.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    normalTextureInfo[i].imageLayout = _textureNormal[i]->getImageView()->getImage()->getImageLayout();
+    normalTextureInfo[i].imageView = _textureNormal[i]->getImageView()->getImageView();
+    normalTextureInfo[i].sampler = _textureNormal[i]->getSampler()->getSampler();
+  }
   images[1] = normalTextureInfo;
-  VkDescriptorImageInfo specularTextureInfo{};
-  specularTextureInfo.imageLayout = _textureSpecular->getImageView()->getImage()->getImageLayout();
-  specularTextureInfo.imageView = _textureSpecular->getImageView()->getImageView();
-  specularTextureInfo.sampler = _textureSpecular->getSampler()->getSampler();
+  std::vector<VkDescriptorImageInfo> specularTextureInfo(_textureSpecular.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    specularTextureInfo[i].imageLayout = _textureSpecular[i]->getImageView()->getImage()->getImageLayout();
+    specularTextureInfo[i].imageView = _textureSpecular[i]->getImageView()->getImageView();
+    specularTextureInfo[i].sampler = _textureSpecular[i]->getSampler()->getSampler();
+  }
   images[2] = specularTextureInfo;
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
-const std::shared_ptr<Texture> MaterialPhong::getBaseColor() { return _textureColor; }
+const std::vector<std::shared_ptr<Texture>> MaterialPhong::getBaseColor() { return _textureColor; }
 
-const std::shared_ptr<Texture> MaterialPhong::getNormal() { return _textureNormal; }
+const std::vector<std::shared_ptr<Texture>> MaterialPhong::getNormal() { return _textureNormal; }
 
-const std::shared_ptr<Texture> MaterialPhong::getSpecular() { return _textureSpecular; }
+const std::vector<std::shared_ptr<Texture>> MaterialPhong::getSpecular() { return _textureSpecular; }
 
-void MaterialPhong::setBaseColor(std::shared_ptr<Texture> color) {
+void MaterialPhong::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != color.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureColor = color;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPhong::setSpecular(std::shared_ptr<Texture> specular) {
+void MaterialPhong::setSpecular(std::vector<std::shared_ptr<Texture>> specular) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != specular.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureSpecular = specular;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
 
-void MaterialPhong::setNormal(std::shared_ptr<Texture> normal) {
+void MaterialPhong::setNormal(std::vector<std::shared_ptr<Texture>> normal) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != normal.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureNormal = normal;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
@@ -357,11 +400,15 @@ void MaterialPhong::setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::v
   for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
 }
 
-MaterialColor::MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
+MaterialColor::MaterialColor(MaterialTarget target,
+                             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                             std::shared_ptr<State> state)
     : Material(commandBufferTransfer, state) {
+  _target = target;
+
   std::vector<VkDescriptorSetLayoutBinding> layoutTextures(1);
   layoutTextures[0].binding = 0;
-  layoutTextures[0].descriptorCount = 1;
+  layoutTextures[0].descriptorCount = static_cast<int>(target);
   layoutTextures[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   layoutTextures[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   _descriptorSetLayoutTextures->createCustom(layoutTextures);
@@ -374,19 +421,23 @@ MaterialColor::MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfe
 void MaterialColor::_updateCoefficientDescriptors(int currentFrame) {}
 
 void MaterialColor::_updateTextureDescriptors(int currentFrame) {
-  std::map<int, VkDescriptorImageInfo> images;
-  VkDescriptorImageInfo colorTextureInfo{};
-  colorTextureInfo.imageLayout = _textureColor->getImageView()->getImage()->getImageLayout();
-  colorTextureInfo.imageView = _textureColor->getImageView()->getImageView();
-  colorTextureInfo.sampler = _textureColor->getSampler()->getSampler();
+  std::map<int, std::vector<VkDescriptorImageInfo>> images;
+  std::vector<VkDescriptorImageInfo> colorTextureInfo(_textureColor.size());
+  for (int i = 0; i < _textureColor.size(); i++) {
+    colorTextureInfo[i].imageLayout = _textureColor[i]->getImageView()->getImage()->getImageLayout();
+    colorTextureInfo[i].imageView = _textureColor[i]->getImageView()->getImageView();
+    colorTextureInfo[i].sampler = _textureColor[i]->getSampler()->getSampler();
+  }
   images[0] = colorTextureInfo;
   _descriptorSetTextures->createCustom(currentFrame, {}, images);
 }
 
-std::shared_ptr<Texture> MaterialColor::getBaseColor() { return _textureColor; }
+const std::vector<std::shared_ptr<Texture>> MaterialColor::getBaseColor() { return _textureColor; }
 
-void MaterialColor::setBaseColor(std::shared_ptr<Texture> color) {
+void MaterialColor::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
+  if (static_cast<int>(_target) != color.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textureColor = color;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }

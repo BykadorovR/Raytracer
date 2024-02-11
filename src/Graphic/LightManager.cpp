@@ -163,39 +163,39 @@ std::vector<std::shared_ptr<AmbientLight>> LightManager::getAmbientLights() {
 void LightManager::_setLightDescriptors(int currentFrame) {
   // light info descriptor sets
   {
-    std::map<int, VkDescriptorBufferInfo> bufferInfoPBR;
-    VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
-    bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = VK_WHOLE_SIZE;
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoPBR;
+    std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+    bufferDirectionalInfo[0].buffer = VK_NULL_HANDLE;
+    bufferDirectionalInfo[0].offset = 0;
+    bufferDirectionalInfo[0].range = VK_WHOLE_SIZE;
     if (_lightDirectionalSSBO.size() > currentFrame && _lightDirectionalSSBO[currentFrame]) {
-      bufferDirectionalInfo.buffer = _lightDirectionalSSBO[currentFrame]->getData();
-      bufferDirectionalInfo.range = _lightDirectionalSSBO[currentFrame]->getSize();
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBO[currentFrame]->getData();
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBO[currentFrame]->getSize();
     }
     bufferInfoPBR[0] = bufferDirectionalInfo;
 
-    VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = VK_NULL_HANDLE;
-    bufferPointInfo.offset = 0;
-    bufferPointInfo.range = VK_WHOLE_SIZE;
+    std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+    bufferPointInfo[0].buffer = VK_NULL_HANDLE;
+    bufferPointInfo[0].offset = 0;
+    bufferPointInfo[0].range = VK_WHOLE_SIZE;
     if (_lightPointSSBO.size() > currentFrame && _lightPointSSBO[currentFrame]) {
-      bufferPointInfo.buffer = _lightPointSSBO[currentFrame]->getData();
-      bufferPointInfo.range = _lightPointSSBO[currentFrame]->getSize();
+      bufferPointInfo[0].buffer = _lightPointSSBO[currentFrame]->getData();
+      bufferPointInfo[0].range = _lightPointSSBO[currentFrame]->getSize();
     }
     bufferInfoPBR[1] = bufferPointInfo;
     _descriptorSetLightPBR->createCustom(currentFrame, bufferInfoPBR, {});
 
-    std::map<int, VkDescriptorBufferInfo> bufferInfoPhong;
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoPhong;
     bufferInfoPhong[0] = bufferDirectionalInfo;
     bufferInfoPhong[1] = bufferPointInfo;
 
-    VkDescriptorBufferInfo bufferAmbientInfo{};
-    bufferAmbientInfo.buffer = VK_NULL_HANDLE;
-    bufferAmbientInfo.offset = 0;
-    bufferAmbientInfo.range = VK_WHOLE_SIZE;
+    std::vector<VkDescriptorBufferInfo> bufferAmbientInfo(1);
+    bufferAmbientInfo[0].buffer = VK_NULL_HANDLE;
+    bufferAmbientInfo[0].offset = 0;
+    bufferAmbientInfo[0].range = VK_WHOLE_SIZE;
     if (_lightAmbientSSBO.size() > currentFrame && _lightAmbientSSBO[currentFrame]) {
-      bufferAmbientInfo.buffer = _lightAmbientSSBO[currentFrame]->getData();
-      bufferAmbientInfo.range = _lightAmbientSSBO[currentFrame]->getSize();
+      bufferAmbientInfo[0].buffer = _lightAmbientSSBO[currentFrame]->getData();
+      bufferAmbientInfo[0].range = _lightAmbientSSBO[currentFrame]->getSize();
     }
     bufferInfoPhong[2] = bufferAmbientInfo;
     _descriptorSetLightPhong->createCustom(currentFrame, bufferInfoPhong, {});
@@ -203,25 +203,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
 
   // light VP matrices for models/sprites
   {
-    std::map<int, VkDescriptorBufferInfo> bufferInfo;
-    VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
-    bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = VK_WHOLE_SIZE;
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
+    std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+    bufferDirectionalInfo[0].buffer = VK_NULL_HANDLE;
+    bufferDirectionalInfo[0].offset = 0;
+    bufferDirectionalInfo[0].range = VK_WHOLE_SIZE;
     if (_lightDirectionalSSBOViewProjection.size() > currentFrame &&
         _lightDirectionalSSBOViewProjection[currentFrame]) {
-      bufferDirectionalInfo.buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
-      bufferDirectionalInfo.range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
     }
     bufferInfo[0] = bufferDirectionalInfo;
 
-    VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = VK_NULL_HANDLE;
-    bufferPointInfo.offset = 0;
-    bufferPointInfo.range = VK_WHOLE_SIZE;
+    std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+    bufferPointInfo[0].buffer = VK_NULL_HANDLE;
+    bufferPointInfo[0].offset = 0;
+    bufferPointInfo[0].range = VK_WHOLE_SIZE;
     if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
-      bufferPointInfo.buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
-      bufferPointInfo.range = _lightPointSSBOViewProjection[currentFrame]->getSize();
+      bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
+      bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
     }
     bufferInfo[1] = bufferPointInfo;
 
@@ -230,25 +230,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
 
   // light VP matrices for terrain
   {
-    std::map<int, VkDescriptorBufferInfo> bufferInfo;
-    VkDescriptorBufferInfo bufferDirectionalInfo{};
-    bufferDirectionalInfo.buffer = VK_NULL_HANDLE;
-    bufferDirectionalInfo.offset = 0;
-    bufferDirectionalInfo.range = VK_WHOLE_SIZE;
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
+    std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+    bufferDirectionalInfo[0].buffer = VK_NULL_HANDLE;
+    bufferDirectionalInfo[0].offset = 0;
+    bufferDirectionalInfo[0].range = VK_WHOLE_SIZE;
     if (_lightDirectionalSSBOViewProjection.size() > currentFrame &&
         _lightDirectionalSSBOViewProjection[currentFrame]) {
-      bufferDirectionalInfo.buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
-      bufferDirectionalInfo.range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
     }
     bufferInfo[0] = bufferDirectionalInfo;
 
-    VkDescriptorBufferInfo bufferPointInfo{};
-    bufferPointInfo.buffer = VK_NULL_HANDLE;
-    bufferPointInfo.offset = 0;
-    bufferPointInfo.range = VK_WHOLE_SIZE;
+    std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+    bufferPointInfo[0].buffer = VK_NULL_HANDLE;
+    bufferPointInfo[0].offset = 0;
+    bufferPointInfo[0].range = VK_WHOLE_SIZE;
     if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
-      bufferPointInfo.buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
-      bufferPointInfo.range = _lightPointSSBOViewProjection[currentFrame]->getSize();
+      bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
+      bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
     }
     bufferInfo[1] = bufferPointInfo;
 

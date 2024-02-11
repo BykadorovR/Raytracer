@@ -11,9 +11,9 @@ SpriteManager::SpriteManager(std::vector<VkFormat> renderFormat,
   _state = state;
   _renderFormat = renderFormat;
   _lightManager = lightManager;
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   _defaultMesh = std::make_shared<Mesh2D>(state);
   // 3   0
