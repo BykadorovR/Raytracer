@@ -24,7 +24,7 @@ void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
 void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
 
 Main::Main() {
-  int mipMapLevels = 4;
+  int mipMapLevels = 8;
   auto settings = std::make_shared<Settings>();
   settings->setName("Terrain");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
@@ -38,7 +38,7 @@ Main::Main() {
   // SRGB the same as UNORM but + gamma conversion out of box (!)
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
   settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
-  settings->setAnisotropicSamples(0);
+  settings->setAnisotropicSamples(4);
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
@@ -127,35 +127,171 @@ Main::Main() {
                              core->getResourceManager()->getTextureZero());
   };
 
-  auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/dirt.jpg"}),
-                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                         mipMapLevels, commandBufferTransfer, state);
-  auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass.jpg"}),
-                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                         mipMapLevels, commandBufferTransfer, state);
-  auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock_gray.png"}),
-                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                         mipMapLevels, commandBufferTransfer, state);
-  auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/snow.png"}),
-                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                         mipMapLevels, commandBufferTransfer, state);
-
-  _terrain = std::make_shared<Terrain>(
-      _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      lightManager, state);
-  auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
-  materialPhong->setBaseColor({tile0, tile1, tile2, tile3});
-  fillMaterialPhong(materialPhong);
-  _terrain->setMaterial(materialPhong);
   {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
-    _terrain->setModel(translateMatrix);
-  }
-  _terrain->setCamera(_camera);
+    auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
+                                           settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           mipMapLevels, commandBufferTransfer, state);
+    auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
+                                           settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           mipMapLevels, commandBufferTransfer, state);
+    auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
+                                           settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           mipMapLevels, commandBufferTransfer, state);
+    auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
+                                           settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                           mipMapLevels, commandBufferTransfer, state);
 
-  _core->addDrawable(_terrain);
+    _terrainColor = std::make_shared<Terrain>(
+        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+        lightManager, state);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+    materialColor->setBaseColor({tile0, tile1, tile2, tile3});
+    _terrainColor->setMaterial(materialColor);
+    {
+      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 0.f));
+      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+      _terrainColor->setModel(scaleMatrix);
+    }
+    _terrainColor->setCamera(_camera);
+
+    _core->addDrawable(_terrainColor);
+  }
+
+  {
+    auto tile0Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile0Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/desert/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile1Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile1Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/normal.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
+    auto tile2Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile2Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/normal.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
+    auto tile3Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile3Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/ground/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+
+    _terrainPhong = std::make_shared<Terrain>(
+        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+        lightManager, state);
+    auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+    materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    fillMaterialPhong(materialPhong);
+    _terrainPhong->setMaterial(materialPhong);
+    {
+      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
+      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+      _terrainPhong->setModel(scaleMatrix);
+    }
+    _terrainPhong->setCamera(_camera);
+
+    _core->addDrawable(_terrainPhong);
+  }
+
+  {
+    auto tile0Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile0Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/desert/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile0Metallic = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/desert/metallic.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile0Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/desert/roughness.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile0AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/ao.png"}),
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+
+    auto tile1Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile1Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/normal.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
+    auto tile1Metallic = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/rock/metallic.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile1Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/rock/roughness.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile1AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/ao.png"}),
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+    auto tile2Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile2Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/normal.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
+    auto tile2Metallic = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/grass/metallic.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile2Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/grass/roughness.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/ao.png"}),
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+    auto tile3Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
+                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile3Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/ground/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile3Metallic = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/ground/metallic.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile3Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImage({"../assets/ground/roughness.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile3AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/ao.png"}),
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+
+    _terrainPBR = std::make_shared<Terrain>(
+        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+        lightManager, state);
+    auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+    materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
+    materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
+    materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
+    fillMaterialPBR(materialPBR);
+    _terrainPBR->setMaterial(materialPBR);
+    {
+      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
+      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+      _terrainPBR->setModel(scaleMatrix);
+    }
+    _terrainPBR->setCamera(_camera);
+
+    _core->addDrawable(_terrainPBR);
+  }
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore
@@ -213,17 +349,33 @@ void Main::update() {
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Toggles")) {
-    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) _terrain->patchEdge(_showPatches);
-    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) _terrain->showLoD(_showLoD);
+    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
+      _terrainColor->patchEdge(_showPatches);
+      _terrainPhong->patchEdge(_showPatches);
+      _terrainPBR->patchEdge(_showPatches);
+    }
+    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
+      _terrainColor->showLoD(_showLoD);
+      _terrainPhong->showLoD(_showLoD);
+      _terrainPBR->showLoD(_showLoD);
+    }
     if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrain->setDrawType(DrawType::WIREFRAME);
+      _terrainColor->setDrawType(DrawType::WIREFRAME);
+      _terrainPhong->setDrawType(DrawType::WIREFRAME);
+      _terrainPBR->setDrawType(DrawType::WIREFRAME);
       _showNormals = false;
     }
     if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrain->setDrawType(DrawType::NORMAL);
+      _terrainColor->setDrawType(DrawType::NORMAL);
+      _terrainPhong->setDrawType(DrawType::NORMAL);
+      _terrainPBR->setDrawType(DrawType::NORMAL);
       _showWireframe = false;
     }
-    if (_showWireframe == false && _showNormals == false) _terrain->setDrawType(DrawType::FILL);
+    if (_showWireframe == false && _showNormals == false) {
+      _terrainColor->setDrawType(DrawType::FILL);
+      _terrainPhong->setDrawType(DrawType::FILL);
+      _terrainPBR->setDrawType(DrawType::FILL);
+    }
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

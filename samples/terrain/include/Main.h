@@ -27,7 +27,7 @@ class Main {
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
-  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
 
  public:
