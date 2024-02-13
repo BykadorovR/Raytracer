@@ -66,6 +66,8 @@ Main::Main() {
   //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
+  auto ambientLight = lightManager->createAmbientLight();
+  ambientLight->setColor({0.1f, 0.1f, 0.1f});
 
   // cube colored light
   _cubeColoredLightVertical = std::make_shared<Shape3D>(

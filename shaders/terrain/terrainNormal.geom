@@ -5,7 +5,7 @@ layout (line_strip, max_vertices = 6) out;
 layout(location = 0) in vec3 inNormal[];
 layout(location = 1) in vec3 inColor[];
 layout(location = 0) out vec3 outColor;
-const float MAGNITUDE = 0.1;
+const float MAGNITUDE = 0.01;
   
 layout(set = 3, binding = 0) uniform UniformCamera {
     mat4 model;

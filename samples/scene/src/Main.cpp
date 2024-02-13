@@ -906,10 +906,10 @@ void initialize() {
   spriteManagerHUD->registerSprite(spriteHUD);
 
   {
-    auto material = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-    material->setBaseColor(texture);
-    material->setNormal(normalMap);
-    material->setSpecular(resourceManager->getTextureZero());
+    auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    material->setBaseColor({texture});
+    material->setNormal({normalMap});
+    material->setSpecular({resourceManager->getTextureZero()});
 
     auto spriteForward = spriteManager->createSprite();
     spriteForward->setMaterial(material);
@@ -1031,12 +1031,26 @@ void initialize() {
     }
   }
 
-  terrain = std::make_shared<Terrain>(
-      std::array<std::string, 4>{"../assets/Terrain/dirt.jpg", "../assets/Terrain/grass.jpg",
-                                 "../assets/Terrain/rock_gray.png", "../assets/Terrain/snow.png"},
-      "../assets/Terrain/heightmap.png", std::pair{12, 12},
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      lightManager, resourceManager, state);
+  auto tile0 = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Terrain/dirt.jpg"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
+                                         commandBufferTransfer, state);
+  auto tile1 = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Terrain/grass.jpg"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
+                                         commandBufferTransfer, state);
+  auto tile2 = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Terrain/rock_gray.png"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
+                                         commandBufferTransfer, state);
+  auto tile3 = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Terrain/snow.png"}),
+                                         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
+                                         commandBufferTransfer, state);
+
+  terrain = std::make_shared<Terrain>(resourceManager->loadImage({"../assets/Terrain/heightmap.png"}),
+                                      std::pair{12, 12},
+                                      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+                                      commandBufferTransfer, lightManager, state);
+  auto materialTerrain = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
+  materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
+  terrain->setMaterial(materialTerrain);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
@@ -1152,8 +1166,8 @@ void initialize() {
                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
   skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                     VK_CULL_MODE_NONE, commandBufferTransfer, resourceManager, state);
-  auto materialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialColor->setBaseColor(cubemap->getTexture());
+  auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialColor->setBaseColor({cubemap->getTexture()});
   cube->setMaterial(materialColor);
   cube->setCamera(camera);
   skybox->setCamera(camera);
@@ -1203,8 +1217,8 @@ void initialize() {
 
   equirectangular = std::make_shared<Equirectangular>("../assets/Skybox/newport_loft.hdr", commandBufferTransfer,
                                                       state);
-  auto materialColorEq = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialColorEq->setBaseColor(equirectangular->getTexture());
+  auto materialColorEq = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialColorEq->setBaseColor({equirectangular->getTexture()});
   ibl->setMaterial(materialColorEq);
 
   blur = std::make_shared<Blur>(blurTextureIn, blurTextureOut, state);
@@ -1297,10 +1311,10 @@ void initialize() {
   }
 
   commandBufferTransfer->beginCommands();
-  auto materialColorCM = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  auto materialColorDiffuse = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  auto materialColorSpecular = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  materialColorCM->setBaseColor(cubemapEquirectangular->getTexture());
+  auto materialColorCM = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto materialColorDiffuse = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto materialColorSpecular = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialColorCM->setBaseColor({cubemapEquirectangular->getTexture()});
   ibl->setMaterial(materialColorCM);
   equiCube->setMaterial(materialColorCM);
   skybox->setMaterial(materialColorCM);
@@ -1474,11 +1488,11 @@ void initialize() {
   }
 
   // display specular as texture
-  materialColorSpecular->setBaseColor(cubemapSpecular->getTexture());
+  materialColorSpecular->setBaseColor({cubemapSpecular->getTexture()});
   specularCube->setMaterial(materialColorSpecular);
 
   // display diffuse as texture
-  materialColorDiffuse->setBaseColor(cubemapDiffuse->getTexture());
+  materialColorDiffuse->setBaseColor({cubemapDiffuse->getTexture()});
   diffuseCube->setMaterial(materialColorDiffuse);
 
   // set diffuse to material
@@ -1541,10 +1555,10 @@ void initialize() {
   }
 
   commandBufferTransfer->beginCommands();
-  auto materialBRDF = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  materialBRDF->setBaseColor(brdfTexture);
-  materialBRDF->setNormal(resourceManager->getTextureZero());
-  materialBRDF->setSpecular(resourceManager->getTextureZero());
+  auto materialBRDF = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialBRDF->setBaseColor({brdfTexture});
+  materialBRDF->setNormal({resourceManager->getTextureZero()});
+  materialBRDF->setSpecular({resourceManager->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
   auto spriteBRDF = spriteManager->createSprite();
   spriteBRDF->enableLighting(false);
