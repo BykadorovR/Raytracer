@@ -94,6 +94,8 @@ Core::Core(std::shared_ptr<Settings> settings) {
   }
 }
 
+void Core::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+
 void Core::_initializeTextures() {
   auto settings = _state->getSettings();
   _textureRender.resize(settings->getMaxFramesInFlight());
@@ -332,6 +334,12 @@ void Core::_computeParticles() {
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
   _loggerParticles->begin("Particle system compute " + std::to_string(_timer->getFrameCounter()));
+  // sort particles from back to front
+  std::sort(_particleSystem.begin(), _particleSystem.end(),
+            [camera = _camera](std::shared_ptr<ParticleSystem> left, std::shared_ptr<ParticleSystem> right) {
+              return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
+                     glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
+            });
   for (auto& particleSystem : _particleSystem) {
     particleSystem->drawCompute(frameInFlight, _commandBufferParticleSystem);
     particleSystem->updateTimer(_timer->getElapsedCurrent());
@@ -643,19 +651,19 @@ void Core::_renderGraphic() {
       _loggerCPU->end();
     });
   }
+
+  if (_skybox) {
+    _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
+    _skybox->draw(frameInFlight, _commandBufferRender);
+    _loggerGPU->end();
+  }
+
   // contains transparency, should be drawn last
   _loggerGPU->begin("Render particles " + std::to_string(globalFrame));
   for (auto& particleSystem : _particleSystem) {
     particleSystem->drawGraphic(frameInFlight, _commandBufferRender);
   }
   _loggerGPU->end();
-
-  // should be drawn last
-  if (_skybox) {
-    _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-    _skybox->draw(frameInFlight, _commandBufferRender);
-    _loggerGPU->end();
-  }
 
   vkCmdEndRendering(_commandBufferRender->getCommandBuffer()[frameInFlight]);
   _commandBufferRender->endCommands();

@@ -41,6 +41,8 @@
 #include "Equirectangular.h"
 #include "Timer.h"
 #include "IBL.h"
+#include <glm/gtc/random.hpp>
+#include <random>
 
 std::shared_ptr<Timer> timer = std::make_shared<Timer>();
 std::shared_ptr<TimerFPS> timerFPSReal = std::make_shared<TimerFPS>();
@@ -705,14 +707,14 @@ void renderGraphic() {
   specularCube->draw(settings->getResolution(), commandBufferRender);
   loggerGPU->end();
 
-  // contains transparency, should be drawn last
-  loggerGPU->begin("Render particles " + std::to_string(globalFrame));
-  particleSystem->drawGraphic(currentFrame, commandBufferRender);
-  loggerGPU->end();
-
   // should be drawn last
   loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
   skybox->draw(currentFrame, commandBufferRender);
+  loggerGPU->end();
+
+  // contains transparency, should be drawn last
+  loggerGPU->begin("Render particles " + std::to_string(globalFrame));
+  particleSystem->drawGraphic(currentFrame, commandBufferRender);
   loggerGPU->end();
 
   vkCmdEndRendering(commandBufferRender->getCommandBuffer()[currentFrame]);
@@ -1061,9 +1063,35 @@ void initialize() {
   auto particleTexture = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Particles/gradient.png"}),
                                                    settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  particleSystem = std::make_shared<ParticleSystem>(
-      300, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
-      particleTexture, commandBufferTransfer, state);
+  std::default_random_engine rndEngine((unsigned)time(nullptr));
+  std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
+  // Initial particle positions on a circle
+  std::vector<Particle> particles(360);
+  float r = 0.05f;
+  for (int i = 0; i < particles.size(); i++) {
+    auto& particle = particles[i];
+    particle.position = glm::sphericalRand(r);
+    particle.radius = r;
+
+    particle.minColor = glm::vec4(0.2f, 0.4f, 0.9f, 1.f);
+    particle.maxColor = glm::vec4(0.3, 0.5f, 1.f, 1.f);
+    particle.color = glm::vec4(particle.minColor.r + (particle.maxColor.r - particle.minColor.r) * rndDist(rndEngine),
+                               particle.minColor.g + (particle.maxColor.g - particle.minColor.g) * rndDist(rndEngine),
+                               particle.minColor.b + (particle.maxColor.b - particle.minColor.b) * rndDist(rndEngine),
+                               particle.minColor.a + (particle.maxColor.a - particle.minColor.a) * rndDist(rndEngine));
+
+    particle.minLife = 0.f;
+    particle.maxLife = 1.f;
+    particle.life = particle.minLife + (particle.maxLife - particle.minLife) * rndDist(rndEngine);
+    particle.iteration = -1.f;
+    particle.minVelocity = 0.f;
+    particle.maxVelocity = 1.f;
+    particle.velocity = particle.minVelocity + (particle.maxVelocity - particle.minVelocity) * rndDist(rndEngine);
+
+    glm::vec3 lightPositionHorizontal = glm::vec3(cos(glm::radians((float)i)), 0, sin(glm::radians((float)i)));
+    particle.velocityDirection = glm::normalize(lightPositionHorizontal);
+  }
+  particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
   {
     auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
     matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));

@@ -8,7 +8,8 @@ struct Particle {
     vec4 maxColor;
     float life;
     float minLife;
-    float maxLife;	
+    float maxLife;
+    int iteration;
     float velocity;
     float minVelocity;
     float maxVelocity;
@@ -29,7 +30,7 @@ layout(std140, set = 0, binding = 2) buffer ParticleSSBOOut {
 
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 
-#include "utility.glsl"
+#include "../utility.glsl"
 
 void recalculate(inout Particle particle) {
     particle.position = particle.radius * randomInUnitSphere();
@@ -39,6 +40,7 @@ void recalculate(inout Particle particle) {
     particle.color.b = randomFloat(particle.minColor.b, particle.maxColor.b);
     
     particle.life = randomFloat(particle.minLife, particle.maxLife);
+
     particle.velocity = randomFloat(particle.minVelocity, particle.maxVelocity);
 }
 
@@ -47,22 +49,28 @@ void main() {
     
     uint index = gl_GlobalInvocationID.x;
     Particle particleIn = particlesIn[index];
-    if (particleIn.life <= particleIn.minLife) {
-        recalculate(particleIn);
+    if (particleIn.iteration > 0 || particleIn.iteration == -1) {
+        if (particleIn.life <= particleIn.minLife) {
+            recalculate(particleIn);
+            if (particleIn.iteration > 0) particleIn.iteration -= 1;
+        }
+
+        particlesOut[index].position = particleIn.position + (particleIn.velocity * particleIn.velocityDirection) * ubo.deltaTime;
+        float colorMultiplier = particleIn.life / (particleIn.maxLife - particleIn.minLife);
+        particlesOut[index].color = vec4(particleIn.color.rgb, particleIn.maxColor.a * colorMultiplier);
+        particlesOut[index].life = particleIn.life - ubo.deltaTime;
+    } else {
+        particlesOut[index].position = particleIn.position;
+        particlesOut[index].color = vec4(0.0, 0.0, 0.0, 0.0);
+        particlesOut[index].life = particleIn.life;
     }
     
-    particlesOut[index].position = particleIn.position + (particleIn.velocity * particleIn.velocityDirection) * ubo.deltaTime;
     particlesOut[index].radius = particleIn.radius;
-    
-    float colorMultiplier = particleIn.life / (particleIn.maxLife - particleIn.minLife);
-    particlesOut[index].color = vec4(particleIn.color.rgb, particleIn.maxColor.a * colorMultiplier);
     particlesOut[index].minColor = particleIn.minColor;
     particlesOut[index].maxColor = particleIn.maxColor;
-
-    particlesOut[index].life = particleIn.life - ubo.deltaTime;
     particlesOut[index].minLife = particleIn.minLife;
     particlesOut[index].maxLife = particleIn.maxLife;
-    
+    particlesOut[index].iteration = particleIn.iteration;
     particlesOut[index].velocity = particleIn.velocity;
     particlesOut[index].minVelocity = particleIn.minVelocity;
     particlesOut[index].maxVelocity = particleIn.maxVelocity;

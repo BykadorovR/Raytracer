@@ -1,6 +1,4 @@
 #include "ParticleSystem.h"
-#include <random>
-#include <glm/gtc/random.hpp>
 
 struct VertexConstants {
   float pointScale;  // nominator of gl_PointSize
@@ -13,24 +11,23 @@ struct VertexConstants {
   }
 };
 
-ParticleSystem::ParticleSystem(int particlesNumber,
-                               std::vector<VkFormat> renderFormat,
+ParticleSystem::ParticleSystem(std::vector<Particle> particles,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
-  _particlesNumber = particlesNumber;
+  _particles = particles;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
   _texture = texture;
 
   _initializeCompute();
-  _initializeGraphic(renderFormat);
+  _initializeGraphic();
 }
 
-void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
+void ParticleSystem::_initializeGraphic() {
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("shaders/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/particles/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/particles/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   cameraLayout->createUniformBuffer();
 
@@ -51,7 +48,8 @@ void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
 
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _graphicPipeline->createParticleSystemGraphic(
-      renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      std::vector{_state->getSettings()->getGraphicColorFormat(), _state->getSettings()->getGraphicColorFormat()},
+      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}},
@@ -60,39 +58,14 @@ void ParticleSystem::_initializeGraphic(std::vector<VkFormat> renderFormat) {
 }
 
 void ParticleSystem::_initializeCompute() {
-  std::default_random_engine rndEngine((unsigned)time(nullptr));
-  std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
-
-  // Initial particle positions on a circle
-  std::vector<Particle> particles(_particlesNumber);
-  float r = 0.1f;
-  for (auto& particle : particles) {
-    particle.position = glm::sphericalRand(r);
-    particle.radius = r;
-
-    particle.color = glm::vec4(0.9f + 0.1f * rndDist(rndEngine), 0.4f + 0.1f * rndDist(rndEngine),
-                               0.2f + 0.1f * rndDist(rndEngine), 1.f + 0.f * rndDist(rndEngine));
-    particle.minColor = glm::vec4(0.9f, 0.4f, 0.2f, 1.f);
-    particle.maxColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
-
-    particle.life = rndDist(rndEngine);
-    particle.minLife = 0.f;
-    particle.maxLife = 1.f;
-
-    particle.velocity = rndDist(rndEngine);
-    particle.minVelocity = 0.f;
-    particle.maxVelocity = 1.f;
-    particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
-  }
-
   // TODO: change to VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
   _particlesBuffer.resize(_state->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     _particlesBuffer[i] = std::make_shared<Buffer>(
-        _particlesNumber * sizeof(Particle), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        _particles.size() * sizeof(Particle), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     _particlesBuffer[i]->map();
-    memcpy((uint8_t*)(_particlesBuffer[i]->getMappedMemory()), particles.data(), _particlesNumber * sizeof(Particle));
+    memcpy((uint8_t*)(_particlesBuffer[i]->getMappedMemory()), _particles.data(), _particles.size() * sizeof(Particle));
     _particlesBuffer[i]->unmap();
   }
 
@@ -113,7 +86,7 @@ void ParticleSystem::_initializeCompute() {
   }
 
   auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("shaders/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  shader->add("shaders/particles/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
@@ -127,6 +100,8 @@ void ParticleSystem::setCamera(std::shared_ptr<Camera> camera) { _camera = camer
 void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale; }
 
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
+
+glm::mat4 ParticleSystem::getModel() { return _model; }
 
 void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
   float timeDelta = _frameTimer * 2.f;
@@ -150,7 +125,7 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
                             &_descriptorSetCompute[currentFrame]->getDescriptorSets()[0], 0, nullptr);
   }
 
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particlesNumber / 16.f)),
+  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particles.size() / 16.f)),
                 1, 1);
 }
 
@@ -215,5 +190,5 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
                             0, nullptr);
   }
 
-  vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particlesNumber, 1, 0, 0);
+  vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particles.size(), 1, 0, 0);
 }

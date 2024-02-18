@@ -42,6 +42,7 @@ class Core {
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
 
   std::shared_ptr<GUI> _gui;
+  std::shared_ptr<Camera> _camera;
 
   std::shared_ptr<CameraOrtho> _cameraOrtho;
   std::shared_ptr<Timer> _timer;
@@ -89,6 +90,7 @@ class Core {
 
  public:
   Core(std::shared_ptr<Settings> settings);
+  void setCamera(std::shared_ptr<Camera> camera);
   void addDrawable(std::shared_ptr<IDrawable> drawable);
   void addShadowable(std::shared_ptr<IShadowable> shadowable);
   void addAnimation(std::shared_ptr<Animation> animation);

@@ -832,18 +832,11 @@ void Pipeline::createParticleSystemGraphic(
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-  _inputAssembly.primitiveRestartEnable = VK_FALSE;
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
-  _rasterizer.depthClampEnable = VK_FALSE;
-  _rasterizer.depthBiasEnable = VK_FALSE;
-  _rasterizer.rasterizerDiscardEnable = VK_FALSE;
-  _rasterizer.lineWidth = 1.0f;
-  _rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-  _depthStencil.depthTestEnable = VK_TRUE;
-  _depthStencil.depthWriteEnable = VK_FALSE;
+  _depthStencil.depthTestEnable = VK_FALSE;
+  _depthStencil.depthWriteEnable = VK_TRUE;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();

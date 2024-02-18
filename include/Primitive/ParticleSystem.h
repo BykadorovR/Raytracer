@@ -14,6 +14,7 @@ struct Particle {
   float life;
   float minLife;
   float maxLife;
+  int iteration;
   float velocity;
   float minVelocity;
   float maxVelocity;
@@ -62,7 +63,7 @@ struct Particle {
 
 class ParticleSystem {
  private:
-  int _particlesNumber;
+  std::vector<Particle> _particles;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   glm::mat4 _model = glm::mat4(1.f);
@@ -77,11 +78,10 @@ class ParticleSystem {
   float _pointScale = 60.f;
 
   void _initializeCompute();
-  void _initializeGraphic(std::vector<VkFormat> renderFormat);
+  void _initializeGraphic();
 
  public:
-  ParticleSystem(int particlesNumber,
-                 std::vector<VkFormat> renderFormat,
+  ParticleSystem(std::vector<Particle> particles,
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state);
@@ -89,6 +89,8 @@ class ParticleSystem {
   void setCamera(std::shared_ptr<Camera> camera);
   void setPointScale(float pointScale);
   void updateTimer(float frameTimer);
+
+  glm::mat4 getModel();
 
   void drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
   void drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);

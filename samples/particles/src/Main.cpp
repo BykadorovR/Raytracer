@@ -2,6 +2,8 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
+#include <random>
+#include <glm/gtc/random.hpp>
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -53,21 +55,87 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>();
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
-
+  _core->setCamera(_camera);
   auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/gradient.png"}),
                                                    settings->getLoadTextureAuxilaryFormat(),
                                                    VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  auto particleSystem = std::make_shared<ParticleSystem>(
-      300, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
-      particleTexture, commandBufferTransfer, state);
+  std::default_random_engine rndEngine((unsigned)time(nullptr));
+  std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
   {
-    auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-    matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
+    // Initial particle positions on a circle
+    std::vector<Particle> particles(300);
+    float r = 0.1f;
+    for (auto& particle : particles) {
+      particle.position = glm::sphericalRand(r);
+      particle.radius = r;
 
-    particleSystem->setModel(matrix);
+      particle.minColor = glm::vec4(0.9f, 0.4f, 0.2f, 1.f);
+      particle.maxColor = glm::vec4(1.f, 0.5f, 0.3f, 1.f);
+      particle.color = glm::vec4(
+          particle.minColor.r + (particle.maxColor.r - particle.minColor.r) * rndDist(rndEngine),
+          particle.minColor.g + (particle.maxColor.g - particle.minColor.g) * rndDist(rndEngine),
+          particle.minColor.b + (particle.maxColor.b - particle.minColor.b) * rndDist(rndEngine),
+          particle.minColor.a + (particle.maxColor.a - particle.minColor.a) * rndDist(rndEngine));
+
+      particle.minLife = 0.f;
+      particle.maxLife = 1.f;
+      particle.life = particle.minLife + (particle.maxLife - particle.minLife) * rndDist(rndEngine);
+      particle.iteration = -1;
+
+      particle.minVelocity = 0.f;
+      particle.maxVelocity = 1.f;
+      particle.velocity = particle.minVelocity + (particle.maxVelocity - particle.minVelocity) * rndDist(rndEngine);
+      particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
+    }
+
+    auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
+    {
+      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
+      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
+
+      particleSystem->setModel(matrix);
+    }
+    particleSystem->setCamera(_camera);
+    _core->addParticleSystem(particleSystem);
   }
-  particleSystem->setCamera(_camera);
+  {
+    // Initial particle positions on a circle
+    std::vector<Particle> particles(360);
+    float r = 0.05f;
+    for (int i = 0; i < particles.size(); i++) {
+      auto& particle = particles[i];
+      particle.position = glm::sphericalRand(r);
+      particle.radius = r;
 
+      particle.minColor = glm::vec4(0.2f, 0.4f, 0.9f, 1.f);
+      particle.maxColor = glm::vec4(0.3, 0.5f, 1.f, 1.f);
+      particle.color = glm::vec4(
+          particle.minColor.r + (particle.maxColor.r - particle.minColor.r) * rndDist(rndEngine),
+          particle.minColor.g + (particle.maxColor.g - particle.minColor.g) * rndDist(rndEngine),
+          particle.minColor.b + (particle.maxColor.b - particle.minColor.b) * rndDist(rndEngine),
+          particle.minColor.a + (particle.maxColor.a - particle.minColor.a) * rndDist(rndEngine));
+
+      particle.minLife = 0.f;
+      particle.maxLife = 1.f;
+      particle.life = particle.minLife + (particle.maxLife - particle.minLife) * rndDist(rndEngine);
+      particle.iteration = -1.f;
+      particle.minVelocity = 0.f;
+      particle.maxVelocity = 1.f;
+      particle.velocity = particle.minVelocity + (particle.maxVelocity - particle.minVelocity) * rndDist(rndEngine);
+
+      glm::vec3 lightPositionHorizontal = glm::vec3(cos(glm::radians((float)i)), 0, sin(glm::radians((float)i)));
+      particle.velocityDirection = glm::normalize(lightPositionHorizontal);
+    }
+    auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
+    {
+      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));
+      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
+
+      particleSystem->setModel(matrix);
+    }
+    particleSystem->setCamera(_camera);
+    _core->addParticleSystem(particleSystem);
+  }
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore
   // TODO: move this function to core
