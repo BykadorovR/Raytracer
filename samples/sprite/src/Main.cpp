@@ -381,6 +381,7 @@ void Main::update() {
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+  _core->getGUI()->endWindow();
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }
