@@ -286,13 +286,13 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
 
 void Shape3D::setModel(glm::mat4 model) { _model = model; }
 
-void Shape3D::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Shape3D::draw(std::tuple<int, int> resolution,
+                   std::shared_ptr<Camera> camera,
+                   std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -316,7 +316,7 @@ void Shape3D::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
       LightPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = _camera->getEye();
+      pushConstants.cameraPosition = camera->getEye();
 
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -324,8 +324,8 @@ void Shape3D::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
 
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = _camera->getView();
-    cameraUBO.projection = _camera->getProjection();
+    cameraUBO.view = camera->getView();
+    cameraUBO.projection = camera->getProjection();
 
     void* data;
     vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(),
@@ -454,7 +454,7 @@ void Shape3D::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
   drawShape3D(pipeline);
 }
 
-void Shape3D::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer, LightType lightType, int lightIndex, int face) {
+void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;

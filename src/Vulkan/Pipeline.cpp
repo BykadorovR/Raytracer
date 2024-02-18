@@ -835,8 +835,8 @@ void Pipeline::createParticleSystemGraphic(
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
-  _depthStencil.depthTestEnable = VK_FALSE;
-  _depthStencil.depthWriteEnable = VK_TRUE;
+  _depthStencil.depthTestEnable = VK_TRUE;
+  _depthStencil.depthWriteEnable = VK_FALSE;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();

@@ -106,16 +106,15 @@ void IBL::setMaterial(std::shared_ptr<MaterialColor> material) {
 
 void IBL::setModel(glm::mat4 model) { _model = model; }
 
-void IBL::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
-void IBL::_draw(int currentFrame,
-                std::shared_ptr<Pipeline> pipeline,
+void IBL::_draw(int face,
+                std::shared_ptr<Camera> camera,
                 std::shared_ptr<CommandBuffer> commandBuffer,
-                int face) {
+                std::shared_ptr<Pipeline> pipeline) {
+  auto currentFrame = _state->getFrameInFlight();
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = _camera->getView();
-  cameraUBO.projection = _camera->getProjection();
+  cameraUBO.view = camera->getView();
+  cameraUBO.projection = camera->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer[face]->getBuffer()[currentFrame]->getMemory(), 0,
@@ -155,7 +154,8 @@ void IBL::_draw(int currentFrame,
                    1, 0, 0, 0);
 }
 
-void IBL::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
+void IBL::drawEquirectangular(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineEquirectangular->getPipeline());
   auto [width, height] = _state->getSettings()->getDepthResolution();
@@ -172,10 +172,14 @@ void IBL::drawEquirectangular(int currentFrame, std::shared_ptr<CommandBuffer> c
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-  _draw(currentFrame, _pipelineEquirectangular, commandBuffer, face);
+  _draw(face, camera, commandBuffer, _pipelineEquirectangular);
 }
 
-void IBL::drawSpecular(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face, int mipMap) {
+void IBL::drawSpecular(int face,
+                       int mipMap,
+                       std::shared_ptr<Camera> camera,
+                       std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineSpecular->getPipeline());
   auto [width, height] = _state->getSettings()->getSpecularIBLResolution();
@@ -203,10 +207,11 @@ void IBL::drawSpecular(int currentFrame, std::shared_ptr<CommandBuffer> commandB
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RoughnessConstants), &pushConstants);
   }
 
-  _draw(currentFrame, _pipelineSpecular, commandBuffer, face);
+  _draw(face, camera, commandBuffer, _pipelineSpecular);
 }
 
-void IBL::drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer, int face) {
+void IBL::drawDiffuse(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineDiffuse->getPipeline());
   auto [width, height] = _state->getSettings()->getDiffuseIBLResolution();
@@ -223,5 +228,5 @@ void IBL::drawDiffuse(int currentFrame, std::shared_ptr<CommandBuffer> commandBu
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-  _draw(currentFrame, _pipelineDiffuse, commandBuffer, face);
+  _draw(face, camera, commandBuffer, _pipelineDiffuse);
 }

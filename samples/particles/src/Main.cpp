@@ -95,7 +95,6 @@ Main::Main() {
 
       particleSystem->setModel(matrix);
     }
-    particleSystem->setCamera(_camera);
     _core->addParticleSystem(particleSystem);
   }
   {
@@ -133,7 +132,6 @@ Main::Main() {
 
       particleSystem->setModel(matrix);
     }
-    particleSystem->setCamera(_camera);
     _core->addParticleSystem(particleSystem);
   }
   commandBufferTransfer->endCommands();

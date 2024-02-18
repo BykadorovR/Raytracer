@@ -55,7 +55,6 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
   for (int i = 0; i < _lineFrustum.size(); i++) {
     auto line = std::make_shared<Line>(3, std::vector{_state->getSettings()->getSwapchainColorFormat()},
                                        commandBufferTransfer, state);
-    line->setCamera(camera);
     auto mesh = line->getMesh();
     mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
     _lineFrustum[i] = line;
@@ -99,7 +98,6 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
     auto sphere = std::make_shared<Shape3D>(
         ShapeType::SPHERE, std::vector{_state->getSettings()->getSwapchainColorFormat()}, VK_CULL_MODE_NONE,
         lightManager, _commandBufferTransfer, _resourceManager, _state);
-    sphere->setCamera(_camera);
     _spheres.push_back(sphere);
   }
 
@@ -113,7 +111,8 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   }
 }
 
-void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void DebugVisualization::_drawShadowMaps(std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   if (_showDepth) {
     if (_initializedDepth == false) {
       _descriptorSetDirectional.resize(_lightManager->getDirectionalLights().size());
@@ -121,7 +120,8 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
         auto descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                              _textureSetLayout, _state->getDescriptorPool(),
                                                              _state->getDevice());
-        descriptorSet->createTexture({_lightManager->getDirectionalLights()[i]->getDepthTexture()[currentFrame]});
+        descriptorSet->createTexture(
+            {_lightManager->getDirectionalLights()[i]->getDepthTexture()[_state->getFrameInFlight()]});
         _descriptorSetDirectional[i] = descriptorSet;
         glm::vec3 pos = _lightManager->getDirectionalLights()[i]->getPosition();
         _shadowKeys.push_back("Dir " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
@@ -228,10 +228,10 @@ void DebugVisualization::_drawShadowMaps(int currentFrame, std::shared_ptr<Comma
   }
 }
 
-void DebugVisualization::_drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void DebugVisualization::_drawFrustum(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_frustumDraw) {
     for (auto& line : _lineFrustum) {
-      line->draw(currentFrame, _state->getSettings()->getResolution(), commandBuffer);
+      line->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
     }
   }
 }
@@ -417,7 +417,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
             _spheres[i]->setDrawType(DrawType::WIREFRAME);
-            _spheres[i]->draw(_state->getSettings()->getResolution(), commandBuffer);
+            _spheres[i]->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
           }
         }
       }
@@ -456,15 +456,13 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
     _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
   }
 
-  _modelManager->setCamera(_camera);
-  _modelManager->draw(_state->getSettings()->getResolution(), commandBuffer);
+  _modelManager->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
 
-  _spriteManager->setCamera(_camera);
-  _spriteManager->draw(_state->getSettings()->getResolution(), commandBuffer);
+  _spriteManager->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
 
-  _drawFrustum(currentFrame, commandBuffer);
+  _drawFrustum(commandBuffer);
 
-  _drawShadowMaps(currentFrame, commandBuffer);
+  _drawShadowMaps(commandBuffer);
 }
 
 void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}

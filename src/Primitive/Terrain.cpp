@@ -437,8 +437,6 @@ void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
 
 void Terrain::setModel(glm::mat4 model) { _model = model; }
 
-void Terrain::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void Terrain::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 DrawType Terrain::getDrawType() { return _drawType; }
@@ -447,7 +445,9 @@ void Terrain::showLoD(bool enable) { _showLoD = enable; }
 
 void Terrain::patchEdge(bool enable) { _enableEdge = enable; }
 
-void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Terrain::draw(std::tuple<int, int> resolution,
+                   std::shared_ptr<Camera> camera,
+                   std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -494,7 +494,7 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
       pushConstants.showLOD = _showLoD;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = _camera->getEye();
+      pushConstants.cameraPosition = camera->getEye();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevels), &pushConstants);
@@ -503,8 +503,8 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = _camera->getView();
-    cameraUBO.projection = _camera->getProjection();
+    cameraUBO.view = camera->getView();
+    cameraUBO.projection = camera->getProjection();
 
     void* data;
     vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory(), 0,
@@ -652,7 +652,7 @@ void Terrain::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffe
   drawTerrain(pipeline);
 }
 
-void Terrain::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer, LightType lightType, int lightIndex, int face) {
+void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;

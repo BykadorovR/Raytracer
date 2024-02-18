@@ -1,7 +1,6 @@
 #include "Model.h"
 #include <unordered_map>
 
-void Model3D::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
 void Model3D::setModel(glm::mat4 model) { _model = model; }
 void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 bool Model3D::isDepthEnabled() { return _enableDepth; }
@@ -250,32 +249,33 @@ void Model3D::enableShadow(bool enable) { _enableShadow = enable; }
 
 void Model3D::enableLighting(bool enable) { _enableLighting = enable; }
 
-void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer,
+void Model3D::draw(std::shared_ptr<Camera> camera,
+                   std::shared_ptr<CommandBuffer> commandBuffer,
                    std::shared_ptr<Pipeline> pipeline,
                    std::shared_ptr<Pipeline> pipelineCullOff) {
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = _camera->getEye();
+    pushConstants.cameraPosition = camera->getEye();
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[_state->getFrameInFlight()], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
 
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraFull, _cameraUBOFull, _camera->getView(),
-              _camera->getProjection(), node);
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraFull, _cameraUBOFull, camera->getView(),
+              camera->getProjection(), node);
   }
 }
 
-void Model3D::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                         std::shared_ptr<Pipeline> pipeline,
-                         std::shared_ptr<Pipeline> pipelineCullOff,
-                         int lightIndex,
+void Model3D::drawShadow(int lightIndex,
                          glm::mat4 view,
                          glm::mat4 projection,
-                         int face) {
+                         int face,
+                         std::shared_ptr<CommandBuffer> commandBuffer,
+                         std::shared_ptr<Pipeline> pipeline,
+                         std::shared_ptr<Pipeline> pipelineCullOff) {
   // Render all nodes at top-level
   for (auto& node : _nodes) {
     _drawNode(commandBuffer, pipeline, pipelineCullOff, _descriptorSetCameraDepth[lightIndex][face],

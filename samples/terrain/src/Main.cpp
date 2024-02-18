@@ -53,6 +53,7 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>();
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->setCamera(_camera);
 
   auto lightManager = _core->getLightManager();
   _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
@@ -73,7 +74,6 @@ Main::Main() {
   _cubeColoredLightVertical = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeColoredLightVertical->setCamera(_camera);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -82,7 +82,6 @@ Main::Main() {
   _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeColoredLightHorizontal->setCamera(_camera);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -91,7 +90,6 @@ Main::Main() {
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredLightDirectional->setCamera(_camera);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -155,7 +153,6 @@ Main::Main() {
       auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
       _terrainColor->setModel(scaleMatrix);
     }
-    _terrainColor->setCamera(_camera);
 
     _core->addDrawable(_terrainColor);
   }
@@ -200,7 +197,6 @@ Main::Main() {
       auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
       _terrainPhong->setModel(scaleMatrix);
     }
-    _terrainPhong->setCamera(_camera);
 
     _core->addDrawable(_terrainPhong);
   }
@@ -290,7 +286,6 @@ Main::Main() {
       auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
       _terrainPBR->setModel(scaleMatrix);
     }
-    _terrainPBR->setCamera(_camera);
 
     _core->addDrawable(_terrainPBR);
   }

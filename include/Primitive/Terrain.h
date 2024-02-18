@@ -32,7 +32,6 @@ class Terrain : public IDrawable, public IShadowable {
   std::shared_ptr<Texture> _heightMap;
   std::pair<int, int> _patchNumber;
   std::shared_ptr<LightManager> _lightManager;
-  std::shared_ptr<Camera> _camera;
   glm::mat4 _model = glm::mat4(1.f);
   int _mipMap = 8;
   float _heightScale = 64.f;
@@ -62,14 +61,12 @@ class Terrain : public IDrawable, public IShadowable {
   void setDrawType(DrawType drawType);
 
   void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
 
   DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

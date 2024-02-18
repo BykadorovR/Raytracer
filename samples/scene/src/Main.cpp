@@ -186,20 +186,20 @@ void directionalLightCalculator(int index) {
   // draw scene here
   auto globalFrame = timer->getFrameCounter();
   loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+  spriteManager->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+  modelManager->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame));
-  terrain->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+  terrain->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Cube to directional depth buffer " + std::to_string(globalFrame));
-  cube->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+  cube->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Sphere to directional depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
-    sphere->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+    sphere->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
   }
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -290,20 +290,20 @@ void pointLightCalculator(int index, int face) {
   auto globalFrame = timer->getFrameCounter();
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
   loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(commandBuffer, LightType::POINT, index, face);
+  spriteManager->drawShadow(LightType::POINT, index, face, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(commandBuffer, LightType::POINT, index, face);
+  modelManager->drawShadow(LightType::POINT, index, face, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame));
-  terrain->drawShadow(commandBuffer, LightType::POINT, index, face);
+  terrain->drawShadow(LightType::POINT, index, face, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Cube to point depth buffer " + std::to_string(globalFrame));
-  cube->drawShadow(commandBuffer, LightType::POINT, index, face);
+  cube->drawShadow(LightType::POINT, index, face, commandBuffer);
   loggerGPU->end();
   loggerGPU->begin("Sphere to point depth buffer " + std::to_string(globalFrame));
   for (auto& sphere : spheres) {
-    sphere->drawShadow(commandBuffer, LightType::POINT, index, face);
+    sphere->drawShadow(LightType::POINT, index, face, commandBuffer);
   }
   loggerGPU->end();
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
@@ -335,7 +335,7 @@ void computeParticles() {
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
   loggerParticles->begin("Particle system compute " + std::to_string(timer->getFrameCounter()));
-  particleSystem->drawCompute(currentFrame, commandBufferParticleSystem);
+  particleSystem->drawCompute(commandBufferParticleSystem);
   loggerParticles->end();
 
   particleSystem->updateTimer(timer->getElapsedCurrent());
@@ -669,7 +669,7 @@ void renderGraphic() {
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame));
-  spriteManager->draw(settings->getResolution(), commandBufferRender);
+  spriteManager->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   // wait model3D update
@@ -678,7 +678,7 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame));
-  modelManager->draw(settings->getResolution(), commandBufferRender);
+  modelManager->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   // submit model3D update
@@ -691,30 +691,30 @@ void renderGraphic() {
 
   loggerGPU->begin("Render terrain " + std::to_string(globalFrame));
   // for terrain we have to draw both: fill and normal/wireframe
-  terrain->draw(settings->getResolution(), commandBufferRender);
+  terrain->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   loggerGPU->begin("Render spheres " + std::to_string(globalFrame));
   for (auto sphere : spheres) {
-    sphere->draw(settings->getResolution(), commandBufferRender);
+    sphere->draw(settings->getResolution(), camera, commandBufferRender);
   }
   loggerGPU->end();
 
   loggerGPU->begin("Render cube " + std::to_string(globalFrame));
-  cube->draw(settings->getResolution(), commandBufferRender);
-  equiCube->draw(settings->getResolution(), commandBufferRender);
-  diffuseCube->draw(settings->getResolution(), commandBufferRender);
-  specularCube->draw(settings->getResolution(), commandBufferRender);
+  cube->draw(settings->getResolution(), camera, commandBufferRender);
+  equiCube->draw(settings->getResolution(), camera, commandBufferRender);
+  diffuseCube->draw(settings->getResolution(), camera, commandBufferRender);
+  specularCube->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   // should be drawn last
   loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-  skybox->draw(currentFrame, commandBufferRender);
+  skybox->draw(camera, commandBufferRender);
   loggerGPU->end();
 
   // contains transparency, should be drawn last
   loggerGPU->begin("Render particles " + std::to_string(globalFrame));
-  particleSystem->drawGraphic(currentFrame, commandBufferRender);
+  particleSystem->drawGraphic(camera, commandBufferRender);
   loggerGPU->end();
 
   vkCmdEndRendering(commandBufferRender->getCommandBuffer()[currentFrame]);
@@ -1058,7 +1058,6 @@ void initialize() {
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
     terrain->setModel(translateMatrix);
   }
-  terrain->setCamera(camera);
 
   auto particleTexture = std::make_shared<Texture>(resourceManager->loadImage({"../assets/Particles/gradient.png"}),
                                                    settings->getLoadTextureAuxilaryFormat(),
@@ -1098,7 +1097,6 @@ void initialize() {
 
     particleSystem->setModel(matrix);
   }
-  particleSystem->setCamera(camera);
 
   spheres.resize(6);
   // non HDR
@@ -1106,7 +1104,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
-  spheres[0]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
     spheres[0]->setModel(model);
@@ -1115,7 +1112,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
-  spheres[1]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
     spheres[1]->setModel(model);
@@ -1124,7 +1120,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
-  spheres[2]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
     spheres[2]->setModel(model);
@@ -1134,7 +1129,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
-  spheres[3]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
     spheres[3]->setModel(model);
@@ -1143,7 +1137,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
-  spheres[4]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
     spheres[4]->setModel(model);
@@ -1152,7 +1145,6 @@ void initialize() {
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, resourceManager, state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
-  spheres[5]->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
     spheres[5]->setModel(model);
@@ -1197,8 +1189,6 @@ void initialize() {
   auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialColor->setBaseColor({cubemap->getTexture()});
   cube->setMaterial(materialColor);
-  cube->setCamera(camera);
-  skybox->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
     cube->setModel(model);
@@ -1210,7 +1200,6 @@ void initialize() {
   cameraTemp->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   cameraTemp->setProjectionParameters(90.f, 0.1f, 100.f);
   cameraTemp->setAspect(1.f);
-  ibl->setCamera(cameraTemp);
   {
     auto model = glm::translate(glm::mat4(1.f), cameraTemp->getEye());
     ibl->setModel(model);
@@ -1219,7 +1208,6 @@ void initialize() {
   equiCube = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
-  equiCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
     equiCube->setModel(model);
@@ -1228,7 +1216,6 @@ void initialize() {
   diffuseCube = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
-  diffuseCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
     diffuseCube->setModel(model);
@@ -1237,7 +1224,6 @@ void initialize() {
   specularCube = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
-  specularCube->setCamera(camera);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
     specularCube->setModel(model);
@@ -1324,7 +1310,7 @@ void initialize() {
           break;
       }
 
-      ibl->drawEquirectangular(currentFrame, commandBufferEquirectangular, i);
+      ibl->drawEquirectangular(i, cameraTemp, commandBufferEquirectangular);
       loggerGPU->end();
 
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1417,7 +1403,7 @@ void initialize() {
           break;
       }
 
-      ibl->drawDiffuse(currentFrame, commandBufferEquirectangular, i);
+      ibl->drawDiffuse(i, cameraTemp, commandBufferEquirectangular);
       loggerGPU->end();
 
       vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1500,7 +1486,7 @@ void initialize() {
             break;
         }
 
-        ibl->drawSpecular(currentFrame, commandBufferEquirectangular, i, j);
+        ibl->drawSpecular(i, j, cameraTemp, commandBufferEquirectangular);
         loggerGPU->end();
 
         vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1562,8 +1548,8 @@ void initialize() {
     vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
     loggerGPU->begin("Render specular brdf");
-    spriteManagerHUD->setCamera(cameraOrtho);
-    spriteManagerHUD->draw(brdfTexture->getImageView()->getImage()->getResolution(), commandBufferEquirectangular);
+    spriteManagerHUD->draw(brdfTexture->getImageView()->getImage()->getResolution(), cameraOrtho,
+                           commandBufferEquirectangular);
     loggerGPU->end();
 
     vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1668,8 +1654,6 @@ void drawFrame(int imageIndex) {
   // if (directionalLight2) directionalLight2->setPosition(lightPositionHorizontal);
   angleVertical += 0.01f;
   angleHorizontal += 0.01f;
-  spriteManager->setCamera(camera);
-  modelManager->setCamera(camera);
 
   // submit compute particles
   auto particlesFuture = pool->submit(computeParticles);

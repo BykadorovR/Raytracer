@@ -246,10 +246,10 @@ void Model3DManager::unregisterModel3D(std::shared_ptr<Model3D> model) {
   _modelsGLTF.erase(std::remove(_modelsGLTF.begin(), _modelsGLTF.end(), model), _modelsGLTF.end());
 }
 
-void Model3DManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 // todo: choose appropriate pipeline using material from sprite
-void Model3DManager::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Model3DManager::draw(std::tuple<int, int> resolution,
+                          std::shared_ptr<Camera> camera,
+                          std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -319,8 +319,7 @@ void Model3DManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comma
 
     for (auto model : _modelsGLTF) {
       if (model->getMaterialType() == materialType && model->getDrawType() == drawType) {
-        model->setCamera(_camera);
-        model->draw(commandBuffer, pipeline, pipelineCullOff);
+        model->draw(camera, commandBuffer, pipeline, pipelineCullOff);
       }
     }
   };
@@ -340,8 +339,7 @@ void Model3DManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comma
 
     for (auto model : _modelsGLTF) {
       if (model->getDrawType() == drawType) {
-        model->setCamera(_camera);
-        model->draw(commandBuffer, pipeline, pipelineCullOff);
+        model->draw(camera, commandBuffer, pipeline, pipelineCullOff);
       }
     }
   };
@@ -356,10 +354,10 @@ void Model3DManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comma
   drawModelNormal(DrawType::TANGENT);
 }
 
-void Model3DManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                                LightType lightType,
+void Model3DManager::drawShadow(LightType lightType,
                                 int lightIndex,
-                                int face) {
+                                int face,
+                                std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
@@ -427,13 +425,13 @@ void Model3DManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
+      model->drawShadow(lightIndexTotal, view, projection, face, commandBuffer, pipeline, pipeline);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      model->drawShadow(commandBuffer, pipeline, pipeline, lightIndexTotal, view, projection, face);
+      model->drawShadow(lightIndexTotal, view, projection, face, commandBuffer, pipeline, pipeline);
     }
   }
 }

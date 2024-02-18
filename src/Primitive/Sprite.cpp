@@ -102,19 +102,19 @@ void Sprite::enableLighting(bool enable) { _enableLighting = enable; }
 
 void Sprite::setModel(glm::mat4 model) { _model = model; }
 
-void Sprite::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void Sprite::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 DrawType Sprite::getDrawType() { return _drawType; }
 
-void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline) {
+void Sprite::draw(std::shared_ptr<Camera> camera,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  std::shared_ptr<Pipeline> pipeline) {
   int currentFrame = _state->getFrameInFlight();
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = _camera->getEye();
+    pushConstants.cameraPosition = camera->getEye();
 
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -122,8 +122,8 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<
 
   BufferMVP cameraMVP{};
   cameraMVP.model = _model;
-  cameraMVP.view = _camera->getView();
-  cameraMVP.projection = _camera->getProjection();
+  cameraMVP.view = camera->getView();
+  cameraMVP.projection = camera->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraUBOFull->getBuffer()[currentFrame]->getMemory(), 0,
@@ -185,12 +185,12 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<
                    1, 0, 0, 0);
 }
 
-void Sprite::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                        std::shared_ptr<Pipeline> pipeline,
-                        int lightIndex,
+void Sprite::drawShadow(int lightIndex,
                         glm::mat4 view,
                         glm::mat4 projection,
-                        int face) {
+                        int face,
+                        std::shared_ptr<CommandBuffer> commandBuffer,
+                        std::shared_ptr<Pipeline> pipeline) {
   int currentFrame = _state->getFrameInFlight();
   BufferMVP cameraMVP{};
   cameraMVP.model = _model;

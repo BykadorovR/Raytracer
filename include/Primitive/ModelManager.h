@@ -24,7 +24,6 @@ class Model3DManager : public IDrawable, public IShadowable {
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<State> _state;
-  std::shared_ptr<Camera> _camera;
   std::vector<std::shared_ptr<Model3D>> _modelsGLTF;
   std::shared_ptr<ResourceManager> _resourceManager;
 
@@ -37,12 +36,10 @@ class Model3DManager : public IDrawable, public IShadowable {
 
   std::shared_ptr<Model3D> createModel3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                          const std::vector<std::shared_ptr<Mesh3D>>& meshes);
-  void setCamera(std::shared_ptr<Camera> camera);
   void registerModel3D(std::shared_ptr<Model3D> model);
   void unregisterModel3D(std::shared_ptr<Model3D> model);
-  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

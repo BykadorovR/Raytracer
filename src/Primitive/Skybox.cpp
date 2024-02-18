@@ -62,11 +62,10 @@ void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
 
 void Skybox::setModel(glm::mat4 model) { _model = model; }
 
-void Skybox::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 std::shared_ptr<Mesh3D> Skybox::getMesh() { return _mesh; }
 
-void Skybox::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Skybox::draw(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};
@@ -86,8 +85,8 @@ void Skybox::draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = glm::mat4(glm::mat3(_camera->getView()));
-  cameraUBO.projection = _camera->getProjection();
+  cameraUBO.view = glm::mat4(glm::mat3(camera->getView()));
+  cameraUBO.projection = camera->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,

@@ -53,6 +53,7 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>();
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->setCamera(_camera);
 
   auto lightManager = _core->getLightManager();
   _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
@@ -71,7 +72,6 @@ Main::Main() {
   _cubeColoredLightVertical = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeColoredLightVertical->setCamera(_camera);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -80,7 +80,6 @@ Main::Main() {
   _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeColoredLightHorizontal->setCamera(_camera);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -89,7 +88,6 @@ Main::Main() {
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredLightDirectional->setCamera(_camera);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -104,7 +102,6 @@ Main::Main() {
   auto cubeColored = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColored->setCamera(_camera);
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
   {
@@ -125,7 +122,6 @@ Main::Main() {
   _cubeTextured = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeTextured->setCamera(_camera);
   _cubeTextured->setMaterial(materialCubeTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
@@ -156,7 +152,6 @@ Main::Main() {
   auto cubeTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedPhong->setCamera(_camera);
   cubeTexturedPhong->setMaterial(materialCubePhong);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
@@ -168,7 +163,6 @@ Main::Main() {
   auto cubeColoredWireframe = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeColoredWireframe->setCamera(_camera);
   cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
   cubeColoredWireframe->getMesh()->setColor(
       std::vector{cubeColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
@@ -183,7 +177,6 @@ Main::Main() {
   _cubeTexturedWireframe = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  _cubeTexturedWireframe->setCamera(_camera);
   _cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   _cubeTexturedWireframe->setMaterial(materialCubeTextured);
   {
@@ -196,7 +189,6 @@ Main::Main() {
   auto cubeTexturedWireframePhong = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedWireframePhong->setCamera(_camera);
   cubeTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   cubeTexturedWireframePhong->setMaterial(materialCubePhong);
   {
@@ -209,7 +201,6 @@ Main::Main() {
   auto cubeTexturedPhongNormalMesh = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedPhongNormalMesh->setCamera(_camera);
   cubeTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
@@ -231,7 +222,6 @@ Main::Main() {
   auto cubeTexturedNormalFragment = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedNormalFragment->setCamera(_camera);
   cubeTexturedNormalFragment->setMaterial(materialCubeTexturedNormalFragment);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
@@ -264,7 +254,6 @@ Main::Main() {
   auto cubeTexturedPhongSpecular = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedPhongSpecular->setCamera(_camera);
   cubeTexturedPhongSpecular->setMaterial(materialCubePhongSpecular);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, -3.f));
@@ -320,7 +309,6 @@ Main::Main() {
   auto cubeTexturedPBR = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeTexturedPBR->setCamera(_camera);
   cubeTexturedPBR->setMaterial(materialCubePBR);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, -3.f));
@@ -332,7 +320,6 @@ Main::Main() {
   auto cubeWireframePBR = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  cubeWireframePBR->setCamera(_camera);
   cubeWireframePBR->setMaterial(materialCubePBR);
   cubeWireframePBR->setDrawType(DrawType::WIREFRAME);
   {
@@ -345,7 +332,6 @@ Main::Main() {
   auto sphereColored = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereColored->setCamera(_camera);
   sphereColored->getMesh()->setColor(
       std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
   {
@@ -363,7 +349,6 @@ Main::Main() {
   auto sphereTextured = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTextured->setCamera(_camera);
   sphereTextured->setMaterial(materialSphereTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
@@ -387,7 +372,6 @@ Main::Main() {
   auto sphereTexturedPhong = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedPhong->setCamera(_camera);
   sphereTexturedPhong->setMaterial(materialSpherePhong);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, 3.f));
@@ -399,7 +383,6 @@ Main::Main() {
   auto sphereColoredWireframe = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereColoredWireframe->setCamera(_camera);
   sphereColoredWireframe->setDrawType(DrawType::WIREFRAME);
   sphereColoredWireframe->getMesh()->setColor(
       std::vector{sphereColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
@@ -414,7 +397,6 @@ Main::Main() {
   auto sphereTexturedWireframe = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedWireframe->setCamera(_camera);
   sphereTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframe->setMaterial(materialSphereTextured);
   {
@@ -427,7 +409,6 @@ Main::Main() {
   auto sphereTexturedWireframePhong = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedWireframePhong->setCamera(_camera);
   sphereTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframePhong->setMaterial(materialSpherePhong);
   {
@@ -440,7 +421,6 @@ Main::Main() {
   auto sphereTexturedPhongNormalMesh = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedPhongNormalMesh->setCamera(_camera);
   sphereTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
@@ -455,7 +435,6 @@ Main::Main() {
   auto sphereTexturedNormalFragment = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedNormalFragment->setCamera(_camera);
   sphereTexturedNormalFragment->setMaterial(materialSphereTexturedNormalFragment);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
@@ -481,7 +460,6 @@ Main::Main() {
   auto sphereTexturedPhongSpecular = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedPhongSpecular->setCamera(_camera);
   sphereTexturedPhongSpecular->setMaterial(materialSpherePhongSpecular);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, 3.f));
@@ -522,7 +500,6 @@ Main::Main() {
   auto sphereTexturedPBR = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereTexturedPBR->setCamera(_camera);
   sphereTexturedPBR->setMaterial(materialSpherePBR);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, 3.f));
@@ -534,7 +511,6 @@ Main::Main() {
   auto sphereWireframePBR = std::make_shared<Shape3D>(
       ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-  sphereWireframePBR->setCamera(_camera);
   sphereWireframePBR->setMaterial(materialSpherePBR);
   sphereWireframePBR->setDrawType(DrawType::WIREFRAME);
   {

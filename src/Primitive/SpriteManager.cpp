@@ -216,8 +216,6 @@ std::shared_ptr<Sprite> SpriteManager::createSprite(
   return sprite;
 }
 
-void SpriteManager::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void SpriteManager::registerSprite(std::shared_ptr<Sprite> sprite) {
   if (std::find(_sprites.begin(), _sprites.end(), sprite) == _sprites.end()) _sprites.push_back(sprite);
 }
@@ -226,7 +224,9 @@ void SpriteManager::unregisterSprite(std::shared_ptr<Sprite> sprite) {
   _sprites.erase(std::remove(_sprites.begin(), _sprites.end(), sprite), _sprites.end());
 }
 
-void SpriteManager::draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void SpriteManager::draw(std::tuple<int, int> resolution,
+                         std::shared_ptr<Camera> camera,
+                         std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -298,8 +298,7 @@ void SpriteManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comman
 
     for (auto sprite : _sprites) {
       if (sprite->getMaterialType() == materialType && sprite->getDrawType() == drawType) {
-        sprite->setCamera(_camera);
-        sprite->draw(commandBuffer, pipeline);
+        sprite->draw(camera, commandBuffer, pipeline);
       }
     }
   };
@@ -314,8 +313,7 @@ void SpriteManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comman
 
     for (auto sprite : _sprites) {
       if (sprite->getDrawType() == drawType) {
-        sprite->setCamera(_camera);
-        sprite->draw(commandBuffer, pipeline);
+        sprite->draw(camera, commandBuffer, pipeline);
       }
     }
   };
@@ -334,16 +332,15 @@ void SpriteManager::draw(std::tuple<int, int> resolution, std::shared_ptr<Comman
     if (sprite->getMaterialType() == MaterialType::CUSTOM) {
       auto pipeline = _pipelineCustom[sprite];
       bindPipeline(pipeline);
-      sprite->setCamera(_camera);
-      sprite->draw(commandBuffer, pipeline);
+      sprite->draw(camera, commandBuffer, pipeline);
     }
   }
 }
 
-void SpriteManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                               LightType lightType,
+void SpriteManager::drawShadow(LightType lightType,
                                int lightIndex,
-                               int face) {
+                               int face,
+                               std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
@@ -412,13 +409,13 @@ void SpriteManager::drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
     if (lightType == LightType::DIRECTIONAL) {
       view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
       projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(commandBuffer, pipeline, lightIndexTotal, view, projection, face);
+      sprite->drawShadow(lightIndexTotal, view, projection, face, commandBuffer, pipeline);
     }
     if (lightType == LightType::POINT) {
       lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
       view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
       projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
-      sprite->drawShadow(commandBuffer, pipeline, lightIndexTotal, view, projection, face);
+      sprite->drawShadow(lightIndexTotal, view, projection, face, commandBuffer, pipeline);
     }
   }
 }

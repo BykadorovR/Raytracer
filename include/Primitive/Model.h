@@ -31,7 +31,6 @@ class Model3D {
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Texture> _stubTextureNormal;
   std::vector<std::shared_ptr<Buffer>> _defaultSSBO;
-  std::shared_ptr<Camera> _camera;
   glm::mat4 _model = glm::mat4(1.f);
   bool _enableDepth = true;
   int _animationIndex = 0;
@@ -62,7 +61,6 @@ class Model3D {
           std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
-  void setCamera(std::shared_ptr<Camera> camera);
 
   void setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials);
   void setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials);
@@ -77,14 +75,15 @@ class Model3D {
   MaterialType getMaterialType();
   DrawType getDrawType();
 
-  void draw(std::shared_ptr<CommandBuffer> commandBuffer,
+  void draw(std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer,
             std::shared_ptr<Pipeline> pipeline,
             std::shared_ptr<Pipeline> pipelineCullOff);
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  std::shared_ptr<Pipeline> pipeline,
-                  std::shared_ptr<Pipeline> pipelineCullOff,
-                  int lightIndex,
+  void drawShadow(int lightIndex,
                   glm::mat4 view,
                   glm::mat4 projection,
-                  int face);
+                  int face,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  std::shared_ptr<Pipeline> pipeline,
+                  std::shared_ptr<Pipeline> pipelineCullOff);
 };

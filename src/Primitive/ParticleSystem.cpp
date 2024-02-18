@@ -95,15 +95,14 @@ void ParticleSystem::_initializeCompute() {
 
 void ParticleSystem::setModel(glm::mat4 model) { _model = model; }
 
-void ParticleSystem::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale; }
 
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
 
 glm::mat4 ParticleSystem::getModel() { return _model; }
 
-void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   float timeDelta = _frameTimer * 2.f;
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _deltaUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
@@ -129,7 +128,8 @@ void ParticleSystem::drawCompute(int currentFrame, std::shared_ptr<CommandBuffer
                 1, 1);
 }
 
-void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer) {
+void ParticleSystem::drawGraphic(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
   VkViewport viewport{};
@@ -156,8 +156,8 @@ void ParticleSystem::drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = _camera->getView();
-  cameraUBO.projection = _camera->getProjection();
+  cameraUBO.view = camera->getView();
+  cameraUBO.projection = camera->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,

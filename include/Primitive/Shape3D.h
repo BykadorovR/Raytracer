@@ -27,7 +27,6 @@ class Shape3D : public IDrawable, public IShadowable {
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
-  std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
@@ -56,12 +55,10 @@ class Shape3D : public IDrawable, public IShadowable {
   void setDrawType(DrawType drawType);
 
   void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
   std::shared_ptr<Mesh3D> getMesh();
 
-  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

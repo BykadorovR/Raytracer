@@ -203,7 +203,7 @@ void Core::_directionalLightCalculator(int index) {
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame));
-    shadowable->drawShadow(commandBuffer, LightType::DIRECTIONAL, index);
+    shadowable->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
@@ -301,7 +301,7 @@ void Core::_pointLightCalculator(int index, int face) {
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
     loggerGPU->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame));
-    shadowable->drawShadow(commandBuffer, LightType::POINT, index, face);
+    shadowable->drawShadow(LightType::POINT, index, face, commandBuffer);
     loggerGPU->end();
   }
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
@@ -341,7 +341,7 @@ void Core::_computeParticles() {
                      glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
             });
   for (auto& particleSystem : _particleSystem) {
-    particleSystem->drawCompute(frameInFlight, _commandBufferParticleSystem);
+    particleSystem->drawCompute(_commandBufferParticleSystem);
     particleSystem->updateTimer(_timer->getElapsedCurrent());
   }
   _loggerParticles->end();
@@ -638,7 +638,7 @@ void Core::_renderGraphic() {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
-    drawable->draw(_state->getSettings()->getResolution(), _commandBufferRender);
+    drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
     _loggerGPU->end();
   }
 
@@ -654,14 +654,14 @@ void Core::_renderGraphic() {
 
   if (_skybox) {
     _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-    _skybox->draw(frameInFlight, _commandBufferRender);
+    _skybox->draw(_camera, _commandBufferRender);
     _loggerGPU->end();
   }
 
   // contains transparency, should be drawn last
   _loggerGPU->begin("Render particles " + std::to_string(globalFrame));
   for (auto& particleSystem : _particleSystem) {
-    particleSystem->drawGraphic(frameInFlight, _commandBufferRender);
+    particleSystem->drawGraphic(_camera, _commandBufferRender);
   }
   _loggerGPU->end();
 

@@ -23,7 +23,6 @@ class SpriteManager : public IDrawable, public IShadowable {
   std::vector<VkFormat> _renderFormat;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  std::shared_ptr<Camera> _camera;
   std::shared_ptr<LightManager> _lightManager;
   std::vector<std::shared_ptr<Sprite>> _sprites;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
@@ -45,10 +44,8 @@ class SpriteManager : public IDrawable, public IShadowable {
       std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> layouts);
   void registerSprite(std::shared_ptr<Sprite> sprite);
   void unregisterSprite(std::shared_ptr<Sprite> sprite);
-  void setCamera(std::shared_ptr<Camera> camera);
-  void draw(std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

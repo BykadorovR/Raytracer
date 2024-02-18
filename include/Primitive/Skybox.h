@@ -14,7 +14,6 @@ class Skybox {
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _pipeline;
-  std::shared_ptr<Camera> _camera;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   MaterialType _materialType = MaterialType::COLOR;
@@ -28,8 +27,7 @@ class Skybox {
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
   std::shared_ptr<Mesh3D> getMesh();
 
-  void draw(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer);
 };

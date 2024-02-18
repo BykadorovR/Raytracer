@@ -69,8 +69,8 @@ class DebugVisualization : public InputSubscriber {
   std::shared_ptr<Sprite> _farPlaneCW, _farPlaneCCW;
   glm::vec3 _eyeSave = {0, 0, 3}, _dirSave = {0, 0, -1}, _upSave = {0, 1, 0}, _angles = {-90, 0, 0};
 
-  void _drawFrustum(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
-  void _drawShadowMaps(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void _drawFrustum(std::shared_ptr<CommandBuffer> commandBuffer);
+  void _drawShadowMaps(std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
   DebugVisualization(std::shared_ptr<Camera> camera,

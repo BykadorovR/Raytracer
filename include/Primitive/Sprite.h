@@ -18,7 +18,6 @@ class Sprite {
 
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<Camera> _camera;
   bool _enableShadow = true;
   bool _enableLighting = true;
   bool _enableDepth = true;
@@ -47,15 +46,16 @@ class Sprite {
   void setMaterial();
   MaterialType getMaterialType();
   void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
   void setDrawType(DrawType drawType);
   DrawType getDrawType();
 
-  void draw(std::shared_ptr<CommandBuffer> commandBuffer, std::shared_ptr<Pipeline> pipeline);
-  void drawShadow(std::shared_ptr<CommandBuffer> commandBuffer,
-                  std::shared_ptr<Pipeline> pipeline,
-                  int lightIndex,
+  void draw(std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer,
+            std::shared_ptr<Pipeline> pipeline);
+  void drawShadow(int lightIndex,
                   glm::mat4 view,
                   glm::mat4 projection,
-                  int face);
+                  int face,
+                  std::shared_ptr<CommandBuffer> commandBuffer,
+                  std::shared_ptr<Pipeline> pipeline);
 };
