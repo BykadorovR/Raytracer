@@ -2,6 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
+#include "Model.h"
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -115,14 +116,11 @@ Main::Main() {
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
   };
-  auto modelManagerStatic = std::make_shared<Model3DManager>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, _core->getResourceManager(), state);
-  // draw simple non-textured cube
   auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
   {
-    auto modelBox = modelManagerStatic->createModel3D(gltfModelBox->getNodes(), gltfModelBox->getMeshes());
-    modelManagerStatic->registerModel3D(modelBox);
+    auto modelBox = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBox->getNodes(),
+        gltfModelBox->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelBox = gltfModelBox->getMaterialsPBR();
     for (auto& material : materialModelBox) {
       fillMaterialPBR(material);
@@ -132,13 +130,16 @@ Main::Main() {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
       modelBox->setModel(model);
     }
+
+    _core->addDrawable(modelBox);
   }
 
   // draw simple textured model Phong
   auto gltfModelAvocado = _core->getResourceManager()->loadModel("../assets/Avocado/Avocado.gltf");
   {
-    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
-    modelManagerStatic->registerModel3D(modelAvocado);
+    auto modelAvocado = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelAvocado->getNodes(),
+        gltfModelAvocado->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelAvocado = gltfModelAvocado->getMaterialsPhong();
     for (auto& material : materialModelAvocado) {
       fillMaterialPhong(material);
@@ -149,11 +150,14 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
       modelAvocado->setModel(model);
     }
+
+    _core->addDrawable(modelAvocado);
   }
   // draw simple textured model PBR
   {
-    auto modelAvocado = modelManagerStatic->createModel3D(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes());
-    modelManagerStatic->registerModel3D(modelAvocado);
+    auto modelAvocado = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelAvocado->getNodes(),
+        gltfModelAvocado->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelAvocado = gltfModelAvocado->getMaterialsPBR();
     for (auto& material : materialModelAvocado) {
       fillMaterialPBR(material);
@@ -164,13 +168,15 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
       modelAvocado->setModel(model);
     }
+    _core->addDrawable(modelAvocado);
   }
 
   // draw advanced textured model Phong
   auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
     for (auto& material : materialModelBottle) {
       fillMaterialPhong(material);
@@ -181,12 +187,14 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
 
   // draw advanced textured model PBR
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
     for (auto& material : materialModelBottle) {
       fillMaterialPBR(material);
@@ -197,11 +205,13 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
   // draw textured model without lighting model
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelBottle = gltfModelBottle->getMaterialsColor();
     modelBottle->setMaterial(materialModelBottle);
     {
@@ -209,44 +219,52 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
   // draw model without material
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
-    modelManagerStatic->registerModel3D(modelBottle);
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 1.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
   // draw material normal
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     modelBottle->setDrawType(DrawType::NORMAL);
-    modelManagerStatic->registerModel3D(modelBottle);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 1.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
   // draw wireframe
   {
-    auto modelBottle = modelManagerStatic->createModel3D(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes());
+    auto modelBottle = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelBottle->getNodes(),
+        gltfModelBottle->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     modelBottle->setDrawType(DrawType::WIREFRAME);
-    modelManagerStatic->registerModel3D(modelBottle);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       modelBottle->setModel(model);
     }
+    _core->addDrawable(modelBottle);
   }
   // draw skeletal textured model with multiple animations
   auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
   {
-    auto modelFish = modelManagerStatic->createModel3D(gltfModelFish->getNodes(), gltfModelFish->getMeshes());
-    modelManagerStatic->registerModel3D(modelFish);
+    auto modelFish = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelFish->getNodes(),
+        gltfModelFish->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelFish = gltfModelFish->getMaterialsPhong();
     for (auto& material : materialModelFish) {
       fillMaterialPhong(material);
@@ -265,13 +283,15 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
       modelFish->setModel(model);
     }
+    _core->addDrawable(modelFish);
   }
 
   // draw skeletal dancing model with one animation
   {
     auto gltfModelDancing = _core->getResourceManager()->loadModel("../assets/BrainStem/BrainStem.gltf");
-    auto modelDancing = modelManagerStatic->createModel3D(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes());
-    modelManagerStatic->registerModel3D(modelDancing);
+    auto modelDancing = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelDancing->getNodes(),
+        gltfModelDancing->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
     for (auto& material : materialModelDancing) {
       fillMaterialPBR(material);
@@ -287,13 +307,15 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       modelDancing->setModel(model);
     }
+    _core->addDrawable(modelDancing);
   }
 
   // draw skeletal walking model with one animation
   {
     auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
-    auto modelWalking = modelManagerStatic->createModel3D(gltfModelWalking->getNodes(), gltfModelWalking->getMeshes());
-    modelManagerStatic->registerModel3D(modelWalking);
+    auto modelWalking = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelWalking->getNodes(),
+        gltfModelWalking->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
     for (auto& material : materialModelWalking) {
       fillMaterialPhong(material);
@@ -309,8 +331,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       modelWalking->setModel(model);
     }
+    _core->addDrawable(modelWalking);
   }
-  _core->addDrawable(modelManagerStatic);
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore

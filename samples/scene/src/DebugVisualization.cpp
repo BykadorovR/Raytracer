@@ -72,26 +72,25 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera,
 
 void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   _lightManager = lightManager;
-  _spriteManager = std::make_shared<SpriteManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
-  _farPlaneCW = _spriteManager->createSprite();
+  _farPlaneCW = std::make_shared<Sprite>(std::vector{_state->getSettings()->getSwapchainColorFormat()}, lightManager,
+                                         _commandBufferTransfer, _resourceManager, _state);
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
-  _farPlaneCCW = _spriteManager->createSprite();
+  _farPlaneCCW = std::make_shared<Sprite>(std::vector{_state->getSettings()->getSwapchainColorFormat()}, lightManager,
+                                          _commandBufferTransfer, _resourceManager, _state);
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
 
-  _modelManager = std::make_shared<Model3DManager>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
-                                                   lightManager, _commandBufferTransfer, _resourceManager, _state);
-
   for (auto light : lightManager->getPointLights()) {
-    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
+    auto model = std::make_shared<Model3D>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                           _boxModel->getNodes(), _boxModel->getMeshes(), lightManager,
+                                           _commandBufferTransfer, _resourceManager, _state);
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
-    _modelManager->registerModel3D(model);
+    _modelManager.push_back(model);
     _pointLightModels.push_back(model);
 
     auto sphereMesh = std::make_shared<MeshSphere>(_commandBufferTransfer, _state);
@@ -102,11 +101,13 @@ void DebugVisualization::setLights(std::shared_ptr<LightManager> lightManager) {
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
-    auto model = _modelManager->createModel3D(_boxModel->getNodes(), _boxModel->getMeshes());
+    auto model = std::make_shared<Model3D>(std::vector{_state->getSettings()->getSwapchainColorFormat()},
+                                           _boxModel->getNodes(), _boxModel->getMeshes(), lightManager,
+                                           _commandBufferTransfer, _resourceManager, _state);
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
-    _modelManager->registerModel3D(model);
+    _modelManager.push_back(model);
     _directionalLightModels.push_back(model);
   }
 }
@@ -285,14 +286,16 @@ void DebugVisualization::calculate(std::shared_ptr<CommandBuffer> commandBuffer)
   _gui->drawCheckbox({{"Show planes", &_showPlanes}});
   if (_frustumDraw && _showPlanes) {
     if (_planesRegistered == false) {
-      _spriteManager->registerSprite(_farPlaneCW);
-      _spriteManager->registerSprite(_farPlaneCCW);
+      _spriteManager.push_back(_farPlaneCW);
+      _spriteManager.push_back(_farPlaneCCW);
       _planesRegistered = true;
     }
   } else {
     if (_planesRegistered == true) {
-      _spriteManager->unregisterSprite(_farPlaneCW);
-      _spriteManager->unregisterSprite(_farPlaneCCW);
+      _spriteManager.erase(std::remove(_spriteManager.begin(), _spriteManager.end(), _farPlaneCW),
+                           _spriteManager.end());
+      _spriteManager.erase(std::remove(_spriteManager.begin(), _spriteManager.end(), _farPlaneCCW),
+                           _spriteManager.end());
       _planesRegistered = false;
     }
   }
@@ -402,7 +405,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
         _gui->drawListBox(_attenuationKeys, toggleSpheres);
       }
       for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
-        if (_registerLights) _modelManager->registerModel3D(_pointLightModels[i]);
+        if (_registerLights) _modelManager.push_back(_pointLightModels[i]);
         {
           auto model = glm::translate(glm::mat4(1.f), _lightManager->getPointLights()[i]->getPosition());
           model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
@@ -422,7 +425,7 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
         }
       }
       for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
-        if (_registerLights) _modelManager->registerModel3D(_directionalLightModels[i]);
+        if (_registerLights) _modelManager.push_back(_directionalLightModels[i]);
         auto model = glm::translate(glm::mat4(1.f), _lightManager->getDirectionalLights()[i]->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _directionalLightModels[i]->setModel(model);
@@ -432,10 +435,12 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
       if (_registerLights == false) {
         _registerLights = true;
         for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
-          _modelManager->unregisterModel3D(_pointLightModels[i]);
+          _modelManager.erase(std::remove(_modelManager.begin(), _modelManager.end(), _pointLightModels[i]),
+                              _modelManager.end());
         }
         for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
-          _modelManager->unregisterModel3D(_directionalLightModels[i]);
+          _modelManager.erase(std::remove(_modelManager.begin(), _modelManager.end(), _directionalLightModels[i]),
+                              _modelManager.end());
         }
       }
     }
@@ -456,10 +461,12 @@ void DebugVisualization::draw(int currentFrame, std::shared_ptr<CommandBuffer> c
     _state->getSettings()->setClearColor({_R, _G, _B, 1.f});
   }
 
-  _modelManager->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
-
-  _spriteManager->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
-
+  for (auto& model : _modelManager) {
+    model->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
+  }
+  for (auto& sprite : _spriteManager) {
+    sprite->draw(_state->getSettings()->getResolution(), _camera, commandBuffer);
+  }
   _drawFrustum(commandBuffer);
 
   _drawShadowMaps(commandBuffer);

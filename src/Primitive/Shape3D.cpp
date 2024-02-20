@@ -284,8 +284,6 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
   _materialType = MaterialType::PBR;
 }
 
-void Shape3D::setModel(glm::mat4 model) { _model = model; }
-
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }

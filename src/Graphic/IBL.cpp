@@ -7,7 +7,8 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
          std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state) {
   _state = state;
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh3D = std::make_shared<Mesh3D>(state);
+  _mesh2D = std::make_shared<Mesh2D>(state);
   _lightManager = lightManager;
 
   std::vector<Vertex3D> vertices(8);
@@ -32,29 +33,44 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
                                 1, 3, 2, 2, 0, 1,   // ccw if look to this face from front
                                                     //  Back
                                 5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
-  _mesh->setVertices(vertices, commandBufferTransfer);
-  _mesh->setIndexes(indices, commandBufferTransfer);
-  _mesh->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
+  _mesh3D->setVertices(vertices, commandBufferTransfer);
+  _mesh3D->setIndexes(indices, commandBufferTransfer);
+  _mesh3D->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
+  // 3   0
+  // 2   1
+  _mesh2D->setVertices(
+      {Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
+       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}},
+      commandBufferTransfer);
+  _mesh2D->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
+
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
   _material = _defaultMaterialColor;
 
+  auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  cameraLayout->createUniformBuffer();
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
-  _uniformBuffer.resize(6);
+  _cameraBufferCubemap.resize(6);
   for (int i = 0; i < 6; i++) {
-    _uniformBuffer[i] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                        sizeof(BufferMVP), state);
+    _cameraBufferCubemap[i] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
+                                                              sizeof(BufferMVP), state);
   }
-  auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createUniformBuffer();
+  _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
+                                                  state);
 
-  _descriptorSetCamera.resize(6);
+  _descriptorSetCameraCubemap.resize(6);
   for (int i = 0; i < 6; i++) {
-    _descriptorSetCamera[i] = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
-                                                              state->getDescriptorPool(), state->getDevice());
-    _descriptorSetCamera[i]->createUniformBuffer(_uniformBuffer[i]);
+    _descriptorSetCameraCubemap[i] = std::make_shared<DescriptorSet>(
+        state->getSettings()->getMaxFramesInFlight(), cameraLayout, state->getDescriptorPool(), state->getDevice());
+    _descriptorSetCameraCubemap[i]->createUniformBuffer(_cameraBufferCubemap[i]);
   }
+  _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), cameraLayout,
+                                                         state->getDescriptorPool(), state->getDevice());
+  _descriptorSetCamera->createUniformBuffer(_cameraBuffer);
 
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
@@ -65,9 +81,9 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
         renderFormat, cullMode, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {std::pair{std::string("camera"), setLayout},
+        {std::pair{std::string("camera"), cameraLayout},
          std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-        {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
@@ -77,9 +93,9 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
     _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                      {std::pair{std::string("camera"), setLayout},
+                                      {std::pair{std::string("camera"), cameraLayout},
                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                                      {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+                                      {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
   }
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -92,10 +108,21 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
     _pipelineSpecular->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                       {std::pair{std::string("camera"), setLayout},
+                                       {std::pair{std::string("camera"), cameraLayout},
                                         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                                       defaultPushConstants, _mesh->getBindingDescription(),
-                                       _mesh->getAttributeDescriptions());
+                                       defaultPushConstants, _mesh3D->getBindingDescription(),
+                                       _mesh3D->getAttributeDescriptions());
+  }
+  {
+    auto shader = std::make_shared<Shader>(state->getDevice());
+    shader->add("shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineSpecularBRDF = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineSpecularBRDF->createGraphic2D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
+                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                           {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
+                                           _mesh2D->getAttributeDescriptions());
   }
 }
 
@@ -117,17 +144,18 @@ void IBL::_draw(int face,
   cameraUBO.projection = camera->getProjection();
 
   void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer[face]->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(cameraUBO), 0, &data);
+  vkMapMemory(_state->getDevice()->getLogicalDevice(),
+              _cameraBufferCubemap[face]->getBuffer()[currentFrame]->getMemory(), 0, sizeof(cameraUBO), 0, &data);
   memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer[face]->getBuffer()[currentFrame]->getMemory());
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
+                _cameraBufferCubemap[face]->getBuffer()[currentFrame]->getMemory());
 
-  VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
+  VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
   vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
+                       _mesh3D->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -137,7 +165,7 @@ void IBL::_draw(int face,
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCamera[face]->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetCameraCubemap[face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -150,8 +178,8 @@ void IBL::_draw(int face,
         1, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
+                   static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
 }
 
 void IBL::drawEquirectangular(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -229,4 +257,60 @@ void IBL::drawDiffuse(int face, std::shared_ptr<Camera> camera, std::shared_ptr<
   scissor.extent = VkExtent2D(width, height);
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
   _draw(face, camera, commandBuffer, _pipelineDiffuse);
+}
+
+void IBL::drawSpecularBRDF(std::tuple<int, int> resolution,
+                           std::shared_ptr<Camera> camera,
+                           std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
+  VkViewport viewport{};
+  viewport.x = 0.0f;
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
+  viewport.minDepth = 0.0f;
+  viewport.maxDepth = 1.0f;
+  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+  VkRect2D scissor{};
+  scissor.offset = {0, 0};
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+  BufferMVP cameraMVP{};
+  auto model = glm::scale(_model, glm::vec3(2.f, 2.f, 1.f));
+  cameraMVP.model = model;
+  cameraMVP.view = camera->getView();
+  cameraMVP.projection = camera->getProjection();
+
+  void* data;
+  vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory(), 0,
+              sizeof(cameraMVP), 0, &data);
+  memcpy(data, &cameraMVP, sizeof(cameraMVP));
+  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory());
+
+  VkBuffer vertexBuffers[] = {_mesh2D->getVertexBuffer()->getBuffer()->getData()};
+  VkDeviceSize offsets[] = {0};
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
+                       _mesh2D->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
+
+  auto pipelineLayout = _pipelineSpecularBRDF->getDescriptorSetLayout();
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    _pipelineSpecularBRDF->getPipeline());
+
+  // camera
+  auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                     return info.first == std::string("camera");
+                                   });
+  if (cameraLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _pipelineSpecularBRDF->getPipelineLayout(), 0, 1,
+                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
+                   static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1, 0, 0, 0);
 }

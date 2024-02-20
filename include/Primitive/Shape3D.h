@@ -11,7 +11,7 @@
 
 enum class ShapeType { CUBE = 0, SPHERE = 1 };
 
-class Shape3D : public IDrawable, public IShadowable {
+class Shape3D : public Drawable, public Shadowable {
  private:
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
   std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
@@ -33,7 +33,6 @@ class Shape3D : public IDrawable, public IShadowable {
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
-  glm::mat4 _model = glm::mat4(1.f);
   DrawType _drawType = DrawType::FILL;
   bool _enableShadow = true;
   bool _enableLighting = true;
@@ -54,7 +53,6 @@ class Shape3D : public IDrawable, public IShadowable {
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setDrawType(DrawType drawType);
 
-  void setModel(glm::mat4 model);
   std::shared_ptr<Mesh3D> getMesh();
 
   void draw(std::tuple<int, int> resolution,

@@ -1,12 +1,11 @@
 #pragma once
-#include "ModelManager.h"
 #include "GUI.h"
 #include "LightManager.h"
 #include "State.h"
 #include "Shape3D.h"
+#include "Model.h"
 #include "Line.h"
 #include "Sprite.h"
-#include "SpriteManager.h"
 #include "Postprocessing.h"
 #undef near
 #undef far
@@ -35,8 +34,8 @@ class DebugVisualization : public InputSubscriber {
   bool _showLights = true;
   bool _registerLights = false;
   std::shared_ptr<Camera> _camera;
-  std::shared_ptr<Model3DManager> _modelManager;
-  std::shared_ptr<SpriteManager> _spriteManager;
+  std::vector<std::shared_ptr<Model3D>> _modelManager;
+  std::vector<std::shared_ptr<Sprite>> _spriteManager;
   std::shared_ptr<GUI> _gui;
   std::shared_ptr<State> _state;
   bool _cursorEnabled = false;

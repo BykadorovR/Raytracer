@@ -3,7 +3,7 @@
 #include "Descriptor.h"
 #include "Cubemap.h"
 
-enum class MaterialType { PHONG, PBR, COLOR, CUSTOM };
+enum class MaterialType { PHONG, PBR, COLOR };
 
 enum class MaterialTarget { SIMPLE = 1, TERRAIN = 4 };
 

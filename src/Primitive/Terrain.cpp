@@ -435,8 +435,6 @@ void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
   _materialType = MaterialType::PBR;
 }
 
-void Terrain::setModel(glm::mat4 model) { _model = model; }
-
 void Terrain::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 DrawType Terrain::getDrawType() { return _drawType; }

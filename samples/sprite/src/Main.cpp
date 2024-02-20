@@ -2,6 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
+#include "Sprite.h"
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -116,17 +117,34 @@ Main::Main() {
                              core->getResourceManager()->getTextureZero());
   };
 
-  auto spriteManager = std::make_shared<SpriteManager>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, _core->getResourceManager(), state);
+  // draw textured Sprite, check alpha blending
+  {
+    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
+                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
+    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    materialColor->setBaseColor({texture});
+    sprite->setMaterial(materialColor);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -2.5f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      sprite->setModel(model);
+    }
+
+    _core->addDrawable(sprite);
+  }
 
   // draw textured Sprite without lighting
   {
     auto textureTree = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = spriteManager->createSprite();
-    spriteManager->registerSprite(spriteTree);
+    auto spriteTree = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialColor->setBaseColor({textureTree});
     spriteTree->setMaterial(materialColor);
@@ -135,6 +153,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       spriteTree->setModel(model);
     }
+
+    _core->addDrawable(spriteTree);
   }
 
   // draw textured Sprite with Phong
@@ -142,8 +162,9 @@ Main::Main() {
     auto textureTree = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = spriteManager->createSprite();
-    spriteManager->registerSprite(spriteTree);
+    auto spriteTree = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialPhong->setBaseColor({textureTree});
     fillMaterialPhong(materialPhong);
@@ -153,14 +174,17 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       spriteTree->setModel(model);
     }
+
+    _core->addDrawable(spriteTree);
   }
   // draw textured Sprite with PBR
   {
     auto textureTree = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = spriteManager->createSprite();
-    spriteManager->registerSprite(spriteTree);
+    auto spriteTree = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
@@ -170,6 +194,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
       spriteTree->setModel(model);
     }
+
+    _core->addDrawable(spriteTree);
   }
 
   // draw textured Sprite, check alpha blending
@@ -177,25 +203,9 @@ Main::Main() {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
                                              settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-    materialColor->setBaseColor({texture});
-    sprite->setMaterial(materialColor);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -2.5f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      sprite->setModel(model);
-    }
-  }
-
-  // draw textured Sprite, check alpha blending
-  {
-    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
@@ -205,6 +215,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
+
+    _core->addDrawable(sprite);
   }
 
   // draw textured Sprite normal
@@ -212,8 +224,9 @@ Main::Main() {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
                                              settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
@@ -223,6 +236,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
+
+    _core->addDrawable(sprite);
   }
 
   // draw textured Sprite tangent
@@ -230,8 +245,9 @@ Main::Main() {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
                                              settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
@@ -241,6 +257,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
+
+    _core->addDrawable(sprite);
   }
 
   // draw textured Sprite Phong without normals
@@ -252,8 +270,9 @@ Main::Main() {
         _core->getResourceManager()->loadImage({"../assets/container_specular.png"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     material->setBaseColor({textureColor});
     material->setSpecular({textureSpecular});
@@ -265,6 +284,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
+
+    _core->addDrawable(sprite);
   }
 
   // draw textured Sprite Phong without specular
@@ -276,8 +297,9 @@ Main::Main() {
         _core->getResourceManager()->loadImage({"../assets/brickwall_normal.jpg"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     material->setBaseColor({textureColor});
     material->setNormal({textureNormal});
@@ -288,6 +310,8 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
+
+    _core->addDrawable(sprite);
   }
 
   // draw textured Sprite PBR
@@ -308,8 +332,9 @@ Main::Main() {
         _core->getResourceManager()->loadImage({"../assets/rustediron2_roughness.png"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto sprite = spriteManager->createSprite();
-    spriteManager->registerSprite(sprite);
+    auto sprite = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, _core->getResourceManager(), state);
     auto material = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     material->setBaseColor({textureColor});
     material->setNormal({textureNormal});
@@ -322,9 +347,9 @@ Main::Main() {
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       sprite->setModel(model);
     }
-  }
 
-  _core->addDrawable(spriteManager);
+    _core->addDrawable(sprite);
+  }
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore

@@ -334,12 +334,6 @@ void Core::_computeParticles() {
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
   _loggerParticles->begin("Particle system compute " + std::to_string(_timer->getFrameCounter()));
-  // sort particles from back to front
-  std::sort(_particleSystem.begin(), _particleSystem.end(),
-            [camera = _camera](std::shared_ptr<ParticleSystem> left, std::shared_ptr<ParticleSystem> right) {
-              return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
-                     glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
-            });
   for (auto& particleSystem : _particleSystem) {
     particleSystem->drawCompute(_commandBufferParticleSystem);
     particleSystem->updateTimer(_timer->getElapsedCurrent());
@@ -634,6 +628,18 @@ void Core::_renderGraphic() {
     }
   }
 
+  // should be draw first
+  if (_skybox) {
+    _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
+    _skybox->draw(_camera, _commandBufferRender);
+    _loggerGPU->end();
+  }
+
+  std::sort(_drawables.begin(), _drawables.end(),
+            [camera = _camera](std::shared_ptr<Drawable> left, std::shared_ptr<Drawable> right) {
+              return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
+                     glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
+            });
   for (auto& drawable : _drawables) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
@@ -651,19 +657,6 @@ void Core::_renderGraphic() {
       _loggerCPU->end();
     });
   }
-
-  if (_skybox) {
-    _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-    _skybox->draw(_camera, _commandBufferRender);
-    _loggerGPU->end();
-  }
-
-  // contains transparency, should be drawn last
-  _loggerGPU->begin("Render particles " + std::to_string(globalFrame));
-  for (auto& particleSystem : _particleSystem) {
-    particleSystem->drawGraphic(_camera, _commandBufferRender);
-  }
-  _loggerGPU->end();
 
   vkCmdEndRendering(_commandBufferRender->getCommandBuffer()[frameInFlight]);
   _commandBufferRender->endCommands();
@@ -926,14 +919,15 @@ std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 
 std::tuple<int, int> Core::getFPS() { return {_timerFPSLimited->getFPS(), _timerFPSReal->getFPS()}; }
 
-void Core::addDrawable(std::shared_ptr<IDrawable> drawable) { _drawables.push_back(drawable); }
+void Core::addDrawable(std::shared_ptr<Drawable> drawable) { _drawables.push_back(drawable); }
 
-void Core::addShadowable(std::shared_ptr<IShadowable> shadowable) { _shadowables.push_back(shadowable); }
+void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
 
 void Core::addAnimation(std::shared_ptr<Animation> animation) { _animations.push_back(animation); }
 
 void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);
+  addDrawable(particleSystem);
 }
 
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }

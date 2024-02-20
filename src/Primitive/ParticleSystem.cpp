@@ -93,13 +93,9 @@ void ParticleSystem::_initializeCompute() {
                                                 {{"computeSSBO", setLayoutSSBOCompute}}, {});
 }
 
-void ParticleSystem::setModel(glm::mat4 model) { _model = model; }
-
 void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale; }
 
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
-
-glm::mat4 ParticleSystem::getModel() { return _model; }
 
 void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
@@ -128,23 +124,24 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
                 1, 1);
 }
 
-void ParticleSystem::drawGraphic(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+void ParticleSystem::draw(std::tuple<int, int> resolution,
+                          std::shared_ptr<Camera> camera,
+                          std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(resolution);
+  viewport.width = std::get<0>(resolution);
+  viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_graphicPipeline->getPushConstants().find("vertex") != _graphicPipeline->getPushConstants().end()) {

@@ -11,10 +11,13 @@
 class IBL {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
-  std::vector<std::shared_ptr<UniformBuffer>> _uniformBuffer;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
-  std::shared_ptr<Pipeline> _pipelineEquirectangular, _pipelineDiffuse, _pipelineSpecular;
+  std::shared_ptr<Mesh3D> _mesh3D;
+  std::shared_ptr<Mesh2D> _mesh2D;
+  std::vector<std::shared_ptr<UniformBuffer>> _cameraBufferCubemap;
+  std::shared_ptr<UniformBuffer> _cameraBuffer;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraCubemap;
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
+  std::shared_ptr<Pipeline> _pipelineEquirectangular, _pipelineDiffuse, _pipelineSpecular, _pipelineSpecularBRDF;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   MaterialType _materialType = MaterialType::COLOR;
@@ -36,6 +39,9 @@ class IBL {
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);
 
+  void drawSpecularBRDF(std::tuple<int, int> resolution,
+                        std::shared_ptr<Camera> camera,
+                        std::shared_ptr<CommandBuffer> commandBuffer);
   void drawEquirectangular(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer);
   void drawDiffuse(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer);
   void drawSpecular(int face, int mipMap, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer);

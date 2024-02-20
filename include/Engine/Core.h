@@ -8,14 +8,13 @@
 #include "Camera.h"
 #include "LightManager.h"
 #include "Timer.h"
-#include "SpriteManager.h"
-#include "ModelManager.h"
 #include "ParticleSystem.h"
 #include "Terrain.h"
 #include "Blur.h"
 #include "Skybox.h"
 #include "BS_thread_pool.hpp"
 #include "ResourceManager.h"
+#include "Animation.h"
 
 class Core {
  private:
@@ -49,8 +48,8 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
-  std::vector<std::shared_ptr<IDrawable>> _drawables;
-  std::vector<std::shared_ptr<IShadowable>> _shadowables;
+  std::vector<std::shared_ptr<Drawable>> _drawables;
+  std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
 
@@ -91,8 +90,8 @@ class Core {
  public:
   Core(std::shared_ptr<Settings> settings);
   void setCamera(std::shared_ptr<Camera> camera);
-  void addDrawable(std::shared_ptr<IDrawable> drawable);
-  void addShadowable(std::shared_ptr<IShadowable> shadowable);
+  void addDrawable(std::shared_ptr<Drawable> drawable);
+  void addShadowable(std::shared_ptr<Shadowable> shadowable);
   void addAnimation(std::shared_ptr<Animation> animation);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);

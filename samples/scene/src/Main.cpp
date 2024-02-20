@@ -18,9 +18,7 @@
 #include "Command.h"
 #include "Settings.h"
 #include "Sprite.h"
-#include "SpriteManager.h"
 #include "Model.h"
-#include "ModelManager.h"
 #include "GUI.h"
 #include "Input.h"
 #include "Line.h"
@@ -70,8 +68,8 @@ std::vector<std::shared_ptr<Semaphore>> imageAvailableSemaphores, renderFinished
     semaphorePostprocessing, semaphoreGUI;
 std::vector<std::shared_ptr<Fence>> inFlightFences, particleSystemFences;
 
-std::shared_ptr<SpriteManager> spriteManager, spriteManagerHUD;
-std::shared_ptr<Model3DManager> modelManager;
+std::vector<std::shared_ptr<Sprite>> spriteManager, spriteManagerHUD;
+std::vector<std::shared_ptr<Model3D>> modelManager;
 std::shared_ptr<ParticleSystem> particleSystem;
 std::shared_ptr<Postprocessing> postprocessing;
 std::shared_ptr<Blur> blur;
@@ -186,10 +184,14 @@ void directionalLightCalculator(int index) {
   // draw scene here
   auto globalFrame = timer->getFrameCounter();
   loggerGPU->begin("Sprites to directional depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
+  for (auto& sprite : spriteManager) {
+    sprite->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
+  }
   loggerGPU->end();
   loggerGPU->begin("Models to directional depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
+  for (auto& model : modelManager) {
+    model->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
+  }
   loggerGPU->end();
   loggerGPU->begin("Terrain to directional depth buffer " + std::to_string(globalFrame));
   terrain->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
@@ -290,10 +292,14 @@ void pointLightCalculator(int index, int face) {
   auto globalFrame = timer->getFrameCounter();
   float aspect = std::get<0>(settings->getResolution()) / std::get<1>(settings->getResolution());
   loggerGPU->begin("Sprites to point depth buffer " + std::to_string(globalFrame));
-  spriteManager->drawShadow(LightType::POINT, index, face, commandBuffer);
+  for (auto& sprite : spriteManager) {
+    sprite->drawShadow(LightType::POINT, index, face, commandBuffer);
+  }
   loggerGPU->end();
   loggerGPU->begin("Models to point depth buffer " + std::to_string(globalFrame));
-  modelManager->drawShadow(LightType::POINT, index, face, commandBuffer);
+  for (auto& model : modelManager) {
+    model->drawShadow(LightType::POINT, index, face, commandBuffer);
+  }
   loggerGPU->end();
   loggerGPU->begin("Terrain to point depth buffer " + std::to_string(globalFrame));
   terrain->drawShadow(LightType::POINT, index, face, commandBuffer);
@@ -666,10 +672,16 @@ void renderGraphic() {
   loggerGPU->begin("Render light " + std::to_string(globalFrame));
   lightManager->draw(currentFrame);
   loggerGPU->end();
+  // should be drawn first
+  loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
+  skybox->draw(camera, commandBufferRender);
+  loggerGPU->end();
 
   // draw scene here
   loggerGPU->begin("Render sprites " + std::to_string(globalFrame));
-  spriteManager->draw(settings->getResolution(), camera, commandBufferRender);
+  for (auto& sprite : spriteManager) {
+    sprite->draw(settings->getResolution(), camera, commandBufferRender);
+  }
   loggerGPU->end();
 
   // wait model3D update
@@ -678,7 +690,9 @@ void renderGraphic() {
   }
 
   loggerGPU->begin("Render models " + std::to_string(globalFrame));
-  modelManager->draw(settings->getResolution(), camera, commandBufferRender);
+  for (auto& model : modelManager) {
+    model->draw(settings->getResolution(), camera, commandBufferRender);
+  }
   loggerGPU->end();
 
   // submit model3D update
@@ -707,14 +721,9 @@ void renderGraphic() {
   specularCube->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
-  // should be drawn last
-  loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-  skybox->draw(camera, commandBufferRender);
-  loggerGPU->end();
-
   // contains transparency, should be drawn last
   loggerGPU->begin("Render particles " + std::to_string(globalFrame));
-  particleSystem->drawGraphic(camera, commandBufferRender);
+  particleSystem->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   vkCmdEndRendering(commandBufferRender->getCommandBuffer()[currentFrame]);
@@ -884,15 +893,6 @@ void initialize() {
   directionalLight2->setPosition({3.f, 15.f, 0.f});
   directionalLight2->setCenter({0.f, 0.f, 0.f});
   directionalLight2->setUp({0.f, 1.f, 0.f});*/
-
-  spriteManager = std::make_shared<SpriteManager>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, resourceManager, state);
-  spriteManagerHUD = std::make_shared<SpriteManager>(std::vector{settings->getGraphicColorFormat()}, lightManager,
-                                                     commandBufferTransfer, resourceManager, state);
-  modelManager = std::make_shared<Model3DManager>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, resourceManager, state);
   debugVisualization = std::make_shared<DebugVisualization>(camera, gui, commandBufferTransfer, resourceManager, state);
   debugVisualization->setLights(lightManager);
   input->subscribe(std::dynamic_pointer_cast<InputSubscriber>(debugVisualization));
@@ -903,31 +903,47 @@ void initialize() {
   auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraSetLayout->createUniformBuffer();
 
-  auto spriteHUD = spriteManagerHUD->createSprite(shader, {{"camera", cameraSetLayout}});
-  spriteHUD->setModel(glm::scale(glm::mat4(1.f), glm::vec3(2.f, 2.f, 1.f)));
-  spriteManagerHUD->registerSprite(spriteHUD);
-
   {
     auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     material->setBaseColor({texture});
     material->setNormal({normalMap});
     material->setSpecular({resourceManager->getTextureZero()});
 
-    auto spriteForward = spriteManager->createSprite();
+    auto spriteForward = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
     spriteForward->setMaterial(material);
-    auto spriteBackward = spriteManager->createSprite();
+    spriteManager.push_back(spriteForward);
+
+    auto spriteBackward = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
     spriteBackward->setMaterial(material);
+    spriteManager.push_back(spriteBackward);
 
-    auto spriteLeft = spriteManager->createSprite();
+    auto spriteLeft = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
     spriteLeft->setMaterial(material);
-    auto spriteRight = spriteManager->createSprite();
+    spriteManager.push_back(spriteLeft);
+
+    auto spriteRight = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
     spriteRight->setMaterial(material);
+    spriteManager.push_back(spriteRight);
 
-    auto spriteTop = spriteManager->createSprite();
+    auto spriteTop = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
     spriteTop->setMaterial(material);
-    auto spriteBot = spriteManager->createSprite();
-    spriteBot->setMaterial(material);
+    spriteManager.push_back(spriteTop);
 
+    auto spriteBot = std::make_shared<Sprite>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+        commandBufferTransfer, resourceManager, state);
+    spriteBot->setMaterial(material);
+    spriteManager.push_back(spriteBot);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
       spriteForward->setModel(model);
@@ -956,28 +972,27 @@ void initialize() {
       model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
       spriteBot->setModel(model);
     }
-
-    spriteManager->registerSprite(spriteForward);
-    spriteManager->registerSprite(spriteBackward);
-    spriteManager->registerSprite(spriteLeft);
-    spriteManager->registerSprite(spriteRight);
-    spriteManager->registerSprite(spriteTop);
-    spriteManager->registerSprite(spriteBot);
   }
   auto modelGLTF = resourceManager->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
   auto modelGLTFBox = resourceManager->loadModel("../assets/Box/Box.gltf");
   /*for (auto& mesh : loaderGLTF->getMeshes())
     mesh->setColor(glm::vec3(1.f, 0.f, 0.f));*/
-  auto modelGLTFPhong = modelManager->createModel3D(modelGLTF->getNodes(), modelGLTF->getMeshes());
-  modelManager->registerModel3D(modelGLTFPhong);
+  auto modelGLTFPhong = std::make_shared<Model3D>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
+      modelGLTF->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
+  modelManager.push_back(modelGLTFPhong);
   modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
 
-  auto modelGLTFPBR = modelManager->createModel3D(modelGLTF->getNodes(), modelGLTF->getMeshes());
-  modelManager->registerModel3D(modelGLTFPBR);
+  auto modelGLTFPBR = std::make_shared<Model3D>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
+      modelGLTF->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
+  modelManager.push_back(modelGLTFPBR);
   auto pbrMaterial = modelGLTF->getMaterialsPBR();
   modelGLTFPBR->setMaterial(pbrMaterial);
 
-  auto modelBox = modelManager->createModel3D(modelGLTFBox->getNodes(), modelGLTFBox->getMeshes());
+  auto modelBox = std::make_shared<Model3D>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTFBox->getNodes(),
+      modelGLTFBox->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
   // modelManager->registerModel3D(modelBox);
   modelBox->setMaterial(modelGLTFBox->getMaterialsPBR());
 
@@ -1548,8 +1563,8 @@ void initialize() {
     vkCmdBeginRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame], &renderInfo);
 
     loggerGPU->begin("Render specular brdf");
-    spriteManagerHUD->draw(brdfTexture->getImageView()->getImage()->getResolution(), cameraOrtho,
-                           commandBufferEquirectangular);
+    ibl->drawSpecularBRDF(brdfTexture->getImageView()->getImage()->getResolution(), cameraOrtho,
+                          commandBufferEquirectangular);
     loggerGPU->end();
 
     vkCmdEndRendering(commandBufferEquirectangular->getCommandBuffer()[currentFrame]);
@@ -1574,7 +1589,9 @@ void initialize() {
   materialBRDF->setNormal({resourceManager->getTextureZero()});
   materialBRDF->setSpecular({resourceManager->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
-  auto spriteBRDF = spriteManager->createSprite();
+  auto spriteBRDF = std::make_shared<Sprite>(
+      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
+      commandBufferTransfer, resourceManager, state);
   spriteBRDF->enableLighting(false);
   spriteBRDF->enableShadow(false);
   spriteBRDF->enableDepth(false);
@@ -1583,7 +1600,7 @@ void initialize() {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(5.f, 3.f, 1.f));
     spriteBRDF->setModel(model);
   }
-  spriteManager->registerSprite(spriteBRDF);
+  spriteManager.push_back(spriteBRDF);
   commandBufferTransfer->endCommands();
   submitInfo = VkSubmitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

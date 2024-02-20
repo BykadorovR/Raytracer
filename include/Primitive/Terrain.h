@@ -6,7 +6,7 @@
 #include "Mesh.h"
 #include "Material.h"
 
-class Terrain : public IDrawable, public IShadowable {
+class Terrain : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
@@ -32,7 +32,6 @@ class Terrain : public IDrawable, public IShadowable {
   std::shared_ptr<Texture> _heightMap;
   std::pair<int, int> _patchNumber;
   std::shared_ptr<LightManager> _lightManager;
-  glm::mat4 _model = glm::mat4(1.f);
   int _mipMap = 8;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
@@ -59,8 +58,6 @@ class Terrain : public IDrawable, public IShadowable {
   void setMaterial(std::shared_ptr<MaterialPhong> material);
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setDrawType(DrawType drawType);
-
-  void setModel(glm::mat4 model);
 
   DrawType getDrawType();
   void patchEdge(bool enable);
