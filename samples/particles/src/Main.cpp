@@ -56,9 +56,7 @@ Main::Main() {
   _inputHandler = std::make_shared<InputHandler>();
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
-  auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/gradient.png"}),
-                                                   settings->getLoadTextureAuxilaryFormat(),
-                                                   VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+
   std::default_random_engine rndEngine((unsigned)time(nullptr));
   std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
   {
@@ -88,6 +86,9 @@ Main::Main() {
       particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
     }
 
+    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/gradient.png"}),
+                                                     settings->getLoadTextureAuxilaryFormat(),
+                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
     auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
@@ -125,6 +126,10 @@ Main::Main() {
       glm::vec3 lightPositionHorizontal = glm::vec3(cos(glm::radians((float)i)), 0, sin(glm::radians((float)i)));
       particle.velocityDirection = glm::normalize(lightPositionHorizontal);
     }
+
+    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/circle.png"}),
+                                                     settings->getLoadTextureAuxilaryFormat(),
+                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
     auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));

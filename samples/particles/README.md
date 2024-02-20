@@ -1,6 +1,6 @@
-# Skeletal animation and static models
+# Particle system
 
-This sample demonstrates skeletal animations and static models with different lighting models.
+This sample demonstrates particle system.
 
 ![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaW52YnB2MTZoZjd4YnhicDl2bnAzZDE4amZva3p5aXJjYXRrZ3ZreCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/INSIlY1MzKw2dlDOB4/giphy.gif)
 
