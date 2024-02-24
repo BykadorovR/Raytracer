@@ -20,13 +20,13 @@ class Sprite : public Drawable, public Shadowable {
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout;
+      _descriptorSetLayout, _descriptorSetLayoutDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutBRDF;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
   std::shared_ptr<Pipeline> _pipelineNormal, _pipelineTangent;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<LightManager> _lightManager;
 
   bool _enableShadow = true;

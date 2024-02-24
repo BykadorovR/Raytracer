@@ -69,6 +69,7 @@ layout( push_constant ) uniform constants {
 #define getLightPoint(index) lightPoint[index]
 #define getLightAmbient(index) lightAmbient[index]
 #define getMaterial() material
+#include "../shadow.glsl"
 #include "../phong.glsl"
 
 void main() {

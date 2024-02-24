@@ -4,8 +4,9 @@
 #include "Mesh.h"
 #include "Descriptor.h"
 #include "Pipeline.h"
+#include "Drawable.h"
 
-class Line {
+class Line : public Drawable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Buffer> _stagingBuffer;
@@ -26,6 +27,5 @@ class Line {
 
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer,
-            DrawType drawType = DrawType::FILL);
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

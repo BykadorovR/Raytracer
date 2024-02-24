@@ -635,12 +635,20 @@ void Core::_renderGraphic() {
     _loggerGPU->end();
   }
 
-  std::sort(_drawables.begin(), _drawables.end(),
+  for (auto& drawable : _drawables[DrawableType::OPAQUE]) {
+    // TODO: add getName() to drawable?
+    std::string drawableName = typeid(drawable.get()).name();
+    _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
+    drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
+    _loggerGPU->end();
+  }
+
+  std::sort(_drawables[DrawableType::ALPHA].begin(), _drawables[DrawableType::ALPHA].end(),
             [camera = _camera](std::shared_ptr<Drawable> left, std::shared_ptr<Drawable> right) {
               return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
                      glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
             });
-  for (auto& drawable : _drawables) {
+  for (auto& drawable : _drawables[DrawableType::ALPHA]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
@@ -919,7 +927,7 @@ std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 
 std::tuple<int, int> Core::getFPS() { return {_timerFPSLimited->getFPS(), _timerFPSReal->getFPS()}; }
 
-void Core::addDrawable(std::shared_ptr<Drawable> drawable) { _drawables.push_back(drawable); }
+void Core::addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type) { _drawables[type].push_back(drawable); }
 
 void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
 

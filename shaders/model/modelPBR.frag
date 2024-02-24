@@ -81,6 +81,11 @@ layout( push_constant ) uniform constants {
 
 #define getLightDir(index) lightDirectional[index]
 #define getLightPoint(index) lightPoint[index]
+#define getIrradianceSampler() irradianceSampler
+#define getSpecularIBLSampler() specularIBLSampler
+#define getSpecularBRDFSampler() specularBRDFSampler
+#define getMaterial() material
+#include "../shadow.glsl"
 #include "../pbr.glsl"
 
 //TODO: add support for shadows, right now there is no PBR objects on which shadows should be casted that's why everything is fine
@@ -120,7 +125,11 @@ void main() {
             for (int i = 0; i < lightDirectional.length(); i++) {
                 vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
                 vec3 inRadiance = getLightDir(i).color;
-                Lr += calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                float shadow = 0.0;
+                if (push.enableShadow > 0)
+                    shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
+                Lr += directional * (1 - shadow);
             }
 
             for (int i = 0; i < lightPoint.length(); i++) {
@@ -129,7 +138,11 @@ void main() {
                 if (distance > getLightPoint(i).distance) break;
                 float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
                 vec3 inRadiance = getLightPoint(i).color * attenuation;
-                Lr += calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                float shadow = 0.0;
+                if (push.enableShadow > 0)
+                    shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
+                Lr += point * (1 - shadow);
             }
 
             outColor.rgb = Lr;
@@ -137,22 +150,7 @@ void main() {
             //so it doesn't matter, any texture -> .r channel
 
             //IBL
-            vec3 F0 = vec3(0.04);        
-            F0 = mix(F0, albedoTexture.rgb, metallicValue);
-            vec3 kS = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, roughnessValue);
-            vec3 kD = 1.0 - kS;
-            kD *= 1.0 - metallicValue;
-            vec3 irradiance = texture(irradianceSampler, normal).rgb;
-            vec3 diffuse = kD * irradiance * albedoTexture.rgb;
-
-            vec3 R = reflect(-viewDir, normal);   
-            const float MAX_REFLECTION_LOD = 4.0;
-            vec3 prefilteredColor = textureLod(specularIBLSampler, R,  roughnessValue * MAX_REFLECTION_LOD).rgb;
-            vec2 envBRDF  = texture(specularBRDFSampler, vec2(max(dot(normal, viewDir), 0.0), roughnessValue)).rg;
-            vec3 specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
-
-            vec3 ambientColor = mix(diffuse + specular, (diffuse + specular) * occlusionTexture.r, material.occlusionStrength);
-            outColor.rgb += ambientColor;
+            outColor.rgb += calculateIBL(occlusionTexture.r, normal, viewDir, metallicValue, roughnessValue, albedoTexture.rgb);
 
             //add emissive to resulting reflected radiance from all light sources
             outColor.rgb += emissiveTexture.rgb * material.emissiveFactor;

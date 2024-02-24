@@ -102,7 +102,6 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
                        VertexGUI::getAttributeDescriptions());
-
   ImGui::NewFrame();
 }
 
@@ -137,6 +136,16 @@ bool GUI::drawCheckbox(std::map<std::string, bool*> variable) {
     if (ImGui::Checkbox(key.c_str(), value)) result = true;
   }
 
+  return result;
+}
+
+bool GUI::drawSlider(std::map<std::string, float*> variable, std::map<std::string, std::tuple<float, float>> range) {
+  bool result = false;
+  for (auto& [key, value] : variable) {
+    if (ImGui::SliderFloat(key.c_str(), value, std::get<0>(range[key]), std::get<1>(range[key]), "%.2f",
+                           ImGuiSliderFlags_AlwaysClamp))
+      result = true;
+  }
   return result;
 }
 
@@ -349,5 +358,13 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
   if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
     io.AddKeyEvent(ImGuiKey_Enter, true);
     io.AddKeyEvent(ImGuiKey_Enter, false);
+  }
+  if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_LeftCtrl, true);
+    io.AddKeyEvent(ImGuiKey_ModCtrl, true);
+  }
+  if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE) {
+    io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
+    io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
 }

@@ -99,6 +99,7 @@ float calculateSpecular(float max1, float max2, int id1, int id2, float height) 
 #define getLightPoint(index) lightPoint[index]
 #define getLightAmbient(index) lightAmbient[index]
 #define getMaterial() material
+#include "../shadow.glsl"
 #include "../phong.glsl"
 
 void main() {

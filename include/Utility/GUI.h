@@ -75,6 +75,7 @@ class GUI : public InputSubscriber {
   bool startTree(std::string name, bool open = true);
   void endTree();
   void drawText(std::vector<std::string> text);
+  bool drawSlider(std::map<std::string, float*> variable, std::map<std::string, std::tuple<float, float>> range);
   bool drawButton(std::string label, bool hideWindow = false);
   bool drawCheckbox(std::map<std::string, bool*> variable);
   void drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable);

@@ -355,6 +355,9 @@ void Pipeline::createLine(std::vector<VkFormat> renderFormat,
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)renderFormat.size(),

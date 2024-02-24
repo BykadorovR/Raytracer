@@ -48,7 +48,7 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
-  std::vector<std::shared_ptr<Drawable>> _drawables;
+  std::map<DrawableType, std::vector<std::shared_ptr<Drawable>>> _drawables;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
@@ -90,7 +90,7 @@ class Core {
  public:
   Core(std::shared_ptr<Settings> settings);
   void setCamera(std::shared_ptr<Camera> camera);
-  void addDrawable(std::shared_ptr<Drawable> drawable);
+  void addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type = DrawableType::ALPHA);
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
   void addAnimation(std::shared_ptr<Animation> animation);
   // TODO: everything should be drawable

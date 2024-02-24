@@ -2,6 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
+#include "Line.h"
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -97,6 +98,23 @@ Main::Main() {
     cubeColoredLightDirectional->setModel(model);
   }
   _core->addDrawable(cubeColoredLightDirectional);
+
+  // lines
+  auto lineVertical = std::make_shared<Line>(
+      3, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+      state);
+  lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+  lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)},
+                                       commandBufferTransfer);
+  _core->addDrawable(lineVertical);
+
+  auto lineHorizontal = std::make_shared<Line>(
+      5, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
+      state);
+  lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
+  lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)},
+                                         commandBufferTransfer);
+  _core->addDrawable(lineHorizontal);
 
   // cube colored
   auto cubeColored = std::make_shared<Shape3D>(

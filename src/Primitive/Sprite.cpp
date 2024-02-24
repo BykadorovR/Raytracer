@@ -63,6 +63,19 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
   _descriptorSetLayoutNormal.push_back({"camera", layoutCamera});
   _descriptorSetLayoutNormal.push_back({"cameraGeometry", layoutCameraGeometry});
 
+  // layout depth color
+  _descriptorSetLayoutDepth[MaterialType::COLOR].push_back({"camera", layoutCamera});
+  _descriptorSetLayoutDepth[MaterialType::COLOR].push_back(
+      {"texture", _defaultMaterialColor->getDescriptorSetLayoutTextures()});
+  // layout depth Phong
+  _descriptorSetLayoutDepth[MaterialType::PHONG].push_back({"camera", layoutCamera});
+  _descriptorSetLayoutDepth[MaterialType::PHONG].push_back(
+      {"texture", _defaultMaterialPhong->getDescriptorSetLayoutTextures()});
+  // layout depth PBR
+  _descriptorSetLayoutDepth[MaterialType::PBR].push_back({"camera", layoutCamera});
+  _descriptorSetLayoutDepth[MaterialType::PBR].push_back(
+      {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
+
   // initialize Color
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
@@ -166,32 +179,97 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
                                       _mesh->getAttributeDescriptions());
   }
 
-  // initialize depth directional
+  // initialize depth directional color
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineDirectional->createGraphic2DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", layoutCamera}}, {},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+    shader->add("shaders/sprite/spriteDepthDirectionalColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineDirectional[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::COLOR]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutDepth[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
   }
 
-  // initialize depth point
+  // initialize depth directional Phong
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepthDirectionalPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineDirectional[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::PHONG]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutDepth[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+
+  // initialize depth directional PBR
+  {
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepthDirectionalPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelineDirectional[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::PBR]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutDepth[MaterialType::PBR], {}, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+
+  // initialize depth point color
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/sprite/spriteDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelinePoint->createGraphic2DShadow(VK_CULL_MODE_NONE,
-                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                          {{"camera", layoutCamera}}, defaultPushConstants,
-                                          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+    shader->add("shaders/sprite/spriteDepthPointColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelinePoint[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::COLOR]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutDepth[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
   }
 
+  // initialize depth point Phong
+  {
+    std::map<std::string, VkPushConstantRange> defaultPushConstants;
+    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
+
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepthPointPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelinePoint[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::PHONG]->createGraphic2DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        _descriptorSetLayoutDepth[MaterialType::PHONG], defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions());
+  }
+  // initialize depth point PBR
+  {
+    std::map<std::string, VkPushConstantRange> defaultPushConstants;
+    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
+
+    auto shader = std::make_shared<Shader>(_state->getDevice());
+    shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/sprite/spriteDepthPointPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    _pipelinePoint[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::PBR]->createGraphic2DShadow(VK_CULL_MODE_NONE,
+                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                             _descriptorSetLayoutDepth[MaterialType::PBR],
+                                                             defaultPushConstants, _mesh->getBindingDescription(),
+                                                             _mesh->getAttributeDescriptions());
+  }
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
@@ -413,8 +491,8 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   if (_enableDepth == false) return;
 
   int currentFrame = _state->getFrameInFlight();
-  auto pipeline = _pipelineDirectional;
-  if (lightType == LightType::POINT) pipeline = _pipelinePoint;
+  auto pipeline = _pipelineDirectional[_materialType];
+  if (lightType == LightType::POINT) pipeline = _pipelinePoint[_materialType];
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());
@@ -514,6 +592,16 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
     vkCmdBindDescriptorSets(
         commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
         0, 1, &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
+  }
+
+  auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("texture");
+                                    });
+  if (textureLayout != pipelineLayout.end()) {
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        1, 1, &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),

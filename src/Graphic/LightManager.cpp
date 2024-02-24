@@ -394,8 +394,8 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
 }
 
 void LightManager::_updatePointTexture(int currentFrame) {
-  int currentIndex = _pointLights.size() - 1;
-  _pointTextures[currentIndex] = _pointLights[currentIndex]->getDepthCubemap()[currentFrame]->getTexture();
+  for (int i = 0; i < _pointLights.size(); i++)
+    _pointTextures[i] = _pointLights[i]->getDepthCubemap()[currentFrame]->getTexture();
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {

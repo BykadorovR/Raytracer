@@ -80,3 +80,22 @@ vec3 calculateOutRadiance(vec3 lightDir, vec3 normal, vec3 viewDir, vec3 inRadia
     vec3 Lr = (kD * albedo / PI + specular) * inRadiance * NdotL;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
     return Lr;
 }
+
+vec3 calculateIBL(float occlusion, vec3 normal, vec3 viewDir, float metallicValue, float roughnessValue, vec3 albedo) {
+    vec3 F0 = vec3(0.04);     
+    F0 = mix(F0, albedo, metallicValue);
+    vec3 kS = fresnelSchlickRoughness(max(dot(normal, viewDir), 0.0), F0, roughnessValue);
+    vec3 kD = 1.0 - kS;
+    kD *= 1.0 - metallicValue;
+    vec3 irradiance = texture(getIrradianceSampler(), normal).rgb;
+    vec3 diffuse = kD * irradiance * albedo;
+
+    vec3 R = reflect(-viewDir, normal);   
+    const float MAX_REFLECTION_LOD = 4.0;
+    vec3 prefilteredColor = textureLod(getSpecularIBLSampler(), R,  roughnessValue * MAX_REFLECTION_LOD).rgb;
+    vec2 envBRDF  = texture(getSpecularBRDFSampler(), vec2(max(dot(normal, viewDir), 0.0), roughnessValue)).rg;
+    
+    vec3 specular = prefilteredColor * (kS * envBRDF.x + envBRDF.y);
+    vec3 ambientColor = mix(diffuse + specular, (diffuse + specular) * occlusion, getMaterial().occlusionStrength);
+    return ambientColor;
+}

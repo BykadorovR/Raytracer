@@ -33,8 +33,7 @@ void Line::setModel(glm::mat4 model) { _model = model; }
 
 void Line::draw(std::tuple<int, int> resolution,
                 std::shared_ptr<Camera> camera,
-                std::shared_ptr<CommandBuffer> commandBuffer,
-                DrawType drawType) {
+                std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
