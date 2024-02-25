@@ -46,9 +46,9 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
       commandBufferTransfer);
   _mesh2D->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
 
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
-  _material = _defaultMaterialColor;
+  // TODO: should be texture zero??
+  _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  std::dynamic_pointer_cast<MaterialColor>(_material)->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
 
   auto cameraLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   cameraLayout->createUniformBuffer();
@@ -72,19 +72,6 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
                                                          state->getDescriptorPool(), state->getDevice());
   _descriptorSetCamera->createUniformBuffer(_cameraBuffer);
 
-  {
-    auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineEquirectangular->createGraphic3D(
-        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {std::pair{std::string("camera"), cameraLayout},
-         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-        {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
-  }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -124,14 +111,49 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
                                            {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
                                            _mesh2D->getAttributeDescriptions());
   }
+
+  _loggerGPU = std::make_shared<LoggerGPU>(state);
+
+  _cubemapDiffuse = std::make_shared<Cubemap>(
+      _state->getSettings()->getDiffuseIBLResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
+      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  _cubemapSpecular = std::make_shared<Cubemap>(
+      _state->getSettings()->getSpecularIBLResolution(), _state->getSettings()->getGraphicColorFormat(),
+      _state->getSettings()->getSpecularMipMap(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+  auto brdfImage = std::make_shared<Image>(_state->getSettings()->getDepthResolution(), 1, 1,
+                                           _state->getSettings()->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+                                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
+  brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                          commandBufferTransfer);
+  auto brdfImageView = std::make_shared<ImageView>(brdfImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                   VK_IMAGE_ASPECT_COLOR_BIT, state);
+  _textureSpecularBRDF = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
+
+  _cameraSpecularBRDF = std::make_shared<CameraOrtho>();
+  _cameraSpecularBRDF->setProjectionParameters({-1, 1, 1, -1}, 0, 1);
+  _cameraSpecularBRDF->setViewParameters(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
+
+  _camera = std::make_shared<CameraFly>(_state->getSettings());
+  _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
+  _camera->setProjectionParameters(90.f, 0.1f, 100.f);
+  _camera->setAspect(1.f);
 }
 
-void IBL::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _material = material;
-  _materialType = MaterialType::COLOR;
-}
+std::shared_ptr<Cubemap> IBL::getCubemapDiffuse() { return _cubemapDiffuse; }
 
-void IBL::setModel(glm::mat4 model) { _model = model; }
+std::shared_ptr<Cubemap> IBL::getCubemapSpecular() { return _cubemapSpecular; }
+
+std::shared_ptr<Texture> IBL::getTextureSpecularBRDF() { return _textureSpecularBRDF; }
+
+void IBL::setMaterial(std::shared_ptr<MaterialColor> material) { _material = material; }
+
+void IBL::setPosition(glm::vec3 position) {
+  _model = glm::translate(glm::mat4(1.f), position);
+  _camera->setViewParameters(position, glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
+}
 
 void IBL::_draw(int face,
                 std::shared_ptr<Camera> camera,
@@ -182,86 +204,197 @@ void IBL::_draw(int face,
                    static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
 }
 
-void IBL::drawEquirectangular(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto currentFrame = _state->getFrameInFlight();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipelineEquirectangular->getPipeline());
-  auto [width, height] = _state->getSettings()->getDepthResolution();
-  VkViewport viewport{};
-  viewport.x = 0.f;
-  viewport.y = 0.f;
-  viewport.width = width;
-  viewport.height = height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
+  _loggerGPU->setCommandBufferName("Draw specular buffer", commandBuffer);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(width, height);
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-  _draw(face, camera, commandBuffer, _pipelineEquirectangular);
-}
-
-void IBL::drawSpecular(int face,
-                       int mipMap,
-                       std::shared_ptr<Camera> camera,
-                       std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineSpecular->getPipeline());
-  auto [width, height] = _state->getSettings()->getSpecularIBLResolution();
-  width *= std::pow(0.5, mipMap);
-  height *= std::pow(0.5, mipMap);
-  VkViewport viewport{};
-  viewport.x = 0.f;
-  viewport.y = 0.f;
-  viewport.width = width;
-  viewport.height = height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(width, height);
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // render graphic
+  /////////////////////////////////////////////////////////////////////////////////////////
+  for (int i = 0; i < 6; i++) {
+    for (int j = 0; j < _state->getSettings()->getSpecularMipMap(); j++) {
+      auto currentTexture = _cubemapSpecular->getTextureSeparate()[i][j];
+      VkClearValue clearColor;
+      clearColor.color = _state->getSettings()->getClearColor();
+      std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+      // here we render scene as is
+      colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+          .imageView = currentTexture->getImageView()->getImageView(),
+          .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .clearValue = clearColor,
+      };
 
-  if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
-    RoughnessConstants pushConstants;
-    float roughness = (float)mipMap / (float)(_state->getSettings()->getSpecularMipMap() - 1);
-    pushConstants.roughness = roughness;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipelineSpecular->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RoughnessConstants), &pushConstants);
+      auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+      VkRect2D renderArea{};
+      renderArea.extent.width = width * std::pow(0.5, j);
+      renderArea.extent.height = height * std::pow(0.5, j);
+      const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                       .renderArea = renderArea,
+                                       .layerCount = 1,
+                                       .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                       .pColorAttachments = colorAttachmentInfo.data()};
+
+      vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+
+      _loggerGPU->begin("Render specular");
+      // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+      switch (i) {
+        case 0:
+          // POSITIVE_X / right
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 1:
+          // NEGATIVE_X /left
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 2:
+          // POSITIVE_Y / top
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+          break;
+        case 3:
+          // NEGATIVE_Y / bottom
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+          break;
+        case 4:
+          // POSITIVE_Z / near
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+        case 5:
+          // NEGATIVE_Z / far
+          _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+          break;
+      }
+
+      std::tie(width, height) = _state->getSettings()->getSpecularIBLResolution();
+      width *= std::pow(0.5, j);
+      height *= std::pow(0.5, j);
+      VkViewport viewport{};
+      viewport.x = 0.f;
+      viewport.y = 0.f;
+      viewport.width = width;
+      viewport.height = height;
+      viewport.minDepth = 0.0f;
+      viewport.maxDepth = 1.0f;
+      vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+      VkRect2D scissor{};
+      scissor.offset = {0, 0};
+      scissor.extent = VkExtent2D(width, height);
+      vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
+      if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
+        RoughnessConstants pushConstants;
+        float roughness = (float)j / (float)(_state->getSettings()->getSpecularMipMap() - 1);
+        pushConstants.roughness = roughness;
+        vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipelineSpecular->getPipelineLayout(),
+                           VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RoughnessConstants), &pushConstants);
+      }
+
+      _draw(i, _camera, commandBuffer, _pipelineSpecular);
+
+      _loggerGPU->end();
+
+      vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+    }
   }
-
-  _draw(face, camera, commandBuffer, _pipelineSpecular);
 }
 
-void IBL::drawDiffuse(int face, std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
+  // render cubemap to diffuse
+  _loggerGPU->setCommandBufferName("Draw diffuse buffer", commandBuffer);
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineDiffuse->getPipeline());
-  auto [width, height] = _state->getSettings()->getDiffuseIBLResolution();
-  VkViewport viewport{};
-  viewport.x = 0.f;
-  viewport.y = 0.f;
-  viewport.width = width;
-  viewport.height = height;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  /////////////////////////////////////////////////////////////////////////////////////////
+  // render graphic
+  /////////////////////////////////////////////////////////////////////////////////////////
+  for (int i = 0; i < 6; i++) {
+    auto currentTexture = _cubemapDiffuse->getTextureSeparate()[i][0];
+    VkClearValue clearColor;
+    clearColor.color = _state->getSettings()->getClearColor();
+    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+    // here we render scene as is
+    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageView = currentTexture->getImageView()->getImageView(),
+        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = clearColor,
+    };
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(width, height);
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-  _draw(face, camera, commandBuffer, _pipelineDiffuse);
+    auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+    VkRect2D renderArea{};
+    renderArea.extent.width = width;
+    renderArea.extent.height = height;
+    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                     .renderArea = renderArea,
+                                     .layerCount = 1,
+                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                     .pColorAttachments = colorAttachmentInfo.data()};
+
+    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+
+    _loggerGPU->begin("Render diffuse");
+    // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+    switch (i) {
+      case 0:
+        // POSITIVE_X / right
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+        break;
+      case 1:
+        // NEGATIVE_X /left
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(-1.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f));
+        break;
+      case 2:
+        // POSITIVE_Y / top
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+        break;
+      case 3:
+        // NEGATIVE_Y / bottom
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, -1.f, 0.f), glm::vec3(0.f, 0.f, -1.f));
+        break;
+      case 4:
+        // POSITIVE_Z / near
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, -1.f, 0.f));
+        break;
+      case 5:
+        // NEGATIVE_Z / far
+        _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
+        break;
+    }
+    std::tie(width, height) = _state->getSettings()->getDiffuseIBLResolution();
+    VkViewport viewport{};
+    viewport.x = 0.f;
+    viewport.y = 0.f;
+    viewport.width = width;
+    viewport.height = height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = VkExtent2D(width, height);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    _draw(i, _camera, commandBuffer, _pipelineDiffuse);
+
+    _loggerGPU->end();
+
+    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+  }
 }
 
-void IBL::drawSpecularBRDF(std::tuple<int, int> resolution,
-                           std::shared_ptr<Camera> camera,
-                           std::shared_ptr<CommandBuffer> commandBuffer) {
+void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
+  _loggerGPU->setCommandBufferName("Draw specular brdf", commandBuffer);
+
+  auto resolution = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
   int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -277,11 +410,37 @@ void IBL::drawSpecularBRDF(std::tuple<int, int> resolution,
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  VkClearValue clearColor;
+  clearColor.color = _state->getSettings()->getClearColor();
+  std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
+  // here we render scene as is
+  colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+      .imageView = _textureSpecularBRDF->getImageView()->getImageView(),
+      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+      .clearValue = clearColor,
+  };
+
+  auto [width, height] = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
+  VkRect2D renderArea{};
+  renderArea.extent.width = width;
+  renderArea.extent.height = height;
+  const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                                   .renderArea = renderArea,
+                                   .layerCount = 1,
+                                   .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
+                                   .pColorAttachments = colorAttachmentInfo.data()};
+
+  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+
+  _loggerGPU->begin("Render specular brdf");
   BufferMVP cameraMVP{};
   auto model = glm::scale(_model, glm::vec3(2.f, 2.f, 1.f));
   cameraMVP.model = model;
-  cameraMVP.view = camera->getView();
-  cameraMVP.projection = camera->getProjection();
+  cameraMVP.view = _cameraSpecularBRDF->getView();
+  cameraMVP.projection = _cameraSpecularBRDF->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory(), 0,
@@ -313,4 +472,7 @@ void IBL::drawSpecularBRDF(std::tuple<int, int> resolution,
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
                    static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1, 0, 0, 0);
+  _loggerGPU->end();
+
+  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 }
