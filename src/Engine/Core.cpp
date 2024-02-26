@@ -631,7 +631,7 @@ void Core::_renderGraphic() {
   // should be draw first
   if (_skybox) {
     _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-    _skybox->draw(_camera, _commandBufferRender);
+    _skybox->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
     _loggerGPU->end();
   }
 
@@ -932,6 +932,8 @@ void Core::addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type) { 
 void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
 
 void Core::addAnimation(std::shared_ptr<Animation> animation) { _animations.push_back(animation); }
+
+void Core::addSkybox(std::shared_ptr<Skybox> skybox) { _skybox = skybox; }
 
 void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   _particleSystem.push_back(particleSystem);

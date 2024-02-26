@@ -673,7 +673,7 @@ void renderGraphic() {
   loggerGPU->end();
   // should be drawn first
   loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
-  skybox->draw(camera, commandBufferRender);
+  skybox->draw(settings->getResolution(), camera, commandBufferRender);
   loggerGPU->end();
 
   // draw scene here
@@ -1175,8 +1175,7 @@ void initialize() {
   cube = std::make_shared<Shape3D>(ShapeType::CUBE,
                                    std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
                                    VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
-  skybox = std::make_shared<Skybox>(std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-                                    VK_CULL_MODE_NONE, commandBufferTransfer, resourceManager, state);
+  skybox = std::make_shared<Skybox>(commandBufferTransfer, resourceManager, state);
   auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialColor->setBaseColor({cubemap->getTexture()});
   cube->setMaterial(materialColor);
@@ -1185,8 +1184,7 @@ void initialize() {
     cube->setModel(model);
   }
 
-  ibl = std::make_shared<IBL>(std::vector{settings->getGraphicColorFormat()}, VK_CULL_MODE_NONE, lightManager,
-                              commandBufferTransfer, resourceManager, state);
+  ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, resourceManager, state);
 
   equiCube = std::make_shared<Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
@@ -1218,25 +1216,7 @@ void initialize() {
   debugVisualization->setPostprocessing(postprocessing);
   pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
-  commandBufferTransfer->endCommands();
-  VkSubmitInfo submitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[currentFrame];
-  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
-
-  commandBufferEquirectangular->beginCommands();
-  auto cubemapConverted = equirectangular->convertToCubemap(commandBufferEquirectangular);
-  commandBufferEquirectangular->endCommands();
-  submitInfo = VkSubmitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
-  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
-
-  commandBufferTransfer->beginCommands();
+  auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
   auto materialColorEq = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialColorEq->setBaseColor({cubemapConverted->getTexture()});
   ibl->setMaterial(materialColorEq);
@@ -1246,39 +1226,10 @@ void initialize() {
   materialColorCM->setBaseColor({cubemapConverted->getTexture()});
   equiCube->setMaterial(materialColorCM);
   skybox->setMaterial(materialColorCM);
-  commandBufferTransfer->endCommands();
-  submitInfo = VkSubmitInfo{};
-  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-  submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[currentFrame];
-  vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-  vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
 
-  {
-    commandBufferEquirectangular->beginCommands();
-
-    ibl->drawDiffuse(commandBufferEquirectangular);
-    commandBufferEquirectangular->endCommands();
-    submitInfo = VkSubmitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
-    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
-  }
-
-  // render to specular
-  {
-    commandBufferEquirectangular->beginCommands();
-    ibl->drawSpecular(commandBufferEquirectangular);
-    commandBufferEquirectangular->endCommands();
-    submitInfo = VkSubmitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
-    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
-  }
+  ibl->drawDiffuse(commandBufferTransfer);
+  ibl->drawSpecular(commandBufferTransfer);
+  ibl->drawSpecularBRDF(commandBufferTransfer);
 
   // display specular as texture
   materialColorSpecular->setBaseColor({ibl->getCubemapSpecular()->getTexture()});
@@ -1293,26 +1244,11 @@ void initialize() {
     material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
   }
 
-  // render to specular
-  {
-    commandBufferEquirectangular->beginCommands();
-
-    ibl->drawSpecularBRDF(commandBufferEquirectangular);
-    commandBufferEquirectangular->endCommands();
-    submitInfo = VkSubmitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferEquirectangular->getCommandBuffer()[currentFrame];
-    vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
-    vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
-  }
-
   // set specular to material
   for (auto& material : pbrMaterial) {
     material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
   }
 
-  commandBufferTransfer->beginCommands();
   auto materialBRDF = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialBRDF->setBaseColor({ibl->getTextureSpecularBRDF()});
   materialBRDF->setNormal({resourceManager->getTextureZero()});
@@ -1330,11 +1266,12 @@ void initialize() {
     spriteBRDF->setModel(model);
   }
   spriteManager.push_back(spriteBRDF);
+
   commandBufferTransfer->endCommands();
-  submitInfo = VkSubmitInfo{};
+  VkSubmitInfo submitInfo{};
   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   submitInfo.commandBufferCount = 1;
-  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
+  submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[currentFrame];
   vkQueueSubmit(device->getQueue(QueueType::GRAPHIC), 1, &submitInfo, nullptr);
   vkQueueWaitIdle(device->getQueue(QueueType::GRAPHIC));
 }

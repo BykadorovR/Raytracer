@@ -219,6 +219,12 @@ const std::vector<std::shared_ptr<Texture>> MaterialPBR::getOccluded() { return 
 
 const std::vector<std::shared_ptr<Texture>> MaterialPBR::getEmissive() { return _textureEmissive; }
 
+std::shared_ptr<Texture> MaterialPBR::getDiffuseIBL() { return _textureDiffuseIBL; }
+
+std::shared_ptr<Texture> MaterialPBR::getSpecularIBL() { return _textureSpecularIBL; }
+
+std::shared_ptr<Texture> MaterialPBR::getSpecularBRDF() { return _textureSpecularBRDF; }
+
 void MaterialPBR::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   if (static_cast<int>(_target) != color.size())

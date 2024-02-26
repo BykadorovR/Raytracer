@@ -33,9 +33,7 @@ class IBL {
              std::shared_ptr<Pipeline> pipeline);
 
  public:
-  IBL(std::vector<VkFormat> renderFormat,
-      VkCullModeFlags cullMode,
-      std::shared_ptr<LightManager> lightManager,
+  IBL(std::shared_ptr<LightManager> lightManager,
       std::shared_ptr<CommandBuffer> commandBufferTransfer,
       std::shared_ptr<ResourceManager> resourceManager,
       std::shared_ptr<State> state);

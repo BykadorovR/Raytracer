@@ -63,9 +63,9 @@ class MaterialPBR : public Material {
   std::vector<std::shared_ptr<Texture>> _textureRoughness;
   std::vector<std::shared_ptr<Texture>> _textureOccluded;
   std::vector<std::shared_ptr<Texture>> _textureEmissive;
-  std::shared_ptr<Texture> _textureDiffuseIBL;
-  std::shared_ptr<Texture> _textureSpecularIBL;
-  std::shared_ptr<Texture> _textureSpecularBRDF;
+  std::shared_ptr<Texture> _textureDiffuseIBL = nullptr;
+  std::shared_ptr<Texture> _textureSpecularIBL = nullptr;
+  std::shared_ptr<Texture> _textureSpecularBRDF = nullptr;
 
   Coefficients _coefficients;
   MaterialTarget _target;
@@ -84,6 +84,9 @@ class MaterialPBR : public Material {
   const std::vector<std::shared_ptr<Texture>> getRoughness();
   const std::vector<std::shared_ptr<Texture>> getOccluded();
   const std::vector<std::shared_ptr<Texture>> getEmissive();
+  std::shared_ptr<Texture> getDiffuseIBL();
+  std::shared_ptr<Texture> getSpecularIBL();
+  std::shared_ptr<Texture> getSpecularBRDF();
 
   void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
   void setNormal(std::vector<std::shared_ptr<Texture>> normal);

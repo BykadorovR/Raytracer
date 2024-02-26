@@ -92,6 +92,7 @@ class Core {
   void setCamera(std::shared_ptr<Camera> camera);
   void addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type = DrawableType::ALPHA);
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
+  void addSkybox(std::shared_ptr<Skybox> skybox);
   void addAnimation(std::shared_ptr<Animation> animation);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);

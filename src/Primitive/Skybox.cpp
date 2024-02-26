@@ -1,8 +1,6 @@
 #include "Skybox.h"
 
-Skybox::Skybox(std::vector<VkFormat> renderFormat,
-               VkCullModeFlags cullMode,
-               std::shared_ptr<CommandBuffer> commandBufferTransfer,
+Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
   _state = state;
@@ -47,12 +45,14 @@ Skybox::Skybox(std::vector<VkFormat> renderFormat,
   shader->add("shaders/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createSkybox(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                          {std::pair{std::string("camera"), setLayout},
-                           std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                          {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+  _pipeline->createSkybox(
+      std::vector{_state->getSettings()->getGraphicColorFormat(), _state->getSettings()->getGraphicColorFormat()},
+      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+      {std::pair{std::string("camera"), setLayout},
+       std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+      {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
 }
 
 void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
@@ -64,7 +64,9 @@ void Skybox::setModel(glm::mat4 model) { _model = model; }
 
 std::shared_ptr<Mesh3D> Skybox::getMesh() { return _mesh; }
 
-void Skybox::draw(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Skybox::draw(std::tuple<int, int> resolution,
+                  std::shared_ptr<Camera> camera,
+                  std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());

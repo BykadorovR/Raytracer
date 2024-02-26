@@ -6,6 +6,7 @@
 #include "Mesh.h"
 #include "Pipeline.h"
 #include "ResourceManager.h"
+#include "Drawable.h"
 
 class Skybox {
  private:
@@ -20,14 +21,14 @@ class Skybox {
   glm::mat4 _model = glm::mat4(1.f);
 
  public:
-  Skybox(std::vector<VkFormat> renderFormat,
-         VkCullModeFlags cullMode,
-         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+  Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);
   std::shared_ptr<Mesh3D> getMesh();
 
-  void draw(std::shared_ptr<Camera> camera, std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer);
 };

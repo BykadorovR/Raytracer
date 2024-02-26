@@ -236,6 +236,25 @@ std::shared_ptr<Cubemap> Equirectangular::convertToCubemap(std::shared_ptr<Comma
     _loggerGPU->end();
 
     vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+
+    VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                      .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                      .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                                      .oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      .image = currentTexture->getImageView()->getImage()->getImage(),
+                                      .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                           .baseMipLevel = 0,
+                                                           .levelCount = 1,
+                                                           .baseArrayLayer = 0,
+                                                           .layerCount = 1}};
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,          // dstStageMask
+                         0, 0, nullptr, 0, nullptr,
+                         1,             // imageMemoryBarrierCount
+                         &colorBarrier  // pImageMemoryBarriers
+    );
   }
 
   return _cubemap;

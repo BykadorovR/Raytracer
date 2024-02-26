@@ -1,8 +1,6 @@
 #include "IBL.h"
 
-IBL::IBL(std::vector<VkFormat> renderFormat,
-         VkCullModeFlags cullMode,
-         std::shared_ptr<LightManager> lightManager,
+IBL::IBL(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state) {
@@ -77,7 +75,8 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
     shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineDiffuse->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+    _pipelineDiffuse->createGraphic3D(std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
+                                      VK_POLYGON_MODE_FILL,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                       {std::pair{std::string("camera"), cameraLayout},
@@ -92,24 +91,24 @@ IBL::IBL(std::vector<VkFormat> renderFormat,
     shader->add("shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineSpecular->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                       {std::pair{std::string("camera"), cameraLayout},
-                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                                       defaultPushConstants, _mesh3D->getBindingDescription(),
-                                       _mesh3D->getAttributeDescriptions());
+    _pipelineSpecular->createGraphic3D(
+        std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {std::pair{std::string("camera"), cameraLayout},
+         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+        defaultPushConstants, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add("shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecularBRDF = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineSpecularBRDF->createGraphic2D(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
-                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                           {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
-                                           _mesh2D->getAttributeDescriptions());
+    _pipelineSpecularBRDF->createGraphic2D(
+        std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(), _mesh2D->getAttributeDescriptions());
   }
 
   _loggerGPU = std::make_shared<LoggerGPU>(state);

@@ -7,6 +7,8 @@
 #include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Equirectangular.h"
+#include "IBL.h"
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -116,9 +118,12 @@ Main::Main() {
     if (material->getRoughness().size() == 0) material->setRoughness({core->getResourceManager()->getTextureZero()});
     if (material->getOccluded().size() == 0) material->setOccluded({core->getResourceManager()->getTextureZero()});
     if (material->getEmissive().size() == 0) material->setEmissive({core->getResourceManager()->getTextureZero()});
-    material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
-    material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
-                             core->getResourceManager()->getTextureZero());
+    if (material->getDiffuseIBL() == nullptr)
+      material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
+    if (material->getSpecularIBL() == nullptr)
+      material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(), material->getSpecularBRDF());
+    if (material->getSpecularBRDF() == nullptr)
+      material->setSpecularIBL(material->getSpecularIBL(), core->getResourceManager()->getCubemapZero()->getTexture());
   };
   auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
@@ -147,8 +152,40 @@ Main::Main() {
                              core->getResourceManager()->getTextureZero());
   };
 
-  // first render equirectangular HDRi map into cubemap
-  // apply cubemap to skybox
+  auto equirectangular = std::make_shared<Equirectangular>("../assets/newport_loft.hdr", commandBufferTransfer,
+                                                           _core->getResourceManager(), state);
+  auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
+  auto materialSkybox = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  materialSkybox->setBaseColor({cubemapConverted->getTexture()});
+  auto skybox = std::make_shared<Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
+  skybox->setMaterial(materialSkybox);
+  _core->addSkybox(skybox);
+
+  auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  ibl->setMaterial(materialSkybox);
+  ibl->drawDiffuse(commandBufferTransfer);
+  ibl->drawSpecular(commandBufferTransfer);
+  ibl->drawSpecularBRDF(commandBufferTransfer);
+
+  {
+    auto modelGLTF = _core->getResourceManager()->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
+    auto modelPBR = std::make_shared<Model3D>(
+        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
+        modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
+    for (auto& material : materialDamagedHelmet) {
+      material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
+      material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+      fillMaterialPBR(material);
+    }
+    modelPBR->setMaterial(materialDamagedHelmet);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelPBR->setModel(model);
+    }
+    _core->addDrawable(modelPBR);
+  }
 
   commandBufferTransfer->endCommands();
   // TODO: remove vkQueueWaitIdle, add fence or semaphore
