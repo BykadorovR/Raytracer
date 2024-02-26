@@ -919,6 +919,10 @@ std::shared_ptr<CommandBuffer> Core::getCommandBufferTransfer() { return _comman
 
 std::shared_ptr<ResourceManager> Core::getResourceManager() { return _resourceManager; }
 
+std::shared_ptr<Postprocessing> Core::getPostprocessing() { return _postprocessing; }
+
+std::shared_ptr<Blur> Core::getBlur() { return _blur; }
+
 std::shared_ptr<LightManager> Core::getLightManager() { return _lightManager; }
 
 std::shared_ptr<State> Core::getState() { return _state; }

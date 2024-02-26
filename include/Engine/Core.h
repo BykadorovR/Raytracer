@@ -99,6 +99,8 @@ class Core {
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
   std::shared_ptr<LightManager> getLightManager();
   std::shared_ptr<ResourceManager> getResourceManager();
+  std::shared_ptr<Postprocessing> getPostprocessing();
+  std::shared_ptr<Blur> getBlur();
   std::shared_ptr<State> getState();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();

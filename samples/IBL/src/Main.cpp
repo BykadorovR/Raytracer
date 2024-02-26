@@ -105,53 +105,6 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
-    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
-    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
-    if (material->getSpecular().size() == 0) material->setSpecular({core->getResourceManager()->getTextureZero()});
-  };
-
-  auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
-    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
-    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
-    if (material->getMetallic().size() == 0) material->setMetallic({core->getResourceManager()->getTextureZero()});
-    if (material->getRoughness().size() == 0) material->setRoughness({core->getResourceManager()->getTextureZero()});
-    if (material->getOccluded().size() == 0) material->setOccluded({core->getResourceManager()->getTextureZero()});
-    if (material->getEmissive().size() == 0) material->setEmissive({core->getResourceManager()->getTextureZero()});
-    if (material->getDiffuseIBL() == nullptr)
-      material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
-    if (material->getSpecularIBL() == nullptr)
-      material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(), material->getSpecularBRDF());
-    if (material->getSpecularBRDF() == nullptr)
-      material->setSpecularIBL(material->getSpecularIBL(), core->getResourceManager()->getCubemapZero()->getTexture());
-  };
-  auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
-    if (material->getBaseColor().size() == 0)
-      material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
-    if (material->getNormal().size() == 0)
-      material->setNormal(std::vector{4, core->getResourceManager()->getTextureZero()});
-    if (material->getSpecular().size() == 0)
-      material->setSpecular(std::vector{4, core->getResourceManager()->getTextureZero()});
-  };
-
-  auto fillMaterialTerrainPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
-    if (material->getBaseColor().size() == 0)
-      material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
-    if (material->getNormal().size() == 0)
-      material->setNormal(std::vector{4, core->getResourceManager()->getTextureZero()});
-    if (material->getMetallic().size() == 0)
-      material->setMetallic(std::vector{4, core->getResourceManager()->getTextureZero()});
-    if (material->getRoughness().size() == 0)
-      material->setRoughness(std::vector{4, core->getResourceManager()->getTextureZero()});
-    if (material->getOccluded().size() == 0)
-      material->setOccluded(std::vector{4, core->getResourceManager()->getTextureZero()});
-    if (material->getEmissive().size() == 0)
-      material->setEmissive(std::vector{4, core->getResourceManager()->getTextureZero()});
-    material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
-    material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
-                             core->getResourceManager()->getTextureZero());
-  };
-
   auto equirectangular = std::make_shared<Equirectangular>("../assets/newport_loft.hdr", commandBufferTransfer,
                                                            _core->getResourceManager(), state);
   auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
@@ -176,7 +129,6 @@ Main::Main() {
     for (auto& material : materialDamagedHelmet) {
       material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
       material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
-      fillMaterialPBR(material);
     }
     modelPBR->setMaterial(materialDamagedHelmet);
     {
