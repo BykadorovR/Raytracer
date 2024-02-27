@@ -44,7 +44,6 @@ struct Settings {
   std::vector<std::tuple<int, float>> _attenuations = {{7, 1.8},      {13, 0.44},    {20, 0.20},    {32, 0.07},
                                                        {50, 0.032},   {65, 0.017},   {100, 0.0075}, {160, 0.0028},
                                                        {200, 0.0019}, {325, 0.0007}, {600, 0.0002}, {3250, 0.000007}};
-  DrawType _drawType = DrawType::FILL;
   // Depth bias (and slope) are used to avoid shadowing artifacts
   // Constant depth bias factor (always applied)
   float _depthBiasConstant = 1.25f;
@@ -60,7 +59,6 @@ struct Settings {
   void setLoadTextureAuxilaryFormat(VkFormat format);
   void setGraphicColorFormat(VkFormat format);
   void setSwapchainColorFormat(VkFormat format);
-  void setGuiColorFormat(VkFormat format);
   void setDepthFormat(VkFormat format);
   void setMaxFramesInFlight(int maxFramesInFlight);
   void setThreadsInPool(int threadsInPool);
@@ -68,7 +66,6 @@ struct Settings {
   void setBloomPasses(int number);
   void setAnisotropicSamples(int number);
   void setDesiredFPS(int fps);
-  void setDrawType(DrawType drawType);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getDepthResolution();
@@ -87,7 +84,6 @@ struct Settings {
   VkClearColorValue getClearColor();
   int getAnisotropicSamples();
   int getDesiredFPS();
-  DrawType getDrawType();
   std::tuple<int, int> getDiffuseIBLResolution();
   std::tuple<int, int> getSpecularIBLResolution();
   int getSpecularMipMap();

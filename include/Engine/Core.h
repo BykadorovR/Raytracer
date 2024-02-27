@@ -94,6 +94,8 @@ class Core {
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
   void addSkybox(std::shared_ptr<Skybox> skybox);
   void addAnimation(std::shared_ptr<Animation> animation);
+
+  void removeDrawable(std::shared_ptr<Drawable> drawable);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();

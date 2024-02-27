@@ -433,6 +433,38 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   return light;
 }
 
+void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  int index = -1;
+  for (int i = 0; i < _pointLights.size(); i++) {
+    if (_pointLights[i] == pointLight) index = i;
+  }
+  if (index > 0) {
+    _pointLights.erase(_pointLights.begin() + index);
+    _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
+    _loggerGPUPoint.erase(_loggerGPUPoint.begin() + index);
+    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::POINT][i] = true;
+    }
+  }
+}
+
+void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  int index = -1;
+  for (int i = 0; i < _directionalLights.size(); i++) {
+    if (_directionalLights[i] == directionalLight) index = i;
+  }
+  if (index > 0) {
+    _directionalLights.erase(_directionalLights.begin() + index);
+    _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
+    _loggerGPUDirectional.erase(_loggerGPUDirectional.begin() + index);
+    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::DIRECTIONAL][i] = true;
+    }
+  }
+}
+
 const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _pointLights;

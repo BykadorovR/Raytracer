@@ -944,6 +944,11 @@ void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
   addDrawable(particleSystem);
 }
 
+void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
+  for (auto& [_, drawableVector] : _drawables)
+    drawableVector.erase(std::remove(drawableVector.begin(), drawableVector.end(), drawable), drawableVector.end());
+}
+
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
 
 void Core::registerReset(std::function<void(int width, int height)> reset) { _callbackReset = reset; }

@@ -159,9 +159,9 @@ Main::Main() {
 
   // draw textured Sprite with Phong
   {
-    auto textureTree = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto textureTree = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/tree.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
     auto spriteTree = std::make_shared<Sprite>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
         commandBufferTransfer, _core->getResourceManager(), state);
@@ -179,9 +179,9 @@ Main::Main() {
   }
   // draw textured Sprite with PBR
   {
-    auto textureTree = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto textureTree = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/tree.png"}),
+                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                 mipMapLevels, commandBufferTransfer, state);
     auto spriteTree = std::make_shared<Sprite>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
         commandBufferTransfer, _core->getResourceManager(), state);
@@ -201,7 +201,7 @@ Main::Main() {
   // draw textured Sprite, check alpha blending
   {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = std::make_shared<Sprite>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
@@ -222,7 +222,7 @@ Main::Main() {
   // draw textured Sprite normal
   {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = std::make_shared<Sprite>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
@@ -243,7 +243,7 @@ Main::Main() {
   // draw textured Sprite tangent
   {
     auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
     auto sprite = std::make_shared<Sprite>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
@@ -263,9 +263,9 @@ Main::Main() {
 
   // draw textured Sprite Phong without normals
   {
-    auto textureColor = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/container.png"}), settings->getLoadTextureAuxilaryFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto textureColor = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/container.png"}),
+                                                  settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                  mipMapLevels, commandBufferTransfer, state);
     auto textureSpecular = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/container_specular.png"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
@@ -290,9 +290,9 @@ Main::Main() {
 
   // draw textured Sprite Phong without specular
   {
-    auto textureColor = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/brickwall.jpg"}), settings->getLoadTextureAuxilaryFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto textureColor = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/brickwall.jpg"}),
+                                                  settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                                  mipMapLevels, commandBufferTransfer, state);
     auto textureNormal = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/brickwall_normal.jpg"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
@@ -318,7 +318,7 @@ Main::Main() {
   {
     auto textureColor = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/rustediron2_basecolor.png"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto textureNormal = std::make_shared<Texture>(
         _core->getResourceManager()->loadImage({"../assets/rustediron2_normal.png"}),
