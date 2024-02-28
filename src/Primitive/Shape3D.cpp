@@ -1,4 +1,5 @@
 #include "Shape3D.h"
+#undef far
 
 Shape3D::Shape3D(ShapeType shapeType,
                  std::vector<VkFormat> renderFormat,
@@ -12,47 +13,52 @@ Shape3D::Shape3D(ShapeType shapeType,
   _lightManager = lightManager;
 
   // needed for layout
-  _defaultMaterialColor = std::make_shared<MaterialColor>(commandBufferTransfer, state);
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(commandBufferTransfer, state);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   if (shapeType == ShapeType::CUBE) {
     _mesh = std::make_shared<MeshCube>(commandBufferTransfer, state);
-    _defaultMaterialColor->setBaseColor(resourceManager->getCubemapOne()->getTexture());
-    _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/cubeColor_vertex.spv",
-                                                           "shaders/cubeColor_fragment.spv"};
-    _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/cubePhong_vertex.spv",
-                                                           "shaders/cubePhong_fragment.spv"};
-    _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/cubePhong_vertex.spv",
-                                                         "shaders/cubePBR_fragment.spv"};
-    _shadersLight[ShapeType::CUBE] = {"shaders/cubeDepth_vertex.spv", "shaders/cubeDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
-                                            "shaders/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::CUBE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
-                                            "shaders/cubeNormal_geometry.spv"};
+    _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
+    _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
+                                                           "shaders/shape/cubeColor_fragment.spv"};
+    _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/shape/cubePhong_vertex.spv",
+                                                           "shaders/shape/cubePhong_fragment.spv"};
+    _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/shape/cubePhong_vertex.spv",
+                                                         "shaders/shape/cubePBR_fragment.spv"};
+    _shadersLight[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv", "shaders/shape/cubeDepth_fragment.spv"};
+    _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/shape/cubeNormal_vertex.spv",
+                                            "shaders/shape/cubeNormal_fragment.spv",
+                                            "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::CUBE] = {"shaders/shape/cubeTangent_vertex.spv",
+                                            "shaders/shape/cubeNormal_fragment.spv",
+                                            "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   if (shapeType == ShapeType::SPHERE) {
     _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
-    _defaultMaterialColor->setBaseColor(resourceManager->getTextureOne());
-    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/sphereColor_vertex.spv",
-                                                             "shaders/sphereColor_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/spherePhong_vertex.spv",
-                                                             "shaders/spherePhong_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/spherePhong_vertex.spv",
-                                                           "shaders/spherePBR_fragment.spv"};
-    _shadersLight[ShapeType::SPHERE] = {"shaders/sphereDepth_vertex.spv", "shaders/sphereDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/cubeNormal_vertex.spv", "shaders/normal_fragment.spv",
-                                              "shaders/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/cubeTangent_vertex.spv", "shaders/normal_fragment.spv",
-                                              "shaders/cubeNormal_geometry.spv"};
+    _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
+    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
+                                                             "shaders/shape/sphereColor_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
+                                                             "shaders/shape/spherePhong_fragment.spv"};
+    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
+                                                           "shaders/shape/spherePBR_fragment.spv"};
+    _shadersLight[ShapeType::SPHERE] = {"shaders/shape/sphereDepth_vertex.spv",
+                                        "shaders/shape/sphereDepth_fragment.spv"};
+    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/shape/cubeNormal_vertex.spv",
+                                              "shaders/shape/cubeNormal_fragment.spv",
+                                              "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv",
+                                              "shaders/shape/cubeNormal_fragment.spv",
+                                              "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   _material = _defaultMaterialColor;
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
   _uniformBufferCamera = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(BufferMVP), state->getDevice());
+                                                         sizeof(BufferMVP), state);
   auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
   layoutCamera->createUniformBuffer();
   auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
@@ -99,15 +105,15 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(BufferMVP), _state->getDevice())});
+    _cameraUBODepth.push_back(
+        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
   }
 
   for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
       facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state->getDevice());
+                                                       _state);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
@@ -209,13 +215,13 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersNormalsMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormalsMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormalsMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
-                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
-                                          _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
-                                          _mesh->getAttributeDescriptions());
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+                                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
+                                          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
+                                         _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
+                                         _mesh->getAttributeDescriptions());
   }
   // initialize Tangent (per vertex)
   {
@@ -232,7 +238,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                                           _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
                                           _mesh->getAttributeDescriptions());
   }
-  // initialize light directional
+  // initialize shadows directional
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
@@ -242,7 +248,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
   }
 
-  // initialize light point
+  // initialize shadows point
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
@@ -278,15 +284,14 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
   _materialType = MaterialType::PBR;
 }
 
-void Shape3D::setModel(glm::mat4 model) { _model = model; }
-
-void Shape3D::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) {
+void Shape3D::draw(std::tuple<int, int> resolution,
+                   std::shared_ptr<Camera> camera,
+                   std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
@@ -309,7 +314,7 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
       LightPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = _camera->getEye();
+      pushConstants.cameraPosition = camera->getEye();
 
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -317,8 +322,8 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
 
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = _camera->getView();
-    cameraUBO.projection = _camera->getProjection();
+    cameraUBO.view = camera->getView();
+    cameraUBO.projection = camera->getProjection();
 
     void* data;
     vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(),
@@ -441,17 +446,14 @@ void Shape3D::draw(int currentFrame, std::tuple<int, int> resolution, std::share
   };
 
   auto pipeline = _pipeline[_materialType];
-  if ((_drawType & DrawType::WIREFRAME) == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
-  if ((_drawType & DrawType::NORMAL) == DrawType::NORMAL) pipeline = _pipelineNormalsMesh;
-  if ((_drawType & DrawType::TANGENT) == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
+  if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
+  if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalMesh;
+  if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawShape3D(pipeline);
 }
 
-void Shape3D::drawShadow(int currentFrame,
-                         std::shared_ptr<CommandBuffer> commandBuffer,
-                         LightType lightType,
-                         int lightIndex,
-                         int face) {
+void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _state->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 

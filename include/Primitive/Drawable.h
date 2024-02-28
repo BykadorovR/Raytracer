@@ -2,20 +2,29 @@
 #include "Settings.h"
 #include "Command.h"
 #include "LightManager.h"
+#include "Camera.h"
+#undef OPAQUE
+#undef TRANSPARENT
 
-class IDrawable {
+enum class AlphaType { TRANSPARENT, OPAQUE };
+
+class Drawable {
+ protected:
+  glm::mat4 _model = glm::mat4(1.f);
+
  public:
-  virtual void draw(int currentFrame,
-                    std::tuple<int, int> resolution,
+  virtual void draw(std::tuple<int, int> resolution,
+                    std::shared_ptr<Camera> camera,
                     std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+  void setModel(glm::mat4 model);
+  glm::mat4 getModel();
 };
 
 // Such objects can be influenced by shadow (shadows can appear on them and they can generate shadows)
-class IShadowable {
+class Shadowable {
  public:
-  virtual void drawShadow(int currentFrame,
-                          std::shared_ptr<CommandBuffer> commandBuffer,
-                          LightType lightType,
+  virtual void drawShadow(LightType lightType,
                           int lightIndex,
-                          int face = 0) = 0;
+                          int face,
+                          std::shared_ptr<CommandBuffer> commandBuffer) = 0;
 };

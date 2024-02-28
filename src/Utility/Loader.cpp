@@ -25,7 +25,7 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
       // fill buffer
       _images[path] = std::make_shared<BufferImage>(
           std::tuple{texWidth, texHeight}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
       _images[path]->map();
       memcpy(_images[path]->getMappedMemory(), pixels, static_cast<size_t>(imageSize));
       _images[path]->unmap();
@@ -39,7 +39,7 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
     bufferDst = std::make_shared<BufferImage>(
         bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     for (int i = 0; i < paths.size(); i++) {
       auto bufferSrc = _images[paths[i]];
       bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
@@ -50,12 +50,16 @@ std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
     memoryBarrier.pNext = nullptr;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_commandBufferTransfer->getCurrentFrame()],
+    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
                          nullptr, 0, nullptr);
   }
 
   return bufferDst;
+}
+
+void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
+  _materialsColor = materialsColor;
 }
 
 void ModelGLTF::setMaterialsPhong(std::vector<std::shared_ptr<MaterialPhong>>& materialsPhong) {
@@ -73,6 +77,8 @@ void ModelGLTF::setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& anima
 void ModelGLTF::setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes) { _nodes = nodes; }
 
 void ModelGLTF::setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes) { _meshes = meshes; }
+
+const std::vector<std::shared_ptr<MaterialColor>>& ModelGLTF::getMaterialsColor() { return _materialsColor; }
 
 const std::vector<std::shared_ptr<MaterialPhong>>& ModelGLTF::getMaterialsPhong() { return _materialsPhong; }
 
@@ -262,7 +268,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
       // copy buffer to Texture
       auto stagingBuffer = std::make_shared<Buffer>(
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
       void* data;
       vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
@@ -270,10 +276,9 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
       vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
 
       // for some textures SRGB is used but for others linear format
-      auto image = std::make_shared<Image>(std::tuple{glTFImage.width, glTFImage.height}, 1, 1, format,
-                                           VK_IMAGE_TILING_OPTIMAL,
-                                           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
+      auto image = std::make_shared<Image>(
+          std::tuple{glTFImage.width, glTFImage.height}, 1, 1, format, VK_IMAGE_TILING_OPTIMAL,
+          VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
 
       image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                           1, _commandBufferTransfer);
@@ -282,7 +287,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
                           1, _commandBufferTransfer);
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                   _state->getDevice());
+                                                   _state);
       texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
       if (deleteBuffer) {
         delete[] buffer;
@@ -295,15 +300,20 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
 
 // TODO: we can store baseColorFactor only in GLTF material, rest will go to PBR/Phong
 void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
-                                std::vector<std::shared_ptr<MaterialGLTF>> materialGLTF,
+                                std::vector<std::shared_ptr<MaterialGLTF>>& materialGLTF,
                                 std::shared_ptr<ModelGLTF> modelExternal) {
   std::vector<std::shared_ptr<MaterialPBR>> materialsPBR;
   std::vector<std::shared_ptr<MaterialPhong>> materialsPhong;
+  std::vector<std::shared_ptr<MaterialColor>> materialsColor;
   std::vector<std::shared_ptr<Texture>> textures(modelInternal.images.size(), nullptr);
   for (size_t i = 0; i < modelInternal.materials.size(); i++) {
     tinygltf::Material glTFMaterial = modelInternal.materials[i];
-    std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(_commandBufferTransfer, _state);
-    std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(_commandBufferTransfer, _state);
+    std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE,
+                                                                                   _commandBufferTransfer, _state);
+    std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE,
+                                                                             _commandBufferTransfer, _state);
+    std::shared_ptr<MaterialColor> materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
+                                                                                   _commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
     float metallicFactor = 0;
     float roughnessFactor = 0;
@@ -335,11 +345,13 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto baseColorImageIndex = modelInternal.textures[baseColorTextureIndex].source;
         // set texture to phong material
-        materialPhong->setBaseColor(_loadTexture(
-            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures));
+        materialPhong->setBaseColor({_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
         // set texture to PBR material
-        materialPBR->setBaseColor(_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                               modelInternal, textures));
+        materialPBR->setBaseColor({_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                                modelInternal, textures)});
+        materialColor->setBaseColor({_loadTexture(
+            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
       }
     }
     // Get normal texture
@@ -349,11 +361,11 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto normalImageIndex = modelInternal.textures[normalTextureIndex].source;
         // set normal texture to phong material
-        materialPhong->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                              modelInternal, textures));
+        materialPhong->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                               modelInternal, textures)});
         // set normal texture to PBR material
-        materialPBR->setNormal(_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                            modelInternal, textures));
+        materialPBR->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                                             modelInternal, textures)});
       }
     }
     // Get metallic-roughness texture
@@ -363,17 +375,17 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto metallicRoughnessImageIndex = modelInternal.textures[metallicRoughnessTextureIndex].source;
         // set specular texture to Phong material
-        materialPhong->setSpecular(_loadTexture(metallicRoughnessImageIndex,
-                                                _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                                textures));
+        materialPhong->setSpecular(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
         // set metallic texture to PBR material
-        materialPBR->setMetallic(_loadTexture(metallicRoughnessImageIndex,
-                                              _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                              textures));
+        materialPBR->setMetallic(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
         // set roughness texture to PBR material
-        materialPBR->setRoughness(_loadTexture(metallicRoughnessImageIndex,
-                                               _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
-                                               textures));
+        materialPBR->setRoughness(
+            {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
+                          modelInternal, textures)});
       }
     }
     // Get occlusion texture
@@ -381,8 +393,8 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
       if (occlusionTextureIndex >= 0) {
         auto occlusionImageIndex = modelInternal.textures[occlusionTextureIndex].source;
-        materialPBR->setOccluded(_loadTexture(
-            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures));
+        materialPBR->setOccluded({_loadTexture(
+            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures)});
       }
     }
     // Get emissive texture
@@ -390,17 +402,19 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       auto emissiveTextureIndex = glTFMaterial.emissiveTexture.index;
       if (emissiveTextureIndex >= 0) {
         auto emissiveImageIndex = modelInternal.textures[emissiveTextureIndex].source;
-        materialPBR->setEmissive(_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                              modelInternal, textures));
+        materialPBR->setEmissive({_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
+                                               modelInternal, textures)});
       }
     }
 
     materialGLTF.push_back(material);
     materialsPhong.push_back(materialPhong);
     materialsPBR.push_back(materialPBR);
+    materialsColor.push_back(materialColor);
   }
   if (materialsPBR.size() > 0) modelExternal->setMaterialsPBR(materialsPBR);
   if (materialsPhong.size() > 0) modelExternal->setMaterialsPhong(materialsPhong);
+  if (materialsColor.size() > 0) modelExternal->setMaterialsColor(materialsColor);
 }
 
 void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
@@ -709,7 +723,7 @@ void LoaderGLTF::_loadSkins(const tinygltf::Model& modelInternal,
 
 void LoaderGLTF::_loadAnimations(const tinygltf::Model& modelInternal,
                                  const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-                                 std::vector<std::shared_ptr<AnimationGLTF>> animations) {
+                                 std::vector<std::shared_ptr<AnimationGLTF>>& animations) {
   for (size_t i = 0; i < modelInternal.animations.size(); i++) {
     std::shared_ptr<AnimationGLTF> animation = std::make_shared<AnimationGLTF>();
     tinygltf::Animation glTFAnimation = modelInternal.animations[i];

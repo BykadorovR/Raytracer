@@ -17,7 +17,7 @@ void Blur::_updateWeights() {
 void Blur::_updateDescriptors(int currentFrame) {
   _blurWeightsSSBO[currentFrame] = std::make_shared<Buffer>(
       _blurWeights.size() * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
   _blurWeightsSSBO[currentFrame]->map();
   memcpy((uint8_t*)(_blurWeightsSSBO[currentFrame]->getMappedMemory()), _blurWeights.data(),
          _blurWeights.size() * sizeof(float));

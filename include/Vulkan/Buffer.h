@@ -4,6 +4,7 @@
 #include "Command.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
+#undef far
 
 struct BufferMVP {
   glm::mat4 model;
@@ -74,12 +75,12 @@ class Buffer {
   VkBuffer _data;
   VkDeviceMemory _memory;
   VkDeviceSize _size;
-  std::shared_ptr<Device> _device;
+  std::shared_ptr<State> _state;
   void* _mapped = nullptr;
   std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
-  Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<Device> device);
+  Buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::shared_ptr<State> state);
   void copyFrom(std::shared_ptr<Buffer> buffer,
                 VkDeviceSize srcOffset,
                 VkDeviceSize dstOffset,
@@ -106,7 +107,7 @@ class BufferImage : public Buffer {
               int number,
               VkBufferUsageFlags usage,
               VkMemoryPropertyFlags properties,
-              std::shared_ptr<Device> device);
+              std::shared_ptr<State> state);
   std::tuple<int, int> getResolution();
   int getChannels();
   int getNumber();
@@ -116,13 +117,13 @@ template <class T>
 class VertexBuffer {
  private:
   std::shared_ptr<Buffer> _buffer, _stagingBuffer;
-  std::shared_ptr<Device> _device;
+  std::shared_ptr<State> _state;
   std::vector<T> _vertices;
   VkBufferUsageFlagBits _type;
 
  public:
-  VertexBuffer(VkBufferUsageFlagBits type, std::shared_ptr<Device> device) {
-    _device = device;
+  VertexBuffer(VkBufferUsageFlagBits type, std::shared_ptr<State> state) {
+    _state = state;
     _type = type;
   }
 
@@ -135,16 +136,16 @@ class VertexBuffer {
     if (_stagingBuffer == nullptr || bufferSize != _stagingBuffer->getSize()) {
       _stagingBuffer = std::make_shared<Buffer>(
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _device);
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     }
 
     void* data;
-    vkMapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
+    vkMapMemory(_state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
     memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(_device->getLogicalDevice(), _stagingBuffer->getMemory());
+    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
     if (_buffer == nullptr || bufferSize != _buffer->getSize()) {
       _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | _type,
-                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _device);
+                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
     }
 
     _buffer->copyFrom(_stagingBuffer, 0, 0, commandBufferTransfer);
@@ -154,7 +155,7 @@ class VertexBuffer {
     memoryBarrier.pNext = nullptr;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[commandBufferTransfer->getCurrentFrame()],
+    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0,
                          nullptr, 0, nullptr);
   }
@@ -167,6 +168,6 @@ class UniformBuffer {
   std::vector<std::shared_ptr<Buffer>> _buffer;
 
  public:
-  UniformBuffer(int number, int size, std::shared_ptr<Device> device);
+  UniformBuffer(int number, int size, std::shared_ptr<State> state);
   std::vector<std::shared_ptr<Buffer>>& getBuffer();
 };

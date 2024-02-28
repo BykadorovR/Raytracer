@@ -6,7 +6,6 @@
 #include <stdexcept>
 #include <memory>
 #include <iostream>
-#include "Instance.h"
 #include "Window.h"
 
 class Instance {

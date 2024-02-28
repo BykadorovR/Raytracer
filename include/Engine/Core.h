@@ -1,5 +1,6 @@
 #pragma once
 #include "State.h"
+#include "Swapchain.h"
 #include "Settings.h"
 #include "Logger.h"
 #include "GUI.h"
@@ -7,18 +8,18 @@
 #include "Camera.h"
 #include "LightManager.h"
 #include "Timer.h"
-#include "SpriteManager.h"
-#include "ModelManager.h"
 #include "ParticleSystem.h"
 #include "Terrain.h"
 #include "Blur.h"
 #include "Skybox.h"
 #include "BS_thread_pool.hpp"
 #include "ResourceManager.h"
+#include "Animation.h"
 
 class Core {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
       _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
@@ -40,15 +41,15 @@ class Core {
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
 
   std::shared_ptr<GUI> _gui;
+  std::shared_ptr<Camera> _camera;
 
   std::shared_ptr<CameraOrtho> _cameraOrtho;
-  int _currentFrame;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
-  std::vector<std::shared_ptr<IDrawable>> _drawables;
-  std::vector<std::shared_ptr<IShadowable>> _shadowables;
+  std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
+  std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
 
@@ -88,13 +89,21 @@ class Core {
 
  public:
   Core(std::shared_ptr<Settings> settings);
-  void addDrawable(std::shared_ptr<IDrawable> drawable);
-  void addShadowable(std::shared_ptr<IShadowable> shadowable);
+  void setCamera(std::shared_ptr<Camera> camera);
+  void addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type = AlphaType::TRANSPARENT);
+  void addShadowable(std::shared_ptr<Shadowable> shadowable);
+  void addSkybox(std::shared_ptr<Skybox> skybox);
+  void addAnimation(std::shared_ptr<Animation> animation);
+
+  const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
+  void removeDrawable(std::shared_ptr<Drawable> drawable);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
   std::shared_ptr<LightManager> getLightManager();
   std::shared_ptr<ResourceManager> getResourceManager();
+  std::shared_ptr<Postprocessing> getPostprocessing();
+  std::shared_ptr<Blur> getBlur();
   std::shared_ptr<State> getState();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();

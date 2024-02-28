@@ -64,11 +64,13 @@ class LightManager {
   std::vector<std::shared_ptr<AmbientLight>> getAmbientLights();
   std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
   const std::vector<std::shared_ptr<PointLight>>& getPointLights();
+  void removePointLights(std::shared_ptr<PointLight> pointLight);
   const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& getPointLightCommandBuffers();
   const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& getPointLightLoggers();
 
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
+  void removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight);
   const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();
   const std::vector<std::shared_ptr<LoggerGPU>>& getDirectionalLightLoggers();
 

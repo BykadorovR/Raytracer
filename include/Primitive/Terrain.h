@@ -6,27 +6,32 @@
 #include "Mesh.h"
 #include "Material.h"
 
-enum class TerrainRenderMode { DIRECTIONAL, POINT, FULL };
-
-class Terrain : public IDrawable, IShadowable {
+class Terrain : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Mesh3D> _mesh;
-  std::shared_ptr<MaterialPhong> _defaultMaterial;
+  std::shared_ptr<Material> _material;
+  MaterialType _materialType = MaterialType::COLOR;
+
+  std::shared_ptr<MaterialColor> _defaultMaterialColor;
+  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
+  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
+
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepthControl,
       _descriptorSetCameraDepthEvaluation;
+  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
+      _descriptorSetLayout;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh,
+      _descriptorSetLayoutShadows;
   std::shared_ptr<DescriptorSet> _descriptorSetCameraControl, _descriptorSetCameraEvaluation,
-      _descriptorSetCameraGeometry, _descriptorSetHeight, _descriptorSetTerrainTiles;
-  std::shared_ptr<Pipeline> _pipelineWireframe, _pipelineNormal;
-  std::map<TerrainRenderMode, std::shared_ptr<Pipeline>> _pipeline;
+      _descriptorSetCameraGeometry, _descriptorSetHeight;
+  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
+  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<Texture> _heightMap;
-  std::array<std::shared_ptr<Texture>, 4> _terrainTiles;
   std::pair<int, int> _patchNumber;
   std::shared_ptr<LightManager> _lightManager;
-  std::shared_ptr<Camera> _camera;
-  glm::mat4 _model = glm::mat4(1.f);
   int _mipMap = 8;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
@@ -40,25 +45,25 @@ class Terrain : public IDrawable, IShadowable {
   DrawType _drawType = DrawType::FILL;
 
  public:
-  Terrain(std::array<std::string, 4> tiles,
-          std::string heightMap,
+  Terrain(std::shared_ptr<BufferImage> heightMap,
           std::pair<int, int> patchNumber,
           std::vector<VkFormat> renderFormat,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<LightManager> lightManager,
-          std::shared_ptr<ResourceManager> resourceManager,
           std::shared_ptr<State> state);
-  void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
-  void setDrawType(DrawType drawType);
-  DrawType getDrawType();
 
+  void enableShadow(bool enable);
+  void enableLighting(bool enable);
+  void setMaterial(std::shared_ptr<MaterialColor> material);
+  void setMaterial(std::shared_ptr<MaterialPhong> material);
+  void setMaterial(std::shared_ptr<MaterialPBR> material);
+  void setDrawType(DrawType drawType);
+
+  DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  void draw(int currentFrame, std::tuple<int, int> resolution, std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(int currentFrame,
-                  std::shared_ptr<CommandBuffer> commandBuffer,
-                  LightType lightType,
-                  int lightIndex,
-                  int face = 0) override;
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

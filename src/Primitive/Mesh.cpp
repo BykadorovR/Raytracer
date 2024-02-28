@@ -5,8 +5,8 @@
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
 Mesh3D::Mesh3D(std::shared_ptr<State> state) : Mesh(state) {
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
 }
 
 void Mesh3D::setVertices(std::vector<Vertex3D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
@@ -315,8 +315,8 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
 }
 
 Mesh2D::Mesh2D(std::shared_ptr<State> state) : Mesh(state) {
-  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state->getDevice());
-  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state->getDevice());
+  _vertexBuffer = std::make_shared<VertexBuffer<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
+  _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
 }
 
 void Mesh2D::setVertices(std::vector<Vertex2D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {

@@ -14,16 +14,28 @@ class Animation {
   // separate descriptor for each skin
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
+  int _animationIndex = 0;
+  std::map<int, glm::mat4> _matricesJoint;
+  bool _play = true;
 
-  void _updateJoints(int frame, std::shared_ptr<NodeGLTF> node);
-  glm::mat4 _getNodeMatrix(std::shared_ptr<NodeGLTF> node);
+  void _updateJoints(std::shared_ptr<NodeGLTF> node);
+  void _fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent);
 
  public:
   Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
             const std::vector<std::shared_ptr<SkinGLTF>>& skins,
             const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
             std::shared_ptr<State> state);
-  void updateAnimation(int frame, float deltaTime);
+  std::vector<std::string> getAnimations();
+  void setAnimation(std::string name);
+  void setPlay(bool play);
+  void setTime(float time);
+  std::tuple<float, float> getTimeRange();
+
+  std::tuple<float, float> getTimeline();
+  float getCurrentTime();
+
+  void updateAnimation(float deltaTime);
 
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutJoints();
   std::vector<std::shared_ptr<DescriptorSet>> getDescriptorSetJoints();

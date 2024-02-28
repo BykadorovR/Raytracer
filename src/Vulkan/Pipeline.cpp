@@ -38,7 +38,6 @@ Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> d
   _blendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
   _blendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   _blendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
-  //_blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
   _blendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
   _blendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   _blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
@@ -356,6 +355,9 @@ void Pipeline::createLine(std::vector<VkFormat> renderFormat,
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
   const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                         .colorAttachmentCount = (uint32_t)renderFormat.size(),
@@ -638,6 +640,7 @@ void Pipeline::createGraphic2D(
     std::vector<VkFormat> renderFormat,
     VkCullModeFlags cullMode,
     VkPolygonMode polygonMode,
+    bool enableAlphaBlending,
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
     std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
     std::map<std::string, VkPushConstantRange> pushConstants,
@@ -681,6 +684,7 @@ void Pipeline::createGraphic2D(
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
   _rasterizer.polygonMode = polygonMode;
+  if (enableAlphaBlending == false) _blendAttachmentState.blendEnable = VK_FALSE;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();
@@ -831,16 +835,9 @@ void Pipeline::createParticleSystemGraphic(
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
   _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-  _inputAssembly.primitiveRestartEnable = VK_FALSE;
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
-  _rasterizer.depthClampEnable = VK_FALSE;
-  _rasterizer.depthBiasEnable = VK_FALSE;
-  _rasterizer.rasterizerDiscardEnable = VK_FALSE;
-  _rasterizer.lineWidth = 1.0f;
-  _rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_FALSE;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(renderFormat.size(), _blendAttachmentState);

@@ -13,6 +13,7 @@ class ResourceManager {
 
  public:
   ResourceManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  // vector is required to load cubemap
   std::shared_ptr<BufferImage> loadImage(std::vector<std::string> paths);
   std::shared_ptr<ModelGLTF> loadModel(std::string path);
   std::shared_ptr<Texture> getTextureZero();

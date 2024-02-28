@@ -4,6 +4,7 @@
 #include "Texture.h"
 #include "Descriptor.h"
 #include "Pipeline.h"
+#include "Drawable.h"
 
 struct Particle {
   glm::vec3 position;
@@ -14,6 +15,7 @@ struct Particle {
   float life;
   float minLife;
   float maxLife;
+  int iteration;
   float velocity;
   float minVelocity;
   float maxVelocity;
@@ -60,13 +62,11 @@ struct Particle {
   }
 };
 
-class ParticleSystem {
+class ParticleSystem : public Drawable {
  private:
-  int _particlesNumber;
+  std::vector<Particle> _particles;
   std::shared_ptr<State> _state;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  glm::mat4 _model = glm::mat4(1.f);
-  std::shared_ptr<Camera> _camera;
   std::shared_ptr<Texture> _texture;
   std::shared_ptr<UniformBuffer> _deltaUniformBuffer, _cameraUniformBuffer;
   std::vector<std::shared_ptr<Buffer>> _particlesBuffer;
@@ -77,19 +77,18 @@ class ParticleSystem {
   float _pointScale = 60.f;
 
   void _initializeCompute();
-  void _initializeGraphic(std::vector<VkFormat> renderFormat);
+  void _initializeGraphic();
 
  public:
-  ParticleSystem(int particlesNumber,
-                 std::vector<VkFormat> renderFormat,
+  ParticleSystem(std::vector<Particle> particles,
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<State> state);
-  void setModel(glm::mat4 model);
-  void setCamera(std::shared_ptr<Camera> camera);
   void setPointScale(float pointScale);
   void updateTimer(float frameTimer);
 
-  void drawCompute(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
-  void drawGraphic(int currentFrame, std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawCompute(std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

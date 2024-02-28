@@ -30,6 +30,8 @@ int TimerFPS::getFPS() { return _fps; }
 Timer::Timer() {
   _frameCounter = 0;
   _frameCounterSleep = 0;
+  _elapsedCurrent = 0;
+  _FPSMaxPrevious = 0;
   _startTime = std::chrono::high_resolution_clock::now();
 }
 

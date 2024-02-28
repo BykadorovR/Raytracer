@@ -3,7 +3,9 @@
 #include "Descriptor.h"
 #include "Cubemap.h"
 
-enum class MaterialType { PHONG, PBR, COLOR, CUSTOM };
+enum class MaterialType { PHONG, PBR, COLOR };
+
+enum class MaterialTarget { SIMPLE = 1, TERRAIN = 4 };
 
 class Material {
  protected:
@@ -55,30 +57,43 @@ class MaterialPBR : public Material {
     alignas(16) glm::vec3 emissiveFactor{0};
   };
 
-  std::shared_ptr<Texture> _textureColor;
-  std::shared_ptr<Texture> _textureNormal;
-  std::shared_ptr<Texture> _textureMetallic;
-  std::shared_ptr<Texture> _textureRoughness;
-  std::shared_ptr<Texture> _textureOccluded;
-  std::shared_ptr<Texture> _textureEmissive;
-  std::shared_ptr<Texture> _textureDiffuseIBL;
-  std::shared_ptr<Texture> _textureSpecularIBL;
-  std::shared_ptr<Texture> _textureSpecularBRDF;
+  std::vector<std::shared_ptr<Texture>> _textureColor;
+  std::vector<std::shared_ptr<Texture>> _textureNormal;
+  std::vector<std::shared_ptr<Texture>> _textureMetallic;
+  std::vector<std::shared_ptr<Texture>> _textureRoughness;
+  std::vector<std::shared_ptr<Texture>> _textureOccluded;
+  std::vector<std::shared_ptr<Texture>> _textureEmissive;
+  std::shared_ptr<Texture> _textureDiffuseIBL = nullptr;
+  std::shared_ptr<Texture> _textureSpecularIBL = nullptr;
+  std::shared_ptr<Texture> _textureSpecularBRDF = nullptr;
 
   Coefficients _coefficients;
+  MaterialTarget _target;
 
   void _updateTextureDescriptors(int currentFrame) override;
   void _updateCoefficientDescriptors(int currentFrame) override;
 
  public:
-  MaterialPBR(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  // number of textures color, normal, metallic, roughness, occluded, emissive
+  MaterialPBR(MaterialTarget target,
+              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+              std::shared_ptr<State> state);
+  const std::vector<std::shared_ptr<Texture>> getBaseColor();
+  const std::vector<std::shared_ptr<Texture>> getNormal();
+  const std::vector<std::shared_ptr<Texture>> getMetallic();
+  const std::vector<std::shared_ptr<Texture>> getRoughness();
+  const std::vector<std::shared_ptr<Texture>> getOccluded();
+  const std::vector<std::shared_ptr<Texture>> getEmissive();
+  std::shared_ptr<Texture> getDiffuseIBL();
+  std::shared_ptr<Texture> getSpecularIBL();
+  std::shared_ptr<Texture> getSpecularBRDF();
 
-  void setBaseColor(std::shared_ptr<Texture> color);
-  void setNormal(std::shared_ptr<Texture> normal);
-  void setMetallic(std::shared_ptr<Texture> metallic);
-  void setRoughness(std::shared_ptr<Texture> roughness);
-  void setOccluded(std::shared_ptr<Texture> occluded);
-  void setEmissive(std::shared_ptr<Texture> emissive);
+  void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
+  void setNormal(std::vector<std::shared_ptr<Texture>> normal);
+  void setMetallic(std::vector<std::shared_ptr<Texture>> metallic);
+  void setRoughness(std::vector<std::shared_ptr<Texture>> roughness);
+  void setOccluded(std::vector<std::shared_ptr<Texture>> occluded);
+  void setEmissive(std::vector<std::shared_ptr<Texture>> emissive);
   void setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL);
   void setSpecularIBL(std::shared_ptr<Texture> specularIBL, std::shared_ptr<Texture> specularBRDF);
   void setCoefficients(float metallicFactor, float roughnessFactor, float occlusionStrength, glm::vec3 emissiveFactor);
@@ -93,32 +108,45 @@ class MaterialPhong : public Material {
     float _shininess{64.f};
   };
 
-  std::shared_ptr<Texture> _textureColor;
-  std::shared_ptr<Texture> _textureNormal;
-  std::shared_ptr<Texture> _textureSpecular;
+  std::vector<std::shared_ptr<Texture>> _textureColor;
+  std::vector<std::shared_ptr<Texture>> _textureNormal;
+  std::vector<std::shared_ptr<Texture>> _textureSpecular;
 
   Coefficients _coefficients;
+  MaterialTarget _target;
 
   void _updateTextureDescriptors(int currentFrame) override;
   void _updateCoefficientDescriptors(int currentFrame) override;
 
  public:
-  MaterialPhong(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  // number of textures color, normal and specular
+  MaterialPhong(MaterialTarget target,
+                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                std::shared_ptr<State> state);
+  const std::vector<std::shared_ptr<Texture>> getBaseColor();
+  const std::vector<std::shared_ptr<Texture>> getNormal();
+  const std::vector<std::shared_ptr<Texture>> getSpecular();
 
-  void setBaseColor(std::shared_ptr<Texture> color);
-  void setNormal(std::shared_ptr<Texture> normal);
-  void setSpecular(std::shared_ptr<Texture> specular);
+  void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
+  void setNormal(std::vector<std::shared_ptr<Texture>> normal);
+  void setSpecular(std::vector<std::shared_ptr<Texture>> specular);
   void setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);
 };
 
 class MaterialColor : public Material {
  private:
-  std::shared_ptr<Texture> _textureColor;
+  std::vector<std::shared_ptr<Texture>> _textureColor;
   void _updateTextureDescriptors(int currentFrame) override;
   void _updateCoefficientDescriptors(int currentFrame) override;
 
+  MaterialTarget _target;
+
  public:
-  MaterialColor(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
-  void setBaseColor(std::shared_ptr<Texture> color);
-  std::shared_ptr<Texture> getBaseColor();
+  // number of textures color
+  MaterialColor(MaterialTarget target,
+                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                std::shared_ptr<State> state);
+  const std::vector<std::shared_ptr<Texture>> getBaseColor();
+
+  void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
 };

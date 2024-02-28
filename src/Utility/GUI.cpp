@@ -62,7 +62,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   auto stagingBuffer = std::make_shared<Buffer>(
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state->getDevice());
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
@@ -72,14 +72,14 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
                                        _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
                                        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state->getDevice());
+                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           _state->getDevice());
+                                           _state);
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _imageView, _state);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
@@ -87,7 +87,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSetLayout->createGUI();
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformData),
-                                                   _state->getDevice());
+                                                   _state);
   _descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
                                                    _descriptorPool, _state->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
@@ -102,104 +102,83 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
                        VertexGUI::getAttributeDescriptions());
+  ImGui::NewFrame();
 }
 
-void GUI::drawListBox(std::string name,
-                      std::tuple<int, int> position,
-                      std::vector<std::string> list,
-                      std::map<std::string, int*> variable) {
-  if (_calls == 0) ImGui::NewFrame();
+void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable) {
   for (auto& [key, value] : variable) {
-    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     std::vector<const char*> listFormatted;
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
     ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 2);
-    ImGui::End();
   }
-  _calls++;
 }
 
-bool GUI::drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow) {
+bool GUI::drawButton(std::string label, bool hideWindow) {
   bool result = false;
-  if (_calls == 0) ImGui::NewFrame();
-  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+
   ImGuiWindowFlags flags = 0;
   if (hideWindow) {
     ImGui::SetNextWindowBgAlpha(0.f);
     flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground;
   }
-  ImGui::Begin(name.c_str(), 0, flags);
   if (ImGui::Button(label.c_str())) {
     result = true;
   }
-  ImGui::End();
-  _calls++;
   return result;
 }
 
-bool GUI::drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable) {
+bool GUI::drawCheckbox(std::map<std::string, bool*> variable) {
   bool result = false;
-  if (_calls == 0) ImGui::NewFrame();
+
   for (auto& [key, value] : variable) {
-    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     if (ImGui::Checkbox(key.c_str(), value)) result = true;
-    ImGui::End();
   }
-  _calls++;
 
   return result;
 }
 
-bool GUI::drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable) {
+bool GUI::drawSlider(std::map<std::string, float*> variable, std::map<std::string, std::tuple<float, float>> range) {
   bool result = false;
-  if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
-    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+    if (ImGui::SliderFloat(key.c_str(), value, std::get<0>(range[key]), std::get<1>(range[key]), "%.2f",
+                           ImGuiSliderFlags_AlwaysClamp))
+      result = true;
+  }
+  return result;
+}
+
+bool GUI::drawInputFloat(std::map<std::string, float*> variable) {
+  bool result = false;
+  for (auto& [key, value] : variable) {
     ImGui::PushItemWidth(100);
     if (ImGui::InputFloat(key.c_str(), value, 0.01f, 1.f, "%.2f")) result = true;
     ImGui::PopItemWidth();
-    ImGui::End();
   }
-  _calls++;
 
   return result;
 }
 
-bool GUI::drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable) {
+bool GUI::drawInputInt(std::map<std::string, int*> variable) {
   bool result = false;
-  if (_calls == 0) ImGui::NewFrame();
   for (auto& [key, value] : variable) {
-    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(100);
     if (ImGui::InputInt(key.c_str(), value, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) result = true;
     ImGui::PopItemWidth();
-    ImGui::End();
   }
-  _calls++;
 
   return result;
 }
 
-void GUI::drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text) {
-  if (_calls == 0) ImGui::NewFrame();
+void GUI::drawText(std::vector<std::string> text) {
   for (auto value : text) {
-    ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-    ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text(value.c_str());
-    ImGui::End();
   }
-  _calls++;
 }
 
 void GUI::updateBuffers(int current) {
   ImGui::Render();
-  _calls = 0;
   ImDrawData* imDrawData = ImGui::GetDrawData();
 
   // Note: Alignment is done inside buffer creation
@@ -212,7 +191,7 @@ void GUI::updateBuffers(int current) {
 
   if ((_vertexBuffer[current] == nullptr) || (_vertexCount[current] != imDrawData->TotalVtxCount)) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
     _vertexCount[current] = imDrawData->TotalVtxCount;
     _vertexBuffer[current]->map();
   }
@@ -220,7 +199,7 @@ void GUI::updateBuffers(int current) {
   // Index buffer
   if ((_indexBuffer[current] == nullptr) || (_indexCount[current] != imDrawData->TotalIdxCount)) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state->getDevice());
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
     _indexCount[current] = imDrawData->TotalIdxCount;
     _indexBuffer[current]->map();
   }
@@ -298,7 +277,31 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
       vertexOffset += cmd_list->VtxBuffer.Size;
     }
   }
+
+  ImGui::NewFrame();
 }
+
+void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size) {
+  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
+  // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
+  ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
+
+  ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+}
+
+std::tuple<int, int, int, int> GUI::endWindow() {
+  ImVec2 size = ImGui::GetWindowSize();
+  ImVec2 position = ImGui::GetWindowPos();
+  ImGui::End();
+  return {position.x, position.y, size.x, size.y};
+}
+
+bool GUI::startTree(std::string name, bool open) {
+  ImGui::SetNextItemOpen(open, ImGuiCond_FirstUseEver);
+  return ImGui::TreeNode(name.c_str());
+}
+
+void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
@@ -355,5 +358,13 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
   if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
     io.AddKeyEvent(ImGuiKey_Enter, true);
     io.AddKeyEvent(ImGuiKey_Enter, false);
+  }
+  if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_PRESS) {
+    io.AddKeyEvent(ImGuiKey_LeftCtrl, true);
+    io.AddKeyEvent(ImGuiKey_ModCtrl, true);
+  }
+  if (key == GLFW_KEY_LEFT_CONTROL && action == GLFW_RELEASE) {
+    io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
+    io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
 }

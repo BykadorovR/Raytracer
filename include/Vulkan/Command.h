@@ -2,19 +2,18 @@
 #include "Device.h"
 #include "Sync.h"
 #include "Pool.h"
+#include "State.h"
 
 class CommandBuffer {
  private:
   std::vector<VkCommandBuffer> _buffer;
-  std::shared_ptr<Device> _device;
+  std::shared_ptr<State> _state;
   std::shared_ptr<CommandPool> _pool;
-  int _currentFrame;
 
  public:
-  CommandBuffer(int size, std::shared_ptr<CommandPool> pool, std::shared_ptr<Device> device);
-  void beginCommands(int currentFrame);
+  CommandBuffer(int size, std::shared_ptr<CommandPool> pool, std::shared_ptr<State> state);
+  void beginCommands();
   void endCommands();
   std::vector<VkCommandBuffer>& getCommandBuffer();
-  int getCurrentFrame();
   ~CommandBuffer();
 };

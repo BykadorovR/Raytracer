@@ -25,6 +25,7 @@ class PointLight {
  public:
   PointLight(std::shared_ptr<Settings> settings);
   void setColor(glm::vec3 color);
+  glm::vec3 getColor();
   void setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap);
   std::vector<std::shared_ptr<Cubemap>> getDepthCubemap();
   void setPosition(glm::vec3 position);
@@ -52,6 +53,7 @@ class DirectionalLight {
  public:
   DirectionalLight();
   void setColor(glm::vec3 color);
+  glm::vec3 getColor();
   void setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture);
   std::vector<std::shared_ptr<Texture>> getDepthTexture();
   void setPosition(glm::vec3 position);

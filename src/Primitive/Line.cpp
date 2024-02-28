@@ -9,7 +9,7 @@ Line::Line(int thick,
   _mesh->setIndexes({0, 1}, commandBufferTransfer);
   _mesh->setVertices({Vertex3D{}, Vertex3D{}}, commandBufferTransfer);
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state->getDevice());
+                                                   state);
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
   setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
@@ -31,12 +31,10 @@ std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }
 
 void Line::setModel(glm::mat4 model) { _model = model; }
 
-void Line::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
-void Line::draw(int currentFrame,
-                std::tuple<int, int> resolution,
-                std::shared_ptr<CommandBuffer> commandBuffer,
-                DrawType drawType) {
+void Line::draw(std::tuple<int, int> resolution,
+                std::shared_ptr<Camera> camera,
+                std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};
@@ -55,8 +53,8 @@ void Line::draw(int currentFrame,
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = _camera->getView();
-  cameraUBO.projection = _camera->getProjection();
+  cameraUBO.view = camera->getView();
+  cameraUBO.projection = camera->getProjection();
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,

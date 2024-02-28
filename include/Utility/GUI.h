@@ -69,15 +69,18 @@ class GUI : public InputSubscriber {
   GUI(std::shared_ptr<State> state);
   void reset();
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void drawText(std::string name, std::tuple<int, int> position, std::vector<std::string> text);
-  bool drawButton(std::string name, std::tuple<int, int> position, std::string label, bool hideWindow = false);
-  bool drawCheckbox(std::string name, std::tuple<int, int> position, std::map<std::string, bool*> variable);
-  void drawListBox(std::string name,
-                   std::tuple<int, int> position,
-                   std::vector<std::string> list,
-                   std::map<std::string, int*> variable);
-  bool drawInputFloat(std::string name, std::tuple<int, int> position, std::map<std::string, float*> variable);
-  bool drawInputInt(std::string name, std::tuple<int, int> position, std::map<std::string, int*> variable);
+
+  void startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size);
+  std::tuple<int, int, int, int> endWindow();
+  bool startTree(std::string name, bool open = true);
+  void endTree();
+  void drawText(std::vector<std::string> text);
+  bool drawSlider(std::map<std::string, float*> variable, std::map<std::string, std::tuple<float, float>> range);
+  bool drawButton(std::string label, bool hideWindow = false);
+  bool drawCheckbox(std::map<std::string, bool*> variable);
+  void drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable);
+  bool drawInputFloat(std::map<std::string, float*> variable);
+  bool drawInputInt(std::map<std::string, int*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
 

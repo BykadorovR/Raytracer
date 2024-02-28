@@ -4,9 +4,7 @@
 
 class Swapchain {
  private:
-  std::shared_ptr<Device> _device;
-  std::shared_ptr<Window> _window;
-  std::shared_ptr<Surface> _surface;
+  std::shared_ptr<State> _state;
 
   VkSwapchainKHR _swapchain;
   std::vector<VkImage> _swapchainImages;
@@ -22,11 +20,7 @@ class Swapchain {
   void _destroy();
 
  public:
-  Swapchain(VkFormat imageFormat,
-            VkFormat depthFormat,
-            std::shared_ptr<Window> window,
-            std::shared_ptr<Surface> surface,
-            std::shared_ptr<Device> device);
+  Swapchain(VkFormat imageFormat, VkFormat depthFormat, std::shared_ptr<State> state);
   void reset();
 
   void overrideImageLayout(VkImageLayout imageLayout);

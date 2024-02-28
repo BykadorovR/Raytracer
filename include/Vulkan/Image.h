@@ -1,11 +1,11 @@
 #pragma once
-#include "Device.h"
+#include "State.h"
 #include "Buffer.h"
 #include <tuple>
 
 class Image {
  private:
-  std::shared_ptr<Device> _device;
+  std::shared_ptr<State> _state;
   std::tuple<int, int> _resolution;
   VkImage _image;
   VkDeviceMemory _imageMemory;
@@ -16,7 +16,7 @@ class Image {
   std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
-  Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<Device> device);
+  Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state);
   Image(std::tuple<int, int> resolution,
         int layers,
         int mipMapLevels,
@@ -24,7 +24,7 @@ class Image {
         VkImageTiling tiling,
         VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties,
-        std::shared_ptr<Device> device);
+        std::shared_ptr<State> state);
 
   // bufferOffsets contains offsets for part of buffer that should be copied to corresponding layers of image
   void copyFrom(std::shared_ptr<Buffer> buffer,
@@ -52,7 +52,7 @@ class ImageView {
  private:
   std::shared_ptr<Image> _image;
   VkImageView _imageView;
-  std::shared_ptr<Device> _device;
+  std::shared_ptr<State> _state;
 
  public:
   // baseArrayLayer - which face is used
@@ -66,7 +66,7 @@ class ImageView {
             int baseMipMap,
             int mipMapNumber,
             VkImageAspectFlags aspectFlags,
-            std::shared_ptr<Device> device);
+            std::shared_ptr<State> state);
   VkImageView& getImageView();
   std::shared_ptr<Image> getImage();
 
