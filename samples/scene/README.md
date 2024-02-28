@@ -1,6 +1,6 @@
-# Sprite
+# Scene
 
-This sample demonstrates simple static sprites with and without alpha. To avoid alpha blending artifacts, sorting algorithm (from far to near) is used.
+Complex scene, main playground.
 
 # How to install
 

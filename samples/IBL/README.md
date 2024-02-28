@@ -1,8 +1,6 @@
-# Shape primitives
+# IBL
 
-This sample demonstrates different lighting models: simple coloring/texturing, Blinn-Phong, PBR using simple primitives: cube and sphere. Direct and point lights are used as light sources.
-
-![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjBlOHVkdHgzMHp0azF4ajdnMDAzOTBwZHJrdXhrNWt3eGtueThzeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4vdciHdGZ26bPBSjo6/giphy.gif)
+This sample demonstrates IBL, based on skybox color values. Used model is rendered as PBR.
 
 # How to install
 

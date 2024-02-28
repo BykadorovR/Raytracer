@@ -1,8 +1,6 @@
-# Shape primitives
+# Shadow
 
-This sample demonstrates different lighting models: simple coloring/texturing, Blinn-Phong, PBR using simple primitives: cube and sphere. Direct and point lights are used as light sources.
-
-![](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdjBlOHVkdHgzMHp0azF4ajdnMDAzOTBwZHJrdXhrNWt3eGtueThzeSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4vdciHdGZ26bPBSjo6/giphy.gif)
+Simple implementation of shadows for point and directional lights. Only objects with PBR or Phong materials can be affected by shadows. Objects with any material can cast shadows.
 
 # How to install
 
