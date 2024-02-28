@@ -248,7 +248,7 @@ Main::Main() {
       terrainPhong->setModel(scaleMatrix);
     }
 
-    _core->addDrawable(terrainPhong, DrawableType::OPAQUE);
+    _core->addDrawable(terrainPhong, AlphaType::OPAQUE);
   }
   // draw textured Sprite Phong without specular
   {

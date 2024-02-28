@@ -223,7 +223,7 @@ Main::Main() {
     auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
     terrain->setModel(translateMatrix);
   }
-  _core->addDrawable(terrain, DrawableType::OPAQUE);
+  _core->addDrawable(terrain, AlphaType::OPAQUE);
   _core->addShadowable(terrain);
 
   auto particleTexture = std::make_shared<Texture>(
@@ -342,8 +342,6 @@ Main::Main() {
   }
   _core->addDrawable(cube);
 
-  auto skybox = std::make_shared<Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
-
   auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
 
   auto equiCube = std::make_shared<Shape3D>(
@@ -384,7 +382,6 @@ Main::Main() {
   auto materialColorSpecular = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialColorCM->setBaseColor({cubemapConverted->getTexture()});
   equiCube->setMaterial(materialColorCM);
-  skybox->setMaterial(materialColorCM);
 
   ibl->drawDiffuse(commandBufferTransfer);
   ibl->drawSpecular(commandBufferTransfer);
@@ -454,7 +451,20 @@ void Main::update() {
 
   angleHorizontal += 0.05f;
 
-  _debugVisualization->update();
+  auto [FPSLimited, FPSReal] = _core->getFPS();
+  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  if (_core->getGUI()->startTree("Main")) {
+    _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
+    _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
+    _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+    _core->getGUI()->endTree();
+  }
+  if (_core->getGUI()->startTree("Debug")) {
+    _debugVisualization->update();
+    _core->getGUI()->endTree();
+  }
+  _core->getGUI()->endWindow();
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

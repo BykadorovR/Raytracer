@@ -16,6 +16,8 @@ float PointLight::getFar() { return _light->far; }
 
 void PointLight::setColor(glm::vec3 color) { _light->color = color; }
 
+glm::vec3 PointLight::getColor() { return _light->color; }
+
 void PointLight::setPosition(glm::vec3 position) { _light->position = position; }
 
 glm::vec3 PointLight::getPosition() { return _light->position; }
@@ -82,6 +84,8 @@ int DirectionalLight::getSize() { return sizeof(LightFields); }
 void* DirectionalLight::getData() { return _light.get(); }
 
 void DirectionalLight::setColor(glm::vec3 color) { _light->color = color; }
+
+glm::vec3 DirectionalLight::getColor() { return _light->color; }
 
 void DirectionalLight::setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture) {
   _depthTexture = depthTexture;

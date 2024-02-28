@@ -4,8 +4,9 @@
 #include "LightManager.h"
 #include "Camera.h"
 #undef OPAQUE
+#undef TRANSPARENT
 
-enum class DrawableType { ALPHA, OPAQUE };
+enum class AlphaType { TRANSPARENT, OPAQUE };
 
 class Drawable {
  protected:

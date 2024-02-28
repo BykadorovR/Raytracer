@@ -635,7 +635,7 @@ void Core::_renderGraphic() {
     _loggerGPU->end();
   }
 
-  for (auto& drawable : _drawables[DrawableType::OPAQUE]) {
+  for (auto& drawable : _drawables[AlphaType::OPAQUE]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
@@ -643,12 +643,12 @@ void Core::_renderGraphic() {
     _loggerGPU->end();
   }
 
-  std::sort(_drawables[DrawableType::ALPHA].begin(), _drawables[DrawableType::ALPHA].end(),
+  std::sort(_drawables[AlphaType::TRANSPARENT].begin(), _drawables[AlphaType::TRANSPARENT].end(),
             [camera = _camera](std::shared_ptr<Drawable> left, std::shared_ptr<Drawable> right) {
               return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
                      glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
             });
-  for (auto& drawable : _drawables[DrawableType::ALPHA]) {
+  for (auto& drawable : _drawables[AlphaType::TRANSPARENT]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
@@ -931,7 +931,7 @@ std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 
 std::tuple<int, int> Core::getFPS() { return {_timerFPSLimited->getFPS(), _timerFPSReal->getFPS()}; }
 
-void Core::addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type) { _drawables[type].push_back(drawable); }
+void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
 
 void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
 
@@ -948,6 +948,8 @@ void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
   for (auto& [_, drawableVector] : _drawables)
     drawableVector.erase(std::remove(drawableVector.begin(), drawableVector.end(), drawable), drawableVector.end());
 }
+
+const std::vector<std::shared_ptr<Drawable>>& Core::getDrawables(AlphaType type) { return _drawables[type]; }
 
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
 

@@ -48,7 +48,7 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
-  std::map<DrawableType, std::vector<std::shared_ptr<Drawable>>> _drawables;
+  std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
@@ -90,11 +90,12 @@ class Core {
  public:
   Core(std::shared_ptr<Settings> settings);
   void setCamera(std::shared_ptr<Camera> camera);
-  void addDrawable(std::shared_ptr<Drawable> drawable, DrawableType type = DrawableType::ALPHA);
+  void addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type = AlphaType::TRANSPARENT);
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
   void addSkybox(std::shared_ptr<Skybox> skybox);
   void addAnimation(std::shared_ptr<Animation> animation);
 
+  const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
   void removeDrawable(std::shared_ptr<Drawable> drawable);
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);

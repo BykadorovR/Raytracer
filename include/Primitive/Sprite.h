@@ -32,6 +32,7 @@ class Sprite : public Drawable, public Shadowable {
   bool _enableShadow = true;
   bool _enableLighting = true;
   bool _enableDepth = true;
+  bool _enableHUD = false;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
   std::shared_ptr<Material> _material;
@@ -51,6 +52,7 @@ class Sprite : public Drawable, public Shadowable {
   void enableShadow(bool enable);
   void enableLighting(bool enable);
   void enableDepth(bool enable);
+  void enableHUD(bool enable);
   bool isDepthEnabled();
 
   void setMaterial(std::shared_ptr<MaterialPBR> material);

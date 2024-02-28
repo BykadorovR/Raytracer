@@ -340,6 +340,8 @@ MaterialType Sprite::getMaterialType() { return _materialType; }
 
 void Sprite::enableDepth(bool enable) { _enableDepth = enable; }
 
+void Sprite::enableHUD(bool enable) { _enableHUD = enable; }
+
 bool Sprite::isDepthEnabled() { return _enableDepth; }
 
 void Sprite::enableShadow(bool enable) { _enableShadow = enable; }
@@ -385,8 +387,12 @@ void Sprite::draw(std::tuple<int, int> resolution,
 
   BufferMVP cameraMVP{};
   cameraMVP.model = _model;
-  cameraMVP.view = camera->getView();
-  cameraMVP.projection = camera->getProjection();
+  cameraMVP.view = glm::mat4(1.f);
+  cameraMVP.projection = glm::mat4(1.f);
+  if (_enableHUD == false) {
+    cameraMVP.view = camera->getView();
+    cameraMVP.projection = camera->getProjection();
+  }
 
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraUBOFull->getBuffer()[currentFrame]->getMemory(), 0,
