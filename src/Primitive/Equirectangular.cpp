@@ -1,5 +1,7 @@
-#include "Equirectangular.h"
+module Equirectangular;
+import Shader;
 
+namespace VulkanEngine {
 Equirectangular::Equirectangular(std::string path,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                  std::shared_ptr<ResourceManager> resourceManager,
@@ -104,7 +106,7 @@ Equirectangular::Equirectangular(std::string path,
         {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
   }
 
-  _loggerGPU = std::make_shared<LoggerGPU>(state);
+  _loggerGPU = std::make_shared<VulkanEngine::LoggerGPU>(state);
 
   _camera = std::make_shared<CameraFly>(_state->getSettings());
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
@@ -261,3 +263,4 @@ std::shared_ptr<Cubemap> Equirectangular::convertToCubemap(std::shared_ptr<Comma
 }
 
 std::shared_ptr<Texture> Equirectangular::getTexture() { return _texture; }
+}  // namespace VulkanEngine

@@ -1,6 +1,7 @@
-#include "Swapchain.h"
-#include <algorithm>
+module Swapchain;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 Swapchain::Swapchain(VkFormat imageFormat, VkFormat depthFormat, std::shared_ptr<State> state) {
   _state = state;
   _imageFormat = imageFormat;
@@ -152,3 +153,4 @@ void Swapchain::reset() {
   _destroy();
   _initialize();
 }
+}  // namespace VulkanEngine

@@ -1,7 +1,7 @@
-#include "Pipeline.h"
-#include "Buffer.h"
-#include <ranges>
+module Pipeline;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device) {
   _settings = settings;
   _device = device;
@@ -925,3 +925,4 @@ Pipeline::~Pipeline() {
   vkDestroyPipeline(_device->getLogicalDevice(), _pipeline, nullptr);
   vkDestroyPipelineLayout(_device->getLogicalDevice(), _pipelineLayout, nullptr);
 }
+}  // namespace VulkanEngine

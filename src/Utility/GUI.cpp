@@ -1,8 +1,10 @@
-#include "GUI.h"
-#include "Sampler.h"
-#include "Descriptor.h"
-#include "Input.h"
+module GUI;
+import Shader;
+import "imgui.h";
+import "glfw/glfw3.h";
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 GUI::GUI(std::shared_ptr<State> state) {
   _state = state;
   _window = state->getWindow();
@@ -368,3 +370,4 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
 }
+}  // namespace VulkanEngine

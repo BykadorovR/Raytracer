@@ -1,5 +1,6 @@
-#include "Settings.h"
+module Settings;
 
+namespace VulkanEngine {
 void Settings::setName(std::string name) { _name = name; }
 
 void Settings::setResolution(std::tuple<int, int> resolution) { _resolution = resolution; }
@@ -71,3 +72,4 @@ int Settings::getSpecularMipMap() { return _specularIBLMipMap; }
 float Settings::getDepthBiasConstant() { return _depthBiasConstant; }
 
 float Settings::getDepthBiasSlope() { return _depthBiasSlope; }
+}  // namespace VulkanEngine

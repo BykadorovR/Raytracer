@@ -1,5 +1,7 @@
-#include "Instance.h"
+module Instance;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                              VkDebugUtilsMessageTypeFlagsEXT messageType,
                                              const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -120,3 +122,4 @@ Instance::~Instance() {
   }
   vkDestroyInstance(_instance, nullptr);
 }
+}  // namespace VulkanEngine

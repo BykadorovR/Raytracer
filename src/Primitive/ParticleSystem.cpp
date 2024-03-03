@@ -1,5 +1,7 @@
-#include "ParticleSystem.h"
+module ParticleSystem;
+import Shader;
 
+namespace VulkanEngine {
 struct VertexConstants {
   float pointScale;  // nominator of gl_PointSize
   static VkPushConstantRange getPushConstant() {
@@ -189,3 +191,4 @@ void ParticleSystem::draw(std::tuple<int, int> resolution,
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particles.size(), 1, 0, 0);
 }
+}  // namespace VulkanEngine

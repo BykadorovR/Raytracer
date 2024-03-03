@@ -1,5 +1,7 @@
-#include "Descriptor.h"
+module Descriptor;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
 void DescriptorSetLayout::createCustom(std::vector<VkDescriptorSetLayoutBinding> info) {
@@ -650,3 +652,4 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
 }
 
 std::vector<VkDescriptorSet>& DescriptorSet::getDescriptorSets() { return _descriptorSets; }
+}  // namespace VulkanEngine

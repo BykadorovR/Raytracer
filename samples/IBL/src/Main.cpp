@@ -1,14 +1,14 @@
+import Line;
+import Sprite;
+import Model;
+import Material;
+import Equirectangular;
+import Skybox;
+import IBL;
 #include <iostream>
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
-#include <random>
-#include <glm/gtc/random.hpp>
-#include "Equirectangular.h"
-#include "IBL.h"
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -32,7 +32,7 @@ void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffs
 
 Main::Main() {
   int mipMapLevels = 4;
-  auto settings = std::make_shared<Settings>();
+  auto settings = std::make_shared<VulkanEngine::Settings>();
   settings->setName("Shadow");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
@@ -51,11 +51,11 @@ Main::Main() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
-  _core = std::make_shared<Core>(settings);
+  _core = std::make_shared<VulkanEngine::Core>(settings);
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
   commandBufferTransfer->beginCommands();
   auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(settings);
+  _camera = std::make_shared<VulkanEngine::CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>();
@@ -76,7 +76,7 @@ Main::Main() {
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
+  _cubeColoredLightVertical = std::make_shared<VulkanEngine::Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
@@ -84,7 +84,7 @@ Main::Main() {
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
+  _cubeColoredLightHorizontal = std::make_shared<VulkanEngine::Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
@@ -92,7 +92,7 @@ Main::Main() {
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
+  auto cubeColoredLightDirectional = std::make_shared<VulkanEngine::Shape3D>(
       ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
@@ -105,16 +105,18 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto equirectangular = std::make_shared<Equirectangular>("../assets/newport_loft.hdr", commandBufferTransfer,
-                                                           _core->getResourceManager(), state);
+  auto equirectangular = std::make_shared<VulkanEngine::Equirectangular>(
+      "../assets/newport_loft.hdr", commandBufferTransfer, _core->getResourceManager(), state);
   auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
-  auto materialSkybox = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto materialSkybox = std::make_shared<VulkanEngine::MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer,
+                                                                      state);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
-  auto skybox = std::make_shared<Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
+  auto skybox = std::make_shared<VulkanEngine::Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
   skybox->setMaterial(materialSkybox);
   _core->addSkybox(skybox);
 
-  auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto ibl = std::make_shared<VulkanEngine::IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                 state);
   ibl->setMaterial(materialSkybox);
   ibl->drawDiffuse(commandBufferTransfer);
   ibl->drawSpecular(commandBufferTransfer);
@@ -122,7 +124,7 @@ Main::Main() {
 
   {
     auto modelGLTF = _core->getResourceManager()->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
-    auto modelPBR = std::make_shared<Model3D>(
+    auto modelPBR = std::make_shared<VulkanEngine::Model3D>(
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
         modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
@@ -147,7 +149,7 @@ Main::Main() {
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
+    auto queue = state->getDevice()->getQueue(VulkanEngine::QueueType::GRAPHIC);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
   }

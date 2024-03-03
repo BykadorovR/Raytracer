@@ -1,5 +1,6 @@
-#include "Command.h"
+module Command;
 
+namespace VulkanEngine {
 CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<State> state) {
   _pool = pool;
   _state = state;
@@ -38,3 +39,4 @@ CommandBuffer::~CommandBuffer() {
   for (auto& buffer : _buffer)
     vkFreeCommandBuffers(_state->getDevice()->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
 }
+}  // namespace VulkanEngine

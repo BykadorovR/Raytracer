@@ -1,26 +1,28 @@
-#include "Input.h"
-#include <memory>
+module Input;
+import "glfw/glfw3.h";
 
-static void cursorCallback(GLFWwindow* window, double xpos, double ypos) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
+void cursorCallback(GLFWwindow* window, double xpos, double ypos) {
+  reinterpret_cast<VulkanEngine::Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
 }
 
-static void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
+void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
+  reinterpret_cast<VulkanEngine::Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
 }
 
-static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, scancode, action, mods);
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+  reinterpret_cast<VulkanEngine::Input*>(glfwGetWindowUserPointer(window))
+      ->keyHandler(window, key, scancode, action, mods);
 }
 
-static void charCallback(GLFWwindow* window, unsigned int code) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
+void charCallback(GLFWwindow* window, unsigned int code) {
+  reinterpret_cast<VulkanEngine::Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
 }
 
-static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
+void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
+  reinterpret_cast<VulkanEngine::Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
 }
 
+namespace VulkanEngine {
 Input::Input(std::shared_ptr<Window> window) {
   glfwSetWindowUserPointer(window->getWindow(), this);
   glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -63,3 +65,4 @@ void Input::mouseHandler(GLFWwindow* window, int button, int action, int mods) {
 }
 
 void Input::subscribe(std::shared_ptr<InputSubscriber> sub) { _subscribers.push_back(sub); }
+}  // namespace VulkanEngine

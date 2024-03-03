@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.28)
 
 project(VulkanEngine LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 #need for mismatch resolving
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
@@ -133,23 +133,23 @@ include_directories("include/Vulkan")
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
-file(GLOB_RECURSE app_header_graphic "include/Graphic/*.h*")
+file(GLOB_RECURSE app_header_graphic "include/Graphic/*.h*", "include/Graphic/*.ixx*")
 source_group("Graphic\\include" FILES ${app_header_graphic})
 file(GLOB_RECURSE app_source_primitive "src/Primitive/*.c*")
 source_group("Primitive\\src" FILES ${app_source_primitive})
-file(GLOB_RECURSE app_header_primitive "include/Primitive/*.h*")
+file(GLOB_RECURSE app_header_primitive "include/Primitive/*.h*", "include/Primitive/*.ixx*")
 source_group("Primitive\\include" FILES ${app_header_primitive})
 file(GLOB_RECURSE app_source_utility "src/Utility/*.c*")
 source_group("Utility\\src" FILES ${app_source_utility})
-file(GLOB_RECURSE app_header_utility "include/Utility/*.h*")
+file(GLOB_RECURSE app_header_utility "include/Utility/*.h*", "include/Utility/*.ixx*")
 source_group("Utility\\include" FILES ${app_header_utility})
 file(GLOB_RECURSE app_source_vulkan "src/Vulkan/*.c*")
 source_group("Vulkan\\src" FILES ${app_source_vulkan})
-file(GLOB_RECURSE app_header_vulkan "include/Vulkan/*.h*")
+file(GLOB_RECURSE app_header_vulkan "include/Vulkan/*.h*", "include/Vulkan/*.ixx*")
 source_group("Vulkan\\include" FILES ${app_header_vulkan})
 file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
 source_group("Engine\\src" FILES ${app_source_engine})
-file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
+file(GLOB_RECURSE app_header_engine "include/Engine/*.h*", "include/Engine/*.ixx*")
 source_group("Engine\\include" FILES ${app_header_engine})
 
 ###############################
@@ -157,10 +157,10 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 #include headers to project (so they will be shown in include folder)
 add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
-                                   ${app_header_primitive} ${app_source_primitive}
-                                   ${app_header_utility}   ${app_source_utility}                                   
-                                   ${app_header_vulkan}    ${app_source_vulkan}
-                                   ${app_header_engine}    ${app_source_engine})
+                                    ${app_header_primitive} ${app_source_primitive}
+                                    ${app_header_utility}   ${app_source_utility}                                   
+                                    ${app_header_vulkan}    ${app_source_vulkan}
+                                    ${app_header_engine}    ${app_source_engine})
 ###############################
 
 #enable multiple cores compilation for VS

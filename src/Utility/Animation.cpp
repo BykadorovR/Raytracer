@@ -1,5 +1,6 @@
-#include "Animation.h"
+module Animation;
 
+namespace VulkanEngine {
 Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                      const std::vector<std::shared_ptr<SkinGLTF>>& skins,
                      const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
@@ -9,7 +10,7 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _animations = animations;
   _state = state;
 
-  _loggerCPU = std::make_shared<LoggerCPU>();
+  _loggerCPU = std::make_shared<VulkanEngine::LoggerCPU>();
 
   _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_state->getDevice());
   _descriptorSetLayoutJoints->createJoints();
@@ -174,3 +175,4 @@ void Animation::updateAnimation(float deltaTime) {
   }
   _loggerCPU->end();
 }
+}  // namespace VulkanEngine

@@ -1,6 +1,7 @@
-#include "Sprite.h"
-#undef far
+module Sprite;
+import Shader;
 
+namespace VulkanEngine {
 Sprite::Sprite(std::vector<VkFormat> renderFormat,
                std::shared_ptr<LightManager> lightManager,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -613,3 +614,4 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
+}  // namespace VulkanEngine

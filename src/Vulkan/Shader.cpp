@@ -1,6 +1,7 @@
-#include "Shader.h"
-#include "Utils.h"
+module Shader;
+import Utils;
 
+namespace VulkanEngine {
 VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -37,3 +38,4 @@ VkPipelineShaderStageCreateInfo& Shader::getShaderStageInfo(VkShaderStageFlagBit
 Shader::~Shader() {
   for (auto& [type, shader] : _shaders) vkDestroyShaderModule(_device->getLogicalDevice(), shader.module, nullptr);
 }
+}  // namespace VulkanEngine

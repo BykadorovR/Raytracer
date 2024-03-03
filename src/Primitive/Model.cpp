@@ -1,7 +1,7 @@
-#include "Model.h"
-#include <unordered_map>
-#undef far
+module Model;
+import Shader;
 
+namespace VulkanEngine {
 void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 bool Model3D::isDepthEnabled() { return _enableDepth; }
 
@@ -636,3 +636,4 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
               _cameraUBODepth[lightIndexTotal][face], view, projection, node);
   }
 }
+}  // namespace VulkanEngine

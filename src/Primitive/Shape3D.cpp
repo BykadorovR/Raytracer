@@ -1,6 +1,7 @@
-#include "Shape3D.h"
-#undef far
+module Shape3D;
+import Shader;
 
+namespace VulkanEngine {
 Shape3D::Shape3D(ShapeType shapeType,
                  std::vector<VkFormat> renderFormat,
                  VkCullModeFlags cullMode,
@@ -560,3 +561,4 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
+}  // namespace VulkanEngine

@@ -1,6 +1,6 @@
-#include "Cubemap.h"
-#include "Buffer.h"
+module Cubemap;
 
+namespace VulkanEngine {
 Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
                  VkFormat format,
                  int mipMapLevels,
@@ -75,3 +75,4 @@ Cubemap::Cubemap(std::tuple<int, int> resolution,
 std::shared_ptr<Texture> Cubemap::getTexture() { return _texture; }
 
 std::vector<std::vector<std::shared_ptr<Texture>>> Cubemap::getTextureSeparate() { return _textureSeparate; }
+}  // namespace VulkanEngine

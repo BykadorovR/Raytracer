@@ -1,6 +1,7 @@
-#include "LightManager.h"
-#include "Buffer.h"
+module LightManager;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<ResourceManager> resourceManager,
                            std::shared_ptr<State> state) {
@@ -420,12 +421,12 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   // should be unique command pool for every command buffer to work in parallel.
   // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
   std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
-  std::vector<std::shared_ptr<LoggerGPU>> loggerGPU(6);
+  std::vector<std::shared_ptr<VulkanEngine::LoggerGPU>> loggerGPU(6);
   for (int j = 0; j < commandBuffer.size(); j++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
     commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
                                                        _state);
-    loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
+    loggerGPU[j] = std::make_shared<VulkanEngine::LoggerGPU>(_state);
   }
   _commandBufferPoint.push_back(commandBuffer);
   _loggerGPUPoint.push_back(loggerGPU);
@@ -474,7 +475,7 @@ const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::ge
   return _commandBufferPoint;
 }
 
-const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& LightManager::getPointLightLoggers() {
+const std::vector<std::vector<std::shared_ptr<VulkanEngine::LoggerGPU>>>& LightManager::getPointLightLoggers() {
   return _loggerGPUPoint;
 }
 
@@ -505,7 +506,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
   auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
   _commandBufferDirectional.push_back(
       std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state));
-  _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
+  _loggerGPUDirectional.push_back(std::make_shared<VulkanEngine::LoggerGPU>(_state));
 
   return light;
 }
@@ -519,7 +520,7 @@ const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalL
   return _commandBufferDirectional;
 }
 
-const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
+const std::vector<std::shared_ptr<VulkanEngine::LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
   return _loggerGPUDirectional;
 }
 
@@ -584,3 +585,4 @@ void LightManager::draw(int currentFrame) {
 
   if (updateLightDescriptors) _setLightDescriptors(currentFrame);
 }
+}  // namespace VulkanEngine

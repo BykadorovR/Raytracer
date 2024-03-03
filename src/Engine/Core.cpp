@@ -1,12 +1,14 @@
-#include "Core.h"
-#include <typeinfo>
+import Core;
+import "vulkan/vulkan.hpp";
+import Device;
 
+namespace VulkanEngine {
 Core::Core(std::shared_ptr<Settings> settings) {
   _state = std::make_shared<State>(settings);
   _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), settings->getDepthFormat(), _state);
-  _timer = std::make_shared<Timer>();
-  _timerFPSReal = std::make_shared<TimerFPS>();
-  _timerFPSLimited = std::make_shared<TimerFPS>();
+  _timer = std::make_shared<VulkanEngine::Timer>();
+  _timerFPSReal = std::make_shared<VulkanEngine::TimerFPS>();
+  _timerFPSLimited = std::make_shared<VulkanEngine::TimerFPS>();
 
   _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
   _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender, _state);
@@ -32,12 +34,12 @@ Core::Core(std::shared_ptr<Settings> settings) {
   // start transfer command buffer
   _commandBufferTransfer->beginCommands();
 
-  _loggerGPU = std::make_shared<LoggerGPU>(_state);
-  _loggerPostprocessing = std::make_shared<LoggerGPU>(_state);
-  _loggerParticles = std::make_shared<LoggerGPU>(_state);
-  _loggerGUI = std::make_shared<LoggerGPU>(_state);
-  _loggerGPUDebug = std::make_shared<LoggerGPU>(_state);
-  _loggerCPU = std::make_shared<LoggerCPU>();
+  _loggerGPU = std::make_shared<VulkanEngine::LoggerGPU>(_state);
+  _loggerPostprocessing = std::make_shared<VulkanEngine::LoggerGPU>(_state);
+  _loggerParticles = std::make_shared<VulkanEngine::LoggerGPU>(_state);
+  _loggerGUI = std::make_shared<VulkanEngine::LoggerGPU>(_state);
+  _loggerGPUDebug = std::make_shared<VulkanEngine::LoggerGPU>(_state);
+  _loggerCPU = std::make_shared<VulkanEngine::LoggerCPU>();
 
   _resourceManager = std::make_shared<ResourceManager>(_commandBufferTransfer, _state);
 
@@ -954,3 +956,4 @@ const std::vector<std::shared_ptr<Drawable>>& Core::getDrawables(AlphaType type)
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
 
 void Core::registerReset(std::function<void(int width, int height)> reset) { _callbackReset = reset; }
+}  // namespace VulkanEngine

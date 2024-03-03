@@ -1,14 +1,9 @@
-#pragma once
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
-#include "tuple"
-#include <vector>
-#include <memory>
+import "vulkan/vulkan.hpp";
+import <memory>;
+import Instance;
+import Window;
 
-#include "Window.h"
-#include "Instance.h"
-
+namespace VulkanEngine {
 class Surface {
  private:
   VkSurfaceKHR _surface;
@@ -19,3 +14,4 @@ class Surface {
   const VkSurfaceKHR& getSurface();
   ~Surface();
 };
+}  // namespace VulkanEngine

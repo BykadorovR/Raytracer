@@ -1,5 +1,7 @@
-#include "Terrain.h"
+module Terrain;
+import Shader;
 
+namespace VulkanEngine {
 struct LoDConstants {
   int minTessellationLevel;
   int maxTessellationLevel;
@@ -794,3 +796,4 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
 }
+}  // namespace VulkanEngine

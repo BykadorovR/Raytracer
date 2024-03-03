@@ -1,6 +1,8 @@
-#include "Blur.h"
-#include <numbers>
+module Blur;
+import <string>;
+import Shader;
 
+namespace VulkanEngine {
 void Blur::_updateWeights() {
   _blurWeights.clear();
   float expectedValue = 0;
@@ -144,3 +146,4 @@ void Blur::drawCompute(int currentFrame, bool horizontal, std::shared_ptr<Comman
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / groupCountX)),
                 std::max(1, (int)std::ceil(height / groupCountY)), 1);
 }
+}  // namespace VulkanEngine

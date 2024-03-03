@@ -1,7 +1,7 @@
-#include "Mesh.h"
-#define _USE_MATH_DEFINES
-#include <math.h>
+module Mesh;
+import "stddef.h";
 
+namespace VulkanEngine {
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
 Mesh3D::Mesh3D(std::shared_ptr<State> state) : Mesh(state) {
@@ -247,21 +247,21 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   float nx, ny, nz, lengthInv = 1.0f / radius;  // vertex normal
   float s, t;                                   // vertex texCoord
 
-  float sectorStep = 2 * M_PI / sectorCount;
-  float stackStep = M_PI / stackCount;
+  float sectorStep = 2 * std::numbers::pi / sectorCount;
+  float stackStep = std::numbers::pi / stackCount;
   float sectorAngle, stackAngle;
 
   std::vector<Vertex3D> vertices;
   for (int i = 0; i <= stackCount; ++i) {
     Vertex3D vertex;
-    stackAngle = M_PI / 2 - i * stackStep;  // starting from pi/2 to -pi/2
-    xz = radius * cosf(stackAngle);         // r * cos(u)
-    y = radius * sinf(stackAngle);          // r * sin(u)
+    stackAngle = std::numbers::pi / 2 - i * stackStep;  // starting from pi/2 to -pi/2
+    xz = radius * cosf(stackAngle);                     // r * cos(u)
+    y = radius * sinf(stackAngle);                      // r * sin(u)
 
     // add (sectorCount+1) vertices per stack
     // first and last vertices have same position and normal, but different tex coords
     for (int j = 0; j <= sectorCount; ++j) {
-      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 0 to 2pi
+      sectorAngle = 2 * std::numbers::pi - j * sectorStep;  // starting from 0 to 2pi
 
       // vertex position (x, y, z)
       x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
@@ -406,3 +406,4 @@ std::vector<VkVertexInputAttributeDescription> Mesh2D::getAttributeDescriptions(
 
   return attributeDescriptions;
 }
+}  // namespace VulkanEngine

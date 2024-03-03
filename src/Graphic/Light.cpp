@@ -1,5 +1,6 @@
-#include "Light.h"
+module Light;
 
+namespace VulkanEngine {
 int PointLight::getSize() { return sizeof(LightFields); }
 
 PointLight::PointLight(std::shared_ptr<Settings> settings) {
@@ -112,3 +113,4 @@ void AmbientLight::setColor(glm::vec3 color) { _light->color = color; }
 int AmbientLight::getSize() { return sizeof(LightFields); }
 
 void* AmbientLight::getData() { return _light.get(); }
+}  // namespace VulkanEngine

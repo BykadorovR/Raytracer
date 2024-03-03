@@ -1,12 +1,13 @@
-#include "Sync.h"
+module Sync;
 
+namespace VulkanEngine {
 Semaphore::Semaphore(VkSemaphoreType type, std::shared_ptr<Device> device) {
   _device = device;
   _type = type;
 
   VkSemaphoreTypeCreateInfo timelineCreateInfo{};
   timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-  timelineCreateInfo.pNext = NULL;
+  timelineCreateInfo.pNext = nullptr;
   timelineCreateInfo.semaphoreType = type;
   timelineCreateInfo.initialValue = 0;
 
@@ -37,3 +38,4 @@ Fence::Fence(std::shared_ptr<Device> device) {
 VkFence& Fence::getFence() { return _fence; }
 
 Fence::~Fence() { vkDestroyFence(_device->getLogicalDevice(), _fence, nullptr); }
+}  // namespace VulkanEngine

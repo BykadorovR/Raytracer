@@ -1,7 +1,8 @@
-#pragma once
-#include "State.h"
-#include "Command.h"
+import "vulkan/vulkan.hpp";
+import State;
+import Command;
 
+namespace VulkanEngine {
 class LoggerCPU {
  public:
   LoggerCPU();
@@ -24,3 +25,4 @@ class LoggerGPU {
   void begin(std::string marker);
   void end();
 };
+}  // namespace VulkanEngine

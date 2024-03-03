@@ -1,5 +1,6 @@
-#include "Material.h"
+module Material;
 
+namespace VulkanEngine {
 void Material::_updateAlphaCutoffDescriptors(int currentFrame) {
   void* data;
   vkMapMemory(_state->getDevice()->getLogicalDevice(),
@@ -447,3 +448,4 @@ void MaterialColor::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   _textureColor = color;
   for (int i = 0; i < _changedTexture.size(); i++) _changedTexture[i] = true;
 }
+}  // namespace VulkanEngine

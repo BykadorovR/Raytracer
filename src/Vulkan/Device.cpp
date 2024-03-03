@@ -1,5 +1,7 @@
-#include "Device.h"
+module Device;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 std::vector<VkPresentModeKHR>& Device::getSupportedSurfacePresentModes() { return _surfacePresentModes; }
 
 std::vector<VkSurfaceFormatKHR>& Device::getSupportedSurfaceFormats() { return _surfaceFormats; }
@@ -228,3 +230,4 @@ VkDevice& Device::getLogicalDevice() { return _logicalDevice; }
 VkPhysicalDevice& Device::getPhysicalDevice() { return _physicalDevice; }
 
 Device::~Device() { vkDestroyDevice(_logicalDevice, nullptr); }
+}  // namespace VulkanEngine

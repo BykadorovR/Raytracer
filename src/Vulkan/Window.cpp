@@ -1,6 +1,8 @@
-#include "Window.h"
+module Window;
+import "GLFW/glfw3.h";
 
-static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+namespace VulkanEngine {
+void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
   reinterpret_cast<Window*>(glfwGetWindowUserPointer(window))->setResized(true);
 }
 
@@ -33,3 +35,4 @@ Window::~Window() {
   glfwDestroyWindow(_window);
   glfwTerminate();
 }
+}  // namespace VulkanEngine

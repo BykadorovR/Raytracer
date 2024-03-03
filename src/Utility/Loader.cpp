@@ -1,11 +1,9 @@
-#define TINYOBJLOADER_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "Loader.h"
-#include "glm/gtc/type_ptr.hpp"
-#include <filesystem>
-#include "mikktspace.h"
 
+namespace VulkanEngine {
 LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
@@ -799,3 +797,4 @@ void LoaderGLTF::_loadAnimations(const tinygltf::Model& modelInternal,
     animations.push_back(animation);
   }
 }
+}  // namespace VulkanEngine

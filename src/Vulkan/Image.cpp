@@ -1,5 +1,7 @@
-#include "Image.h"
+module Image;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state) {
   _image = image;
   _state = state;
@@ -350,3 +352,4 @@ VkImageView& ImageView::getImageView() { return _imageView; }
 std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
 ImageView::~ImageView() { vkDestroyImageView(_state->getDevice()->getLogicalDevice(), _imageView, nullptr); }
+}  // namespace VulkanEngine

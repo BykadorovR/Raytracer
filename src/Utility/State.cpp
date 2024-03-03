@@ -1,5 +1,6 @@
-#include "State.h"
+module State;
 
+namespace VulkanEngine {
 State::State(std::shared_ptr<Settings> settings) {
   _settings = settings;
 
@@ -28,3 +29,4 @@ std::shared_ptr<DescriptorPool> State::getDescriptorPool() { return _descriptorP
 void State::setFrameInFlight(int frameInFlight) { _frameInFlight = frameInFlight; }
 
 int State::getFrameInFlight() { return _frameInFlight; }
+}  // namespace VulkanEngine

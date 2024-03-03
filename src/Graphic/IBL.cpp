@@ -1,5 +1,7 @@
-#include "IBL.h"
+module IBL;
+import Shader;
 
+namespace VulkanEngine {
 IBL::IBL(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<ResourceManager> resourceManager,
@@ -111,7 +113,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
         {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(), _mesh2D->getAttributeDescriptions());
   }
 
-  _loggerGPU = std::make_shared<LoggerGPU>(state);
+  _loggerGPU = std::make_shared<VulkanEngine::LoggerGPU>(state);
 
   _cubemapDiffuse = std::make_shared<Cubemap>(
       _state->getSettings()->getDiffuseIBLResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
@@ -475,3 +477,4 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
 }
+}  // namespace VulkanEngine

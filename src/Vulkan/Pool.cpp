@@ -1,5 +1,6 @@
-#include "Descriptor.h"
+module Pool;
 
+namespace VulkanEngine {
 CommandPool::CommandPool(QueueType type, std::shared_ptr<Device> device) {
   _device = device;
   _type = type;
@@ -22,7 +23,8 @@ CommandPool::~CommandPool() { vkDestroyCommandPool(_device->getLogicalDevice(), 
 DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
   _device = device;
 
-  std::array<VkDescriptorPoolSize, 4> poolSizes{};
+  // array module produces errors here, so replaced with vector
+  std::vector<VkDescriptorPoolSize> poolSizes{4};
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
   poolSizes[0].descriptorCount = static_cast<uint32_t>(number);
   poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -46,3 +48,4 @@ DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
 VkDescriptorPool& DescriptorPool::getDescriptorPool() { return _descriptorPool; }
 
 DescriptorPool::~DescriptorPool() { vkDestroyDescriptorPool(_device->getLogicalDevice(), _descriptorPool, nullptr); }
+}  // namespace VulkanEngine

@@ -2,10 +2,11 @@
 #include <windows.h>
 #undef near
 #undef far
-#include "Core.h"
-#include "Shape3D.h"
+import Core;
+import Shape3D;
+import Camera;
 
-class InputHandler : public InputSubscriber {
+class InputHandler : public VulkanEngine::InputSubscriber {
  private:
   bool _cursorEnabled = false;
 
@@ -19,14 +20,14 @@ class InputHandler : public InputSubscriber {
 
 class Main {
  private:
-  std::shared_ptr<Core> _core;
-  std::shared_ptr<CameraFly> _camera;
+  std::shared_ptr<VulkanEngine::Core> _core;
+  std::shared_ptr<VulkanEngine::CameraFly> _camera;
   std::shared_ptr<InputHandler> _inputHandler;
 
-  std::shared_ptr<Shape3D> _cubeTextured, _cubeTexturedWireframe;
-  std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
-  std::shared_ptr<DirectionalLight> _directionalLight;
-  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
+  std::shared_ptr<VulkanEngine::Shape3D> _cubeTextured, _cubeTexturedWireframe;
+  std::shared_ptr<VulkanEngine::PointLight> _pointLightVertical, _pointLightHorizontal;
+  std::shared_ptr<VulkanEngine::DirectionalLight> _directionalLight;
+  std::shared_ptr<VulkanEngine::Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
   float _directionalValue = 0.5f, _pointVerticalValue = 1.f, _pointHorizontalValue = 10.f;
 
  public:

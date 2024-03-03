@@ -1,7 +1,7 @@
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include "Camera.h"
-#include "glm/gtc/matrix_transform.hpp"
+module Camera;
+import "glfw/glfw3.h";
 
+namespace VulkanEngine {
 Camera::Camera() {
   _eye = glm::vec3(0.f, 0.f, 3.f);
   _direction = glm::vec3(0.f, 0.f, -1.f);
@@ -147,3 +147,4 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action,
 void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}
 
 void CameraFly::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+}  // namespace VulkanEngine

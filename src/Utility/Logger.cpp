@@ -1,9 +1,10 @@
 #include "Logger.h"
-#include "nvtx3/nvtx3.hpp"
+#include "nvtx3/nvtx3.hpp";
 
+namespace VulkanEngine {
 LoggerCPU::LoggerCPU() {}
 
-void LoggerCPU::begin(std::string name) { nvtxRangePush(name.c_str()); }
+void LoggerCPU::begin(std::string name) { nvtxRangePushA(name.c_str()); }
 
 void LoggerCPU::end() { nvtxRangePop(); }
 
@@ -46,3 +47,4 @@ void LoggerGPU::end() {
   auto frameInFlight = _state->getFrameInFlight();
   _cmdEndDebugUtilsLabelEXT(_buffer->getCommandBuffer()[frameInFlight]);
 }
+}  // namespace VulkanEngine

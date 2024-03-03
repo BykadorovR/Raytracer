@@ -1,5 +1,7 @@
-#include "Line.h"
+module Line;
+import Shader;
 
+namespace VulkanEngine {
 Line::Line(int thick,
            std::vector<VkFormat> renderFormat,
            std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -83,3 +85,4 @@ void Line::draw(std::tuple<int, int> resolution,
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
+}  // namespace VulkanEngine

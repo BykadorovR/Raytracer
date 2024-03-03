@@ -8,6 +8,7 @@
 #   VulkanEngine_FOUND        -- True if the system has the VulkanEngine library
 #   VulkanEngine_ROOT         -- Path to root folder
 #   VulkanEngine_INCLUDE_DIRS -- The include directories for VulkanEngine
+#   VulkanEngine_MODULES      -- Modules from VulkanEngine
 #   VulkanEngine_LIBRARIES    -- Libraries to link against
 #   VulkanEngine_DLL_PATH     -- DLLs required by VulkanEngine, valid on Windows platform only
 #   VulkanEngine_SHADERS      -- Shaders folder
@@ -40,6 +41,9 @@ set(VulkanEngine_INCLUDE_DIRS ${VulkanEngine_INSTALL_PREFIX}/include/Engine
                               ${VulkanEngine_INSTALL_PREFIX}/include/Vulkan
                               ${VulkanEngine_INSTALL_PREFIX}/build/include/
                               ${Vulkan_INCLUDE_DIRS})
+
+file(GLOB VulkanEngine_MODULES ${VulkanEngine_INSTALL_PREFIX}/include/*/*.ixx)
+
 # VulkanEngine library only
 file(GLOB VulkanEngine_LIBRARIES ${VulkanEngine_INSTALL_PREFIX}/build/libraries/*.lib)
 list(APPEND VulkanEngine_LIBRARIES ${Vulkan_LIBRARIES})

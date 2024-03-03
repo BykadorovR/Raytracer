@@ -1,5 +1,7 @@
-#include "Postprocessing.h"
+module Postprocessing;
+import Shader;
 
+namespace VulkanEngine {
 struct ComputeConstants {
   float gamma;
   float exposure;
@@ -88,3 +90,4 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / 16.f)),
                 std::max(1, (int)std::ceil(height / 16.f)), 1);
 }
+}  // namespace VulkanEngine

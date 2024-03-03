@@ -1,5 +1,7 @@
-#include "Skybox.h"
+module Skybox;
+import Shader;
 
+namespace VulkanEngine {
 Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
@@ -128,3 +130,4 @@ void Skybox::draw(std::tuple<int, int> resolution,
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
                    1, 0, 0, 0);
 }
+}  // namespace VulkanEngine

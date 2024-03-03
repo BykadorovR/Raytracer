@@ -1,6 +1,6 @@
-#include "Render.h"
-#include <array>
+module Render;
 
+namespace VulkanEngine {
 RenderPass::RenderPass(std::shared_ptr<Device> device) { _device = device; }
 
 void RenderPass::initialize(VkFormat format) {
@@ -200,3 +200,4 @@ std::vector<VkFramebuffer>& Framebuffer::getBuffer() { return _buffer; }
 Framebuffer::~Framebuffer() {
   for (auto& buffer : _buffer) vkDestroyFramebuffer(_device->getLogicalDevice(), buffer, nullptr);
 }
+}  // namespace VulkanEngine

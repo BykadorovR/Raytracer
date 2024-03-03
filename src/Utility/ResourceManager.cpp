@@ -1,5 +1,6 @@
-#include "ResourceManager.h"
+module ResourceManager;
 
+namespace VulkanEngine {
 ResourceManager::ResourceManager(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _loaderImage = std::make_shared<LoaderImage>(commandBufferTransfer, state);
   _loaderGLTF = std::make_shared<LoaderGLTF>(commandBufferTransfer, _loaderImage, state);
@@ -39,3 +40,4 @@ std::shared_ptr<Texture> ResourceManager::getTextureOne() { return _stubTextureO
 std::shared_ptr<Cubemap> ResourceManager::getCubemapZero() { return _stubCubemapZero; }
 
 std::shared_ptr<Cubemap> ResourceManager::getCubemapOne() { return _stubCubemapOne; }
+}  // namespace VulkanEngine

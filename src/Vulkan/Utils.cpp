@@ -1,5 +1,6 @@
-#include "Utils.h"
+module Utils;
 
+namespace VulkanEngine {
 std::vector<char> readFile(const std::string& filename) {
   std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -17,3 +18,4 @@ std::vector<char> readFile(const std::string& filename) {
 
   return buffer;
 }
+}  // namespace VulkanEngine

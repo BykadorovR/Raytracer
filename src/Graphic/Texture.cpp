@@ -1,7 +1,6 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include "Texture.h"
-#include "Buffer.h"
+module Texture;
 
+namespace VulkanEngine {
 Texture::Texture(std::shared_ptr<BufferImage> data,
                  VkFormat format,
                  VkSamplerAddressMode mode,
@@ -37,3 +36,4 @@ Texture::Texture(VkSamplerAddressMode mode,
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }
 
 std::shared_ptr<Sampler> Texture::getSampler() { return _sampler; }
+}  // namespace VulkanEngine

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(IBL LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 
 #need for mismatch resolving
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}")
@@ -35,6 +35,8 @@ endif()
 
 find_package(VulkanEngine REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${VulkanEngine_INCLUDE_DIRS})
+# Add the module file to the library
+target_sources(${PROJECT_NAME} PRIVATE FILE_SET CXX_MODULES BASE_DIRS ${VulkanEngine_ROOT} FILES ${VulkanEngine_MODULES})
 target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES})
 
 #recompile after every build just in case, it's fast

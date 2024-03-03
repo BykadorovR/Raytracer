@@ -1,5 +1,7 @@
-#include "Buffer.h"
+module Buffer;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 Buffer::Buffer(VkDeviceSize size,
                VkBufferUsageFlags usage,
                VkMemoryPropertyFlags properties,
@@ -123,3 +125,4 @@ UniformBuffer::UniformBuffer(int number, int size, std::shared_ptr<State> state)
 }
 
 std::vector<std::shared_ptr<Buffer>>& UniformBuffer::getBuffer() { return _buffer; }
+}  // namespace VulkanEngine

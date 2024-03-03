@@ -1,5 +1,6 @@
-#include "Timer.h"
+module Timer;
 
+namespace VulkanEngine {
 TimerFPS::TimerFPS() {
   _fps = 0;
   _reset();
@@ -54,7 +55,7 @@ void Timer::tock() {
 
 float Timer::getElapsedCurrent() { return _elapsedCurrent; }
 
-void Timer::sleep(int FPSMax, std::shared_ptr<LoggerCPU> loggerCPU) {
+void Timer::sleep(int FPSMax, std::shared_ptr<VulkanEngine::LoggerCPU> loggerCPU) {
   // have to reset timer if FPS has been changed
   if (_FPSMaxPrevious && _FPSMaxPrevious != FPSMax) reset();
   auto end = std::chrono::high_resolution_clock::now();
@@ -69,3 +70,4 @@ void Timer::sleep(int FPSMax, std::shared_ptr<LoggerCPU> loggerCPU) {
 }
 
 uint64_t Timer::getFrameCounter() { return _frameCounter; }
+}  // namespace VulkanEngine

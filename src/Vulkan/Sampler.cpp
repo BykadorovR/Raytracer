@@ -1,5 +1,7 @@
-#include "Sampler.h"
+module Sampler;
+import "vulkan/vulkan.hpp";
 
+namespace VulkanEngine {
 Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSamples, std::shared_ptr<State> state) {
   _state = state;
   // sampler
@@ -30,3 +32,4 @@ Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSam
 VkSampler& Sampler::getSampler() { return _sampler; }
 
 Sampler::~Sampler() { vkDestroySampler(_state->getDevice()->getLogicalDevice(), _sampler, nullptr); }
+}  // namespace VulkanEngine

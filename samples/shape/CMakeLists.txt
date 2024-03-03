@@ -35,6 +35,8 @@ endif()
 
 find_package(VulkanEngine REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${VulkanEngine_INCLUDE_DIRS})
+# Add the module file to the library
+target_sources(${PROJECT_NAME} PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${VulkanEngine_ROOT} FILES ${VulkanEngine_MODULES})
 target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES})
 
 #recompile after every build just in case, it's fast
