@@ -3,6 +3,7 @@
 #undef near
 #undef far
 import Core;
+import Light;
 import Shape3D;
 import Camera;
 

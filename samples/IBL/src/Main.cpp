@@ -9,6 +9,11 @@ import IBL;
 #include <chrono>
 #include <future>
 #include "Main.h"
+import Settings;
+import "GLFW/glfw3.h";
+import "vulkan/vulkan.hpp";
+import "glm/glm.hpp";
+import "glm/gtc/matrix_transform.hpp";
 
 void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
 
@@ -57,9 +62,9 @@ Main::Main() {
   auto state = _core->getState();
   _camera = std::make_shared<VulkanEngine::CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<VulkanEngine::InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>();
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<VulkanEngine::InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   auto lightManager = _core->getLightManager();
@@ -77,7 +82,7 @@ Main::Main() {
 
   // cube colored light
   _cubeColoredLightVertical = std::make_shared<VulkanEngine::Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VulkanEngine::ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
@@ -85,7 +90,7 @@ Main::Main() {
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = std::make_shared<VulkanEngine::Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VulkanEngine::ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
@@ -93,7 +98,7 @@ Main::Main() {
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<VulkanEngine::Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
+      VulkanEngine::ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
@@ -108,8 +113,8 @@ Main::Main() {
   auto equirectangular = std::make_shared<VulkanEngine::Equirectangular>(
       "../assets/newport_loft.hdr", commandBufferTransfer, _core->getResourceManager(), state);
   auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
-  auto materialSkybox = std::make_shared<VulkanEngine::MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer,
-                                                                      state);
+  auto materialSkybox = std::make_shared<VulkanEngine::MaterialColor>(VulkanEngine::MaterialTarget::SIMPLE,
+                                                                      commandBufferTransfer, state);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
   auto skybox = std::make_shared<VulkanEngine::Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
   skybox->setMaterial(materialSkybox);

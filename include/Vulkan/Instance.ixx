@@ -2,6 +2,7 @@ module;
 export module Instance;
 import "vulkan/vulkan.hpp";
 import <iostream>;
+import <vector>;
 import Window;
 
 export namespace VulkanEngine {
