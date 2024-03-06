@@ -506,7 +506,6 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
                        1,             // imageMemoryBarrierCount
                        &colorBarrier  // pImageMemoryBarriers
   );
-  _loggerGPUDebug->end();
 
   _commandBufferGUI->endCommands();
 }
