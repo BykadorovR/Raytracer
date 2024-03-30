@@ -26,20 +26,21 @@ This project is a graphics engine utilizing the Vulkan API, offering a comprehen
 ## Build
 
 - Clone the project
-```
-git clone -b master --single-branch https://github.com/BykadorovR/VulkanEngine.git
-```
+  ```
+  git clone -b master --single-branch https://github.com/BykadorovR/VulkanEngine.git
+  ```
 - Install Python dependencies
-```
-pip install -r requirements.txt
-```
+  ```
+  pip install -r requirements.txt
+  ```
 - Download assets
-```
-python download.py
-```
+  ```
+  python download.py
+  ```
 - Build project
-```
-mkdir build
-cd build
-cmake ..
-cmake --build .
+  ```
+  mkdir build
+  cd build
+  cmake ..
+  cmake --build .
+  ```
