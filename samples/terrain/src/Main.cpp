@@ -128,21 +128,21 @@ Main::Main() {
   };
 
   {
-    auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
+    auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/desert/albedo.png"}),
                                            settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            mipMapLevels, commandBufferTransfer, state);
-    auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
+    auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/rock/albedo.png"}),
                                            settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            mipMapLevels, commandBufferTransfer, state);
-    auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
+    auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/grass/albedo.png"}),
                                            settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            mipMapLevels, commandBufferTransfer, state);
-    auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
+    auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/ground/albedo.png"}),
                                            settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            mipMapLevels, commandBufferTransfer, state);
 
     _terrainColor = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
         lightManager, state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
@@ -158,33 +158,39 @@ Main::Main() {
   }
 
   {
-    auto tile0Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile0Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile0Normal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/desert/normal.png"}), settings->getLoadTextureColorFormat(),
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile1Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/albedo.png"}), settings->getLoadTextureColorFormat(),
         VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto tile1Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
-    auto tile1Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/normal.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
-    auto tile2Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
-    auto tile2Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/normal.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
-    auto tile3Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile1Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile2Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile3Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile3Normal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/ground/normal.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
 
     _terrainPhong = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
         lightManager, state);
     auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
@@ -202,75 +208,84 @@ Main::Main() {
   }
 
   {
-    auto tile0Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile0Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile0Normal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/desert/normal.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile0Metallic = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/desert/metallic.png"}),
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/metallic.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto tile0Roughness = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/desert/roughness.png"}),
+        _core->getResourceManager()->loadImageGPU({"../assets/desert/roughness.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto tile0AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/desert/ao.png"}),
+    auto tile0AO = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/desert/ao.png"}),
                                              settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
 
-    auto tile1Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
-    auto tile1Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/normal.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
+    auto tile1Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/albedo.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+    auto tile1Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/normal.png"}), settings->getLoadTextureColorFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
     auto tile1Metallic = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/rock/metallic.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto tile1Roughness = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/rock/roughness.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto tile1AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/rock/ao.png"}),
-                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto tile2Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
-    auto tile2Normal = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/normal.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
-    auto tile2Metallic = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/grass/metallic.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto tile2Roughness = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/grass/roughness.png"}),
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/metallic.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto tile2AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/grass/ao.png"}),
+    auto tile1Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/rock/roughness.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile1AO = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/rock/ao.png"}),
                                              settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
-    auto tile3Color = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/albedo.png"}),
-                                                settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                mipMapLevels, commandBufferTransfer, state);
+    auto tile2Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2Normal = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2Metallic = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/metallic.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2Roughness = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/grass/roughness.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
+    auto tile2AO = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/grass/ao.png"}),
+                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             mipMapLevels, commandBufferTransfer, state);
+    auto tile3Color = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/albedo.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile3Normal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/ground/normal.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/normal.png"}),
+        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
+        state);
     auto tile3Metallic = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/ground/metallic.png"}),
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/metallic.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto tile3Roughness = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../assets/ground/roughness.png"}),
+        _core->getResourceManager()->loadImageGPU({"../assets/ground/roughness.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto tile3AO = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/ground/ao.png"}),
+    auto tile3AO = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/ground/ao.png"}),
                                              settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
 
     _terrainPBR = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImage({"../assets/heightmap.png"}), std::pair{12, 12},
+        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
         lightManager, state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);

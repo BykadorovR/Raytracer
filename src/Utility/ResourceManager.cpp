@@ -4,30 +4,34 @@ ResourceManager::ResourceManager(std::shared_ptr<CommandBuffer> commandBufferTra
   _loaderImage = std::make_shared<LoaderImage>(commandBufferTransfer, state);
   _loaderGLTF = std::make_shared<LoaderGLTF>(commandBufferTransfer, _loaderImage, state);
 
-  _stubTextureOne = std::make_shared<Texture>(loadImage({"assets/stubs/Texture1x1.png"}),
+  _stubTextureOne = std::make_shared<Texture>(loadImageGPU({"assets/stubs/Texture1x1.png"}),
                                               state->getSettings()->getLoadTextureColorFormat(),
                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-  _stubTextureZero = std::make_shared<Texture>(loadImage({"assets/stubs/Texture1x1Black.png"}),
+  _stubTextureZero = std::make_shared<Texture>(loadImageGPU({"assets/stubs/Texture1x1Black.png"}),
                                                state->getSettings()->getLoadTextureColorFormat(),
                                                VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
 
   _stubCubemapZero = std::make_shared<Cubemap>(
-      loadImage(std::vector<std::string>{"assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
-                                         "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
-                                         "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png"}),
+      loadImageGPU(std::vector<std::string>{"assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
+                                            "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png",
+                                            "assets/stubs/Texture1x1Black.png", "assets/stubs/Texture1x1Black.png"}),
       state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
 
   _stubCubemapOne = std::make_shared<Cubemap>(
-      loadImage(std::vector<std::string>{"assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
-                                         "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
-                                         "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png"}),
+      loadImageGPU(std::vector<std::string>{"assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
+                                            "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png",
+                                            "assets/stubs/Texture1x1.png", "assets/stubs/Texture1x1.png"}),
       state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
 }
 
-std::shared_ptr<BufferImage> ResourceManager::loadImage(std::vector<std::string> paths) {
-  return _loaderImage->load(paths);
+std::shared_ptr<BufferImage> ResourceManager::loadImageGPU(std::vector<std::string> paths) {
+  return _loaderImage->loadGPU(paths);
+}
+
+std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> ResourceManager::loadImageCPU(std::string path) {
+  return _loaderImage->loadCPU(path);
 }
 
 std::shared_ptr<ModelGLTF> ResourceManager::loadModel(std::string path) { return _loaderGLTF->load(path); }

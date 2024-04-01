@@ -11,26 +11,31 @@ LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   _state = state;
 }
 
-std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
+std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU(std::string path) {
+  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> images;
+  // load texture
+  int texWidth, texHeight, texChannels;
+  std::shared_ptr<uint8_t[]> pixels(stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha),
+                                    stbi_image_free);
+
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image!");
+  }
+  return {pixels, {texWidth, texHeight, 4}};
+}
+
+std::shared_ptr<BufferImage> LoaderImage::loadGPU(std::vector<std::string> paths) {
   for (auto& path : paths) {
     if (_images.contains(path) == false) {
-      // load texture
-      int texWidth, texHeight, texChannels;
-      stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-      VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-      if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-      }
+      auto [pixels, dimension] = loadCPU({path});
+      VkDeviceSize imageSize = std::get<0>(dimension) * std::get<1>(dimension) * std::get<2>(dimension);
       // fill buffer
       _images[path] = std::make_shared<BufferImage>(
-          std::tuple{texWidth, texHeight}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+          std::tuple{std::get<0>(dimension), std::get<1>(dimension)}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
       _images[path]->map();
-      memcpy(_images[path]->getMappedMemory(), pixels, static_cast<size_t>(imageSize));
+      memcpy(_images[path]->getMappedMemory(), pixels.get(), static_cast<size_t>(imageSize));
       _images[path]->unmap();
-
-      stbi_image_free(pixels);
     }
   }
 
@@ -241,7 +246,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(_loaderImage->load({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
+      texture = std::make_shared<Texture>(_loaderImage->loadGPU({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
                                           _commandBufferTransfer, _state);
     } else {
       // Get the image data from the glTF loader

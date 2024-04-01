@@ -13,7 +13,8 @@ class LoaderImage {
 
  public:
   LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
-  std::shared_ptr<BufferImage> load(std::vector<std::string> paths);
+  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> loadCPU(std::string path);
+  std::shared_ptr<BufferImage> loadGPU(std::vector<std::string> paths);
 };
 
 // A node represents an object in the glTF scene graph

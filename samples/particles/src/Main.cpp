@@ -86,9 +86,9 @@ Main::Main() {
       particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
     }
 
-    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/gradient.png"}),
-                                                     settings->getLoadTextureAuxilaryFormat(),
-                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+    auto particleTexture = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/gradient.png"}), settings->getLoadTextureAuxilaryFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
     auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
@@ -127,9 +127,9 @@ Main::Main() {
       particle.velocityDirection = glm::normalize(lightPositionHorizontal);
     }
 
-    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/circle.png"}),
-                                                     settings->getLoadTextureAuxilaryFormat(),
-                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+    auto particleTexture = std::make_shared<Texture>(
+        _core->getResourceManager()->loadImageGPU({"../assets/circle.png"}), settings->getLoadTextureAuxilaryFormat(),
+        VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
     auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));

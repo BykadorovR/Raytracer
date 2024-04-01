@@ -38,6 +38,31 @@ layout( push_constant ) uniform constants {
     float heightShift;
 } push;
 
+
+float calculateHeightTexture(in vec2 TexCoord, inout vec2 texCoord) {
+    texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
+    return texture(heightMap, texCoord).x;
+}
+
+float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
+    vec2 textureSize = textureSize(heightMap, 0);
+    vec2 pos = p + (textureSize - vec2(1.0)) / vec2(2.0);
+    ivec2 integral = ivec2(floor(pos));
+    texCoord = fract(pos);
+    ivec2 index0 = integral;
+    ivec2 index1 = integral + ivec2(1, 0);
+    ivec2 index2 = integral + ivec2(0, 1);
+    ivec2 index3 = integral + ivec2(1, 1);
+    float sample0 = texelFetch(heightMap, index0, 0).x;
+    float sample1 = texelFetch(heightMap, index1, 0).x;
+    float sample2 = texelFetch(heightMap, index2, 0).x;
+    float sample3 = texelFetch(heightMap, index3, 0).x;
+    float fxy1 = sample0 + texCoord.x * (sample1 - sample0);
+    float fxy2 = sample2 + texCoord.x * (sample3 - sample2);
+    float heightValue = fxy1 + texCoord.y * (fxy2 - fxy1);
+    return heightValue;
+}
+
 void main() {
     // get patch coordinate (2D)
     float u = gl_TessCoord.x;
@@ -64,13 +89,8 @@ void main() {
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     TexCoord = (t1 - t0) * v + t0;
-    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
     // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float heightValue = texture(heightMap, texCoord).y;
-    // we don't want to deal with negative values in fragment shaders, 
-    // so all thresholds are positive even though real height can be negative
-    Height = heightValue * 256.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -89,13 +109,19 @@ void main() {
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
 
+    vec2 texCoord;
+    float heightValue = calculateHeightTexture(TexCoord, texCoord);
+    // calculate the same way as in C++, but result is the same as in the line above
+    //float heightValue = calculateHeightPosition(p.xz, texCoord);
+
+    // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
+    // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
+    Height = heightValue * 256.0;
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
-
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;
-
     fragPosition = (mvp.model * p).xyz;
     //
     //we sample from full size texture only, because we use stepCoords
