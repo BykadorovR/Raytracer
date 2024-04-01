@@ -8,7 +8,7 @@ This project is a graphics engine utilizing the Vulkan API, offering a comprehen
 
 - **dev/master** branch contains classic rasterization engine
 - **raytracing** branch contains Path Tracer with importance sampling using compute shader
-- [samples](https://github.com/BykadorovR/VulkanEngine/tree/master/samples) set of samples which demonstates how to use the engine
+- [samples](samples) set of samples which demonstates how to use the engine
 
 # Architecture
 
