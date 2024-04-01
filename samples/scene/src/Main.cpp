@@ -88,10 +88,10 @@ Main::Main() {
 
   {
     auto texture = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../sprite/assets/brickwall.jpg"}),
+        _core->getResourceManager()->loadImageGPU({"../../sprite/assets/brickwall.jpg"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
     auto normalMap = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../sprite/assets/brickwall_normal.jpg"}),
+        _core->getResourceManager()->loadImageGPU({"../../sprite/assets/brickwall_normal.jpg"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
 
     auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
@@ -189,21 +189,21 @@ Main::Main() {
   _core->addDrawable(modelGLTFPBR);
   _core->addShadowable(modelGLTFPBR);
 
-  auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/Terrain/dirt.jpg"}),
+  auto tile0 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/Terrain/dirt.jpg"}),
                                          settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
                                          commandBufferTransfer, state);
-  auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/Terrain/grass.jpg"}),
+  auto tile1 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/Terrain/grass.jpg"}),
                                          settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
                                          commandBufferTransfer, state);
-  auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/Terrain/rock_gray.png"}),
+  auto tile2 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/Terrain/rock_gray.png"}),
                                          settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
                                          commandBufferTransfer, state);
-  auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/Terrain/snow.png"}),
+  auto tile3 = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/Terrain/snow.png"}),
                                          settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 6,
                                          commandBufferTransfer, state);
 
   auto terrain = std::make_shared<Terrain>(
-      _core->getResourceManager()->loadImage({"../assets/Terrain/heightmap.png"}), std::pair{12, 12},
+      _core->getResourceManager()->loadImageGPU({"../assets/Terrain/heightmap.png"}), std::pair{12, 12},
       std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
       lightManager, state);
   auto materialTerrain = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
@@ -227,7 +227,7 @@ Main::Main() {
   _core->addShadowable(terrain);
 
   auto particleTexture = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImage({"../../Particles/assets/gradient.png"}),
+      _core->getResourceManager()->loadImageGPU({"../../Particles/assets/gradient.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
 
   std::default_random_engine rndEngine((unsigned)time(nullptr));
@@ -325,7 +325,7 @@ Main::Main() {
 
   auto [width, height] = settings->getResolution();
   auto cubemap = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImage(std::vector<std::string>{
+      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{
           "../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
           "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"}),
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,

@@ -136,19 +136,19 @@ Main::Main() {
   // TODO: color is not so bright in comparison with cube
   // sphere PBR
   auto sphereColorPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImage({"../../shape/assets/rustediron2_basecolor.png"}),
+      _core->getResourceManager()->loadImageGPU({"../../shape/assets/rustediron2_basecolor.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
   auto sphereNormalPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImage({"../../shape/assets/rustediron2_normal.png"}),
+      _core->getResourceManager()->loadImageGPU({"../../shape/assets/rustediron2_normal.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
   auto sphereMetallicPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImage({"../../shape/assets/rustediron2_metallic.png"}),
+      _core->getResourceManager()->loadImageGPU({"../../shape/assets/rustediron2_metallic.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
   auto sphereRoughnessPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImage({"../../shape/assets/rustediron2_roughness.png"}),
+      _core->getResourceManager()->loadImageGPU({"../../shape/assets/rustediron2_roughness.png"}),
       settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
       state);
   auto materialSpherePBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
@@ -199,23 +199,23 @@ Main::Main() {
 
   {
     auto tile0Color = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../terrain/assets/desert/albedo.png"}),
+        _core->getResourceManager()->loadImageGPU({"../../terrain/assets/desert/albedo.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto tile1Color = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../terrain/assets/rock/albedo.png"}),
+        _core->getResourceManager()->loadImageGPU({"../../terrain/assets/rock/albedo.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto tile2Color = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../terrain/assets/grass/albedo.png"}),
+        _core->getResourceManager()->loadImageGPU({"../../terrain/assets/grass/albedo.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto tile3Color = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImage({"../../terrain/assets/ground/albedo.png"}),
+        _core->getResourceManager()->loadImageGPU({"../../terrain/assets/ground/albedo.png"}),
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
     auto terrainPhong = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImage({"../../terrain/assets/heightmap.png"}), std::pair{12, 12},
+        _core->getResourceManager()->loadImageGPU({"../../terrain/assets/heightmap.png"}), std::pair{12, 12},
         std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
         lightManager, state);
     auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
