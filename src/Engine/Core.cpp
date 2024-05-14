@@ -26,8 +26,10 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
   _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI, _state);
 
-  _frameSubmitInfoCompute.resize(settings->getMaxFramesInFlight());
+  _frameSubmitInfoPreCompute.resize(settings->getMaxFramesInFlight());
   _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
+  _frameSubmitInfoPostCompute.resize(settings->getMaxFramesInFlight());
+  _frameSubmitInfoDebug.resize(settings->getMaxFramesInFlight());
 
   // start transfer command buffer
   _commandBufferTransfer->beginCommands();
@@ -51,15 +53,11 @@ Core::Core(std::shared_ptr<Settings> settings) {
     _semaphoreGUI.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
 
     // postprocessing semaphore
-    _graphicTimelineSemaphore.timelineInfo.push_back(VkTimelineSemaphoreSubmitInfo{});
-    _graphicTimelineSemaphore.particleSignal.push_back(uint64_t{0});
-    _graphicTimelineSemaphore.semaphore.push_back(
-        std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_TIMELINE, _state->getDevice()));
+    _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
   }
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     _fenceInFlight.push_back(std::make_shared<Fence>(_state->getDevice()));
-    _fenceParticleSystem.push_back(std::make_shared<Fence>(_state->getDevice()));
   }
 
   _initializeTextures();
@@ -349,8 +347,7 @@ void Core::_computeParticles() {
 
   // end command buffer
   _commandBufferParticleSystem->endCommands();
-  std::unique_lock<std::mutex> lock(_frameSubmitMutexCompute);
-  _frameSubmitInfoCompute[frameInFlight].push_back(submitInfoCompute);
+  _frameSubmitInfoPreCompute[frameInFlight].push_back(submitInfoCompute);
 }
 
 void Core::_computePostprocessing(int swapchainImageIndex) {
@@ -676,8 +673,10 @@ VkResult Core::_getImageIndex(uint32_t* imageIndex) {
                                 UINT64_MAX);
   if (result != VK_SUCCESS) throw std::runtime_error("Can't wait for fence");
 
-  _frameSubmitInfoCompute[frameInFlight].clear();
+  _frameSubmitInfoPreCompute[frameInFlight].clear();
   _frameSubmitInfoGraphic[frameInFlight].clear();
+  _frameSubmitInfoPostCompute[frameInFlight].clear();
+  _frameSubmitInfoDebug[frameInFlight].clear();
   // RETURNS ONLY INDEX, NOT IMAGE
   // semaphore to signal, once image is available
   result = vkAcquireNextImageKHR(_state->getDevice()->getLogicalDevice(), _swapchain->getSwapchain(), UINT64_MAX,
@@ -773,26 +772,18 @@ void Core::_drawFrame(int imageIndex) {
   // wait for particles to complete before render
   if (particlesFuture.valid()) particlesFuture.get();
   {
-    // timeline signal structure
-    _graphicTimelineSemaphore.particleSignal[frameInFlight] = _timer->getFrameCounter() + 1;
-    _graphicTimelineSemaphore.timelineInfo[frameInFlight].sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    _graphicTimelineSemaphore.timelineInfo[frameInFlight].pNext = NULL;
-    _graphicTimelineSemaphore.timelineInfo[frameInFlight].signalSemaphoreValueCount = 1;
-    _graphicTimelineSemaphore.timelineInfo[frameInFlight].pSignalSemaphoreValues =
-        &_graphicTimelineSemaphore.particleSignal[frameInFlight];
     // binary wait structure
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = &_graphicTimelineSemaphore.timelineInfo[frameInFlight];
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore();
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferRender->getCommandBuffer()[frameInFlight];
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &_graphicTimelineSemaphore.semaphore[frameInFlight]->getSemaphore();
+    submitInfo.pSignalSemaphores = &_semaphorePostprocessing[frameInFlight]->getSemaphore();
 
     std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
     _frameSubmitInfoGraphic[frameInFlight].push_back(submitInfo);
@@ -800,24 +791,14 @@ void Core::_drawFrame(int imageIndex) {
   //////////////////////////////////////////////////////////////////////////////////////////////////
   // Render compute postprocessing
   //////////////////////////////////////////////////////////////////////////////////////////////////
-  std::vector<VkSemaphore> waitSemaphoresPostprocessing = {
-      _semaphoreImageAvailable[frameInFlight]->getSemaphore(),
-      _graphicTimelineSemaphore.semaphore[frameInFlight]->getSemaphore()};
-  // binary semaphore ignores wait value
-  std::vector<uint64_t> waitValuesPostprocessing = {_graphicTimelineSemaphore.particleSignal[frameInFlight],
-                                                    _graphicTimelineSemaphore.particleSignal[frameInFlight]};
+  std::vector<VkSemaphore> waitSemaphoresPostprocessing = {_semaphoreImageAvailable[frameInFlight]->getSemaphore(),
+                                                           _semaphorePostprocessing[frameInFlight]->getSemaphore()};
   {
     if (postprocessingFuture.valid()) postprocessingFuture.get();
-    VkTimelineSemaphoreSubmitInfo waitParticlesSemaphore{};
-    waitParticlesSemaphore.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    waitParticlesSemaphore.pNext = NULL;
-    waitParticlesSemaphore.waitSemaphoreValueCount = waitSemaphoresPostprocessing.size();
-    waitParticlesSemaphore.pWaitSemaphoreValues = waitValuesPostprocessing.data();
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
 
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pNext = &waitParticlesSemaphore;
     submitInfo.waitSemaphoreCount = waitSemaphoresPostprocessing.size();
     submitInfo.pWaitSemaphores = waitSemaphoresPostprocessing.data();
     submitInfo.pWaitDstStageMask = waitStages;
@@ -826,8 +807,7 @@ void Core::_drawFrame(int imageIndex) {
     submitInfo.pSignalSemaphores = &_semaphoreGUI[frameInFlight]->getSemaphore();
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferPostprocessing->getCommandBuffer()[frameInFlight];
-    std::unique_lock<std::mutex> lock(_frameSubmitMutexCompute);
-    _frameSubmitInfoCompute[frameInFlight].push_back(submitInfo);
+    _frameSubmitInfoPostCompute[frameInFlight].push_back(submitInfo);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -849,14 +829,19 @@ void Core::_drawFrame(int imageIndex) {
 
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &_semaphoreRenderFinished[frameInFlight]->getSemaphore();
-    std::unique_lock<std::mutex> lock(_frameSubmitMutexGraphic);
-    _frameSubmitInfoGraphic[frameInFlight].push_back(submitInfo);
+    _frameSubmitInfoDebug[frameInFlight].push_back(submitInfo);
   }
 
-  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoCompute[frameInFlight].size(),
-                _frameSubmitInfoCompute[frameInFlight].data(), nullptr);
+  // because of binary semaphores, we can't submit task with semaphore wait BEFORE task with semaphore signal.
+  // that's why we have to split submit pipeline.
+  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPreCompute[frameInFlight].size(),
+                _frameSubmitInfoPreCompute[frameInFlight].data(), nullptr);
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoGraphic[frameInFlight].size(),
                 _frameSubmitInfoGraphic[frameInFlight].data(), _fenceInFlight[frameInFlight]->getFence());
+  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPostCompute[frameInFlight].size(),
+                _frameSubmitInfoPostCompute[frameInFlight].data(), nullptr);
+  vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoDebug[frameInFlight].size(),
+                _frameSubmitInfoDebug[frameInFlight].data(), nullptr);
 }
 
 void Core::_displayFrame(uint32_t* imageIndex) {

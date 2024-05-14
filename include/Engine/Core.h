@@ -35,8 +35,8 @@ class Core {
   std::shared_ptr<LoggerCPU> _loggerCPU;
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
-  std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphoreGUI;
-  std::vector<std::shared_ptr<Fence>> _fenceInFlight, _fenceParticleSystem;
+  std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
+  std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
 
@@ -62,17 +62,9 @@ class Core {
   std::function<void()> _callbackUpdate;
   std::function<void(int width, int height)> _callbackReset;
 
-  std::vector<std::vector<VkSubmitInfo>> _frameSubmitInfoGraphic, _frameSubmitInfoCompute;
-  std::mutex _frameSubmitMutexGraphic, _frameSubmitMutexCompute;
-
-  // we use timeline semaphore here, because we want to submit compute queue before graphic
-  // but postprocessing depends on object render loop. Timeline semaphore allows to submit queue
-  // even if dependencies haven't been submitted yet
-  struct TimelineSemaphore {
-    std::vector<VkTimelineSemaphoreSubmitInfo> timelineInfo;
-    std::vector<uint64_t> particleSignal;
-    std::vector<std::shared_ptr<Semaphore>> semaphore;
-  } _graphicTimelineSemaphore;
+  std::vector<std::vector<VkSubmitInfo>> _frameSubmitInfoPreCompute, _frameSubmitInfoPostCompute,
+      _frameSubmitInfoGraphic, _frameSubmitInfoDebug;
+  std::mutex _frameSubmitMutexGraphic;
 
   void _directionalLightCalculator(int index);
   void _pointLightCalculator(int index, int face);
