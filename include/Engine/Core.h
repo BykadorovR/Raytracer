@@ -15,11 +15,14 @@
 #include "BS_thread_pool.hpp"
 #include "ResourceManager.h"
 #include "Animation.h"
+#include "Render.h"
 
 class Core {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Swapchain> _swapchain;
+  // for compute render pass isn't needed
+  std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug;
   std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
       _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;

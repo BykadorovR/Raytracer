@@ -1,16 +1,20 @@
 #pragma once
 #include "Swapchain.h"
 
+class Framebuffer;
+
 class RenderPass {
  private:
   std::shared_ptr<Device> _device;
+  std::shared_ptr<Settings> _settings;
   VkRenderPass _renderPass;
 
  public:
-  RenderPass(std::shared_ptr<Device> device);
-  void initialize(VkFormat format);
-  void initializeOffscreen(VkFormat format);
-  void initializeDepthPass();
+  RenderPass(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
+  void initializeGraphic();
+  void initializeDebug();
+  void initializeLightDepth();
+  VkRenderPassBeginInfo getRenderPassInfo(int index, std::shared_ptr<Framebuffer> framebuffer);
   VkRenderPass& getRenderPass();
   ~RenderPass();
 };

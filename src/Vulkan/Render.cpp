@@ -1,49 +1,65 @@
 #include "Render.h"
 #include <array>
 
-RenderPass::RenderPass(std::shared_ptr<Device> device) { _device = device; }
+RenderPass::RenderPass(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device) {
+  _settings = settings;
+  _device = device;
+}
 
-void RenderPass::initialize(VkFormat format) {
-  VkAttachmentDescription colorAttachment{};
-  colorAttachment.format = format;
-  colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+void RenderPass::initializeGraphic() {
+  std::vector<VkAttachmentDescription> attachmentDescriptors(3);
+  attachmentDescriptors[0].format = _settings->getGraphicColorFormat();
+  attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  attachmentDescriptors[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  // goes to bloom (not blur) postprocessing as input image
+  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-  VkAttachmentDescription depthAttachment{};
-  depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-  depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  attachmentDescriptors[1].format = _settings->getGraphicColorFormat();
+  attachmentDescriptors[1].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachmentDescriptors[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  attachmentDescriptors[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  // goes to blur postprocessing stage (bloom happens after blur) and then to bloom as blured image
+  attachmentDescriptors[1].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-  std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+  attachmentDescriptors[2].format = _settings->getDepthFormat();
+  attachmentDescriptors[2].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachmentDescriptors[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  // comes from light baking to depth image
+  attachmentDescriptors[2].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  // goes to GUI for visualization
+  attachmentDescriptors[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-  VkAttachmentReference colorAttachmentRef{};
-  colorAttachmentRef.attachment = 0;
-  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  std::vector<VkAttachmentReference> colorAttachmentRef(2);
+  colorAttachmentRef[0].attachment = 0;
+  colorAttachmentRef[0].layout = VK_IMAGE_LAYOUT_GENERAL;
+  colorAttachmentRef[1].attachment = 1;
+  colorAttachmentRef[1].layout = VK_IMAGE_LAYOUT_GENERAL;
 
   VkAttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 1;
-  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  depthAttachmentRef.attachment = 2;
+  // we want read depth in shader
+  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
   VkSubpassDescription subpass{};
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &colorAttachmentRef;
+  subpass.colorAttachmentCount = colorAttachmentRef.size();
+  subpass.pColorAttachments = colorAttachmentRef.data();
   subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-  renderPassInfo.pAttachments = attachments.data();
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptors.size());
+  renderPassInfo.pAttachments = attachmentDescriptors.data();
   renderPassInfo.subpassCount = 1;
   renderPassInfo.pSubpasses = &subpass;
   renderPassInfo.dependencyCount = 0;
@@ -54,19 +70,76 @@ void RenderPass::initialize(VkFormat format) {
   }
 }
 
-void RenderPass::initializeDepthPass() {
-  VkAttachmentDescription depthAttachment{};
-  depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-  depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+void RenderPass::initializeDebug() {
+  std::vector<VkAttachmentDescription> attachmentDescriptors(1);
+  attachmentDescriptors[0].format = _settings->getGraphicColorFormat();
+  attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+  attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  // comes from postprocessing
+  attachmentDescriptors[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+  // goes to presentation
+  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+  attachmentDescriptors[1].format = _settings->getDepthFormat();
+  attachmentDescriptors[1].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+  attachmentDescriptors[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  // comes from graphic render
+  attachmentDescriptors[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  // goes to nowhere so doesn't matter, but for next iteration of light depth should be read only
+  attachmentDescriptors[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+  VkAttachmentReference colorAttachmentRef;
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_GENERAL;
+
+  VkAttachmentReference depthAttachmentRef{};
+  depthAttachmentRef.attachment = 1;
+  // we want read depth in shader
+  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+  VkSubpassDescription subpass{};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
+  subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+  VkRenderPassCreateInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptors.size());
+  renderPassInfo.pAttachments = attachmentDescriptors.data();
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+  renderPassInfo.dependencyCount = 0;
+  renderPassInfo.pDependencies = nullptr;
+
+  if (vkCreateRenderPass(_device->getLogicalDevice(), &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create render pass!");
+  }
+}
+
+void RenderPass::initializeLightDepth() {
+  std::vector<VkAttachmentDescription> attachmentDescriptors(1);
+  attachmentDescriptors[0].format = _settings->getGraphicColorFormat();
+  attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  // we want read depth buffer in graphic render later, so after graphic render it's read only (initially also, so it's
+  // the same behaviour)
+  attachmentDescriptors[0].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  // graphic render will read from it, so change back to read only
+  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
   VkAttachmentReference depthAttachmentRef{};
   depthAttachmentRef.attachment = 0;
+  // inside shader it should be attachment because we wanna write to it
   depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
   VkSubpassDescription subpass{};
@@ -76,8 +149,8 @@ void RenderPass::initializeDepthPass() {
 
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = 1;
-  renderPassInfo.pAttachments = &depthAttachment;
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptors.size());
+  renderPassInfo.pAttachments = attachmentDescriptors.data();
   renderPassInfo.subpassCount = 1;
   renderPassInfo.pSubpasses = &subpass;
   renderPassInfo.dependencyCount = 0;
@@ -88,55 +161,17 @@ void RenderPass::initializeDepthPass() {
   }
 }
 
-void RenderPass::initializeOffscreen(VkFormat format) {
-  VkAttachmentDescription colorAttachment{};
-  colorAttachment.format = format;
-  colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+VkRenderPassBeginInfo RenderPass::getRenderPassInfo(int index, std::shared_ptr<Framebuffer> framebuffer) {
+  VkRenderPassBeginInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassInfo.renderPass = _renderPass;
+  renderPassInfo.framebuffer = framebuffer->getBuffer()[index];
+  renderPassInfo.renderArea.offset = {0, 0};
+  auto [width, height] = framebuffer->getResolution();
+  renderPassInfo.renderArea.extent.width = width;
+  renderPassInfo.renderArea.extent.height = height;
 
-  VkAttachmentDescription depthAttachment{};
-  depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-  depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-  depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-  depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-  std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
-
-  VkAttachmentReference colorAttachmentRef{};
-  colorAttachmentRef.attachment = 0;
-  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-  VkAttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 1;
-  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-  VkSubpassDescription subpass{};
-  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 1;
-  subpass.pColorAttachments = &colorAttachmentRef;
-  subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-  VkRenderPassCreateInfo renderPassInfo{};
-  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-  renderPassInfo.pAttachments = attachments.data();
-  renderPassInfo.subpassCount = 1;
-  renderPassInfo.pSubpasses = &subpass;
-  renderPassInfo.dependencyCount = 0;
-  renderPassInfo.pDependencies = nullptr;
-
-  if (vkCreateRenderPass(_device->getLogicalDevice(), &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create render pass!");
-  }
+  return renderPassInfo;
 }
 
 VkRenderPass& RenderPass::getRenderPass() { return _renderPass; }

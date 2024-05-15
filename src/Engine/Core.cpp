@@ -31,6 +31,13 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _frameSubmitInfoPostCompute.resize(settings->getMaxFramesInFlight());
   _frameSubmitInfoDebug.resize(settings->getMaxFramesInFlight());
 
+  _renderPassGraphic = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassGraphic->initializeGraphic();
+  _renderPassLightDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassLightDepth->initializeLightDepth();
+  _renderPassDebug = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDebug->initializeDebug();
+
   // start transfer command buffer
   _commandBufferTransfer->beginCommands();
 
