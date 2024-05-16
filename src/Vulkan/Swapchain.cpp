@@ -1,19 +1,15 @@
 #include "Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(VkFormat imageFormat, VkFormat depthFormat, std::shared_ptr<State> state) {
+Swapchain::Swapchain(VkFormat imageFormat, std::shared_ptr<State> state) {
   _state = state;
   _imageFormat = imageFormat;
-  _depthFormat = depthFormat;
-
   _initialize();
 }
 
 VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }
 
 std::vector<std::shared_ptr<ImageView>>& Swapchain::getImageViews() { return _swapchainImageViews; }
-
-std::shared_ptr<ImageView> Swapchain::getDepthImageView() { return _depthImageView; }
 
 void Swapchain::changeImageLayout(VkImageLayout imageLayout, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   for (int i = 0; i < _swapchainImageViews.size(); i++) {
@@ -112,37 +108,26 @@ void Swapchain::_initialize() {
       VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
-  _swapchainImages.resize(imageCount);
+  std::vector<VkImage> swapchainImages(imageCount);
   if (vkGetSwapchainImagesKHR(_state->getDevice()->getLogicalDevice(), _swapchain, &imageCount,
-                              _swapchainImages.data()) != VK_SUCCESS) {
+                              swapchainImages.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
 
   _swapchainImageFormat = surfaceFormat.format;
   _swapchainExtent = extent;
 
-  _swapchainImageViews.resize(_swapchainImages.size());
-
-  for (uint32_t i = 0; i < _swapchainImages.size(); i++) {
-    auto image = std::make_shared<Image>(_swapchainImages[i], std::tuple{extent.width, extent.height},
+  _swapchainImageViews.resize(swapchainImages.size());
+  for (uint32_t i = 0; i < swapchainImages.size(); i++) {
+    auto image = std::make_shared<Image>(swapchainImages[i], std::tuple{extent.width, extent.height},
                                          surfaceFormat.format, _state);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                 _state);
-
-    _swapchainImageViews[i] = imageView;
+    _swapchainImageViews[i] = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                          VK_IMAGE_ASPECT_COLOR_BIT, _state);
   }
-
-  _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, 1, 1, _depthFormat,
-                                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                VK_IMAGE_ASPECT_DEPTH_BIT, _state);
 }
 
 void Swapchain::_destroy() {
-  vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr);
-  _swapchainImages.clear();
-  _swapchainImageViews.clear();
+  vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr);  
 }
 
 void Swapchain::reset() {

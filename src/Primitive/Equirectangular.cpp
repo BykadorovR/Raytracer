@@ -110,6 +110,16 @@ Equirectangular::Equirectangular(std::string path,
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
+
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeIBL();
+  _frameBuffer.resize(6);
+  for (int i = 0; i < 6; i++) {
+    auto currentTexture = _cubemap->getTextureSeparate()[i][0];
+    _frameBuffer[i] = std::make_shared<Framebuffer>(std::vector{currentTexture},
+                                                    currentTexture->getImageView()->getImage()->getResolution(),
+                                                    _renderPass, _state->getDevice());
+  }
 }
 
 std::shared_ptr<Cubemap> Equirectangular::convertToCubemap(std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -123,30 +133,15 @@ std::shared_ptr<Cubemap> Equirectangular::convertToCubemap(std::shared_ptr<Comma
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemap->getTextureSeparate()[i][0];
+
+    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBuffer[i]);
     VkClearValue clearColor;
     clearColor.color = _state->getSettings()->getClearColor();
-    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
-    // here we render scene as is
-    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = currentTexture->getImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearColor,
-    };
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
 
-    auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
-    VkRect2D renderArea{};
-    renderArea.extent.width = width;
-    renderArea.extent.height = height;
-    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                                     .renderArea = renderArea,
-                                     .layerCount = 1,
-                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-                                     .pColorAttachments = colorAttachmentInfo.data()};
-
-    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+    // TODO: only one depth texture?
+    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     _loggerGPU->setCommandBufferName("Equirectangular", commandBuffer);
     _loggerGPU->begin("Render equirectangular");
@@ -235,7 +230,7 @@ std::shared_ptr<Cubemap> Equirectangular::convertToCubemap(std::shared_ptr<Comma
                      static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
     _loggerGPU->end();
 
-    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 
     VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                       .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,

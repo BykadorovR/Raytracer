@@ -3,7 +3,7 @@
 
 Core::Core(std::shared_ptr<Settings> settings) {
   _state = std::make_shared<State>(settings);
-  _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), settings->getDepthFormat(), _state);
+  _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), _state);
   _timer = std::make_shared<Timer>();
   _timerFPSReal = std::make_shared<TimerFPS>();
   _timerFPSLimited = std::make_shared<TimerFPS>();
@@ -84,8 +84,52 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
   _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
+  
+  auto depthAttachment = std::make_shared<Image>(
+      std::tuple{_swapchain->getSwapchainExtent().width, _swapchain->getSwapchainExtent().height}, 1, 1,
+      VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      _state);
+  _depthAttachmentImageView = std::make_shared<ImageView>(depthAttachment, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                VK_IMAGE_ASPECT_DEPTH_BIT, _state);
 
   _commandBufferTransfer->endCommands();
+
+  _frameBufferGraphic.resize(_state->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _frameBufferGraphic[i] = std::make_shared<Framebuffer>(
+        std::vector{_textureRender[i]->getImageView(), _textureBlurIn[i]->getImageView(), _depthAttachmentImageView},
+        _textureRender[i]->getImageView()->getImage()->getResolution(),
+        _renderPassGraphic, _state->getDevice());
+  }
+
+  int directionalNumber = _lightManager->getDirectionalLights().size();
+  _frameBufferDirectionalLightDepth.resize(directionalNumber);
+  for (int i = 0; i < directionalNumber; i++) {
+    _frameBufferDirectionalLightDepth[i].resize(_state->getSettings()->getMaxFramesInFlight());
+    auto textures = _lightManager->getDirectionalLights()[i]->getDepthTexture();
+    for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
+      _frameBufferDirectionalLightDepth[i][j] = std::make_shared<Framebuffer>(
+          std::vector{textures[j]->getImageView()}, textures[j]->getImageView()->getImage()->getResolution(),
+          _renderPassLightDepth, _state->getDevice());
+    }
+  }
+  int pointNumber = _lightManager->getPointLights().size();
+  _frameBufferPointLightDepth.resize(pointNumber);
+  for (int i = 0; i < pointNumber; i++) {
+    _frameBufferPointLightDepth[i].resize(_state->getSettings()->getMaxFramesInFlight());
+    auto cubemap = _lightManager->getPointLights()[i]->getDepthCubemap();
+    for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
+      _frameBufferPointLightDepth[i][j] = std::make_shared<Framebuffer>(
+          std::vector{cubemap[j]->getTexture()->getImageView()},
+          cubemap[j]->getTexture()->getImageView()->getImage()->getResolution(),
+          _renderPassLightDepth, _state->getDevice());
+    }
+  }
+
+  _frameBufferDebug.resize(_swapchain->getImageViews().size());
+  for (int i = 0; i < _frameBufferDebug.size(); i++) {
+    _frameBufferDebug[i] = std::make_shared<Framebuffer>(std::vector{_swapchain->getImageViews()[i]}, _renderPassDebug, _state->getDevice());
+  }
 
   {
     // TODO: remove vkQueueWaitIdle, add fence or semaphore
@@ -173,31 +217,15 @@ void Core::_directionalLightCalculator(int index) {
                        nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   //
   auto directionalLights = _lightManager->getDirectionalLights();
+
+  auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(_frameBufferDirectionalLightDepth[index][frameInFlight]);
   VkClearValue clearDepth;
   clearDepth.depthStencil = {1.0f, 0};
-  const VkRenderingAttachmentInfo depthAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = directionalLights[index]->getDepthTexture()[frameInFlight]->getImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearDepth,
-  };
-
-  auto [width, height] =
-      directionalLights[index]->getDepthTexture()[frameInFlight]->getImageView()->getImage()->getResolution();
-  VkRect2D renderArea{};
-  renderArea.extent.width = width;
-  renderArea.extent.height = height;
-  const VkRenderingInfoKHR renderInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-      .renderArea = renderArea,
-      .layerCount = 1,
-      .pDepthAttachment = &depthAttachmentInfo,
-  };
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearDepth;
 
   // TODO: only one depth texture?
-  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[frameInFlight], &renderInfo);
+  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[frameInFlight], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
   // Set depth bias (aka "Polygon offset")
   // Required to avoid shadow mapping artifacts
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[frameInFlight], _state->getSettings()->getDepthBiasConstant(),
@@ -211,7 +239,7 @@ void Core::_directionalLightCalculator(int index) {
     shadowable->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
     loggerGPU->end();
   }
-  vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
+  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[frameInFlight]);
   loggerGPU->end();
 
   // record command buffer
@@ -259,39 +287,16 @@ void Core::_pointLightCalculator(int index, int face) {
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   }
   auto pointLights = _lightManager->getPointLights();
+
+  auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
+      _frameBufferPointLightDepth[index][frameInFlight]);
   VkClearValue clearDepth;
   clearDepth.depthStencil = {1.0f, 0};
-  const VkRenderingAttachmentInfo depthAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = pointLights[index]
-                       ->getDepthCubemap()[frameInFlight]
-                       ->getTextureSeparate()[face][0]
-                       ->getImageView()
-                       ->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearDepth,
-  };
-
-  auto [width, height] = pointLights[index]
-                             ->getDepthCubemap()[frameInFlight]
-                             ->getTextureSeparate()[face][0]
-                             ->getImageView()
-                             ->getImage()
-                             ->getResolution();
-  VkRect2D renderArea{};
-  renderArea.extent.width = width;
-  renderArea.extent.height = height;
-  const VkRenderingInfo renderInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-      .renderArea = renderArea,
-      .layerCount = 1,
-      .pDepthAttachment = &depthAttachmentInfo,
-  };
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearDepth;
 
   // TODO: only one depth texture?
-  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[frameInFlight], &renderInfo);
+  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[frameInFlight], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
   // Set depth bias (aka "Polygon offset")
   // Required to avoid shadow mapping artifacts
   vkCmdSetDepthBias(commandBuffer->getCommandBuffer()[frameInFlight], _state->getSettings()->getDepthBiasConstant(),
@@ -309,7 +314,7 @@ void Core::_pointLightCalculator(int index, int face) {
     shadowable->drawShadow(LightType::POINT, index, face, commandBuffer);
     loggerGPU->end();
   }
-  vkCmdEndRendering(commandBuffer->getCommandBuffer()[frameInFlight]);
+  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[frameInFlight]);
   loggerGPU->end();
 
   // record command buffer
@@ -453,44 +458,20 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   _commandBufferGUI->beginCommands();
   _loggerGPUDebug->setCommandBufferName("GUI command buffer", _commandBufferGUI);
 
+  auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferDebug[swapchainImageIndex]);
   VkClearValue clearColor;
   clearColor.color = _state->getSettings()->getClearColor();
-  const VkRenderingAttachmentInfo colorAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _swapchain->getImageViews()[swapchainImageIndex]->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearColor,
-  };
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearColor;
 
-  const VkRenderingAttachmentInfo depthAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _swapchain->getDepthImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-  };
-
-  auto [width, height] = _swapchain->getImageViews()[swapchainImageIndex]->getImage()->getResolution();
-  VkRect2D renderArea{};
-  renderArea.extent.width = width;
-  renderArea.extent.height = height;
-  const VkRenderingInfo renderInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-      .renderArea = renderArea,
-      .layerCount = 1,
-      .colorAttachmentCount = 1,
-      .pColorAttachments = &colorAttachmentInfo,
-      .pDepthAttachment = &depthAttachmentInfo,
-  };
-
-  vkCmdBeginRendering(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderInfo);
+  // TODO: only one depth texture?
+  vkCmdBeginRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderPassInfo,
+                       VK_SUBPASS_CONTENTS_INLINE);
   _loggerGPUDebug->begin("Render GUI " + std::to_string(_timer->getFrameCounter()));
   _gui->updateBuffers(frameInFlight);
   _gui->drawFrame(frameInFlight, _commandBufferGUI);
   _loggerGPUDebug->end();
-  vkCmdEndRendering(_commandBufferGUI->getCommandBuffer()[frameInFlight]);
+  vkCmdEndRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight]);
 
   VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                     .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
@@ -571,54 +552,20 @@ void Core::_renderGraphic() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
-  VkClearValue clearColor;
-  clearColor.color = _state->getSettings()->getClearColor();
-  std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(2);
-  // here we render scene as is
-  colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _textureRender[frameInFlight]->getImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearColor,
-  };
-  // here we render bloom that will be applied on postprocessing stage to simple render
-  colorAttachmentInfo[1] = VkRenderingAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _textureBlurIn[frameInFlight]->getImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearColor,
-  };
+  std::vector<VkClearValue> clearColor(3);
+  clearColor[0].color = _state->getSettings()->getClearColor();
+  clearColor[1].color = _state->getSettings()->getClearColor();
+  clearColor[2].color = {1.0f, 0};
 
-  VkClearValue clearDepth;
-  clearDepth.depthStencil = {1.0f, 0};
-  const VkRenderingAttachmentInfo depthAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _swapchain->getDepthImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearDepth,
-  };
-
-  auto [width, height] = _textureRender[frameInFlight]->getImageView()->getImage()->getResolution();
-  VkRect2D renderArea{};
-  renderArea.extent.width = width;
-  renderArea.extent.height = height;
-  const VkRenderingInfo renderInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-      .renderArea = renderArea,
-      .layerCount = 1,
-      .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-      .pColorAttachments = colorAttachmentInfo.data(),
-      .pDepthAttachment = &depthAttachmentInfo,
-  };
+  auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferGraphic[frameInFlight]);
+  renderPassInfo.clearValueCount = 3;
+  renderPassInfo.pClearValues = clearColor.data();
 
   auto globalFrame = _timer->getFrameCounter();
-  vkCmdBeginRendering(_commandBufferRender->getCommandBuffer()[frameInFlight], &renderInfo);
+  // TODO: only one depth texture?
+  vkCmdBeginRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderPassInfo,
+                       VK_SUBPASS_CONTENTS_INLINE);
+
   _loggerGPU->begin("Render light " + std::to_string(globalFrame));
   _lightManager->draw(frameInFlight);
   _loggerGPU->end();
@@ -669,7 +616,7 @@ void Core::_renderGraphic() {
     });
   }
 
-  vkCmdEndRendering(_commandBufferRender->getCommandBuffer()[frameInFlight]);
+  vkCmdEndRenderPass(_commandBufferRender->getCommandBuffer()[frameInFlight]);
   _commandBufferRender->endCommands();
 }
 

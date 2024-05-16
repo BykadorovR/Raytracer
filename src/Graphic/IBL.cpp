@@ -125,8 +125,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
                                            _state->getSettings()->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
-  brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                          commandBufferTransfer);
+  brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
   auto brdfImageView = std::make_shared<ImageView>(brdfImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                    VK_IMAGE_ASPECT_COLOR_BIT, state);
   _textureSpecularBRDF = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
@@ -139,6 +139,33 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
+
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeIBL();
+
+  _frameBufferSpecular.resize(6);
+  for (int i = 0; i < 6; i++) {
+    _frameBufferSpecular[i].resize(_state->getSettings()->getSpecularMipMap());
+    for (int j = 0; j < _state->getSettings()->getSpecularMipMap(); j++) {
+      auto currentTexture = _cubemapSpecular->getTextureSeparate()[i][j];
+      auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
+      _frameBufferSpecular[i][j] = std::make_shared<Framebuffer>(
+          std::vector{currentTexture}, std::tuple{width * std::pow(0.5, j), height * std::pow(0.5, j)}, _renderPass,
+          _state->getDevice());
+    }
+  }
+
+  _frameBufferDiffuse.resize(6);
+  for (int i = 0; i < 6; i++) {
+    auto currentTexture = _cubemapDiffuse->getTextureSeparate()[i][0];
+    _frameBufferDiffuse[i] = std::make_shared<Framebuffer>(std::vector{currentTexture},
+                                                           currentTexture->getImageView()->getImage()->getResolution(),
+                                                           _renderPass, _state->getDevice());
+  }
+
+  _frameBufferBRDF = std::make_shared<Framebuffer>(_textureSpecularBRDF,
+                                                   _textureSpecularBRDF->getImageView()->getImage()->getResolution(),
+                                                   _renderPass, _state->getDevice());
 }
 
 std::shared_ptr<Cubemap> IBL::getCubemapDiffuse() { return _cubemapDiffuse; }
@@ -215,31 +242,15 @@ void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < _state->getSettings()->getSpecularMipMap(); j++) {
-      auto currentTexture = _cubemapSpecular->getTextureSeparate()[i][j];
+      auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferSpecular[i][j]);
       VkClearValue clearColor;
       clearColor.color = _state->getSettings()->getClearColor();
-      std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
-      // here we render scene as is
-      colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-          .imageView = currentTexture->getImageView()->getImageView(),
-          .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-          .clearValue = clearColor,
-      };
+      renderPassInfo.clearValueCount = 1;
+      renderPassInfo.pClearValues = &clearColor;
 
-      auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
-      VkRect2D renderArea{};
-      renderArea.extent.width = width * std::pow(0.5, j);
-      renderArea.extent.height = height * std::pow(0.5, j);
-      const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                                       .renderArea = renderArea,
-                                       .layerCount = 1,
-                                       .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-                                       .pColorAttachments = colorAttachmentInfo.data()};
-
-      vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+      // TODO: only one depth texture?
+      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                           VK_SUBPASS_CONTENTS_INLINE);
 
       _loggerGPU->begin("Render specular");
       // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
@@ -270,7 +281,7 @@ void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
           break;
       }
 
-      std::tie(width, height) = _state->getSettings()->getSpecularIBLResolution();
+      auto [width, height] = _state->getSettings()->getSpecularIBLResolution();
       width *= std::pow(0.5, j);
       height *= std::pow(0.5, j);
       VkViewport viewport{};
@@ -299,7 +310,7 @@ void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
 
       _loggerGPU->end();
 
-      vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
     }
   }
 }
@@ -314,31 +325,13 @@ void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
-    auto currentTexture = _cubemapDiffuse->getTextureSeparate()[i][0];
+    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferSpecular[i][currentFrame]);
     VkClearValue clearColor;
     clearColor.color = _state->getSettings()->getClearColor();
-    std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
-    // here we render scene as is
-    colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-        .imageView = currentTexture->getImageView()->getImageView(),
-        .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .clearValue = clearColor,
-    };
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
 
-    auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
-    VkRect2D renderArea{};
-    renderArea.extent.width = width;
-    renderArea.extent.height = height;
-    const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                                     .renderArea = renderArea,
-                                     .layerCount = 1,
-                                     .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-                                     .pColorAttachments = colorAttachmentInfo.data()};
-
-    vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[0], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     _loggerGPU->begin("Render diffuse");
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
@@ -368,7 +361,7 @@ void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
         _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
         break;
     }
-    std::tie(width, height) = _state->getSettings()->getDiffuseIBLResolution();
+    auto [width, height] = _state->getSettings()->getDiffuseIBLResolution();
     VkViewport viewport{};
     viewport.x = 0.f;
     viewport.y = 0.f;
@@ -386,7 +379,7 @@ void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     _loggerGPU->end();
 
-    vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
   }
 }
 
@@ -409,30 +402,13 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferBRDF);
   VkClearValue clearColor;
   clearColor.color = _state->getSettings()->getClearColor();
-  std::vector<VkRenderingAttachmentInfo> colorAttachmentInfo(1);
-  // here we render scene as is
-  colorAttachmentInfo[0] = VkRenderingAttachmentInfo{
-      .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-      .imageView = _textureSpecularBRDF->getImageView()->getImageView(),
-      .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-      .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-      .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-      .clearValue = clearColor,
-  };
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearColor;
 
-  auto [width, height] = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
-  VkRect2D renderArea{};
-  renderArea.extent.width = width;
-  renderArea.extent.height = height;
-  const VkRenderingInfo renderInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-                                   .renderArea = renderArea,
-                                   .layerCount = 1,
-                                   .colorAttachmentCount = (uint32_t)colorAttachmentInfo.size(),
-                                   .pColorAttachments = colorAttachmentInfo.data()};
-
-  vkCmdBeginRendering(commandBuffer->getCommandBuffer()[currentFrame], &renderInfo);
+  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
   _loggerGPU->begin("Render specular brdf");
   BufferMVP cameraMVP{};
@@ -473,5 +449,5 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
                    static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1, 0, 0, 0);
   _loggerGPU->end();
 
-  vkCmdEndRendering(commandBuffer->getCommandBuffer()[currentFrame]);
+  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
 }

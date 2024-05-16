@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "LightManager.h"
 #include "ResourceManager.h"
+#include "Render.h"
 
 class IBL {
  private:
@@ -26,6 +27,12 @@ class IBL {
   std::shared_ptr<Texture> _textureSpecularBRDF;
   std::shared_ptr<CameraOrtho> _cameraSpecularBRDF;
   std::shared_ptr<CameraFly> _camera;
+
+  std::shared_ptr<RenderPass> _renderPass;
+  // we do it once, so we don't need max frames in flight
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferSpecular;
+  std::vector<std::shared_ptr<Framebuffer>> _frameBufferDiffuse;
+  std::shared_ptr<Framebuffer> _frameBufferBRDF;
 
   void _draw(int face,
              std::shared_ptr<Camera> camera,

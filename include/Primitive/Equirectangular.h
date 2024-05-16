@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "Shape3D.h"
 #include "Mesh.h"
+#include "Render.h"
 
 class Equirectangular {
  private:
@@ -20,6 +21,8 @@ class Equirectangular {
   std::shared_ptr<Mesh3D> _mesh3D;
   std::shared_ptr<LoggerGPU> _loggerGPU;
   std::shared_ptr<CameraFly> _camera;
+  std::shared_ptr<RenderPass> _renderPass;
+  std::vector<std::shared_ptr<Framebuffer>> _frameBuffer;
 
  public:
   Equirectangular(std::string path,

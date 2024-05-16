@@ -1,5 +1,5 @@
 #pragma once
-#include "Swapchain.h"
+#include "Texture.h"
 
 class Framebuffer;
 
@@ -14,7 +14,8 @@ class RenderPass {
   void initializeGraphic();
   void initializeDebug();
   void initializeLightDepth();
-  VkRenderPassBeginInfo getRenderPassInfo(int index, std::shared_ptr<Framebuffer> framebuffer);
+  void initializeIBL();
+  VkRenderPassBeginInfo getRenderPassInfo(std::shared_ptr<Framebuffer> framebuffer);
   VkRenderPass& getRenderPass();
   ~RenderPass();
 };
@@ -22,21 +23,13 @@ class RenderPass {
 class Framebuffer {
  private:
   std::shared_ptr<Device> _device;
-  std::vector<VkFramebuffer> _buffer;
+  VkFramebuffer _buffer;
   std::tuple<int, int> _resolution;
-
  public:
-  Framebuffer(std::vector<std::shared_ptr<ImageView>> imageViews,
-              std::shared_ptr<ImageView> depthImageView,
-              std::shared_ptr<RenderPass> renderPass,
-              std::shared_ptr<Device> device);
-
-  // for depth buffer generation pass
-  Framebuffer(std::vector<std::shared_ptr<ImageView>> depthImageViews,
-              std::shared_ptr<RenderPass> renderPass,
-              std::shared_ptr<Device> device);
+  Framebuffer(std::vector<std::shared_ptr<ImageView>> input, std::tuple<int, int> renderArea,
+              std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Device> device);
 
   std::tuple<int, int> getResolution();
-  std::vector<VkFramebuffer>& getBuffer();
+  VkFramebuffer getBuffer();
   ~Framebuffer();
 };

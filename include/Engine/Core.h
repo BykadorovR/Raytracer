@@ -21,8 +21,13 @@ class Core {
  private:
   std::shared_ptr<State> _state;
   std::shared_ptr<Swapchain> _swapchain;
+  std::shared_ptr<ImageView> _depthAttachmentImageView;
   // for compute render pass isn't needed
   std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug;
+  std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
+  //store for each light, number in flight frame buffers
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth, _frameBufferPointLightDepth;
+
   std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
       _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
