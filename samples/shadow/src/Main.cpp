@@ -60,12 +60,11 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
@@ -73,26 +72,24 @@ Main::Main() {
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
+  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                        commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                          commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -169,9 +166,8 @@ Main::Main() {
     materialCubePhong->setNormal({cubemapNormalPhong->getTexture()});
     materialCubePhong->setSpecular({_core->getResourceManager()->getCubemapZero()->getTexture()});
 
-    auto cubeTexturedPhong = std::make_shared<Shape3D>(
-        ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-        VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto cubeTexturedPhong = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                       commandBufferTransfer, _core->getResourceManager(), state);
     cubeTexturedPhong->setMaterial(materialCubePhong);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
@@ -182,9 +178,8 @@ Main::Main() {
   }
   {
     // sphere colored
-    auto sphereColored = std::make_shared<Shape3D>(
-        ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-        VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto sphereColored = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                   commandBufferTransfer, _core->getResourceManager(), state);
     sphereColored->getMesh()->setColor(
         std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
     {
@@ -196,9 +191,9 @@ Main::Main() {
   }
   {
     auto gltfModelDancing = _core->getResourceManager()->loadModel("../../model/assets/BrainStem/BrainStem.gltf");
-    auto modelDancing = std::make_shared<Model3D>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelDancing->getNodes(),
-        gltfModelDancing->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelDancing = std::make_shared<Model3D>(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes(),
+                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                  state);
     auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
     for (auto& material : materialModelDancing) {
       fillMaterialPBR(material);
@@ -236,8 +231,7 @@ Main::Main() {
         state);
     auto terrainPhong = std::make_shared<Terrain>(
         _core->getResourceManager()->loadImageGPU({"../../terrain/assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+        commandBufferTransfer, lightManager, state);
     auto materialTerrainPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialTerrainPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialTerrainPhong(materialTerrainPhong);
@@ -260,9 +254,7 @@ Main::Main() {
         _core->getResourceManager()->loadImageGPU({"../../sprite/assets/brickwall_normal.jpg"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto sprite = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     material->setBaseColor({textureColor});
     material->setNormal({textureNormal});
@@ -348,8 +340,7 @@ Main::Main() {
 
     auto terrainPBR = std::make_shared<Terrain>(
         _core->getResourceManager()->loadImageGPU({"../../terrain/assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+        commandBufferTransfer, lightManager, state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
@@ -370,9 +361,8 @@ Main::Main() {
   // draw skeletal textured model with multiple animations
   auto gltfModelFish = _core->getResourceManager()->loadModel("../../model/assets/Fish/scene.gltf");
   {
-    auto modelFish = std::make_shared<Model3D>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelFish->getNodes(),
-        gltfModelFish->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelFish = std::make_shared<Model3D>(gltfModelFish->getNodes(), gltfModelFish->getMeshes(), lightManager,
+                                               commandBufferTransfer, _core->getResourceManager(), state);
     auto materialModelFish = gltfModelFish->getMaterialsPhong();
     for (auto& material : materialModelFish) {
       fillMaterialPhong(material);
@@ -401,9 +391,7 @@ Main::Main() {
         _core->getResourceManager()->loadImageGPU({"../../sprite/assets/tree.png"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto spriteTree = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteTree = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
@@ -423,9 +411,7 @@ Main::Main() {
         _core->getResourceManager()->loadImageGPU({"../../sprite/assets/tree.png"}),
         settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
-    auto spriteTree = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteTree = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);

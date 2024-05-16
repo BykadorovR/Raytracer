@@ -84,13 +84,13 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
   _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
-  
+
   auto depthAttachment = std::make_shared<Image>(
       std::tuple{_swapchain->getSwapchainExtent().width, _swapchain->getSwapchainExtent().height}, 1, 1,
-      VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      _state);
+      settings->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
   _depthAttachmentImageView = std::make_shared<ImageView>(depthAttachment, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                VK_IMAGE_ASPECT_DEPTH_BIT, _state);
+                                                          VK_IMAGE_ASPECT_DEPTH_BIT, _state);
 
   _commandBufferTransfer->endCommands();
 
@@ -98,37 +98,14 @@ Core::Core(std::shared_ptr<Settings> settings) {
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     _frameBufferGraphic[i] = std::make_shared<Framebuffer>(
         std::vector{_textureRender[i]->getImageView(), _textureBlurIn[i]->getImageView(), _depthAttachmentImageView},
-        _textureRender[i]->getImageView()->getImage()->getResolution(),
-        _renderPassGraphic, _state->getDevice());
-  }
-
-  int directionalNumber = _lightManager->getDirectionalLights().size();
-  _frameBufferDirectionalLightDepth.resize(directionalNumber);
-  for (int i = 0; i < directionalNumber; i++) {
-    _frameBufferDirectionalLightDepth[i].resize(_state->getSettings()->getMaxFramesInFlight());
-    auto textures = _lightManager->getDirectionalLights()[i]->getDepthTexture();
-    for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
-      _frameBufferDirectionalLightDepth[i][j] = std::make_shared<Framebuffer>(
-          std::vector{textures[j]->getImageView()}, textures[j]->getImageView()->getImage()->getResolution(),
-          _renderPassLightDepth, _state->getDevice());
-    }
-  }
-  int pointNumber = _lightManager->getPointLights().size();
-  _frameBufferPointLightDepth.resize(pointNumber);
-  for (int i = 0; i < pointNumber; i++) {
-    _frameBufferPointLightDepth[i].resize(_state->getSettings()->getMaxFramesInFlight());
-    auto cubemap = _lightManager->getPointLights()[i]->getDepthCubemap();
-    for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
-      _frameBufferPointLightDepth[i][j] = std::make_shared<Framebuffer>(
-          std::vector{cubemap[j]->getTexture()->getImageView()},
-          cubemap[j]->getTexture()->getImageView()->getImage()->getResolution(),
-          _renderPassLightDepth, _state->getDevice());
-    }
+        _textureRender[i]->getImageView()->getImage()->getResolution(), _renderPassGraphic, _state->getDevice());
   }
 
   _frameBufferDebug.resize(_swapchain->getImageViews().size());
   for (int i = 0; i < _frameBufferDebug.size(); i++) {
-    _frameBufferDebug[i] = std::make_shared<Framebuffer>(std::vector{_swapchain->getImageViews()[i]}, _renderPassDebug, _state->getDevice());
+    _frameBufferDebug[i] = std::make_shared<Framebuffer>(std::vector{_swapchain->getImageViews()[i]},
+                                                         _swapchain->getImageViews()[i]->getImage()->getResolution(),
+                                                         _renderPassDebug, _state->getDevice());
   }
 
   {
@@ -195,30 +172,11 @@ void Core::_directionalLightCalculator(int index) {
   loggerGPU->setCommandBufferName("Directional command buffer", commandBuffer);
 
   loggerGPU->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()));
-  // change layout to write one
-  VkImageMemoryBarrier imageMemoryBarrier{};
-  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  // We won't be changing the layout of the image
-  imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-  imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-  imageMemoryBarrier.image = _lightManager->getDirectionalLights()[index]
-                                 ->getDepthTexture()[frameInFlight]
-                                 ->getImageView()
-                                 ->getImage()
-                                 ->getImage();
-  imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-  imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[frameInFlight],
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, 0, 0,
-                       nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   //
   auto directionalLights = _lightManager->getDirectionalLights();
 
-  auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(_frameBufferDirectionalLightDepth[index][frameInFlight]);
+  auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
+      _frameBufferDirectionalLightDepth[index][frameInFlight]);
   VkClearValue clearDepth;
   clearDepth.depthStencil = {1.0f, 0};
   renderPassInfo.clearValueCount = 1;
@@ -262,34 +220,8 @@ void Core::_pointLightCalculator(int index, int face) {
                                   commandBuffer);
   commandBuffer->beginCommands();
   loggerGPU->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()));
-  // cubemap is the only image, rest is image views, so we need to perform change only once
-  if (face == 0) {
-    // change layout to write one
-    VkImageMemoryBarrier imageMemoryBarrier{};
-    imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    imageMemoryBarrier.image = _lightManager->getPointLights()[index]
-                                   ->getDepthCubemap()[frameInFlight]
-                                   ->getTexture()
-                                   ->getImageView()
-                                   ->getImage()
-                                   ->getImage();
-    imageMemoryBarrier.subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[frameInFlight],
-                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                         VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, 0, 0,
-                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
-  }
-  auto pointLights = _lightManager->getPointLights();
-
   auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
-      _frameBufferPointLightDepth[index][frameInFlight]);
+      _frameBufferPointLightDepth[index][frameInFlight][face]);
   VkClearValue clearDepth;
   clearDepth.depthStencil = {1.0f, 0};
   renderPassInfo.clearValueCount = 1;
@@ -473,25 +405,6 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   _loggerGPUDebug->end();
   vkCmdEndRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight]);
 
-  VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                                    .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                                    .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                    .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                    .image = _swapchain->getImageViews()[swapchainImageIndex]->getImage()->getImage(),
-                                    .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                                                         .baseMipLevel = 0,
-                                                         .levelCount = 1,
-                                                         .baseArrayLayer = 0,
-                                                         .layerCount = 1}};
-
-  vkCmdPipelineBarrier(_commandBufferGUI->getCommandBuffer()[frameInFlight],
-                       VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // srcStageMask
-                       VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,  // dstStageMask
-                       0, 0, nullptr, 0, nullptr,
-                       1,             // imageMemoryBarrierCount
-                       &colorBarrier  // pImageMemoryBarriers
-  );
-
   _commandBufferGUI->endCommands();
 }
 
@@ -512,7 +425,7 @@ void Core::_renderGraphic() {
   for (int i = 0; i < directionalNum; i++) {
     imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[i].image = _lightManager->getDirectionalLights()[i]
                                       ->getDepthTexture()[frameInFlight]
@@ -530,7 +443,7 @@ void Core::_renderGraphic() {
     int id = directionalNum + i;
     imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
-    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[id].image = _lightManager->getPointLights()[i]
                                        ->getDepthCubemap()[frameInFlight]
@@ -557,13 +470,13 @@ void Core::_renderGraphic() {
   clearColor[1].color = _state->getSettings()->getClearColor();
   clearColor[2].color = {1.0f, 0};
 
-  auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferGraphic[frameInFlight]);
+  auto renderPassInfo = _renderPassGraphic->getRenderPassInfo(_frameBufferGraphic[frameInFlight]);
   renderPassInfo.clearValueCount = 3;
   renderPassInfo.pClearValues = clearColor.data();
 
   auto globalFrame = _timer->getFrameCounter();
   // TODO: only one depth texture?
-  vkCmdBeginRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderPassInfo,
+  vkCmdBeginRenderPass(_commandBufferRender->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 
   _loggerGPU->begin("Render light " + std::to_string(globalFrame));
@@ -851,6 +764,36 @@ void Core::draw() {
     _timerFPSLimited->tock();
   }
   vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice());
+}
+
+std::shared_ptr<PointLight> Core::createPointLight(std::tuple<int, int> resolution) {
+  auto light = _lightManager->createPointLight(resolution);
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> pointLightDepth(_state->getSettings()->getMaxFramesInFlight());
+  auto cubemap = light->getDepthCubemap();
+  for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
+    std::vector<std::shared_ptr<Framebuffer>> pointLightFaces(6);
+    for (int i = 0; i < 6; i++) {
+      auto imageView = cubemap[j]->getTextureSeparate()[i][0]->getImageView();
+      pointLightFaces[i] = std::make_shared<Framebuffer>(std::vector{imageView}, imageView->getImage()->getResolution(),
+                                                         _renderPassLightDepth, _state->getDevice());
+    }
+    pointLightDepth[j] = pointLightFaces;
+  }
+  _frameBufferPointLightDepth.push_back(pointLightDepth);
+  return light;
+}
+
+std::shared_ptr<DirectionalLight> Core::createDirectionalLight(std::tuple<int, int> resolution) {
+  auto light = _lightManager->createDirectionalLight(resolution);
+  std::vector<std::shared_ptr<Framebuffer>> directionalLightDepth(_state->getSettings()->getMaxFramesInFlight());
+  auto textures = light->getDepthTexture();
+  for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
+    directionalLightDepth[j] = std::make_shared<Framebuffer>(std::vector{textures[j]->getImageView()},
+                                                             textures[j]->getImageView()->getImage()->getResolution(),
+                                                             _renderPassLightDepth, _state->getDevice());
+  }
+  _frameBufferDirectionalLightDepth.push_back(directionalLightDepth);
+  return light;
 }
 
 std::shared_ptr<CommandBuffer> Core::getCommandBufferTransfer() { return _commandBufferTransfer; }

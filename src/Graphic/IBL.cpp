@@ -70,18 +70,20 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
                                                          state->getDescriptorPool(), state->getDevice());
   _descriptorSetCamera->createUniformBuffer(_cameraBuffer);
 
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeIBL();
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineDiffuse->createGraphic3D(std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE,
-                                      VK_POLYGON_MODE_FILL,
+    _pipelineDiffuse->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                       {std::pair{std::string("camera"), cameraLayout},
                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                                      {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
+                                      {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions(),
+                                      _renderPass);
   }
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
@@ -91,24 +93,24 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
     shader->add("shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineSpecular->createGraphic3D(
-        std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {std::pair{std::string("camera"), cameraLayout},
-         std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-        defaultPushConstants, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
+    _pipelineSpecular->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                       {std::pair{std::string("camera"), cameraLayout},
+                                        std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+                                       defaultPushConstants, _mesh3D->getBindingDescription(),
+                                       _mesh3D->getAttributeDescriptions(), _renderPass);
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add("shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecularBRDF = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineSpecularBRDF->createGraphic2D(
-        std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(), _mesh2D->getAttributeDescriptions());
+    _pipelineSpecularBRDF->createGraphic2D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
+                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                           {{"camera", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
+                                           _mesh2D->getAttributeDescriptions(), _renderPass);
   }
 
   _loggerGPU = std::make_shared<LoggerGPU>(state);
@@ -140,9 +142,6 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
 
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeIBL();
-
   _frameBufferSpecular.resize(6);
   for (int i = 0; i < 6; i++) {
     _frameBufferSpecular[i].resize(_state->getSettings()->getSpecularMipMap());
@@ -150,20 +149,20 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
       auto currentTexture = _cubemapSpecular->getTextureSeparate()[i][j];
       auto [width, height] = currentTexture->getImageView()->getImage()->getResolution();
       _frameBufferSpecular[i][j] = std::make_shared<Framebuffer>(
-          std::vector{currentTexture}, std::tuple{width * std::pow(0.5, j), height * std::pow(0.5, j)}, _renderPass,
-          _state->getDevice());
+          std::vector{currentTexture->getImageView()}, std::tuple{width * std::pow(0.5, j), height * std::pow(0.5, j)},
+          _renderPass, _state->getDevice());
     }
   }
 
   _frameBufferDiffuse.resize(6);
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemapDiffuse->getTextureSeparate()[i][0];
-    _frameBufferDiffuse[i] = std::make_shared<Framebuffer>(std::vector{currentTexture},
+    _frameBufferDiffuse[i] = std::make_shared<Framebuffer>(std::vector{currentTexture->getImageView()},
                                                            currentTexture->getImageView()->getImage()->getResolution(),
                                                            _renderPass, _state->getDevice());
   }
 
-  _frameBufferBRDF = std::make_shared<Framebuffer>(_textureSpecularBRDF,
+  _frameBufferBRDF = std::make_shared<Framebuffer>(std::vector{_textureSpecularBRDF->getImageView()},
                                                    _textureSpecularBRDF->getImageView()->getImage()->getResolution(),
                                                    _renderPass, _state->getDevice());
 }

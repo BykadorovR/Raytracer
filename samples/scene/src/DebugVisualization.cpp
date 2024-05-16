@@ -16,9 +16,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = std::make_shared<Line>(
-        3, std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
-        commandBufferTransfer, state);
+    auto line = std::make_shared<Line>(3, commandBufferTransfer, state);
     auto mesh = line->getMesh();
     mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
     _lineFrustum[i] = line;
@@ -32,13 +30,13 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _B = b;
 
   _farPlaneCW = std::make_shared<Sprite>(
-      std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+
       lightManager, commandBufferTransfer, resourceManager, state);
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
   _farPlaneCCW = std::make_shared<Sprite>(
-      std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+
       lightManager, commandBufferTransfer, resourceManager, state);
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
@@ -48,7 +46,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   for (auto light : lightManager->getPointLights()) {
     _pointValue = light->getColor()[0];
     auto model = std::make_shared<Model3D>(
-        std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+
         boxModel->getNodes(), boxModel->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
     model->enableDepth(false);
     model->enableShadow(false);
@@ -57,17 +55,17 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
     _pointLightModels.push_back(model);
 
     auto sphereMesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
-    auto sphere = std::make_shared<Shape3D>(
-        ShapeType::SPHERE,
-        std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
-        VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager, state);
+    auto sphere = std::make_shared<Shape3D>(ShapeType::SPHERE,
+
+                                            VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager,
+                                            state);
     _spheres.push_back(sphere);
   }
 
   for (auto light : lightManager->getDirectionalLights()) {
     _directionalValue = light->getColor()[0];
     auto model = std::make_shared<Model3D>(
-        std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+
         boxModel->getNodes(), boxModel->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
     model->enableDepth(false);
     model->enableShadow(false);
@@ -89,7 +87,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   // need to compensate aspect ratio, texture is square but screen resolution is not
   model = glm::scale(model, scale);
   _spriteShadow = std::make_shared<Sprite>(
-      std::vector{state->getSettings()->getGraphicColorFormat(), state->getSettings()->getGraphicColorFormat()},
+
       lightManager, commandBufferTransfer, resourceManager, state);
   _spriteShadow->setModel(model);
   _spriteShadow->enableHUD(true);

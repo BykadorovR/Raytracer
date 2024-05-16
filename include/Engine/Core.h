@@ -25,8 +25,9 @@ class Core {
   // for compute render pass isn't needed
   std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
-  //store for each light, number in flight frame buffers
-  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth, _frameBufferPointLightDepth;
+  // store for each light, number in flight frame buffers
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth;
+  std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
   std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
@@ -100,6 +101,8 @@ class Core {
   // TODO: everything should be drawable
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
+  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
+  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   std::shared_ptr<LightManager> getLightManager();
   std::shared_ptr<ResourceManager> getResourceManager();
   std::shared_ptr<Postprocessing> getPostprocessing();

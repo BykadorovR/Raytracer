@@ -1,8 +1,7 @@
 #include "Sprite.h"
 #undef far
 
-Sprite::Sprite(std::vector<VkFormat> renderFormat,
-               std::shared_ptr<LightManager> lightManager,
+Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
@@ -76,6 +75,11 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
   _descriptorSetLayoutDepth[MaterialType::PBR].push_back(
       {"texture", _defaultMaterialPBR->getDescriptorSetLayoutTextures()});
 
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
+  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth->initializeLightDepth();
+
   // initialize Color
   {
     auto shader = std::make_shared<Shader>(_state->getDevice());
@@ -83,19 +87,20 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
     shader->add("shaders/sprite/spriteColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline[MaterialType::COLOR]->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+    _pipeline[MaterialType::COLOR]->createGraphic2D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
                                                     {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                      shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                     _descriptorSetLayout[MaterialType::COLOR], {},
-                                                    _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+                                                    _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
+                                                    _renderPass);
     // wireframe one
     _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineWireframe[MaterialType::COLOR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
-        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+    _pipelineWireframe[MaterialType::COLOR]->createGraphic2D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
+                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                                                             _descriptorSetLayout[MaterialType::COLOR], {},
+                                                             _mesh->getBindingDescription(),
+                                                             _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Phong
@@ -106,21 +111,21 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     // wireframe one
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize PBR
@@ -131,21 +136,21 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     // wireframe one
     _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PBR]->createGraphic2D(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
   // initialize Normal (per vertex)
   {
@@ -155,12 +160,12 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
     _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormal->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+    _pipelineNormal->createGraphic2D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                       shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                      _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
-                                     _mesh->getAttributeDescriptions());
+                                     _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Tangent (per vertex)
@@ -171,12 +176,12 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
     _pipelineTangent = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineTangent->createGraphic2D(renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
+    _pipelineTangent->createGraphic2D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
                                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                       _descriptorSetLayoutNormal, {}, _mesh->getBindingDescription(),
-                                      _mesh->getAttributeDescriptions());
+                                      _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize depth directional color
@@ -190,7 +195,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutDepth[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize depth directional Phong
@@ -204,7 +209,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutDepth[MaterialType::PHONG], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize depth directional PBR
@@ -218,7 +223,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutDepth[MaterialType::PBR], {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize depth point color
@@ -235,7 +240,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutDepth[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize depth point Phong
@@ -252,7 +257,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutDepth[MaterialType::PHONG], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
   // initialize depth point PBR
   {
@@ -268,7 +273,7 @@ Sprite::Sprite(std::vector<VkFormat> renderFormat,
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              _descriptorSetLayoutDepth[MaterialType::PBR],
                                                              defaultPushConstants, _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions());
+                                                             _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO

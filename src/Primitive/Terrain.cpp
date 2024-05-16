@@ -54,7 +54,6 @@ struct HeightLevels {
 
 Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::pair<int, int> patchNumber,
-                 std::vector<VkFormat> renderFormat,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<State> state) {
@@ -251,25 +250,27 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     shader->add("shaders/terrain/terrainColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
     shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+    _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+    _renderPass->initializeGraphic();
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::COLOR]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
 
     _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::COLOR]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::COLOR], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Phong
@@ -281,23 +282,23 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::PHONG], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
 
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::PHONG], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize PBR
@@ -309,23 +310,23 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::PBR], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
 
     _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PBR]->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayout[MaterialType::PBR], defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Normal (per vertex)
@@ -339,14 +340,14 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
     _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineNormalMesh->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Tangent (per vertex)
@@ -360,16 +361,18 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
     _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineTangentMesh->createGraphicTerrain(
-        renderFormat, VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
          shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPass);
   }
 
+  _renderPassShadow = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassShadow->initializeLightDepth();
   // initialize Shadows (Directional)
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
@@ -388,7 +391,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
         _descriptorSetLayoutShadows, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassShadow);
   }
 
   // initialize Shadows (Point)
@@ -412,7 +415,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
          shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayoutShadows, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions());
+        _mesh->getAttributeDescriptions(), _renderPassShadow);
   }
 }
 

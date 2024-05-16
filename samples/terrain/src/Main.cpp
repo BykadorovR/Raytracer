@@ -55,41 +55,38 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
   //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
+
+  auto lightManager = _core->getLightManager();
   auto ambientLight = lightManager->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
-
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                        commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                          commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -141,10 +138,8 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                            mipMapLevels, commandBufferTransfer, state);
 
-    _terrainColor = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+    _terrainColor = std::make_shared<Terrain>(_core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}),
+                                              std::pair{12, 12}, commandBufferTransfer, lightManager, state);
     auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialColor->setBaseColor({tile0, tile1, tile2, tile3});
     _terrainColor->setMaterial(materialColor);
@@ -189,10 +184,8 @@ Main::Main() {
         settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
         state);
 
-    _terrainPhong = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+    _terrainPhong = std::make_shared<Terrain>(_core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}),
+                                              std::pair{12, 12}, commandBufferTransfer, lightManager, state);
     auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
@@ -284,10 +277,8 @@ Main::Main() {
                                              settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
                                              mipMapLevels, commandBufferTransfer, state);
 
-    _terrainPBR = std::make_shared<Terrain>(
-        _core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+    _terrainPBR = std::make_shared<Terrain>(_core->getResourceManager()->loadImageGPU({"../assets/heightmap.png"}),
+                                            std::pair{12, 12}, commandBufferTransfer, lightManager, state);
     auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});

@@ -90,18 +90,20 @@ Equirectangular::Equirectangular(std::string path,
 
   _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _material->setBaseColor({_texture});
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeIBL();
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add("shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineEquirectangular->createGraphic3D(
-        std::vector{_state->getSettings()->getGraphicColorFormat()}, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {std::pair{std::string("camera"), cameraLayout},
          std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-        {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions());
+        {}, _mesh3D->getBindingDescription(), _mesh3D->getAttributeDescriptions(), _renderPass);
   }
 
   _loggerGPU = std::make_shared<LoggerGPU>(state);
@@ -111,12 +113,10 @@ Equirectangular::Equirectangular(std::string path,
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
 
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeIBL();
   _frameBuffer.resize(6);
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemap->getTextureSeparate()[i][0];
-    _frameBuffer[i] = std::make_shared<Framebuffer>(std::vector{currentTexture},
+    _frameBuffer[i] = std::make_shared<Framebuffer>(std::vector{currentTexture->getImageView()},
                                                     currentTexture->getImageView()->getImage()->getResolution(),
                                                     _renderPass, _state->getDevice());
   }

@@ -28,6 +28,7 @@ class Terrain : public Drawable, public Shadowable {
   std::shared_ptr<DescriptorSet> _descriptorSetCameraControl, _descriptorSetCameraEvaluation,
       _descriptorSetCameraGeometry, _descriptorSetHeight;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
+  std::shared_ptr<RenderPass> _renderPass, _renderPassShadow;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<Texture> _heightMap;
   std::pair<int, int> _patchNumber;
@@ -47,7 +48,6 @@ class Terrain : public Drawable, public Shadowable {
  public:
   Terrain(std::shared_ptr<BufferImage> heightMap,
           std::pair<int, int> patchNumber,
-          std::vector<VkFormat> renderFormat,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<State> state);

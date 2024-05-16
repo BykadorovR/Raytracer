@@ -7,6 +7,7 @@
 #include "Pipeline.h"
 #include "ResourceManager.h"
 #include "Drawable.h"
+#include "Render.h"
 
 class Skybox {
  private:
@@ -15,6 +16,7 @@ class Skybox {
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _pipeline;
+  std::shared_ptr<RenderPass> _renderPass;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   MaterialType _materialType = MaterialType::COLOR;

@@ -44,15 +44,15 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   auto shader = std::make_shared<Shader>(state->getDevice());
   shader->add("shaders/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createSkybox(
-      std::vector{_state->getSettings()->getGraphicColorFormat(), _state->getSettings()->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-      {std::pair{std::string("camera"), setLayout},
-       std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-      {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+  _pipeline->createSkybox(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                          {std::pair{std::string("camera"), setLayout},
+                           std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
+                          {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 }
 
 void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {

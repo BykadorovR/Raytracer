@@ -2,7 +2,6 @@
 #undef far
 
 Shape3D::Shape3D(ShapeType shapeType,
-                 std::vector<VkFormat> renderFormat,
                  VkCullModeFlags cullMode,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -140,24 +139,29 @@ Shape3D::Shape3D(ShapeType shapeType,
       _descriptorSetCameraDepth.push_back(facesSet);
     }
   }
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
+  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth->initializeLightDepth();
   // initialize Color
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
     shader->add(_shadersColor[_shapeType][MaterialType::COLOR][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersColor[_shapeType][MaterialType::COLOR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipeline[MaterialType::COLOR]->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+    _pipeline[MaterialType::COLOR]->createGraphic3D(cullMode, VK_POLYGON_MODE_FILL,
                                                     {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                      shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                     _descriptorSetLayout[MaterialType::COLOR], {},
-                                                    _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+                                                    _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
+                                                    _renderPass);
     _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_LINE,
+    _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(cullMode, VK_POLYGON_MODE_LINE,
                                                              {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                                               shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                              _descriptorSetLayout[MaterialType::COLOR], {},
                                                              _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions());
+                                                             _mesh->getAttributeDescriptions(), _renderPass);
   }
   // initialize Phong
   {
@@ -167,21 +171,21 @@ Shape3D::Shape3D(ShapeType shapeType,
 
     _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+        cullMode, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     // wireframe one
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
-        renderFormat, cullMode, VK_POLYGON_MODE_LINE,
+        cullMode, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PHONG],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
   // initialize PBR
   {
@@ -191,21 +195,21 @@ Shape3D::Shape3D(ShapeType shapeType,
 
     _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipeline[MaterialType::PBR]->createGraphic3D(
-        renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+        cullMode, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     // wireframe one
     _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineWireframe[MaterialType::PBR]->createGraphic3D(
-        renderFormat, cullMode, VK_POLYGON_MODE_LINE,
+        cullMode, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         _descriptorSetLayout[MaterialType::PBR],
         std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // initialize Normal (per vertex)
@@ -216,12 +220,12 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
     _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineNormalMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+    _pipelineNormalMesh->createGraphic3D(cullMode, VK_POLYGON_MODE_FILL,
                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
                                           shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
                                          _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
-                                         _mesh->getAttributeDescriptions());
+                                         _mesh->getAttributeDescriptions(), _renderPass);
   }
   // initialize Tangent (per vertex)
   {
@@ -231,12 +235,12 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersTangentMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
     _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelineTangentMesh->createGraphic3D(renderFormat, cullMode, VK_POLYGON_MODE_FILL,
+    _pipelineTangentMesh->createGraphic3D(cullMode, VK_POLYGON_MODE_FILL,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
                                           _descriptorSetLayoutNormalsMesh, {}, _mesh->getBindingDescription(),
-                                          _mesh->getAttributeDescriptions());
+                                          _mesh->getAttributeDescriptions(), _renderPass);
   }
   // initialize shadows directional
   {
@@ -245,7 +249,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", layoutCamera}}, {},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize shadows point
@@ -261,7 +265,8 @@ Shape3D::Shape3D(ShapeType shapeType,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                           {{"camera", layoutCamera}}, defaultPushConstants,
-                                          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions());
+                                          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
+                                          _renderPassDepth);
   }
 }
 

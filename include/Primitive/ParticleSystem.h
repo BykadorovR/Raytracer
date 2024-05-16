@@ -5,6 +5,7 @@
 #include "Descriptor.h"
 #include "Pipeline.h"
 #include "Drawable.h"
+#include "Render.h"
 
 struct Particle {
   glm::vec3 position;
@@ -73,6 +74,7 @@ class ParticleSystem : public Drawable {
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCompute;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetTexture;
   std::shared_ptr<Pipeline> _computePipeline, _graphicPipeline;
+  std::shared_ptr<RenderPass> _renderPass;
   float _frameTimer = 0.f;
   float _pointScale = 60.f;
 

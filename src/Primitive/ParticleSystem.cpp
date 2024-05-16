@@ -45,16 +45,16 @@ void ParticleSystem::_initializeGraphic() {
   _descriptorSetTexture = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
                                                           _state->getDevice());
   _descriptorSetTexture->createTexture({_texture});
-
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _graphicPipeline->createParticleSystemGraphic(
-      std::vector{_state->getSettings()->getGraphicColorFormat(), _state->getSettings()->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}},
       std::map<std::string, VkPushConstantRange>{{std::string("vertex"), VertexConstants::getPushConstant()}},
-      Particle::getBindingDescription(), Particle::getAttributeDescriptions());
+      Particle::getBindingDescription(), Particle::getAttributeDescriptions(), _renderPass);
 }
 
 void ParticleSystem::_initializeCompute() {

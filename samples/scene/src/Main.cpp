@@ -64,22 +64,22 @@ Main::Main() {
   auto gui = _core->getGUI();
   auto postprocessing = _core->getPostprocessing();
 
-  auto lightManager = _core->getLightManager();
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
 
-  auto ambientLight = lightManager->createAmbientLight();
+  auto ambientLight = _core->getLightManager()->createAmbientLight();
   // calculate ambient color with default gamma
   float ambientColor = std::pow(0.05f, postprocessing->getGamma());
   ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
 
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->setPosition({0.f, 35.f, 0.f});
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
+  auto lightManager = _core->getLightManager();
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_debugVisualization));
 
@@ -99,9 +99,8 @@ Main::Main() {
     material->setNormal({normalMap});
     material->setSpecular({_core->getResourceManager()->getTextureZero()});
 
-    auto spriteForward = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteForward = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                  state);
     spriteForward->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
@@ -109,9 +108,8 @@ Main::Main() {
     }
     _core->addDrawable(spriteForward);
 
-    auto spriteBackward = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteBackward = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                   state);
     spriteBackward->setMaterial(material);
     {
       auto model = glm::rotate(glm::mat4(1.f), glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
@@ -119,9 +117,7 @@ Main::Main() {
     }
     _core->addDrawable(spriteBackward);
 
-    auto spriteLeft = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteLeft = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     spriteLeft->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
@@ -130,9 +126,8 @@ Main::Main() {
     }
     _core->addDrawable(spriteLeft);
 
-    auto spriteRight = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteRight = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                state);
     spriteRight->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
@@ -141,9 +136,7 @@ Main::Main() {
     }
     _core->addDrawable(spriteRight);
 
-    auto spriteTop = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteTop = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     spriteTop->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
@@ -152,9 +145,7 @@ Main::Main() {
     }
     _core->addDrawable(spriteTop);
 
-    auto spriteBot = std::make_shared<Sprite>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-        commandBufferTransfer, _core->getResourceManager(), state);
+    auto spriteBot = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
     spriteBot->setMaterial(material);
     {
       glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
@@ -164,9 +155,8 @@ Main::Main() {
     _core->addDrawable(spriteBot);
   }
   auto modelGLTF = _core->getResourceManager()->loadModel("../../IBL/assets/DamagedHelmet/DamagedHelmet.gltf");
-  auto modelGLTFPhong = std::make_shared<Model3D>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
-      modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto modelGLTFPhong = std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), lightManager,
+                                                  commandBufferTransfer, _core->getResourceManager(), state);
   modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
@@ -176,9 +166,8 @@ Main::Main() {
   _core->addDrawable(modelGLTFPhong);
   _core->addShadowable(modelGLTFPhong);
 
-  auto modelGLTFPBR = std::make_shared<Model3D>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
-      modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto modelGLTFPBR = std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), lightManager,
+                                                commandBufferTransfer, _core->getResourceManager(), state);
   auto pbrMaterial = modelGLTF->getMaterialsPBR();
   modelGLTFPBR->setMaterial(pbrMaterial);
   {
@@ -204,8 +193,7 @@ Main::Main() {
 
   auto terrain = std::make_shared<Terrain>(
       _core->getResourceManager()->loadImageGPU({"../assets/Terrain/heightmap.png"}), std::pair{12, 12},
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      lightManager, state);
+      commandBufferTransfer, lightManager, state);
   auto materialTerrain = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
   materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
   auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -269,50 +257,44 @@ Main::Main() {
 
   std::vector<std::shared_ptr<Shape3D>> spheres(6);
   // non HDR
-  spheres[0] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[0] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
     spheres[0]->setModel(model);
   }
-  spheres[1] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[1] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
     spheres[1]->setModel(model);
   }
-  spheres[2] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[2] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
     spheres[2]->setModel(model);
   }
   // HDR
-  spheres[3] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[3] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
     spheres[3]->setModel(model);
   }
-  spheres[4] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[4] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
     spheres[4]->setModel(model);
   }
-  spheres[5] = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  spheres[5] = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer,
+                                         _core->getResourceManager(), state);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
@@ -330,9 +312,8 @@ Main::Main() {
           "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"}),
       settings->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
-  auto cube = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cube = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_NONE, lightManager, commandBufferTransfer,
+                                        _core->getResourceManager(), state);
   auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   materialColor->setBaseColor({cubemap->getTexture()});
   cube->setMaterial(materialColor);
@@ -344,27 +325,24 @@ Main::Main() {
 
   auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
 
-  auto equiCube = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto equiCube = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_NONE, lightManager, commandBufferTransfer,
+                                            _core->getResourceManager(), state);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
     equiCube->setModel(model);
   }
   _core->addDrawable(equiCube);
 
-  auto diffuseCube = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto diffuseCube = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_NONE, lightManager, commandBufferTransfer,
+                                               _core->getResourceManager(), state);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
     diffuseCube->setModel(model);
   }
   _core->addDrawable(diffuseCube);
 
-  auto specularCube = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto specularCube = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_NONE, lightManager, commandBufferTransfer,
+                                                _core->getResourceManager(), state);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
     specularCube->setModel(model);
@@ -410,9 +388,7 @@ Main::Main() {
   materialBRDF->setNormal({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setSpecular({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
-  auto spriteBRDF = std::make_shared<Sprite>(
-      std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, lightManager,
-      commandBufferTransfer, _core->getResourceManager(), state);
+  auto spriteBRDF = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   spriteBRDF->enableLighting(false);
   spriteBRDF->enableShadow(false);
   spriteBRDF->enableDepth(false);

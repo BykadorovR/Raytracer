@@ -161,13 +161,8 @@ void Device::_createLogicalDevice() {
   deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
 
-  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
-      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-      .dynamicRendering = VK_TRUE};
-
   VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
-      .pNext = (void*)&dynamicRenderingFeature,
       .robustBufferAccess2 = VK_FALSE,
       .robustImageAccess2 = VK_FALSE,
       .nullDescriptor = VK_TRUE};

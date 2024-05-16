@@ -8,6 +8,7 @@ class RenderPass {
   std::shared_ptr<Device> _device;
   std::shared_ptr<Settings> _settings;
   VkRenderPass _renderPass;
+  int _colorAttachmentNumber = 0;
 
  public:
   RenderPass(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
@@ -17,6 +18,7 @@ class RenderPass {
   void initializeIBL();
   VkRenderPassBeginInfo getRenderPassInfo(std::shared_ptr<Framebuffer> framebuffer);
   VkRenderPass& getRenderPass();
+  int getColorAttachmentNumber();
   ~RenderPass();
 };
 
@@ -25,9 +27,12 @@ class Framebuffer {
   std::shared_ptr<Device> _device;
   VkFramebuffer _buffer;
   std::tuple<int, int> _resolution;
+
  public:
-  Framebuffer(std::vector<std::shared_ptr<ImageView>> input, std::tuple<int, int> renderArea,
-              std::shared_ptr<RenderPass> renderPass, std::shared_ptr<Device> device);
+  Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
+              std::tuple<int, int> renderArea,
+              std::shared_ptr<RenderPass> renderPass,
+              std::shared_ptr<Device> device);
 
   std::tuple<int, int> getResolution();
   VkFramebuffer getBuffer();
