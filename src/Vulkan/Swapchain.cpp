@@ -126,9 +126,7 @@ void Swapchain::_initialize() {
   }
 }
 
-void Swapchain::_destroy() {
-  vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr);  
-}
+void Swapchain::_destroy() { vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr); }
 
 void Swapchain::reset() {
   if (vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice()) != VK_SUCCESS)

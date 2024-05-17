@@ -57,39 +57,35 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
   //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
-
+  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                        commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                          commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -122,9 +118,8 @@ Main::Main() {
   };
 
   // cube colored
-  auto cubeColored = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColored = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                               commandBufferTransfer, _core->getResourceManager(), state);
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
   {
@@ -163,9 +158,8 @@ Main::Main() {
   materialSpherePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                     _core->getResourceManager()->getTextureZero());
 
-  auto sphereTexturedPBR = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedPBR = std::make_shared<Shape3D>(ShapeType::SPHERE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                     commandBufferTransfer, _core->getResourceManager(), state);
   sphereTexturedPBR->setMaterial(materialSpherePBR);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
@@ -176,9 +170,9 @@ Main::Main() {
   // draw skeletal dancing model with one animation
   {
     auto gltfModelDancing = _core->getResourceManager()->loadModel("../../model/assets/BrainStem/BrainStem.gltf");
-    auto modelDancing = std::make_shared<Model3D>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, gltfModelDancing->getNodes(),
-        gltfModelDancing->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelDancing = std::make_shared<Model3D>(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes(),
+                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
+                                                  state);
     auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
     for (auto& material : materialModelDancing) {
       fillMaterialPBR(material);
@@ -216,8 +210,7 @@ Main::Main() {
         state);
     auto terrainPhong = std::make_shared<Terrain>(
         _core->getResourceManager()->loadImageGPU({"../../terrain/assets/heightmap.png"}), std::pair{12, 12},
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-        lightManager, state);
+        commandBufferTransfer, lightManager, state);
     auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
     materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialPhong(materialPhong);

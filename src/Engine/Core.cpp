@@ -704,11 +704,13 @@ void Core::_drawFrame(int imageIndex) {
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPreCompute[frameInFlight].size(),
                 _frameSubmitInfoPreCompute[frameInFlight].data(), nullptr);
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoGraphic[frameInFlight].size(),
-                _frameSubmitInfoGraphic[frameInFlight].data(), _fenceInFlight[frameInFlight]->getFence());
+                _frameSubmitInfoGraphic[frameInFlight].data(), nullptr);
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPostCompute[frameInFlight].size(),
                 _frameSubmitInfoPostCompute[frameInFlight].data(), nullptr);
+  // latest graphic job should signal fence about completion, otherwise render signal that it's done, but debug still in
+  // progress (for 0 frame) and we submit new frame with 0 index
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoDebug[frameInFlight].size(),
-                _frameSubmitInfoDebug[frameInFlight].data(), nullptr);
+                _frameSubmitInfoDebug[frameInFlight].data(), _fenceInFlight[frameInFlight]->getFence());
 }
 
 void Core::_displayFrame(uint32_t* imageIndex) {

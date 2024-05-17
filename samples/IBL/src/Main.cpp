@@ -62,12 +62,11 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
@@ -75,26 +74,24 @@ Main::Main() {
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
+  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                        commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
+                                                          commandBufferTransfer, _core->getResourceManager(), state);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -122,9 +119,8 @@ Main::Main() {
 
   {
     auto modelGLTF = _core->getResourceManager()->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
-    auto modelPBR = std::make_shared<Model3D>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
-        modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelPBR = std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), lightManager,
+                                              commandBufferTransfer, _core->getResourceManager(), state);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
     for (auto& material : materialDamagedHelmet) {
       material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
