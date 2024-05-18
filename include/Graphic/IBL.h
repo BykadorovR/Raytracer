@@ -15,6 +15,7 @@ class IBL {
   std::shared_ptr<Mesh3D> _mesh3D;
   std::shared_ptr<Mesh2D> _mesh2D;
   std::vector<std::shared_ptr<UniformBuffer>> _cameraBufferCubemap;
+  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
@@ -49,8 +50,7 @@ class IBL {
   std::shared_ptr<Cubemap> getCubemapDiffuse();
   std::shared_ptr<Cubemap> getCubemapSpecular();
   std::shared_ptr<Texture> getTextureSpecularBRDF();
-
-  void drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer);
-  void drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer);
-  void drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawSpecularBRDF();
+  void drawDiffuse();
+  void drawSpecular();
 };

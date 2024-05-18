@@ -52,9 +52,7 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
+  _core->startRecording();
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
@@ -74,27 +72,23 @@ Main::Main() {
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
-  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                        commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                          commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -102,25 +96,23 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto equirectangular = std::make_shared<Equirectangular>("../assets/newport_loft.hdr", commandBufferTransfer,
-                                                           _core->getResourceManager(), state);
-  auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
-  auto materialSkybox = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
+  auto cubemapConverted = equirectangular->getCubemap();
+  auto materialSkybox = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
-  auto skybox = std::make_shared<Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
+  auto skybox = _core->createSkybox();
   skybox->setMaterial(materialSkybox);
   _core->addSkybox(skybox);
 
-  auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto ibl = _core->createIBL();
   ibl->setMaterial(materialSkybox);
-  ibl->drawDiffuse(commandBufferTransfer);
-  ibl->drawSpecular(commandBufferTransfer);
-  ibl->drawSpecularBRDF(commandBufferTransfer);
+  ibl->drawDiffuse();
+  ibl->drawSpecular();
+  ibl->drawSpecularBRDF();
 
   {
-    auto modelGLTF = _core->getResourceManager()->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
-    auto modelPBR = std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), lightManager,
-                                              commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelGLTF = _core->createModelGLTF("../assets/DamagedHelmet/DamagedHelmet.gltf");
+    auto modelPBR = _core->createModel3D(modelGLTF);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
     for (auto& material : materialDamagedHelmet) {
       material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
@@ -135,19 +127,7 @@ Main::Main() {
     _core->addDrawable(modelPBR);
   }
 
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
-
+  _core->endRecording();
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset
   _core->registerReset(std::bind(&Main::reset, this, std::placeholders::_1, std::placeholders::_2));

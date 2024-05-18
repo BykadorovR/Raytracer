@@ -25,16 +25,21 @@ void CommandBuffer::beginCommands() {
   beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
   vkBeginCommandBuffer(_buffer[frameInFlight], &beginInfo);
+  _active = true;
 }
 
 void CommandBuffer::endCommands() {
   int frameInFlight = _state->getFrameInFlight();
   vkEndCommandBuffer(_buffer[frameInFlight]);
+  _active = false;
 }
+
+bool CommandBuffer::getActive() { return _active; }
 
 std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer; }
 
 CommandBuffer::~CommandBuffer() {
+  _active = false;
   for (auto& buffer : _buffer)
     vkFreeCommandBuffers(_state->getDevice()->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
 }

@@ -114,7 +114,12 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
     std::vector<std::shared_ptr<Mesh3D>> meshes;
     tinygltf::Model modelInternal;
     std::string err, warn;
-    bool loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
+    bool loaded = false;
+    std::string extension = path.substr(path.find_last_of(".") + 1);
+    if (extension == "gltf")
+      loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
+    else if (extension == "glb")
+      loaded = _loader.LoadBinaryFromFile(&modelInternal, &err, &warn, path);
     if (loaded == false) throw std::runtime_error("Can't load model");
 
     // allocate meshes

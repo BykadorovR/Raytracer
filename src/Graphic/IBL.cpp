@@ -5,6 +5,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state) {
   _state = state;
+  _commandBufferTransfer = commandBufferTransfer;
   _mesh3D = std::make_shared<Mesh3D>(state);
   _mesh2D = std::make_shared<Mesh2D>(state);
   _lightManager = lightManager;
@@ -229,11 +230,12 @@ void IBL::_draw(int face,
                    static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
 }
 
-void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
-  _loggerGPU->setCommandBufferName("Draw specular buffer", commandBuffer);
+void IBL::drawSpecular() {
+  if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
+  _loggerGPU->setCommandBufferName("Draw specular buffer", _commandBufferTransfer);
 
   auto currentFrame = _state->getFrameInFlight();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineSpecular->getPipeline());
 
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -248,7 +250,7 @@ void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
       renderPassInfo.pClearValues = &clearColor;
 
       // TODO: only one depth texture?
-      vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo,
+      vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                            VK_SUBPASS_CONTENTS_INLINE);
 
       _loggerGPU->begin("Render specular");
@@ -290,47 +292,50 @@ void IBL::drawSpecular(std::shared_ptr<CommandBuffer> commandBuffer) {
       viewport.height = height;
       viewport.minDepth = 0.0f;
       viewport.maxDepth = 1.0f;
-      vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+      vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
       VkRect2D scissor{};
       scissor.offset = {0, 0};
       scissor.extent = VkExtent2D(width, height);
-      vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+      vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
       if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
         RoughnessConstants pushConstants;
         float roughness = (float)j / (float)(_state->getSettings()->getSpecularMipMap() - 1);
         pushConstants.roughness = roughness;
-        vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _pipelineSpecular->getPipelineLayout(),
-                           VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(RoughnessConstants), &pushConstants);
+        vkCmdPushConstants(_commandBufferTransfer->getCommandBuffer()[currentFrame],
+                           _pipelineSpecular->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+                           sizeof(RoughnessConstants), &pushConstants);
       }
 
-      _draw(i, _camera, commandBuffer, _pipelineSpecular);
+      _draw(i, _camera, _commandBufferTransfer, _pipelineSpecular);
 
       _loggerGPU->end();
 
-      vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+      vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
     }
   }
 }
 
-void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
+void IBL::drawDiffuse() {
+  if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
   // render cubemap to diffuse
-  _loggerGPU->setCommandBufferName("Draw diffuse buffer", commandBuffer);
+  _loggerGPU->setCommandBufferName("Draw diffuse buffer", _commandBufferTransfer);
   auto currentFrame = _state->getFrameInFlight();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineDiffuse->getPipeline());
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
-    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferSpecular[i][currentFrame]);
+    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferDiffuse[i]);
     VkClearValue clearColor;
     clearColor.color = _state->getSettings()->getClearColor();
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[0], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
 
     _loggerGPU->begin("Render diffuse");
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
@@ -368,22 +373,23 @@ void IBL::drawDiffuse(std::shared_ptr<CommandBuffer> commandBuffer) {
     viewport.height = height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = VkExtent2D(width, height);
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-    _draw(i, _camera, commandBuffer, _pipelineDiffuse);
+    vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    _draw(i, _camera, _commandBufferTransfer, _pipelineDiffuse);
 
     _loggerGPU->end();
 
-    vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
   }
 }
 
-void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
-  _loggerGPU->setCommandBufferName("Draw specular brdf", commandBuffer);
+void IBL::drawSpecularBRDF() {
+  if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
+  _loggerGPU->setCommandBufferName("Draw specular brdf", _commandBufferTransfer);
 
   auto resolution = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
   int currentFrame = _state->getFrameInFlight();
@@ -394,12 +400,12 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
   viewport.height = -std::get<1>(resolution);
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferBRDF);
   VkClearValue clearColor;
@@ -407,7 +413,8 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearColor;
 
-  vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[currentFrame], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+  vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
+                       VK_SUBPASS_CONTENTS_INLINE);
 
   _loggerGPU->begin("Render specular brdf");
   BufferMVP cameraMVP{};
@@ -424,13 +431,13 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   VkBuffer vertexBuffers[] = {_mesh2D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
+  vkCmdBindIndexBuffer(_commandBufferTransfer->getCommandBuffer()[currentFrame],
                        _mesh2D->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = _pipelineSpecularBRDF->getDescriptorSetLayout();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineSpecularBRDF->getPipeline());
 
   // camera
@@ -439,14 +446,14 @@ void IBL::drawSpecularBRDF(std::shared_ptr<CommandBuffer> commandBuffer) {
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipelineSpecularBRDF->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
+  vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer()[currentFrame],
                    static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1, 0, 0, 0);
   _loggerGPU->end();
 
-  vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[currentFrame]);
+  vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
 }

@@ -105,13 +105,13 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGui::NewFrame();
 }
 
-void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable) {
+void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
   for (auto& [key, value] : variable) {
     std::vector<const char*> listFormatted;
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
-    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 2);
+    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber);
   }
 }
 

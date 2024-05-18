@@ -120,8 +120,6 @@ Core::Core(std::shared_ptr<Settings> settings) {
   }
 }
 
-void Core::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void Core::_initializeTextures() {
   auto settings = _state->getSettings();
   _textureRender.resize(settings->getMaxFramesInFlight());
@@ -768,6 +766,127 @@ void Core::draw() {
   vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice());
 }
 
+void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
+
+void Core::registerReset(std::function<void(int width, int height)> reset) { _callbackReset = reset; }
+
+void Core::startRecording() { _commandBufferTransfer->beginCommands(); }
+
+void Core::endRecording() {
+  _commandBufferTransfer->endCommands();
+  // TODO: remove vkQueueWaitIdle, add fence or semaphore
+  // TODO: move this function to core
+  {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[0];
+    auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+  }
+}
+
+void Core::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+
+void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
+
+void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
+
+void Core::addSkybox(std::shared_ptr<Skybox> skybox) { _skybox = skybox; }
+
+void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
+  _particleSystem.push_back(particleSystem);
+  addDrawable(particleSystem);
+}
+
+void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
+  for (auto& [_, drawableVector] : _drawables)
+    drawableVector.erase(std::remove(drawableVector.begin(), drawableVector.end(), drawable), drawableVector.end());
+}
+
+std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> Core::loadImageCPU(std::string path) {
+  return _resourceManager->loadImageCPU(path);
+}
+
+std::shared_ptr<BufferImage> Core::loadImageGPU(std::string path) { return _resourceManager->loadImageGPU({path}); }
+
+std::shared_ptr<Texture> Core::createTexture(std::string name, VkFormat format, int mipMapLevels) {
+  auto texture = std::make_shared<Texture>(_resourceManager->loadImageGPU({name}), format,
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, _commandBufferTransfer,
+                                           _state);
+  return texture;
+}
+
+std::shared_ptr<Cubemap> Core::createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels) {
+  return std::make_shared<Cubemap>(
+      _resourceManager->loadImageGPU(paths), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
+      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<ModelGLTF> Core::createModelGLTF(std::string path) { return _resourceManager->loadModel(path); }
+
+std::shared_ptr<Animation> Core::createAnimation(std::shared_ptr<ModelGLTF> modelGLTF) {
+  auto animation = std::make_shared<Animation>(modelGLTF->getNodes(), modelGLTF->getSkins(), modelGLTF->getAnimations(),
+                                               _state);
+  _animations.push_back(animation);
+  return animation;
+}
+
+std::shared_ptr<Equirectangular> Core::createEquirectangular(std::string path) {
+  return std::make_shared<Equirectangular>(path, _commandBufferTransfer, _resourceManager, _state);
+}
+
+std::shared_ptr<MaterialColor> Core::createMaterialColor(MaterialTarget target) {
+  return std::make_shared<MaterialColor>(target, _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<MaterialPhong> Core::createMaterialPhong(MaterialTarget target) {
+  return std::make_shared<MaterialPhong>(target, _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
+  return std::make_shared<MaterialPBR>(target, _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {
+  auto shape = std::make_shared<Shape3D>(shapeType, cullMode, _lightManager, _commandBufferTransfer, _resourceManager,
+                                         _state);
+  return shape;
+}
+
+std::shared_ptr<Model3D> Core::createModel3D(std::shared_ptr<ModelGLTF> modelGLTF) {
+  return std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), _lightManager, _commandBufferTransfer,
+                                   _resourceManager, _state);
+}
+
+std::shared_ptr<Sprite> Core::createSprite() {
+  return std::make_shared<Sprite>(_lightManager, _commandBufferTransfer, _resourceManager, _state);
+}
+
+std::shared_ptr<Terrain> Core::createTerrain(std::string heightmap, std::pair<int, int> patches) {
+  return std::make_shared<Terrain>(_resourceManager->loadImageGPU({heightmap}), patches, _commandBufferTransfer,
+                                   _lightManager, _state);
+}
+
+std::shared_ptr<Line> Core::createLine(int thick) {
+  return std::make_shared<Line>(thick, _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<IBL> Core::createIBL() {
+  return std::make_shared<IBL>(_lightManager, _commandBufferTransfer, _resourceManager, _state);
+}
+
+std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle> particles,
+                                                           std::shared_ptr<Texture> particleTexture) {
+  return std::make_shared<ParticleSystem>(particles, particleTexture, _commandBufferTransfer, _state);
+}
+
+std::shared_ptr<Skybox> Core::createSkybox() {
+  return std::make_shared<Skybox>(_commandBufferTransfer, _resourceManager, _state);
+}
+
 std::shared_ptr<PointLight> Core::createPointLight(std::tuple<int, int> resolution) {
   auto light = _lightManager->createPointLight(resolution);
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> pointLightDepth(_state->getSettings()->getMaxFramesInFlight());
@@ -798,42 +917,26 @@ std::shared_ptr<DirectionalLight> Core::createDirectionalLight(std::tuple<int, i
   return light;
 }
 
+std::shared_ptr<AmbientLight> Core::createAmbientLight() { return _lightManager->createAmbientLight(); }
+
 std::shared_ptr<CommandBuffer> Core::getCommandBufferTransfer() { return _commandBufferTransfer; }
 
 std::shared_ptr<ResourceManager> Core::getResourceManager() { return _resourceManager; }
 
+const std::vector<std::shared_ptr<Drawable>>& Core::getDrawables(AlphaType type) { return _drawables[type]; }
+
+std::vector<std::shared_ptr<PointLight>> Core::getPointLights() { return _lightManager->getPointLights(); }
+
+std::vector<std::shared_ptr<DirectionalLight>> Core::getDirectionalLights() {
+  return _lightManager->getDirectionalLights();
+}
+
 std::shared_ptr<Postprocessing> Core::getPostprocessing() { return _postprocessing; }
 
 std::shared_ptr<Blur> Core::getBlur() { return _blur; }
-
-std::shared_ptr<LightManager> Core::getLightManager() { return _lightManager; }
 
 std::shared_ptr<State> Core::getState() { return _state; }
 
 std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 
 std::tuple<int, int> Core::getFPS() { return {_timerFPSLimited->getFPS(), _timerFPSReal->getFPS()}; }
-
-void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
-
-void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
-
-void Core::addAnimation(std::shared_ptr<Animation> animation) { _animations.push_back(animation); }
-
-void Core::addSkybox(std::shared_ptr<Skybox> skybox) { _skybox = skybox; }
-
-void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
-  _particleSystem.push_back(particleSystem);
-  addDrawable(particleSystem);
-}
-
-void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
-  for (auto& [_, drawableVector] : _drawables)
-    drawableVector.erase(std::remove(drawableVector.begin(), drawableVector.end(), drawable), drawableVector.end());
-}
-
-const std::vector<std::shared_ptr<Drawable>>& Core::getDrawables(AlphaType type) { return _drawables[type]; }
-
-void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
-
-void Core::registerReset(std::function<void(int width, int height)> reset) { _callbackReset = reset; }

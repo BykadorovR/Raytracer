@@ -46,9 +46,7 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
+  _core->startRecording();
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
@@ -68,27 +66,23 @@ Main::Main() {
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
-  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                        commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                          commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -116,11 +110,10 @@ Main::Main() {
 
   // draw textured Sprite, check alpha blending
   {
-    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureAuxilaryFormat(),
+                                        mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     {
@@ -134,11 +127,10 @@ Main::Main() {
 
   // draw textured Sprite without lighting
   {
-    auto textureTree = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/tree.png"}), settings->getLoadTextureAuxilaryFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureAuxilaryFormat(),
+                                            mipMapLevels);
+    auto spriteTree = _core->createSprite();
+    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({textureTree});
     spriteTree->setMaterial(materialColor);
     {
@@ -152,11 +144,9 @@ Main::Main() {
 
   // draw textured Sprite with Phong
   {
-    auto textureTree = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/tree.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto spriteTree = _core->createSprite();
+    auto materialPhong = _core->createMaterialPhong(MaterialTarget::SIMPLE);
     materialPhong->setBaseColor({textureTree});
     fillMaterialPhong(materialPhong);
     spriteTree->setMaterial(materialPhong);
@@ -170,11 +160,9 @@ Main::Main() {
   }
   // draw textured Sprite with PBR
   {
-    auto textureTree = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/tree.png"}),
-                                                 settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                                 mipMapLevels, commandBufferTransfer, state);
-    auto spriteTree = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto spriteTree = _core->createSprite();
+    auto materialPBR = _core->createMaterialPBR(MaterialTarget::SIMPLE);
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
     spriteTree->setMaterial(materialPBR);
@@ -189,11 +177,9 @@ Main::Main() {
 
   // draw textured Sprite, check alpha blending
   {
-    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::WIREFRAME);
@@ -208,11 +194,9 @@ Main::Main() {
 
   // draw textured Sprite normal
   {
-    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::NORMAL);
@@ -227,11 +211,9 @@ Main::Main() {
 
   // draw textured Sprite tangent
   {
-    auto texture = std::make_shared<Texture>(_core->getResourceManager()->loadImageGPU({"../assets/buterfly.png"}),
-                                             settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT,
-                                             mipMapLevels, commandBufferTransfer, state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({texture});
     sprite->setMaterial(materialColor);
     sprite->setDrawType(DrawType::TANGENT);
@@ -246,15 +228,12 @@ Main::Main() {
 
   // draw textured Sprite Phong without normals
   {
-    auto textureColor = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/container.png"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto textureSpecular = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/container_specular.png"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureColor = _core->createTexture("../assets/container.png", settings->getLoadTextureColorFormat(),
+                                             mipMapLevels);
+    auto textureSpecular = _core->createTexture("../assets/container_specular.png",
+                                                settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto material = _core->createMaterialPhong(MaterialTarget::SIMPLE);
     material->setBaseColor({textureColor});
     material->setSpecular({textureSpecular});
     material->setCoefficients(glm::vec3{0.2f}, glm::vec3{0.2f}, glm::vec3{1.f}, 32.f);
@@ -271,15 +250,12 @@ Main::Main() {
 
   // draw textured Sprite Phong without specular
   {
-    auto textureColor = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/brickwall.jpg"}), settings->getLoadTextureColorFormat(),
-        VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-    auto textureNormal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/brickwall_normal.jpg"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto material = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureColor = _core->createTexture("../assets/brickwall.jpg", settings->getLoadTextureColorFormat(),
+                                             mipMapLevels);
+    auto textureNormal = _core->createTexture("../assets/brickwall_normal.jpg",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto material = _core->createMaterialPhong(MaterialTarget::SIMPLE);
     material->setBaseColor({textureColor});
     material->setNormal({textureNormal});
     fillMaterialPhong(material);
@@ -295,24 +271,16 @@ Main::Main() {
 
   // draw textured Sprite PBR
   {
-    auto textureColor = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_basecolor.png"}),
-        settings->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto textureNormal = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_normal.png"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto textureMetallic = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_metallic.png"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto textureRoughness = std::make_shared<Texture>(
-        _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_roughness.png"}),
-        settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-        state);
-    auto sprite = std::make_shared<Sprite>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
-    auto material = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+    auto textureColor = _core->createTexture("../assets/rustediron2_basecolor.png",
+                                             settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto textureNormal = _core->createTexture("../assets/rustediron2_normal.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto textureMetallic = _core->createTexture("../assets/rustediron2_metallic.png",
+                                                settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto textureRoughness = _core->createTexture("../assets/rustediron2_roughness.png",
+                                                 settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto sprite = _core->createSprite();
+    auto material = _core->createMaterialPBR(MaterialTarget::SIMPLE);
     material->setBaseColor({textureColor});
     material->setNormal({textureNormal});
     material->setMetallic({textureMetallic});
@@ -328,18 +296,7 @@ Main::Main() {
     _core->addDrawable(sprite);
   }
 
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
+  _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset

@@ -46,9 +46,7 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
+  _core->startRecording();
   _camera = std::make_shared<CameraFly>(settings);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
@@ -68,27 +66,24 @@ Main::Main() {
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
-  auto lightManager = _core->getLightManager();
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                        commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager,
-                                                          commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
+  ;
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -113,10 +108,9 @@ Main::Main() {
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
   };
-  auto gltfModelBox = _core->getResourceManager()->loadModel("assets/Box/Box.gltf");
+  auto gltfModelBox = _core->createModelGLTF("assets/Box/Box.gltf");
   {
-    auto modelBox = std::make_shared<Model3D>(gltfModelBox->getNodes(), gltfModelBox->getMeshes(), lightManager,
-                                              commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelBox = _core->createModel3D(gltfModelBox);
     auto materialModelBox = gltfModelBox->getMaterialsPBR();
     for (auto& material : materialModelBox) {
       fillMaterialPBR(material);
@@ -131,11 +125,9 @@ Main::Main() {
   }
 
   // draw simple textured model Phong
-  auto gltfModelAvocado = _core->getResourceManager()->loadModel("../assets/Avocado/Avocado.gltf");
+  auto gltfModelAvocado = _core->createModelGLTF("../assets/Avocado/Avocado.gltf");
   {
-    auto modelAvocado = std::make_shared<Model3D>(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes(),
-                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                  state);
+    auto modelAvocado = _core->createModel3D(gltfModelAvocado);
     auto materialModelAvocado = gltfModelAvocado->getMaterialsPhong();
     for (auto& material : materialModelAvocado) {
       fillMaterialPhong(material);
@@ -151,9 +143,7 @@ Main::Main() {
   }
   // draw simple textured model PBR
   {
-    auto modelAvocado = std::make_shared<Model3D>(gltfModelAvocado->getNodes(), gltfModelAvocado->getMeshes(),
-                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                  state);
+    auto modelAvocado = _core->createModel3D(gltfModelAvocado);
     auto materialModelAvocado = gltfModelAvocado->getMaterialsPBR();
     for (auto& material : materialModelAvocado) {
       fillMaterialPBR(material);
@@ -168,11 +158,9 @@ Main::Main() {
   }
 
   // draw advanced textured model Phong
-  auto gltfModelBottle = _core->getResourceManager()->loadModel("../assets/WaterBottle/WaterBottle.gltf");
+  auto gltfModelBottle = _core->createModelGLTF("../assets/WaterBottle/WaterBottle.gltf");
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
     for (auto& material : materialModelBottle) {
       fillMaterialPhong(material);
@@ -188,9 +176,7 @@ Main::Main() {
 
   // draw advanced textured model PBR
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
     for (auto& material : materialModelBottle) {
       fillMaterialPBR(material);
@@ -205,9 +191,7 @@ Main::Main() {
   }
   // draw textured model without lighting model
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     auto materialModelBottle = gltfModelBottle->getMaterialsColor();
     modelBottle->setMaterial(materialModelBottle);
     {
@@ -219,9 +203,7 @@ Main::Main() {
   }
   // draw model without material
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 1.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -231,9 +213,7 @@ Main::Main() {
   }
   // draw material normal
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     modelBottle->setDrawType(DrawType::NORMAL);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 1.f, -3.f));
@@ -244,9 +224,7 @@ Main::Main() {
   }
   // draw wireframe
   {
-    auto modelBottle = std::make_shared<Model3D>(gltfModelBottle->getNodes(), gltfModelBottle->getMeshes(),
-                                                 lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                 state);
+    auto modelBottle = _core->createModel3D(gltfModelBottle);
     modelBottle->setDrawType(DrawType::WIREFRAME);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
@@ -256,23 +234,20 @@ Main::Main() {
     _core->addDrawable(modelBottle);
   }
   // draw skeletal textured model with multiple animations
-  auto gltfModelFish = _core->getResourceManager()->loadModel("../assets/Fish/scene.gltf");
+  auto gltfModelFish = _core->createModelGLTF("../assets/Fish/scene.gltf");
   {
-    auto modelFish = std::make_shared<Model3D>(gltfModelFish->getNodes(), gltfModelFish->getMeshes(), lightManager,
-                                               commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelFish = _core->createModel3D(gltfModelFish);
     auto materialModelFish = gltfModelFish->getMaterialsPhong();
     for (auto& material : materialModelFish) {
       fillMaterialPhong(material);
     }
     modelFish->setMaterial(materialModelFish);
-    _animationFish = std::make_shared<Animation>(gltfModelFish->getNodes(), gltfModelFish->getSkins(),
-                                                 gltfModelFish->getAnimations(), state);
+    _animationFish = _core->createAnimation(gltfModelFish);
     _animationFish->setAnimation("swim");
     // set animation to model, so joints will be passed to shader
     modelFish->setAnimation(_animationFish);
     // register to play animation, if don't call, there will not be any animation,
     // even model can disappear because of zero start weights
-    _core->addAnimation(_animationFish);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, -3.f));
       model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
@@ -283,20 +258,16 @@ Main::Main() {
 
   // draw skeletal dancing model with one animation
   {
-    auto gltfModelDancing = _core->getResourceManager()->loadModel("../assets/BrainStem/BrainStem.gltf");
-    auto modelDancing = std::make_shared<Model3D>(gltfModelDancing->getNodes(), gltfModelDancing->getMeshes(),
-                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                  state);
+    auto gltfModelDancing = _core->createModelGLTF("../assets/BrainStem/BrainStem.gltf");
+    auto modelDancing = _core->createModel3D(gltfModelDancing);
     auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
     for (auto& material : materialModelDancing) {
       fillMaterialPBR(material);
     }
     modelDancing->setMaterial(materialModelDancing);
-    auto animationDancing = std::make_shared<Animation>(gltfModelDancing->getNodes(), gltfModelDancing->getSkins(),
-                                                        gltfModelDancing->getAnimations(), state);
+    auto animationDancing = _core->createAnimation(gltfModelDancing);
     // set animation to model, so joints will be passed to shader
     modelDancing->setAnimation(animationDancing);
-    _core->addAnimation(animationDancing);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
@@ -308,19 +279,15 @@ Main::Main() {
   // draw skeletal walking model with one animation
   {
     auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
-    auto modelWalking = std::make_shared<Model3D>(gltfModelWalking->getNodes(), gltfModelWalking->getMeshes(),
-                                                  lightManager, commandBufferTransfer, _core->getResourceManager(),
-                                                  state);
+    auto modelWalking = _core->createModel3D(gltfModelWalking);
     auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
     for (auto& material : materialModelWalking) {
       fillMaterialPhong(material);
     }
     modelWalking->setMaterial(materialModelWalking);
-    auto animationWalking = std::make_shared<Animation>(gltfModelWalking->getNodes(), gltfModelWalking->getSkins(),
-                                                        gltfModelWalking->getAnimations(), state);
+    auto animationWalking = _core->createAnimation(gltfModelWalking);
     // set animation to model, so joints will be passed to shader
     modelWalking->setAnimation(animationWalking);
-    _core->addAnimation(animationWalking);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
       model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
@@ -329,18 +296,7 @@ Main::Main() {
     _core->addDrawable(modelWalking);
   }
 
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
+  _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset

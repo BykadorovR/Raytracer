@@ -79,7 +79,7 @@ class GUI : public InputSubscriber {
   bool drawSlider(std::map<std::string, float*> variable, std::map<std::string, std::tuple<float, float>> range);
   bool drawButton(std::string label, bool hideWindow = false);
   bool drawCheckbox(std::map<std::string, bool*> variable);
-  void drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable);
+  void drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber);
   bool drawInputFloat(std::map<std::string, float*> variable);
   bool drawInputInt(std::map<std::string, int*> variable);
   void updateBuffers(int current);

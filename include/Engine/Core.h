@@ -16,6 +16,12 @@
 #include "ResourceManager.h"
 #include "Animation.h"
 #include "Render.h"
+#include "Shape3D.h"
+#include "Sprite.h"
+#include "Line.h"
+#include "Model.h"
+#include "Equirectangular.h"
+#include "IBL.h"
 
 class Core {
  private:
@@ -90,27 +96,51 @@ class Core {
 
  public:
   Core(std::shared_ptr<Settings> settings);
+  void draw();
+  void registerUpdate(std::function<void()> update);
+  void registerReset(std::function<void(int width, int height)> reset);
+
+  void startRecording();
+  void endRecording();
   void setCamera(std::shared_ptr<Camera> camera);
   void addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type = AlphaType::TRANSPARENT);
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
-  void addSkybox(std::shared_ptr<Skybox> skybox);
-  void addAnimation(std::shared_ptr<Animation> animation);
-
-  const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
-  void removeDrawable(std::shared_ptr<Drawable> drawable);
   // TODO: everything should be drawable
+  void addSkybox(std::shared_ptr<Skybox> skybox);
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
-  std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
+  void removeDrawable(std::shared_ptr<Drawable> drawable);
+
+  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> loadImageCPU(std::string path);
+  std::shared_ptr<BufferImage> loadImageGPU(std::string path);
+  std::shared_ptr<Texture> createTexture(std::string name, VkFormat format, int mipMapLevels);
+  std::shared_ptr<Cubemap> createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels);
+  std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
+  std::shared_ptr<Animation> createAnimation(std::shared_ptr<ModelGLTF> modelGLTF);
+  std::shared_ptr<Equirectangular> createEquirectangular(std::string path);
+  std::shared_ptr<MaterialColor> createMaterialColor(MaterialTarget target);
+  std::shared_ptr<MaterialPhong> createMaterialPhong(MaterialTarget target);
+  std::shared_ptr<MaterialPBR> createMaterialPBR(MaterialTarget target);
+  std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
+  std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
+  std::shared_ptr<Sprite> createSprite();
+  std::shared_ptr<Terrain> createTerrain(std::string heightmap, std::pair<int, int> patches);
+  std::shared_ptr<Line> createLine(int thick);
+  std::shared_ptr<IBL> createIBL();
+  std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,
+                                                       std::shared_ptr<Texture> particleTexture);
+  std::shared_ptr<Skybox> createSkybox();
   std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
-  std::shared_ptr<LightManager> getLightManager();
+  std::shared_ptr<AmbientLight> createAmbientLight();
+
+  std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
   std::shared_ptr<ResourceManager> getResourceManager();
+  const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
+  std::vector<std::shared_ptr<PointLight>> getPointLights();
+  std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
   std::shared_ptr<Postprocessing> getPostprocessing();
   std::shared_ptr<Blur> getBlur();
   std::shared_ptr<State> getState();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();
-  void draw();
-  void registerUpdate(std::function<void()> update);
-  void registerReset(std::function<void(int width, int height)> reset);
 };

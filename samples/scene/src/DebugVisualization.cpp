@@ -6,9 +6,6 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _camera = camera;
   _core = core;
   auto state = core->getState();
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  auto lightManager = core->getLightManager();
-  auto resourceManager = core->getResourceManager();
 
   for (auto elem : _core->getState()->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
@@ -16,9 +13,9 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = std::make_shared<Line>(3, commandBufferTransfer, state);
+    auto line = _core->createLine(3);
     auto mesh = line->getMesh();
-    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
+    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, _core->getCommandBufferTransfer());
     _lineFrustum[i] = line;
   }
 
@@ -29,44 +26,32 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _G = g;
   _B = b;
 
-  _farPlaneCW = std::make_shared<Sprite>(
-
-      lightManager, commandBufferTransfer, resourceManager, state);
+  _farPlaneCW = _core->createSprite();
   _farPlaneCW->enableLighting(false);
   _farPlaneCW->enableShadow(false);
   _farPlaneCW->enableDepth(false);
-  _farPlaneCCW = std::make_shared<Sprite>(
-
-      lightManager, commandBufferTransfer, resourceManager, state);
+  _farPlaneCCW = _core->createSprite();
   _farPlaneCCW->enableLighting(false);
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
 
-  auto boxModel = core->getResourceManager()->loadModel("assets/box/Box.gltf");
-  for (auto light : lightManager->getPointLights()) {
+  auto boxModel = _core->createModelGLTF("assets/box/Box.gltf");
+  for (auto light : _core->getPointLights()) {
     _pointValue = light->getColor()[0];
-    auto model = std::make_shared<Model3D>(
-
-        boxModel->getNodes(), boxModel->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
+    auto model = _core->createModel3D(boxModel);
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
     core->addDrawable(model);
     _pointLightModels.push_back(model);
 
-    auto sphereMesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
-    auto sphere = std::make_shared<Shape3D>(ShapeType::SPHERE,
-
-                                            VK_CULL_MODE_NONE, lightManager, commandBufferTransfer, resourceManager,
-                                            state);
+    auto sphere = _core->createShape3D(ShapeType::SPHERE, VK_CULL_MODE_NONE);
     _spheres.push_back(sphere);
   }
 
-  for (auto light : lightManager->getDirectionalLights()) {
+  for (auto light : _core->getDirectionalLights()) {
     _directionalValue = light->getColor()[0];
-    auto model = std::make_shared<Model3D>(
-
-        boxModel->getNodes(), boxModel->getMeshes(), lightManager, commandBufferTransfer, resourceManager, state);
+    auto model = _core->createModel3D(boxModel);
     model->enableDepth(false);
     model->enableShadow(false);
     model->enableLighting(false);
@@ -86,12 +71,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
 
   // need to compensate aspect ratio, texture is square but screen resolution is not
   model = glm::scale(model, scale);
-  _spriteShadow = std::make_shared<Sprite>(
-
-      lightManager, commandBufferTransfer, resourceManager, state);
+  _spriteShadow = _core->createSprite();
   _spriteShadow->setModel(model);
   _spriteShadow->enableHUD(true);
-  _materialShadow = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _materialShadow = _core->createMaterialColor(MaterialTarget::SIMPLE);
   _materialShadow->setBaseColor({core->getResourceManager()->getTextureOne()});
   _spriteShadow->setMaterial(_materialShadow);
   {
@@ -101,61 +84,64 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
     float width1 = height1 * ((float)resX / (float)resY);
     _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[3]->getMesh()->setPosition({glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
     float width2 = height2 * ((float)resX / (float)resY);
     _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     _lineFrustum[7]->getMesh()->setPosition({glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
     // bottom
     _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos},
-                                            commandBufferTransfer);
-    _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
+    _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
+                                         _core->getCommandBufferTransfer());
     _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos},
-                                            commandBufferTransfer);
-    _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)}, commandBufferTransfer);
+                                            _core->getCommandBufferTransfer());
+    _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
+                                         _core->getCommandBufferTransfer());
     // top
     _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos},
-                                             commandBufferTransfer);
-    _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+                                             _core->getCommandBufferTransfer());
+    _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
+                                          _core->getCommandBufferTransfer());
     _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos},
-                                             commandBufferTransfer);
-    _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+                                             _core->getCommandBufferTransfer());
+    _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
+                                          _core->getCommandBufferTransfer());
   }
 }
 
 void DebugVisualization::_drawShadowMaps() {
   auto currentFrame = _core->getState()->getFrameInFlight();
-  auto lightManager = _core->getLightManager();
   auto gui = _core->getGUI();
   if (_showDepth) {
     if (_initializedDepth == false) {
-      for (int i = 0; i < lightManager->getDirectionalLights().size(); i++) {
-        glm::vec3 pos = lightManager->getDirectionalLights()[i]->getPosition();
+      for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
+        glm::vec3 pos = _core->getDirectionalLights()[i]->getPosition();
         _shadowKeys.push_back("Dir " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
                               std::format("{:.2f}", pos.y));
       }
-      for (int i = 0; i < lightManager->getPointLights().size(); i++) {
+      for (int i = 0; i < _core->getPointLights().size(); i++) {
         for (int j = 0; j < 6; j++) {
-          glm::vec3 pos = lightManager->getPointLights()[i]->getPosition();
+          glm::vec3 pos = _core->getPointLights()[i]->getPosition();
           _shadowKeys.push_back("Point " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
                                 std::format("{:.2f}", pos.y) + "_" + std::to_string(j));
         }
@@ -164,24 +150,23 @@ void DebugVisualization::_drawShadowMaps() {
       _initializedDepth = true;
     }
 
-    if (lightManager->getDirectionalLights().size() + lightManager->getPointLights().size() > 0) {
+    if (_core->getDirectionalLights().size() + _core->getPointLights().size() > 0) {
       std::map<std::string, int*> toggleShadows;
       toggleShadows["##Shadows"] = &_shadowMapIndex;
-      gui->drawListBox(_shadowKeys, toggleShadows);
+      gui->drawListBox(_shadowKeys, toggleShadows, _shadowKeys.size());
 
       std::shared_ptr<Texture> currentTexture;
       // check if directional
       std::shared_ptr<DescriptorSet> shadowDescriptorSet;
-      if (_shadowMapIndex < lightManager->getDirectionalLights().size()) {
-        currentTexture = lightManager->getDirectionalLights()[_shadowMapIndex]->getDepthTexture()[currentFrame];
+      if (_shadowMapIndex < _core->getDirectionalLights().size()) {
+        currentTexture = _core->getDirectionalLights()[_shadowMapIndex]->getDepthTexture()[currentFrame];
       } else {
-        int pointIndex = _shadowMapIndex - lightManager->getDirectionalLights().size();
+        int pointIndex = _shadowMapIndex - _core->getDirectionalLights().size();
         int faceIndex = pointIndex % 6;
         // find index of point light
         pointIndex /= 6;
-        currentTexture = lightManager->getPointLights()[pointIndex]
-                             ->getDepthCubemap()[currentFrame]
-                             ->getTextureSeparate()[faceIndex][0];
+        currentTexture =
+            _core->getPointLights()[pointIndex]->getDepthCubemap()[currentFrame]->getTextureSeparate()[faceIndex][0];
       }
 
       _spriteShadow->setModel(_spriteShadow->getModel());
@@ -330,10 +315,10 @@ void DebugVisualization::update() {
   if (gui->startTree("Light")) {
     if (_core->getGUI()->drawSlider({{"Directional", &_directionalValue}, {"Point", &_pointValue}},
                                     {{"Directional", {0.f, 20.f}}, {"Point", {0.f, 20.f}}})) {
-      for (auto& light : _core->getLightManager()->getDirectionalLights()) {
+      for (auto& light : _core->getDirectionalLights()) {
         light->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
       }
-      for (auto& light : _core->getLightManager()->getPointLights()) {
+      for (auto& light : _core->getPointLights()) {
         light->setColor(glm::vec3(_pointValue, _pointValue, _pointValue));
       }
     }
@@ -348,22 +333,21 @@ void DebugVisualization::update() {
       if (_enableSpheres) {
         std::map<std::string, int*> toggleSpheres;
         toggleSpheres["##Spheres"] = &_lightSpheresIndex;
-        gui->drawListBox(_attenuationKeys, toggleSpheres);
+        gui->drawListBox(_attenuationKeys, toggleSpheres, 4);
       }
-      for (int i = 0; i < _core->getLightManager()->getPointLights().size(); i++) {
+      for (int i = 0; i < _core->getPointLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_pointLightModels[i]);
         {
-          auto model = glm::translate(glm::mat4(1.f), _core->getLightManager()->getPointLights()[i]->getPosition());
+          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
           model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
           _pointLightModels[i]->setModel(model);
         }
         {
-          auto model = glm::translate(glm::mat4(1.f), _core->getLightManager()->getPointLights()[i]->getPosition());
+          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
           if (_enableSpheres) {
-            if (_lightSpheresIndex < 0)
-              _lightSpheresIndex = _core->getLightManager()->getPointLights()[i]->getAttenuationIndex();
-            _core->getLightManager()->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);
-            int distance = _core->getLightManager()->getPointLights()[i]->getDistance();
+            if (_lightSpheresIndex < 0) _lightSpheresIndex = _core->getPointLights()[i]->getAttenuationIndex();
+            _core->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);
+            int distance = _core->getPointLights()[i]->getDistance();
             model = glm::scale(model, glm::vec3(distance, distance, distance));
             _spheres[i]->setModel(model);
             _spheres[i]->setDrawType(DrawType::WIREFRAME);
@@ -379,9 +363,9 @@ void DebugVisualization::update() {
           }
         }
       }
-      for (int i = 0; i < _core->getLightManager()->getDirectionalLights().size(); i++) {
+      for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_directionalLightModels[i]);
-        auto model = glm::translate(glm::mat4(1.f), _core->getLightManager()->getDirectionalLights()[i]->getPosition());
+        auto model = glm::translate(glm::mat4(1.f), _core->getDirectionalLights()[i]->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _directionalLightModels[i]->setModel(model);
       }
@@ -389,10 +373,10 @@ void DebugVisualization::update() {
     } else {
       if (_registerLights == false) {
         _registerLights = true;
-        for (int i = 0; i < _core->getLightManager()->getPointLights().size(); i++) {
+        for (int i = 0; i < _core->getPointLights().size(); i++) {
           _core->removeDrawable(_pointLightModels[i]);
         }
-        for (int i = 0; i < _core->getLightManager()->getDirectionalLights().size(); i++) {
+        for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
           _core->removeDrawable(_directionalLightModels[i]);
         }
       }
