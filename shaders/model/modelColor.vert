@@ -22,13 +22,11 @@ layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
 };
 
 void main() {
-mat4 skinMat = mat4(1.0);
-    if (jointMatrices.length() > 0) {
-        skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
-                  inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
-                  inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
-                  inJointWeights.w * jointMatrices[int(inJointIndices.w)];
-    }
+    mat4 skinMat = mat4(1.0);
+    skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
+              inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
+              inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
+              inJointWeights.w * jointMatrices[int(inJointIndices.w)];
 
     mat4 model = mvp.model * skinMat;
     

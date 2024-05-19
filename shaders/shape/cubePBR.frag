@@ -43,10 +43,12 @@ struct LightAmbient {
 };
 
 layout(std140, set = 3, binding = 0) readonly buffer LightBufferDirectional {
+    int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
 layout(std140, set = 3, binding = 1) readonly buffer LightBufferPoint {
+    int lightPointNumber;
     LightPoint lightPoint[];
 };
 
@@ -118,7 +120,7 @@ void main() {
 
             // reflectance equation
             vec3 Lr = vec3(0.0);
-            for (int i = 0; i < lightDirectional.length(); i++) {
+            for (int i = 0; i < lightDirectionalNumber; i++) {
                 vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
                 vec3 inRadiance = getLightDir(i).color;
                 vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
@@ -128,7 +130,7 @@ void main() {
                 Lr += directional * (1 - shadow);
             }
 
-            for (int i = 0; i < lightPoint.length(); i++) {
+            for (int i = 0; i < lightPointNumber; i++) {
                 vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
                 float distance = length(getLightPoint(i).position - fragPosition);
                 if (distance > getLightPoint(i).distance) break;

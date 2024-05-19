@@ -8,10 +8,12 @@ layout(set = 0, binding = 0) uniform UniformCamera {
 } mvp;
 
 layout(std140, set = 2, binding = 0) readonly buffer LightMatrixDirectional {
+    int lightDirectionalNumber;
     mat4 lightDirectionalVP[];
 };
 
 layout(std140, set = 2, binding = 1) readonly buffer LightMatrixPoint {
+    int lightPointNumber;
     mat4 lightPointVP[];
 };
 
@@ -51,6 +53,6 @@ void main() {
         vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
         fragTBN = mat3(tangent, bitangent, fragNormal);
     }
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
+    for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
 }

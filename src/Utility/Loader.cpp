@@ -576,7 +576,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
           }
           vertex.texCoord = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * uv0ByteStride]) : glm::vec3(0.0f);
           vertex.jointIndices = glm::vec4(0.0f);
-          vertex.jointWeights = glm::vec4(0.0f);
+          vertex.jointWeights = glm::vec4(1.0f);
           if (hasSkin) {
             vertex.jointWeights = glm::make_vec4(&jointWeightsBuffer[v * weightByteStride]);
             switch (jointComponentType) {
