@@ -586,12 +586,8 @@ void Pipeline::createGraphic3DShadow(
   _depthStencil.depthWriteEnable = VK_TRUE;
   _colorBlending.attachmentCount = 0;
 
-  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
-
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -739,12 +735,8 @@ void Pipeline::createGraphic2DShadow(
   _depthStencil.depthWriteEnable = VK_TRUE;
   _colorBlending.attachmentCount = 0;
 
-  const VkPipelineRenderingCreateInfoKHR pipelineRender{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-                                                        .depthAttachmentFormat = _settings->getDepthFormat()};
-
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-  pipelineInfo.pNext = &pipelineRender;
   pipelineInfo.stageCount = shaderStages.size();
   pipelineInfo.pStages = shaderStages.data();
   pipelineInfo.pVertexInputState = &vertexInputInfo;

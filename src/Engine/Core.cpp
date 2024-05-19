@@ -52,15 +52,15 @@ Core::Core(std::shared_ptr<Settings> settings) {
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
-    _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
-    _semaphoreRenderFinished.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
+    _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(_state->getDevice()));
+    _semaphoreRenderFinished.push_back(std::make_shared<Semaphore>(_state->getDevice()));
 
     // compute-graphic
-    _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
-    _semaphoreGUI.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
+    _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(_state->getDevice()));
+    _semaphoreGUI.push_back(std::make_shared<Semaphore>(_state->getDevice()));
 
     // postprocessing semaphore
-    _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(VK_SEMAPHORE_TYPE_BINARY, _state->getDevice()));
+    _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(_state->getDevice()));
   }
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
