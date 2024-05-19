@@ -75,8 +75,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _renderPass->initializeIBL();
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/IBL/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/IBL/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDiffuse->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -91,8 +91,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
     defaultPushConstants["fragment"] = RoughnessConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/IBL/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/IBL/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineSpecular->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -104,8 +104,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   }
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/IBL/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/IBL/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecularBRDF = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineSpecularBRDF->createGraphic2D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
                                            {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),

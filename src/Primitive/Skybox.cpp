@@ -42,8 +42,8 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
   auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("shaders/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  shader->add("shaders/skybox/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/skybox/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

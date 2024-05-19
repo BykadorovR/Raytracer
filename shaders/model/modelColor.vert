@@ -18,15 +18,18 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 texCoords;
 
 layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
+    int jointNumber;
     mat4 jointMatrices[];
 };
 
 void main() {
     mat4 skinMat = mat4(1.0);
-    skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
-              inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
-              inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
-              inJointWeights.w * jointMatrices[int(inJointIndices.w)];
+    if (jointNumber > 0) {
+        skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
+                  inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
+                  inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
+                  inJointWeights.w * jointMatrices[int(inJointIndices.w)];
+    }
 
     mat4 model = mvp.model * skinMat;
     

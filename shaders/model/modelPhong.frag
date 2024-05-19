@@ -108,7 +108,7 @@ void main() {
             lightFactor += pointLight(lightPointNumber, fragPosition, normal, specularTexture, push.cameraPosition,
                                       push.enableShadow, shadowPointSampler, 0.15);
             //calculate ambient light
-            for (int i = 0;i < lightAmbientNumber; i++) {
+            for (int i = 0; i < lightAmbientNumber; i++) {
                 lightFactor += lightAmbient[i].color;
             }
 

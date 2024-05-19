@@ -576,9 +576,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
           }
           vertex.texCoord = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * uv0ByteStride]) : glm::vec3(0.0f);
           vertex.jointIndices = glm::vec4(0.0f);
-          // if no skin, we use sum (weights * identity matrix coeffs). We want it to be = 1 so multiplication on result
-          // doesn't change anything. that's why first coeff here is 1.0 and jointMatrix is identity.
-          vertex.jointWeights = glm::vec4(1.0f, 0.f, 0.f, 0.f);
+          vertex.jointWeights = glm::vec4(0.0f);
           if (hasSkin) {
             vertex.jointWeights = glm::make_vec4(&jointWeightsBuffer[v * weightByteStride]);
             switch (jointComponentType) {

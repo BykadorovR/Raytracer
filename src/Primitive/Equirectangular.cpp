@@ -90,8 +90,8 @@ Equirectangular::Equirectangular(std::string path,
   _renderPass->initializeIBL();
   {
     auto shader = std::make_shared<Shader>(state->getDevice());
-    shader->add("shaders/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/IBL/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/IBL/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineEquirectangular->createGraphic3D(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
