@@ -37,14 +37,17 @@ struct LightAmbient {
 };
 
 layout(std140, set = 4, binding = 0) readonly buffer LightBufferDirectional {
+    int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
 layout(std140, set = 4, binding = 1) readonly buffer LightBufferPoint {
+    int lightPointNumber;
     LightPoint lightPoint[];
 };
 
 layout(std140, set = 4, binding = 2) readonly buffer LightBufferAmbient {
+    int lightAmbientNumber;
     LightAmbient lightAmbient[];
 };
 
@@ -99,13 +102,13 @@ void main() {
         if (length(normal) > epsilon) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, normal, specularTexture, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectionalNumber, fragPosition, normal, specularTexture, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.01);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, normal, specularTexture, push.cameraPosition,
+            lightFactor += pointLight(lightPointNumber, fragPosition, normal, specularTexture, push.cameraPosition,
                                       push.enableShadow, shadowPointSampler, 0.15);
             //calculate ambient light
-            for (int i = 0;i < lightAmbient.length(); i++) {
+            for (int i = 0;i < lightAmbientNumber; i++) {
                 lightFactor += lightAmbient[i].color;
             }
 

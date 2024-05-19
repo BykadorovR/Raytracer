@@ -12,10 +12,12 @@ layout(std140, set = 1, binding = 0) readonly buffer JointMatrices {
 };
 
 layout(std140, set = 3, binding = 0) readonly buffer LightMatrixDirectional {
+    int lightDirectionalNumber;
     mat4 lightDirectionalVP[];
 };
 
 layout(std140, set = 3, binding = 1) readonly buffer LightMatrixPoint {
+    int lightPointNumber;
     mat4 lightPointVP[];
 };
 
@@ -37,13 +39,11 @@ layout(location = 7) out vec4 fragLightDirectionalCoord[2];
 
 void main() {
     mat4 skinMat = mat4(1.0);
-    if (jointMatrices.length() > 0) {
-        //we pass all 
-        skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
-                  inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
-                  inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
-                  inJointWeights.w * jointMatrices[int(inJointIndices.w)];
-    }
+    //we pass all 
+    skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
+              inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
+              inJointWeights.z * jointMatrices[int(inJointIndices.z)] +
+              inJointWeights.w * jointMatrices[int(inJointIndices.w)];
 
     mat4 model = mvp.model * skinMat;
     mat3 normalMatrix = mat3(transpose(inverse(model)));
@@ -64,6 +64,6 @@ void main() {
         vec3 bitangent = normalize(cross(tangent, fragNormal)) * inTangent.w;
         fragTBN = mat3(tangent, bitangent, fragNormal);
     }
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
+    for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
 }

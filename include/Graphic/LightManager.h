@@ -25,7 +25,9 @@ class LightManager {
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;
+  std::shared_ptr<Buffer> _lightDirectionalSSBOStub, _lightPointSSBOStub, _lightAmbientSSBOStub;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection;
+  std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjectionStub, _lightPointSSBOViewProjectionStub;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR;

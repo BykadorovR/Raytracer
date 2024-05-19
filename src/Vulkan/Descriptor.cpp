@@ -593,13 +593,9 @@ void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBu
 void DescriptorSet::createJoints(std::vector<std::shared_ptr<Buffer>> buffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = VK_NULL_HANDLE;
+    bufferInfo.buffer = buffer[i]->getData();
     bufferInfo.offset = 0;
-    bufferInfo.range = VK_WHOLE_SIZE;
-    if (buffer.size() > i) {
-      bufferInfo.buffer = buffer[i]->getData();
-      bufferInfo.range = buffer[i]->getSize();
-    }
+    bufferInfo.range = buffer[i]->getSize();
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

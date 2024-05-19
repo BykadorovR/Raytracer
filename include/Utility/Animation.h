@@ -14,6 +14,7 @@ class Animation {
   // separate descriptor for each skin
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
+  std::shared_ptr<Buffer> _ssboJointsStub;
   int _animationIndex = 0;
   std::map<int, glm::mat4> _matricesJoint;
   bool _play = true;

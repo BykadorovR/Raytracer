@@ -35,7 +35,14 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     auto descriptorSetJoints = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                                _descriptorSetLayoutJoints, _state->getDescriptorPool(),
                                                                _state->getDevice());
-    descriptorSetJoints->createJoints({});
+    _ssboJointsStub = std::make_shared<Buffer>(
+        sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+    auto identityMat = glm::mat4(1.f);
+    _ssboJointsStub->map();
+    memcpy(_ssboJointsStub->getMappedMemory(), &identityMat, sizeof(glm::mat4));
+    _ssboJointsStub->unmap();
+    descriptorSetJoints->createJoints({_ssboJointsStub, _ssboJointsStub});
     _descriptorSetJoints.push_back(descriptorSetJoints);
   }
 }
