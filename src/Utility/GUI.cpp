@@ -172,7 +172,7 @@ bool GUI::drawInputInt(std::map<std::string, int*> variable) {
 
 void GUI::drawText(std::vector<std::string> text) {
   for (auto value : text) {
-    ImGui::Text(value.c_str());
+    ImGui::Text("%s", value.c_str());
   }
 }
 
