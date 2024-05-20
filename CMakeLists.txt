@@ -13,7 +13,6 @@ function(imports name)
 endfunction()
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_ANDROID_KHR")
 
 #need for mismatch resolving
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
@@ -187,9 +186,10 @@ if (NOT ANDROID)
   file(COPY ${glfw_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
 if (NOT ANDROID)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
   target_link_libraries(${PROJECT_NAME} glfw imgui mikktspace)
 else()
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
   target_link_libraries(${PROJECT_NAME} game-activity::game-activity imgui mikktspace)
 endif()
