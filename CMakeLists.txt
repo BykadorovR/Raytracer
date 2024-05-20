@@ -147,12 +147,13 @@ if (WIN32)
 endif()
 
 #include headers to project (so they will be shown in include folder)
+if (NOT ANDROID)
 add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
                                    ${app_header_primitive} ${app_source_primitive}
                                    ${app_header_utility}   ${app_source_utility}                                   
                                    ${app_header_vulkan}    ${app_source_vulkan}
                                    ${app_header_engine}    ${app_source_engine})
-if (ANDROID)
+else()
   add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
                                      ${app_header_primitive} ${app_source_primitive}
                                      ${app_header_utility}   ${app_source_utility}                                   
