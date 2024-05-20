@@ -69,7 +69,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   glm
   GIT_REPOSITORY https://github.com/g-truc/glm.git
-  GIT_TAG        aa6a2757a5152bfa0db667380fa93c64d5999d63
+  GIT_TAG        45008b225e28eb700fa0f7d3ff69b7c1db94fadf
 )
 
 file(MAKE_DIRECTORY ${FETCHCONTENT_BASE_DIR}/imgui)
