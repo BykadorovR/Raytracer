@@ -36,6 +36,7 @@ if (NOT ANDROID)
   )
 endif()
 
+
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "Disable tinygltf loader example")
 set(TINYGLTF_HEADER_ONLY ON CACHE BOOL "Build header only tinygltf")
 FetchContent_Declare(
@@ -148,11 +149,11 @@ endif()
 
 #include headers to project (so they will be shown in include folder)
 if (NOT ANDROID)
-add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
-                                   ${app_header_primitive} ${app_source_primitive}
-                                   ${app_header_utility}   ${app_source_utility}                                   
-                                   ${app_header_vulkan}    ${app_source_vulkan}
-                                   ${app_header_engine}    ${app_source_engine})
+  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
+                                     ${app_header_primitive} ${app_source_primitive}
+                                     ${app_header_utility}   ${app_source_utility}                                   
+                                     ${app_header_vulkan}    ${app_source_vulkan}
+                                     ${app_header_engine}    ${app_source_engine})
 else()
   add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
                                      ${app_header_primitive} ${app_source_primitive}
@@ -171,6 +172,9 @@ endif()
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
+if (ANDROID)
+  find_package(game-activity REQUIRED CONFIG)
+endif()
 
 file(COPY ${glm_SOURCE_DIR}/glm DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${imgui_SOURCE_DIR}/imgui.h ${imgui_SOURCE_DIR}/imconfig.h DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -186,5 +190,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
 if (NOT ANDROID)
   target_link_libraries(${PROJECT_NAME} glfw imgui mikktspace)
 else()
-  target_link_libraries(${PROJECT_NAME} imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} game-activity::game-activity imgui mikktspace)
 endif()
