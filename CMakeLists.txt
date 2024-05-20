@@ -190,6 +190,7 @@ if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
   target_link_libraries(${PROJECT_NAME} glfw imgui mikktspace)
 else()
-  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include ${ANDROID_NDK}/sources/android/native_app_glue)
+  #${ANDROID_NDK}/sources/android/native_app_glue
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
   target_link_libraries(${PROJECT_NAME} imgui mikktspace)
 endif()

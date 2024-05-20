@@ -1,7 +1,7 @@
 #pragma once
 #ifdef __ANDROID__
 #include "VulkanWrapper.h"
-#include <android_native_app_glue.h>
+#include <game-activity/native_app_glue/android_native_app_glue.h>
 #else
 #include <vulkan/vulkan.h>
 #endif
