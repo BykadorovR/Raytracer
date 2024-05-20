@@ -332,9 +332,9 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   // initialize Normal (per vertex)
   {
     auto shaderNormal = std::make_shared<Shader>(state->getDevice());
-    shaderNormal->add("shaders/terrain/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderNormal->add("shaders/terrain/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    shaderNormal->add("shaders/terrain/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shaderNormal->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
     shaderNormal->add("shaders/terrain/terrainNormal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
     shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
@@ -353,9 +353,9 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   // initialize Tangent (per vertex)
   {
     auto shaderNormal = std::make_shared<Shader>(state->getDevice());
-    shaderNormal->add("shaders/terrain/terrain_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shaderNormal->add("shaders/terrain/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    shaderNormal->add("shaders/terrain/terrain_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+    shaderNormal->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
     shaderNormal->add("shaders/terrain/terrainTangent_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
     shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 

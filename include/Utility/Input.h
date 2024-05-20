@@ -1,7 +1,8 @@
 #pragma once
 #include <tuple>
-#include "glfw/glfw3.h"
+#ifndef __ANDROID__
 #include "Window.h"
+#endif
 #include <vector>
 #include <memory>
 #include <any>
