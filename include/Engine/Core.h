@@ -23,6 +23,12 @@
 #include "Equirectangular.h"
 #include "IBL.h"
 
+#ifdef __ANDROID__
+extern "C" {
+void android_main(android_app* app);
+};
+#endif
+
 class Core {
  private:
   std::shared_ptr<State> _state;
