@@ -1,31 +1,30 @@
-#include <windows.h>
-#undef near
-#undef far
 #include "Main.h"
 #include "IBL.h"
 #include "Equirectangular.h"
 #include <random>
 #include <glm/gtc/random.hpp>
 
-void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+void InputHandler::cursorNotify(std::any window, float xPos, float yPos) {}
 
-void InputHandler::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void InputHandler::mouseNotify(std::any window, int button, int action, int mods) {}
 
-void InputHandler::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void InputHandler::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       _cursorEnabled = true;
     }
   }
+#endif
 }
 
-void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
+void InputHandler::charNotify(std::any window, unsigned int code) {}
 
-void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void InputHandler::scrollNotify(std::any window, double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -405,9 +404,6 @@ void Main::reset(int width, int height) { _camera->setAspect((float)width / (flo
 void Main::start() { _core->draw(); }
 
 int main() {
-#ifdef WIN32
-  SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#endif
   try {
     auto main = std::make_shared<Main>();
     main->start();

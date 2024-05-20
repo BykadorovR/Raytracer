@@ -82,11 +82,13 @@ glm::mat4 CameraFly::getProjection() {
 
 float CameraFly::getFOV() { return _fov; }
 
-void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
-  if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+void CameraFly::cursorNotify(std::any window, float xPos, float yPos) {
+#ifndef __ANDROID__
+  if (glfwGetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;
     return;
   }
+#endif
 
   if (_once == false) {
     _xLast = xPos;
@@ -114,9 +116,10 @@ void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   _direction = glm::normalize(_direction);
 }
 
-void CameraFly::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void CameraFly::mouseNotify(std::any, int button, int action, int mods) {}
 
-void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void CameraFly::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {
@@ -142,8 +145,9 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action,
   if ((action == GLFW_PRESS && key == GLFW_KEY_SPACE) || _keyStatus[GLFW_KEY_SPACE]) {
     _eye += _sensitivity * _up;
   }
+#endif
 }
 
-void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}
+void CameraFly::charNotify(std::any window, unsigned int code) {}
 
-void CameraFly::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void CameraFly::scrollNotify(std::any window, double xOffset, double yOffset) {}

@@ -1,9 +1,4 @@
 #pragma once
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
 #include <exception>
@@ -13,6 +8,7 @@
 #include <set>
 #include <map>
 #include <mutex>
+#include <memory>
 
 #include "Instance.h"
 #include "Surface.h"

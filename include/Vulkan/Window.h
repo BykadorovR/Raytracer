@@ -1,10 +1,8 @@
 #pragma once
+#ifndef __ANDROID__
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
 #include "tuple"
-#include <vector>
-#include <memory>
 
 class Window {
  private:
@@ -17,7 +15,7 @@ class Window {
   GLFWwindow* getWindow();
   bool getResized();
   void setResized(bool resized);
-  std::vector<const char*> getExtensions();
 
   ~Window();
 };
+#endif

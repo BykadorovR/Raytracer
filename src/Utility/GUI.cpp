@@ -305,12 +305,13 @@ void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
+void GUI::cursorNotify(std::any window, float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
 }
 
-void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
+void GUI::mouseNotify(std::any window, int button, int action, int mods) {
+#ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     io.MouseDown[0] = true;
@@ -324,20 +325,22 @@ void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
     io.MouseDown[1] = false;
   }
+#endif
 }
 
-void GUI::charNotify(GLFWwindow* window, unsigned int code) {
+void GUI::charNotify(std::any window, unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
 }
 
-void GUI::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {
+void GUI::scrollNotify(std::any window, double xOffset, double yOffset) {
   ImGuiIO& io = ImGui::GetIO();
   io.MouseWheelH += (float)xOffset;
   io.MouseWheel += (float)yOffset;
 }
 
-void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void GUI::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
     io.AddKeyEvent(ImGuiKey_Backspace, true);
@@ -367,4 +370,5 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
     io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
+#endif
 }

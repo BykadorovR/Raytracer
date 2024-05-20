@@ -33,7 +33,7 @@ bool Instance::_checkValidationLayersSupport() {
   return true;
 }
 
-Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> window) {
+Instance::Instance(std::string name, bool validation) {
   _validation = validation;
 
   if (_validation && _checkValidationLayersSupport() == false) {
@@ -52,11 +52,17 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
-  // extensions
-  std::vector<const char*> extensions = window->getExtensions();
-  extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-  createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-  createInfo.ppEnabledExtensionNames = extensions.data();
+// extensions
+#ifdef WIN32
+  _extensionsInstance.push_back("VK_KHR_win32_surface");
+#elif __ANDROID__
+  _extensionsInstance.push_back("VK_KHR_android_surface");
+#else
+  throw std::runtime_error("Define surface extension for current platform!")
+#endif
+  if (_validation) _extensionsInstance.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(_extensionsInstance.size());
+  createInfo.ppEnabledExtensionNames = _extensionsInstance.data();
 
   // validation
   createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());

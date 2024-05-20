@@ -66,9 +66,9 @@ class CameraFly : public Camera, public InputSubscriber {
   void setAngles(float yaw, float pitch, float roll);
   void setAspect(float aspect);
   float getFOV();
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
-  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-  void charNotify(GLFWwindow* window, unsigned int code) override;
-  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
+  void cursorNotify(std::any window, float xPos, float yPos) override;
+  void mouseNotify(std::any window, int button, int action, int mods) override;
+  void keyNotify(std::any window, int key, int scancode, int action, int mods) override;
+  void charNotify(std::any window, unsigned int code) override;
+  void scrollNotify(std::any window, double xOffset, double yOffset) override;
 };

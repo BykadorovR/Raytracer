@@ -1,7 +1,4 @@
 #pragma once
-#include <windows.h>
-#undef near
-#undef far
 #include "Core.h"
 #include "Shape3D.h"
 #include "Terrain.h"
@@ -13,11 +10,11 @@ class InputHandler : public InputSubscriber {
 
  public:
   void setMoveCallback(std::function<void(glm::vec3)> callback);
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
-  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-  void charNotify(GLFWwindow* window, unsigned int code) override;
-  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
+  void cursorNotify(std::any window, float xPos, float yPos) override;
+  void mouseNotify(std::any window, int button, int action, int mods) override;
+  void keyNotify(std::any window, int key, int scancode, int action, int mods) override;
+  void charNotify(std::any window, unsigned int code) override;
+  void scrollNotify(std::any window, double xOffset, double yOffset) override;
 };
 
 class Main {

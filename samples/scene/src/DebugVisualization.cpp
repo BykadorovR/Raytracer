@@ -390,22 +390,24 @@ void DebugVisualization::update() {
   }
 }
 
-void DebugVisualization::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+void DebugVisualization::cursorNotify(std::any window, float xPos, float yPos) {}
 
-void DebugVisualization::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void DebugVisualization::mouseNotify(std::any window, int button, int action, int mods) {}
 
-void DebugVisualization::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void DebugVisualization::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       _cursorEnabled = true;
     }
   }
+#endif
 }
 
-void DebugVisualization::charNotify(GLFWwindow* window, unsigned int code) {}
+void DebugVisualization::charNotify(std::any window, unsigned int code) {}
 
-void DebugVisualization::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void DebugVisualization::scrollNotify(std::any window, double xOffset, double yOffset) {}

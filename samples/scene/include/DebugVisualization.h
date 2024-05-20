@@ -42,9 +42,9 @@ class DebugVisualization : public InputSubscriber {
   DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core);
   void update();
 
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
-  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-  void charNotify(GLFWwindow* window, unsigned int code) override;
-  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
+  void cursorNotify(std::any window, float xPos, float yPos) override;
+  void mouseNotify(std::any window, int button, int action, int mods) override;
+  void keyNotify(std::any window, int key, int scancode, int action, int mods) override;
+  void charNotify(std::any window, unsigned int code) override;
+  void scrollNotify(std::any window, double xOffset, double yOffset) override;
 };

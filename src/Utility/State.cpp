@@ -5,7 +5,7 @@ State::State(std::shared_ptr<Settings> settings) {
 
   _window = std::make_shared<Window>(settings->getResolution());
   _input = std::make_shared<Input>(_window);
-  _instance = std::make_shared<Instance>(settings->getName(), true, _window);
+  _instance = std::make_shared<Instance>(settings->getName(), true);
   _surface = std::make_shared<Surface>(_window, _instance);
   _device = std::make_shared<Device>(_surface, _instance);
   _descriptorPool = std::make_shared<DescriptorPool>(3000, _device);

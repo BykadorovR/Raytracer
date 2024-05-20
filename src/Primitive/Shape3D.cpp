@@ -1,5 +1,4 @@
 #include "Shape3D.h"
-#undef far
 
 Shape3D::Shape3D(ShapeType shapeType,
                  VkCullModeFlags cullMode,
