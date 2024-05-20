@@ -1,28 +1,32 @@
 #include "Input.h"
 #include <memory>
 
-#ifndef __ANDROID__
 Input::Input(std::shared_ptr<Window> window) {
-  glfwSetWindowUserPointer(window->getWindow(), this);
-  glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+#ifndef __ANDROID__
+  glfwSetWindowUserPointer(std::any_cast<GLFWwindow*>(window->getWindow()), this);
+  glfwSetInputMode(std::any_cast<GLFWwindow*>(window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
   // glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-  glfwSetCursorPosCallback(window->getWindow(), [](GLFWwindow* window, double xpos, double ypos) {
-    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
-  });
-  glfwSetMouseButtonCallback(window->getWindow(), [](GLFWwindow* window, int button, int action, int mods) {
-    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
-  });
-  glfwSetCharCallback(window->getWindow(), [](GLFWwindow* window, unsigned int code) {
+  glfwSetCursorPosCallback(
+      std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, double xpos, double ypos) {
+        reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
+      });
+  glfwSetMouseButtonCallback(
+      std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, int button, int action, int mods) {
+        reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
+      });
+  glfwSetCharCallback(std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, unsigned int code) {
     reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
   });
-  glfwSetKeyCallback(window->getWindow(), [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+  glfwSetKeyCallback(std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, int key, int scancode,
+                                                                         int action, int mods) {
     reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, scancode, action, mods);
   });
-  glfwSetScrollCallback(window->getWindow(), [](GLFWwindow* window, double xOffset, double yOffset) {
-    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
-  });
-}
+  glfwSetScrollCallback(
+      std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, double xOffset, double yOffset) {
+        reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
+      });
 #endif
+}
 
 void Input::keyHandler(std::any window, int key, int scancode, int action, int mods) {
   for (auto& sub : _subscribers) {

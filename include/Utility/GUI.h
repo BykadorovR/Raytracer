@@ -48,7 +48,6 @@ class GUI : public InputSubscriber {
   float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
   std::shared_ptr<State> _state;
-  std::shared_ptr<Window> _window;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<RenderPass> _renderPass;

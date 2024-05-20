@@ -3,7 +3,7 @@
 State::State(std::shared_ptr<Settings> settings) {
   _settings = settings;
 
-  _window = std::make_shared<Window>(settings->getResolution());
+  _window = std::make_shared<Window>(settings);
   _input = std::make_shared<Input>(_window);
   _instance = std::make_shared<Instance>(settings->getName(), true);
   _surface = std::make_shared<Surface>(_window, _instance);

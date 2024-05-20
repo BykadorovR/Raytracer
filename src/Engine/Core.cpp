@@ -567,7 +567,9 @@ void Core::_reset() {
   while (extent.width == 0 || extent.height == 0) {
     surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
     extent = surfaceCapabilities.currentExtent;
+#ifndef __ANDROID__
     glfwWaitEvents();
+#endif
   }
   _swapchain->reset();
   _state->getSettings()->setResolution({extent.width, extent.height});
@@ -742,8 +744,15 @@ void Core::_displayFrame(uint32_t* imageIndex) {
 }
 
 void Core::draw() {
-  while (!glfwWindowShouldClose(_state->getWindow()->getWindow())) {
+#ifdef __ANDROID__
+  int events;
+  android_poll_source* source;
+  while (_settings->getAndroidApp()->destroyRequested == 0) {
+    if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
+#else
+  while (!glfwWindowShouldClose(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()))) {
     glfwPollEvents();
+#endif
     _timer->tick();
     _timerFPSReal->tick();
     _timerFPSLimited->tick();
@@ -763,7 +772,9 @@ void Core::draw() {
     _timer->tock();
     _timerFPSLimited->tock();
   }
+#ifndef __ANDROID__
   vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice());
+#endif
 }
 
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }

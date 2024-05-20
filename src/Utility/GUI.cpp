@@ -5,7 +5,6 @@
 
 GUI::GUI(std::shared_ptr<State> state) {
   _state = state;
-  _window = state->getWindow();
   _resolution = state->getSettings()->getResolution();
 
   _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());

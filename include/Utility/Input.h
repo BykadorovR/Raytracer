@@ -1,8 +1,6 @@
 #pragma once
 #include <tuple>
-#ifndef __ANDROID__
 #include "Window.h"
-#endif
 #include <vector>
 #include <memory>
 #include <any>
@@ -18,15 +16,11 @@ class InputSubscriber {
 
 class Input {
  private:
-#ifndef __ANDROID__
   std::shared_ptr<Window> _window;
-#endif
   std::vector<std::shared_ptr<InputSubscriber>> _subscribers;
 
  public:
-#ifndef __ANDROID__
   Input(std::shared_ptr<Window> window);
-#endif
   void cursorHandler(std::any window, double xpos, double ypos);
   void mouseHandler(std::any window, int button, int action, int mods);
   void keyHandler(std::any window, int key, int scancode, int action, int mods);

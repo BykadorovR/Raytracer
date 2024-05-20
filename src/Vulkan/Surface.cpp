@@ -1,25 +1,23 @@
 #include "Surface.h"
 
-#ifdef __ANDROID__
-Surface::Surface(ANativeWindow* window, std::shared_ptr<Instance> instance) {
+Surface::Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> instance) {
   _instance = instance;
+#ifdef __ANDROID__
   VkAndroidSurfaceCreateInfoKHR createInfo{.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
                                            .pNext = nullptr,
                                            .flags = 0,
-                                           .window = window};
+                                           .window = std::any_cast<ANativeWindow*>(window->getWindow())};
 
   if (vkCreateAndroidSurfaceKHR(instance->getInstance(), &createInfo, nullptr, &_surface) != VK_SUCCESS) {
     throw std::runtime_error("failed to create window surface!");
   }
-}
 #else
-Surface::Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> instance) {
-  _instance = instance;
-  if (glfwCreateWindowSurface(instance->getInstance(), window->getWindow(), nullptr, &_surface) != VK_SUCCESS) {
+  if (glfwCreateWindowSurface(instance->getInstance(), std::any_cast<GLFWwindow*>(window->getWindow()), nullptr,
+                              &_surface) != VK_SUCCESS) {
     throw std::runtime_error("failed to create window surface!");
   }
-}
 #endif
+}
 
 const VkSurfaceKHR& Surface::getSurface() { return _surface; }
 

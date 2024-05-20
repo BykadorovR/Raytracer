@@ -15,11 +15,7 @@ class Surface {
   std::shared_ptr<Instance> _instance;
 
  public:
-#ifdef __ANDROID__
-  Surface(ANativeWindow* window, std::shared_ptr<Instance> instance);
-#else
   Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> instance);
-#endif
   const VkSurfaceKHR& getSurface();
   ~Surface();
 };
