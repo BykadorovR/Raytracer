@@ -18,7 +18,9 @@ class InputSubscriber {
 
 class Input {
  private:
+#ifndef __ANDROID__
   std::shared_ptr<Window> _window;
+#endif
   std::vector<std::shared_ptr<InputSubscriber>> _subscribers;
 
  public:
