@@ -748,7 +748,7 @@ void Core::draw() {
   int events;
   android_poll_source* source;
   while (_state->getSettings()->getAndroidApp()->destroyRequested == 0) {
-    // if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
+    if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
 #else
   while (!glfwWindowShouldClose(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()))) {
     glfwPollEvents();
