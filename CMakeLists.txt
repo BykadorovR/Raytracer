@@ -109,6 +109,9 @@ include_directories("include/Primitive")
 include_directories("include/Utility")
 include_directories("include/Engine")
 include_directories("include/Vulkan")
+if (ANDROID)
+  include_directories("include/Platform/Android")
+endif()
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -130,6 +133,13 @@ file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
 source_group("Engine\\src" FILES ${app_source_engine})
 file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
 source_group("Engine\\include" FILES ${app_header_engine})
+if (ANDROID)
+  file(GLOB_RECURSE app_header_platform "include/Platform/Android/*.h*")
+  source_group("Platform\\include" FILES ${app_header_platform})
+  file(GLOB_RECURSE app_source_platform "src/Platform/Android/*.c*")
+  source_group("Platform\\src" FILES ${app_source_platform})
+endif()
+
 
 ###############################
 if (WIN32)
@@ -142,6 +152,14 @@ add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
                                    ${app_header_utility}   ${app_source_utility}                                   
                                    ${app_header_vulkan}    ${app_source_vulkan}
                                    ${app_header_engine}    ${app_source_engine})
+if (ANDROID)
+  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
+                                     ${app_header_primitive} ${app_source_primitive}
+                                     ${app_header_utility}   ${app_source_utility}                                   
+                                     ${app_header_vulkan}    ${app_source_vulkan}
+                                     ${app_header_engine}    ${app_source_engine}
+                                     ${app_header_platform}  ${app_source_platform})
+endif()
 ###############################
 
 #enable multiple cores compilation for VS
