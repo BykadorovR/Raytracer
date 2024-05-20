@@ -702,11 +702,11 @@ void Core::_drawFrame(int imageIndex) {
   // because of binary semaphores, we can't submit task with semaphore wait BEFORE task with semaphore signal.
   // that's why we have to split submit pipeline.
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPreCompute[frameInFlight].size(),
-                _frameSubmitInfoPreCompute[frameInFlight].data(), nullptr);
+                _frameSubmitInfoPreCompute[frameInFlight].data(), VK_NULL_HANDLE);
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoGraphic[frameInFlight].size(),
-                _frameSubmitInfoGraphic[frameInFlight].data(), nullptr);
+                _frameSubmitInfoGraphic[frameInFlight].data(), VK_NULL_HANDLE);
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::COMPUTE), _frameSubmitInfoPostCompute[frameInFlight].size(),
-                _frameSubmitInfoPostCompute[frameInFlight].data(), nullptr);
+                _frameSubmitInfoPostCompute[frameInFlight].data(), VK_NULL_HANDLE);
   // latest graphic job should signal fence about completion, otherwise render signal that it's done, but debug still in
   // progress (for 0 frame) and we submit new frame with 0 index
   vkQueueSubmit(_state->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoDebug[frameInFlight].size(),
@@ -748,7 +748,7 @@ void Core::draw() {
   int events;
   android_poll_source* source;
   while (_state->getSettings()->getAndroidApp()->destroyRequested == 0) {
-    if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
+    // if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
 #else
   while (!glfwWindowShouldClose(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()))) {
     glfwPollEvents();
