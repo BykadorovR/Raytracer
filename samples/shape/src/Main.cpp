@@ -97,14 +97,14 @@ Main::Main() {
   _core->addDrawable(cubeColoredLightDirectional);
 
   // lines
-  auto lineVertical = _core->createLine(3);
+  auto lineVertical = _core->createLine();
   lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
                                     _core->getCommandBufferTransfer());
   lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)},
                                        _core->getCommandBufferTransfer());
   _core->addDrawable(lineVertical);
 
-  auto lineHorizontal = _core->createLine(5);
+  auto lineHorizontal = _core->createLine();
   lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)},
                                       _core->getCommandBufferTransfer());
   lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)},

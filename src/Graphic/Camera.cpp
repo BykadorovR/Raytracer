@@ -85,8 +85,7 @@ float CameraFly::getFOV() { return _fov; }
 
 void CameraFly::cursorNotify(float xPos, float yPos) {
 #ifndef __ANDROID__
-  if (glfwGetInputMode(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()), GLFW_CURSOR) !=
-      GLFW_CURSOR_DISABLED) {
+  if (glfwGetInputMode((GLFWwindow*)(_state->getWindow()->getWindow()), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;
     return;
   }

@@ -13,7 +13,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
 
   _lineFrustum.resize(12);
   for (int i = 0; i < _lineFrustum.size(); i++) {
-    auto line = _core->createLine(3);
+    auto line = _core->createLine();
     auto mesh = line->getMesh();
     mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, _core->getCommandBufferTransfer());
     _lineFrustum[i] = line;

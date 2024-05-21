@@ -1,6 +1,6 @@
 #include "Line.h"
 
-Line::Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _state = state;
   _mesh = std::make_shared<Mesh3D>(state);
   _mesh->setIndexes({0, 1}, commandBufferTransfer);
@@ -19,7 +19,7 @@ Line::Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std:
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, thick,
+  _pipeline->createLine(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                         {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),

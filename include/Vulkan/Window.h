@@ -1,15 +1,16 @@
 #pragma once
-#ifndef __ANDROID__
+#ifdef __ANDROID__
+#include <VulkanWrapper.h>
+#else
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #endif
 #include "tuple"
-#include <any>
 #include <memory>
 
 class Window {
  private:
-  std::any _window;
+  void* _window;
   std::tuple<int, int> _resolution;
   bool _resized = false;
 
@@ -19,7 +20,7 @@ class Window {
 #else
   Window(std::tuple<int, int> resolution);
 #endif
-  std::any getWindow();
+  void* getWindow();
   bool getResized();
   void setResized(bool resized);
   std::tuple<int, int> getResolution();

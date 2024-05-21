@@ -291,7 +291,6 @@ void Pipeline::createGraphic3D(
 
 void Pipeline::createLine(VkCullModeFlags cullMode,
                           VkPolygonMode polygonMode,
-                          int thick,
                           std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                           std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                           std::map<std::string, VkPushConstantRange> pushConstants,
@@ -336,7 +335,6 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
-  _rasterizer.lineWidth = thick;
 
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;

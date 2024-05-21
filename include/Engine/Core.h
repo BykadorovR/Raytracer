@@ -124,7 +124,7 @@ class Core {
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
   std::shared_ptr<Terrain> createTerrain(std::string heightmap, std::pair<int, int> patches);
-  std::shared_ptr<Line> createLine(int thick);
+  std::shared_ptr<Line> createLine();
   std::shared_ptr<IBL> createIBL();
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,
                                                        std::shared_ptr<Texture> particleTexture);

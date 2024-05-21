@@ -53,7 +53,6 @@ class Pipeline {
                        std::shared_ptr<RenderPass> renderPass);
   void createLine(VkCullModeFlags cullMode,
                   VkPolygonMode polygonMode,
-                  int thick,
                   std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
                   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
                   std::map<std::string, VkPushConstantRange> pushConstants,

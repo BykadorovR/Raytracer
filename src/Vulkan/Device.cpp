@@ -32,10 +32,8 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
     auto queueFamily = queueFamilies[i];
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
       _family[QueueType::GRAPHIC] = i;
-    }
-
-    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
       _family[QueueType::COMPUTE] = i;
+      _family[QueueType::TRANSFER] = i;
     }
 
     VkBool32 presentSupport = false;
@@ -127,10 +125,10 @@ void Device::_pickPhysicalDevice() {
   for (const auto& device : devices) {
     VkPhysicalDeviceProperties props;
     vkGetPhysicalDeviceProperties(device, &props);
-    if (_isDeviceSuitable(device) && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+    if (_isDeviceSuitable(device)) {
       _physicalDevice = device;
       _deviceLimits = props.limits;
-      break;
+      if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) break;
     }
   }
 
@@ -158,7 +156,6 @@ void Device::_createLogicalDevice() {
   deviceFeatures.samplerAnisotropy = VK_TRUE;
   deviceFeatures.fillModeNonSolid = VK_TRUE;
   deviceFeatures.tessellationShader = VK_TRUE;
-  deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
 
   VkDeviceCreateInfo createInfo{};

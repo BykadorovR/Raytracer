@@ -19,7 +19,7 @@ class Line : public Drawable {
   bool _changed = false;
 
  public:
-  Line(int thick, std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
   std::shared_ptr<Mesh3D> getMesh();
   void setModel(glm::mat4 model);
 

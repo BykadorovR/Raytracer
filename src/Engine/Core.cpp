@@ -745,12 +745,9 @@ void Core::_displayFrame(uint32_t* imageIndex) {
 
 void Core::draw() {
 #ifdef __ANDROID__
-  int events;
-  android_poll_source* source;
-  while (_state->getSettings()->getAndroidApp()->destroyRequested == 0) {
-    if (ALooper_pollAll(-1, nullptr, &events, (void**)&source) < 0) continue;
+  {
 #else
-  while (!glfwWindowShouldClose(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()))) {
+  while (!glfwWindowShouldClose((GLFWwindow*)(_state->getWindow()->getWindow()))) {
     glfwPollEvents();
 #endif
     _timer->tick();
@@ -881,9 +878,7 @@ std::shared_ptr<Terrain> Core::createTerrain(std::string heightmap, std::pair<in
                                    _lightManager, _state);
 }
 
-std::shared_ptr<Line> Core::createLine(int thick) {
-  return std::make_shared<Line>(thick, _commandBufferTransfer, _state);
-}
+std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferTransfer, _state); }
 
 std::shared_ptr<IBL> Core::createIBL() {
   return std::make_shared<IBL>(_lightManager, _commandBufferTransfer, _resourceManager, _state);

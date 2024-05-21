@@ -57,7 +57,7 @@ void Swapchain::_initialize() {
 #ifdef __ANDROID__
     std::tie(width, height) = _state->getWindow()->getResolution();
 #else
-    glfwGetFramebufferSize(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()), &width, &height);
+    glfwGetFramebufferSize((GLFWwindow*)(_state->getWindow()->getWindow()), &width, &height);
 #endif
     VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
