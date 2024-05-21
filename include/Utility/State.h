@@ -19,7 +19,7 @@ class State {
   int _frameInFlight = 0;
 
  public:
-  State(std::shared_ptr<Settings> settings);
+  State(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings);
   std::shared_ptr<Settings> getSettings();
   std::shared_ptr<Window> getWindow();
   std::shared_ptr<Input> getInput();

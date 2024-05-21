@@ -1,8 +1,8 @@
 #include "Core.h"
 #include <typeinfo>
 
-Core::Core(std::shared_ptr<Settings> settings) {
-  _state = std::make_shared<State>(settings);
+Core::Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings) {
+  _state = std::make_shared<State>(window, settings);
   _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), _state);
   _timer = std::make_shared<Timer>();
   _timerFPSReal = std::make_shared<TimerFPS>();

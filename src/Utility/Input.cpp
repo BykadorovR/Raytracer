@@ -5,7 +5,6 @@ Input::Input(std::shared_ptr<Window> window) {
 #ifndef __ANDROID__
   glfwSetWindowUserPointer(std::any_cast<GLFWwindow*>(window->getWindow()), this);
   glfwSetInputMode(std::any_cast<GLFWwindow*>(window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  // glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   glfwSetCursorPosCallback(
       std::any_cast<GLFWwindow*>(window->getWindow()), [](GLFWwindow* window, double xpos, double ypos) {
         reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);

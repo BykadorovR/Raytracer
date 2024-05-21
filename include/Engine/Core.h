@@ -23,12 +23,6 @@
 #include "Equirectangular.h"
 #include "IBL.h"
 
-#ifdef __ANDROID__
-extern "C" {
-void android_main(android_app* app);
-};
-#endif
-
 class Core {
  private:
   std::shared_ptr<State> _state;
@@ -101,7 +95,7 @@ class Core {
   void _reset();
 
  public:
-  Core(std::shared_ptr<Settings> settings);
+  Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings);
   void draw();
   void registerUpdate(std::function<void()> update);
   void registerReset(std::function<void(int width, int height)> reset);

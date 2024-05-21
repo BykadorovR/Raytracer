@@ -1,7 +1,6 @@
 #pragma once
 #ifdef __ANDROID__
 #include "VulkanWrapper.h"
-#include <game-activity/native_app_glue/android_native_app_glue.h>
 #else
 #include <vulkan/vulkan.h>
 #endif
@@ -55,9 +54,6 @@ struct Settings {
   float _depthBiasConstant = 1.25f;
   // Slope depth bias factor, applied depending on polygon's slope
   float _depthBiasSlope = 1.75f;
-#ifdef __ANDROID__
-  android_app* _androidApp;
-#endif
  public:
   // setters
   void setName(std::string name);
@@ -74,10 +70,6 @@ struct Settings {
   void setBloomPasses(int number);
   void setAnisotropicSamples(int number);
   void setDesiredFPS(int fps);
-#ifdef __ANDROID__
-  void setAndroidApp(android_app* androidApp);
-  android_app* getAndroidApp();
-#endif
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getDepthResolution();

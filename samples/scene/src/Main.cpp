@@ -47,8 +47,8 @@ Main::Main() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
-  _core = std::make_shared<Core>(settings);
-
+  auto window = std::make_shared<Window>(settings->getResolution());
+  _core = std::make_shared<Core>(window, settings);
   // start transfer command buffer
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
   commandBufferTransfer->beginCommands();

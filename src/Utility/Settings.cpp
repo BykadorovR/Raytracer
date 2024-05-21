@@ -71,9 +71,3 @@ int Settings::getSpecularMipMap() { return _specularIBLMipMap; }
 float Settings::getDepthBiasConstant() { return _depthBiasConstant; }
 
 float Settings::getDepthBiasSlope() { return _depthBiasSlope; }
-
-#ifdef __ANDROID__
-void Settings::setAndroidApp(android_app* androidApp) { _androidApp = androidApp; }
-
-android_app* Settings::getAndroidApp() { return _androidApp; }
-#endif

@@ -5,7 +5,6 @@
 #endif
 #include "tuple"
 #include <any>
-#include "Settings.h"
 #include <memory>
 
 class Window {
@@ -13,9 +12,12 @@ class Window {
   std::any _window;
   std::tuple<int, int> _resolution;
   bool _resized = false;
-
  public:
-  Window(std::shared_ptr<Settings> settings);
+  #ifdef __ANDROID__
+  Window(ANativeWindow* window, std::tuple<int, int> resolution);
+  #else
+  Window(std::tuple<int, int> resolution);
+  #endif
   std::any getWindow();
   bool getResized();
   void setResized(bool resized);
