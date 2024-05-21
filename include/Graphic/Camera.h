@@ -3,7 +3,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "Settings.h"
+#include "State.h"
 #include "Window.h"
 #include "Input.h"
 #include <memory>
@@ -52,13 +52,13 @@ class CameraFly : public Camera, public InputSubscriber {
   float _xLast;
   float _yLast;
   std::map<int, bool> _keyStatus;
-  std::shared_ptr<Settings> _settings;
+  std::shared_ptr<State> _state;
   bool _once;
   float _sensitivity = 0.1f;
   float _aspect;
 
  public:
-  CameraFly(std::shared_ptr<Settings> settings);
+  CameraFly(std::shared_ptr<State> state);
   void setProjectionParameters(float fov, float near, float far);
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   glm::mat4 getProjection() override;
@@ -66,9 +66,9 @@ class CameraFly : public Camera, public InputSubscriber {
   void setAngles(float yaw, float pitch, float roll);
   void setAspect(float aspect);
   float getFOV();
-  void cursorNotify(std::any window, float xPos, float yPos) override;
-  void mouseNotify(std::any window, int button, int action, int mods) override;
-  void keyNotify(std::any window, int key, int scancode, int action, int mods) override;
-  void charNotify(std::any window, unsigned int code) override;
-  void scrollNotify(std::any window, double xOffset, double yOffset) override;
+  void cursorNotify(float xPos, float yPos) override;
+  void mouseNotify(int button, int action, int mods) override;
+  void keyNotify(int key, int scancode, int action, int mods) override;
+  void charNotify(unsigned int code) override;
+  void scrollNotify(double xOffset, double yOffset) override;
 };

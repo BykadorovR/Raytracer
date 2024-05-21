@@ -4,27 +4,29 @@
 #include "Main.h"
 #include "Sprite.h"
 
-void InputHandler::cursorNotify(std::any window, float xPos, float yPos) {}
+InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::mouseNotify(std::any window, int button, int action, int mods) {}
+void InputHandler::cursorNotify(float xPos, float yPos) {}
 
-void InputHandler::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+void InputHandler::mouseNotify(int button, int action, int mods) {}
+
+void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      _core->getState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      _core->getState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
 #endif
 }
 
-void InputHandler::charNotify(std::any window, unsigned int code) {}
+void InputHandler::charNotify(unsigned int code) {}
 
-void InputHandler::scrollNotify(std::any window, double xOffset, double yOffset) {}
+void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -50,10 +52,10 @@ Main::Main() {
   auto window = std::make_shared<Window>(settings->getResolution());
   _core = std::make_shared<Core>(window, settings);
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(settings);
+  _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
-  _inputHandler = std::make_shared<InputHandler>();
+  _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 

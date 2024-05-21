@@ -26,8 +26,8 @@ Window::Window(std::tuple<int, int> resolution) {
 }
 #endif
 Window::~Window() {
-  #ifndef __ANDROID__
+#ifndef __ANDROID__
   glfwDestroyWindow(std::any_cast<GLFWwindow*>(_window));
   glfwTerminate();
-  #endif
+#endif
 }

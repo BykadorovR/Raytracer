@@ -54,6 +54,7 @@ struct Settings {
   float _depthBiasConstant = 1.25f;
   // Slope depth bias factor, applied depending on polygon's slope
   float _depthBiasSlope = 1.75f;
+
  public:
   // setters
   void setName(std::string name);

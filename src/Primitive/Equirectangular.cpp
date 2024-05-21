@@ -104,7 +104,7 @@ Equirectangular::Equirectangular(std::string path,
 
   _loggerGPU = std::make_shared<LoggerGPU>(state);
 
-  _camera = std::make_shared<CameraFly>(_state->getSettings());
+  _camera = std::make_shared<CameraFly>(_state);
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);

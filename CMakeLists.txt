@@ -14,11 +14,6 @@ endfunction()
 
 set(CMAKE_CXX_STANDARD 20)
 
-#need for mismatch resolving
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/libraries)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/libraries)
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
@@ -149,6 +144,10 @@ endif()
 
 #include headers to project (so they will be shown in include folder)
 if (NOT ANDROID)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/libraries)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/libraries)
   add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
                                      ${app_header_primitive} ${app_source_primitive}
                                      ${app_header_utility}   ${app_source_utility}                                   
@@ -171,7 +170,7 @@ endif()
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
 
 file(COPY ${glm_SOURCE_DIR}/glm DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${imgui_SOURCE_DIR}/imgui.h ${imgui_SOURCE_DIR}/imconfig.h DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -185,8 +184,8 @@ endif()
 
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} glfw imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE imgui mikktspace)
 endif()

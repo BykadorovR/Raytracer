@@ -7,11 +7,11 @@
 
 class InputSubscriber {
  public:
-  virtual void cursorNotify(std::any window, float xPos, float yPos) = 0;
-  virtual void mouseNotify(std::any window, int button, int action, int mods) = 0;
-  virtual void keyNotify(std::any window, int key, int scancode, int action, int mods) = 0;
-  virtual void charNotify(std::any window, unsigned int code) = 0;
-  virtual void scrollNotify(std::any window, double xOffset, double yOffset) = 0;
+  virtual void cursorNotify(float xPos, float yPos) = 0;
+  virtual void mouseNotify(int button, int action, int mods) = 0;
+  virtual void keyNotify(int key, int scancode, int action, int mods) = 0;
+  virtual void charNotify(unsigned int code) = 0;
+  virtual void scrollNotify(double xOffset, double yOffset) = 0;
 };
 
 class Input {
@@ -21,10 +21,11 @@ class Input {
 
  public:
   Input(std::shared_ptr<Window> window);
-  void cursorHandler(std::any window, double xpos, double ypos);
-  void mouseHandler(std::any window, int button, int action, int mods);
-  void keyHandler(std::any window, int key, int scancode, int action, int mods);
-  void charHandler(std::any window, unsigned int code);
-  void scrollHandler(std::any window, double xOffset, double yOffset);
+  void cursorHandler(double xpos, double ypos);
+  void mouseHandler(int button, int action, int mods);
+  void keyHandler(int key, int scancode, int action, int mods);
+  void charHandler(unsigned int code);
+  void scrollHandler(double xOffset, double yOffset);
   void subscribe(std::shared_ptr<InputSubscriber> sub);
+  void showCursor(bool show);
 };

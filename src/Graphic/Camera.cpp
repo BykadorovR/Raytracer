@@ -39,8 +39,8 @@ glm::mat4 CameraOrtho::getProjection() {
   return projection;
 }
 
-CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
-  _settings = settings;
+CameraFly::CameraFly(std::shared_ptr<State> state) : Camera() {
+  _state = state;
   _once = false;
   _xLast = 0.f;
   _yLast = 0.f;
@@ -52,7 +52,8 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
-  _aspect = (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution());
+  _aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
+            (float)std::get<1>(_state->getSettings()->getResolution());
 }
 
 void CameraFly::setAspect(float aspect) { _aspect = aspect; }
@@ -82,9 +83,10 @@ glm::mat4 CameraFly::getProjection() {
 
 float CameraFly::getFOV() { return _fov; }
 
-void CameraFly::cursorNotify(std::any window, float xPos, float yPos) {
+void CameraFly::cursorNotify(float xPos, float yPos) {
 #ifndef __ANDROID__
-  if (glfwGetInputMode(std::any_cast<GLFWwindow*>(window), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+  if (glfwGetInputMode(std::any_cast<GLFWwindow*>(_state->getWindow()->getWindow()), GLFW_CURSOR) !=
+      GLFW_CURSOR_DISABLED) {
     _once = false;
     return;
   }
@@ -116,9 +118,9 @@ void CameraFly::cursorNotify(std::any window, float xPos, float yPos) {
   _direction = glm::normalize(_direction);
 }
 
-void CameraFly::mouseNotify(std::any, int button, int action, int mods) {}
+void CameraFly::mouseNotify(int button, int action, int mods) {}
 
-void CameraFly::keyNotify(std::any window, int key, int scancode, int action, int mods) {
+void CameraFly::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   _keyStatus[key] = true;
 
@@ -148,6 +150,6 @@ void CameraFly::keyNotify(std::any window, int key, int scancode, int action, in
 #endif
 }
 
-void CameraFly::charNotify(std::any window, unsigned int code) {}
+void CameraFly::charNotify(unsigned int code) {}
 
-void CameraFly::scrollNotify(std::any window, double xOffset, double yOffset) {}
+void CameraFly::scrollNotify(double xOffset, double yOffset) {}

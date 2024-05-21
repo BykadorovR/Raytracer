@@ -12,12 +12,13 @@ class Window {
   std::any _window;
   std::tuple<int, int> _resolution;
   bool _resized = false;
+
  public:
-  #ifdef __ANDROID__
+#ifdef __ANDROID__
   Window(ANativeWindow* window, std::tuple<int, int> resolution);
-  #else
+#else
   Window(std::tuple<int, int> resolution);
-  #endif
+#endif
   std::any getWindow();
   bool getResized();
   void setResized(bool resized);

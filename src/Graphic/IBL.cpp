@@ -138,7 +138,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _cameraSpecularBRDF->setProjectionParameters({-1, 1, 1, -1}, 0, 1);
   _cameraSpecularBRDF->setViewParameters(glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 
-  _camera = std::make_shared<CameraFly>(_state->getSettings());
+  _camera = std::make_shared<CameraFly>(_state);
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
