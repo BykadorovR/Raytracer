@@ -1,5 +1,8 @@
 #pragma once
 #include "State.h"
+#ifdef __ANDROID__
+#define TINYGLTF_ANDROID_LOAD_FROM_ASSETS
+#endif
 #include "tiny_gltf.h"
 #include "Material.h"
 #include "Mesh.h"
@@ -145,5 +148,8 @@ class LoaderGLTF {
   LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<LoaderImage> loaderImage,
              std::shared_ptr<State> state);
+#ifdef __ANDROID__
+  void setAssetManager(AAssetManager* assetManager);
+#endif
   std::shared_ptr<ModelGLTF> load(std::string path);
 };

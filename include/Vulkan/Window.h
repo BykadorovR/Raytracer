@@ -15,11 +15,11 @@ class Window {
   bool _resized = false;
 
  public:
-#ifdef __ANDROID__
-  Window(ANativeWindow* window, std::tuple<int, int> resolution);
-#else
   Window(std::tuple<int, int> resolution);
+#ifdef __ANDROID__
+  void setNativeWindow(ANativeWindow* window);
 #endif
+  void initialize();
   void* getWindow();
   bool getResized();
   void setResized(bool resized);

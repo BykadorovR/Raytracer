@@ -1,10 +1,17 @@
 #include "Instance.h"
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                              VkDebugUtilsMessageTypeFlagsEXT messageType,
                                              const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                              void* pUserData) {
+#ifdef __ANDROID__
+  __android_log_print(ANDROID_LOG_ERROR, "validation layer: ", "%s", pCallbackData->pMessage);
+#else
   std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+#endif
   return VK_FALSE;
 }
 
@@ -67,6 +74,7 @@ Instance::Instance(std::string name, bool validation) {
   // validation
   createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
   createInfo.ppEnabledLayerNames = _validationLayers.data();
+#ifndef __ANDROID__
   if (_validation) {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -80,7 +88,7 @@ Instance::Instance(std::string name, bool validation) {
 
     createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
   }
-
+#endif
   if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS) {
     throw std::runtime_error("failed to create instance!");
   }
@@ -99,10 +107,9 @@ Instance::Instance(std::string name, bool validation) {
     createInfo.pfnUserCallback = debugCallback;
 
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr)
-      func(_instance, &createInfo, nullptr, &_debugMessenger);
-    else
-      throw std::runtime_error("failed to set up debug messenger!");
+    if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
+    auto result = func(_instance, &createInfo, nullptr, &_debugMessenger);
+    if (result != VK_SUCCESS) throw std::runtime_error("failed to set up debug messenger!");
 
     PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
     CreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(

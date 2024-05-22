@@ -74,7 +74,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeIBL();
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add("shaders/IBL/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/IBL/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDiffuse = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -90,7 +90,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = RoughnessConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add("shaders/IBL/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/IBL/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -103,7 +103,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
                                        _mesh3D->getAttributeDescriptions(), _renderPass);
   }
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add("shaders/IBL/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/IBL/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineSpecularBRDF = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

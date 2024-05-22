@@ -13,7 +13,7 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr
                                                          state->getDescriptorPool(), state->getDevice());
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(state->getDevice());
+  auto shader = std::make_shared<Shader>(state);
   shader->add("shaders/line/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/line/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());

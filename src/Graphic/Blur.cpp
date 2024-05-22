@@ -64,9 +64,9 @@ Blur::Blur(std::vector<std::shared_ptr<Texture>> src,
            std::shared_ptr<State> state) {
   _state = state;
 
-  auto shaderVertical = std::make_shared<Shader>(_state->getDevice());
+  auto shaderVertical = std::make_shared<Shader>(_state);
   shaderVertical->add("shaders/postprocessing/blurVertical_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-  auto shaderHorizontal = std::make_shared<Shader>(_state->getDevice());
+  auto shaderHorizontal = std::make_shared<Shader>(_state);
   shaderHorizontal->add("shaders/postprocessing/blurHorizontal_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());

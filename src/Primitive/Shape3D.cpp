@@ -144,7 +144,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   _renderPassDepth->initializeLightDepth();
   // initialize Color
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add(_shadersColor[_shapeType][MaterialType::COLOR][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersColor[_shapeType][MaterialType::COLOR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -164,7 +164,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
   // initialize Phong
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add(_shadersColor[_shapeType][MaterialType::PHONG][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersColor[_shapeType][MaterialType::PHONG][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -188,7 +188,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
   // initialize PBR
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add(_shadersColor[_shapeType][MaterialType::PBR][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersColor[_shapeType][MaterialType::PBR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -213,7 +213,7 @@ Shape3D::Shape3D(ShapeType shapeType,
 
   // initialize Normal (per vertex)
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add(_shadersNormalsMesh[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersNormalsMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -228,7 +228,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
   // initialize Tangent (per vertex)
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add(_shadersTangentMesh[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersTangentMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add(_shadersTangentMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -243,7 +243,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
   // initialize shadows directional
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
@@ -256,7 +256,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersLight[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

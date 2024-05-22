@@ -1,8 +1,59 @@
 #include "Core.h"
 #include <typeinfo>
 
-Core::Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings) {
-  _state = std::make_shared<State>(window, settings);
+Core::Core(std::shared_ptr<Settings> settings) { _state = std::make_shared<State>(settings); }
+
+void Core::_initializeTextures() {
+  auto settings = _state->getSettings();
+  _textureRender.resize(settings->getMaxFramesInFlight());
+  _textureBlurIn.resize(settings->getMaxFramesInFlight());
+  _textureBlurOut.resize(settings->getMaxFramesInFlight());
+  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+    auto graphicImage = std::make_shared<Image>(
+        settings->getResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+    graphicImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                               _commandBufferTransfer);
+    auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                        VK_IMAGE_ASPECT_COLOR_BIT, _state);
+    _textureRender[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, _state);
+    {
+      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
+                                               VK_IMAGE_TILING_OPTIMAL,
+                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                              _commandBufferTransfer);
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, _state);
+      _textureBlurIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
+    }
+    {
+      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
+                                               VK_IMAGE_TILING_OPTIMAL,
+                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                              _commandBufferTransfer);
+      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                       VK_IMAGE_ASPECT_COLOR_BIT, _state);
+      _textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
+    }
+  }
+}
+
+#ifdef __ANDROID__
+void Core::setAssetManager(AAssetManager* assetManager) { _assetManager = assetManager; }
+void Core::setNativeWindow(ANativeWindow* window) { _nativeWindow = window; }
+#endif
+
+void Core::initialize() {
+#ifdef __ANDROID__
+  _state->setNativeWindow(_nativeWindow);
+  _state->setAssetManager(_assetManager);
+#endif
+  _state->initialize();
+  auto settings = _state->getSettings();
   _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), _state);
   _timer = std::make_shared<Timer>();
   _timerFPSReal = std::make_shared<TimerFPS>();
@@ -49,6 +100,10 @@ Core::Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings) {
   _loggerCPU = std::make_shared<LoggerCPU>();
 
   _resourceManager = std::make_shared<ResourceManager>(_commandBufferTransfer, _state);
+#ifdef __ANDROID__
+  _resourceManager->setAssetManager(_assetManager);
+#endif
+  _resourceManager->initialize();
 
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
@@ -117,45 +172,6 @@ Core::Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings) {
     auto queue = _state->getDevice()->getQueue(QueueType::GRAPHIC);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
-  }
-}
-
-void Core::_initializeTextures() {
-  auto settings = _state->getSettings();
-  _textureRender.resize(settings->getMaxFramesInFlight());
-  _textureBlurIn.resize(settings->getMaxFramesInFlight());
-  _textureBlurOut.resize(settings->getMaxFramesInFlight());
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    auto graphicImage = std::make_shared<Image>(
-        settings->getResolution(), 1, 1, settings->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-    graphicImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                               _commandBufferTransfer);
-    auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                        VK_IMAGE_ASPECT_COLOR_BIT, _state);
-    _textureRender[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, _state);
-    {
-      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                               VK_IMAGE_TILING_OPTIMAL,
-                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                              _commandBufferTransfer);
-      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                       VK_IMAGE_ASPECT_COLOR_BIT, _state);
-      _textureBlurIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
-    }
-    {
-      auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
-                                               VK_IMAGE_TILING_OPTIMAL,
-                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT,
-                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-      blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                              _commandBufferTransfer);
-      auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                       VK_IMAGE_ASPECT_COLOR_BIT, _state);
-      _textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
-    }
   }
 }
 

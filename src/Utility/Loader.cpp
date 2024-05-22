@@ -11,14 +11,18 @@ LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
 }
 
 std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU(std::string path) {
-  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> images;
-  // load texture
   int texWidth, texHeight, texChannels;
+#ifdef __ANDROID__
+  std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
+  std::shared_ptr<uint8_t[]> pixels(stbi_load_from_memory(fileContent.data(), fileContent.size(), &texWidth, &texHeight,
+                                                          &texChannels, STBI_rgb_alpha));
+#else
+  // load texture
   std::shared_ptr<uint8_t[]> pixels(stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha),
                                     stbi_image_free);
-
+#endif
   if (!pixels) {
-    throw std::runtime_error("failed to load texture image!");
+    throw std::runtime_error("failed to load texture image " + path);
   }
   return {pixels, {texWidth, texHeight, 4}};
 }
@@ -103,6 +107,10 @@ LoaderGLTF::LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _state = state;
   _loaderImage = loaderImage;
 }
+
+#ifdef __ANDROID__
+void LoaderGLTF::setAssetManager(AAssetManager* assetManager) { tinygltf::asset_manager = assetManager; }
+#endif
 
 std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
   if (_models.contains(path) == false) {

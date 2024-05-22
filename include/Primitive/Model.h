@@ -91,5 +91,5 @@ class Model3D : public Drawable, public Shadowable {
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,
             std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

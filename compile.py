@@ -3,16 +3,24 @@ import subprocess
 import sys
 
 
-folder = "shaders"
-compiler_path = sys.argv[1]
+input_path = sys.argv[1]
+output_path = sys.argv[2]
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
+compiler_path = sys.argv[3]
 debug = True
 
-files = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(folder)) for f in fn]
+files = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(input_path)) for f in fn]
 
 for f in files:
-	file_name = os.path.splitext(f)[0]
+	sub_path = f.replace(input_path,"")
+	file = os.path.basename(sub_path)
+	folder_name = sub_path.replace(file, "")
+	if not os.path.exists(output_path + folder_name):
+		os.makedirs(output_path + folder_name)
+	file_name = folder_name + os.path.splitext(file)[0]
 	print(file_name)
-	extension = os.path.splitext(f)[1][1:]
+	extension = os.path.splitext(file)[1][1:]
 	extension_new = ""
 	if extension == "frag":
 		extension_new = "_fragment.spv"
@@ -32,6 +40,6 @@ for f in files:
 	debug_key = ""
 	if debug:
 		debug_key = "-g"
-	command_line = f"{compiler_path} -c {debug_key} {f} -o {file_name}{extension_new}"
+	command_line = f"{compiler_path} -c {debug_key} {f} -o {output_path}{file_name}{extension_new}"
 	#print(command_line)
 	subprocess.call(command_line)

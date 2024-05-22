@@ -77,7 +77,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _renderPassDepth->initializeLightDepth();
   // initialize Color
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/model/modelColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -109,7 +109,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize Phong
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/model/modelPhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -142,7 +142,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   }
   // initialize PBR
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/model/modelPBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -176,7 +176,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize Normal (per vertex)
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/shape/cubeNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -201,7 +201,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize Tangent (per vertex)
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/shape/cubeTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -226,7 +226,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth directional
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
@@ -237,7 +237,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth point
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

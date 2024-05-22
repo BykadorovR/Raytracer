@@ -25,6 +25,10 @@
 
 class Core {
  private:
+#ifdef __ANDROID__
+  AAssetManager* _assetManager;
+  ANativeWindow* _nativeWindow;
+#endif
   std::shared_ptr<State> _state;
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
@@ -95,7 +99,12 @@ class Core {
   void _reset();
 
  public:
-  Core(std::shared_ptr<Window> window, std::shared_ptr<Settings> settings);
+  Core(std::shared_ptr<Settings> settings);
+#ifdef __ANDROID__
+  void setAssetManager(AAssetManager* assetManager);
+  void setNativeWindow(ANativeWindow* window);
+#endif
+  void initialize();
   void draw();
   void registerUpdate(std::function<void()> update);
   void registerReset(std::function<void(int width, int height)> reset);

@@ -82,7 +82,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize Color
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -105,7 +105,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize Phong
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spritePhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spritePhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -130,7 +130,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize PBR
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spritePBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spritePBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
@@ -154,7 +154,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
   }
   // initialize Normal (per vertex)
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -170,7 +170,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize Tangent (per vertex)
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
@@ -186,7 +186,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize depth directional color
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -200,7 +200,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize depth directional Phong
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -214,7 +214,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
 
   // initialize depth directional PBR
   {
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -231,7 +231,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -248,7 +248,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -264,7 +264,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state->getDevice());
+    auto shader = std::make_shared<Shader>(_state);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

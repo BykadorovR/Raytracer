@@ -11,7 +11,7 @@ Equirectangular::Equirectangular(std::string path,
   int texWidth, texHeight, texChannels;
   pixels = stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
   if (!pixels) {
-    throw std::runtime_error("failed to load texture image!");
+    throw std::runtime_error("failed to load texture image " + path);
   }
 
   int imageSize = texWidth * texHeight * STBI_rgb_alpha;
@@ -89,7 +89,7 @@ Equirectangular::Equirectangular(std::string path,
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeIBL();
   {
-    auto shader = std::make_shared<Shader>(state->getDevice());
+    auto shader = std::make_shared<Shader>(state);
     shader->add("shaders/IBL/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/IBL/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());

@@ -49,8 +49,8 @@ Main::Main() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
-  std::shared_ptr<Window> window = std::make_shared<Window>(settings->getResolution());
-  _core = std::make_shared<Core>(window, settings);
+  _core = std::make_shared<Core>(settings);
+  _core->initialize();
   _core->startRecording();
   auto state = _core->getState();
   _camera = std::make_shared<CameraFly>(_core->getState());

@@ -1,5 +1,4 @@
 #include "Shader.h"
-#include "Utils.h"
 
 VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
   VkShaderModuleCreateInfo createInfo{};
@@ -8,17 +7,18 @@ VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
   createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
   VkShaderModule shaderModule;
-  if (vkCreateShaderModule(_device->getLogicalDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+  if (vkCreateShaderModule(_state->getDevice()->getLogicalDevice(), &createInfo, nullptr, &shaderModule) !=
+      VK_SUCCESS) {
     throw std::runtime_error("failed to create shader module!");
   }
 
   return shaderModule;
 }
 
-Shader::Shader(std::shared_ptr<Device> device) { _device = device; }
+Shader::Shader(std::shared_ptr<State> state) { _state = state; }
 
 void Shader::add(std::string path, VkShaderStageFlagBits type) {
-  auto shaderCode = readFile(path);
+  auto shaderCode = _state->getFilesystem()->readFile<char>(path);
   VkShaderModule shaderModule = _createShaderModule(shaderCode);
   _shaders[type] = {};
   _shaders[type].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -35,5 +35,6 @@ void Shader::setSpecializationInfo(VkSpecializationInfo info, VkShaderStageFlagB
 VkPipelineShaderStageCreateInfo& Shader::getShaderStageInfo(VkShaderStageFlagBits type) { return _shaders[type]; }
 
 Shader::~Shader() {
-  for (auto& [type, shader] : _shaders) vkDestroyShaderModule(_device->getLogicalDevice(), shader.module, nullptr);
+  for (auto& [type, shader] : _shaders)
+    vkDestroyShaderModule(_state->getDevice()->getLogicalDevice(), shader.module, nullptr);
 }

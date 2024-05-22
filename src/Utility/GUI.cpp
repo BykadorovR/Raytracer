@@ -91,7 +91,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                                                    _descriptorPool, _state->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(_state->getDevice());
+  auto shader = std::make_shared<Shader>(_state);
   shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/UI/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
