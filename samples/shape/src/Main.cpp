@@ -64,13 +64,13 @@ Main::Main() {
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  //_directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
-  //_directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  //_directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  //// TODO: rename setCenter to lookAt
-  ////  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  //_directionalLight->setCenter({0.f, 0.f, 0.f});
-  //_directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
+  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
+  // TODO: rename setCenter to lookAt
+  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
+  _directionalLight->setCenter({0.f, 0.f, 0.f});
+  _directionalLight->setUp({0.f, 0.f, -1.f});
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);

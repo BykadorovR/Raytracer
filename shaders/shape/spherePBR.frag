@@ -38,18 +38,18 @@ struct LightPoint {
     vec3 position;
 };
 
-layout(std140, set = 1, binding = 2) readonly buffer LightBufferDirectional {
+layout(std140, set = 1, binding = 1) readonly buffer LightBufferDirectional {
     int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std140, set = 1, binding = 3) readonly buffer LightBufferPoint {
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
     int lightPointNumber;
     LightPoint lightPoint[];
 };
 
-layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 3) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 4) uniform samplerCube shadowPointSampler[4];
 
 //coefficients from base color
 layout(set = 0, binding = 10) uniform Material {

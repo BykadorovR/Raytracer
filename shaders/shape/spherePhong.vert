@@ -12,11 +12,6 @@ layout(std140, set = 1, binding = 0) readonly buffer LightMatrixDirectional {
     mat4 lightDirectionalVP[];
 };
 
-layout(std140, set = 1, binding = 1) readonly buffer LightMatrixPoint {
-    int lightPointNumber;
-    mat4 lightPointVP[];
-};
-
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inColor;

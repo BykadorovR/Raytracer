@@ -8,7 +8,7 @@ output_path = sys.argv[2]
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 compiler_path = sys.argv[3]
-debug = True
+debug = sys.argv[4]
 
 files = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(input_path)) for f in fn]
 

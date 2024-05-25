@@ -12,7 +12,7 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // update global descriptor for Phong and PBR (2 separate)
   {
     _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
     layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -22,7 +22,7 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     layoutPhong[1].descriptorCount = 1;
     layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPhong[2].binding = 2;
     layoutPhong[2].descriptorCount = 1;
     layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -34,25 +34,20 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     layoutPhong[3].pImmutableSamplers = nullptr;
     layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 1;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[4].descriptorCount = 2;
+    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPhong[4].pImmutableSamplers = nullptr;
     layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 2;
+    layoutPhong[5].descriptorCount = 4;
     layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPhong[5].pImmutableSamplers = nullptr;
     layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[6].binding = 6;
-    layoutPhong[6].descriptorCount = 4;
-    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[6].pImmutableSamplers = nullptr;
-    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
   }
   {
     _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
     layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -62,27 +57,22 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     layoutPBR[1].descriptorCount = 1;
     layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[2].binding = 2;
     layoutPBR[2].descriptorCount = 1;
     layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutPBR[2].pImmutableSamplers = nullptr;
     layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 1;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPBR[3].descriptorCount = 2;
+    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[3].pImmutableSamplers = nullptr;
     layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 2;
+    layoutPBR[4].descriptorCount = 4;
     layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[4].pImmutableSamplers = nullptr;
     layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[5].binding = 5;
-    layoutPBR[5].descriptorCount = 4;
-    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[5].pImmutableSamplers = nullptr;
-    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
 
@@ -322,17 +312,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[0] = bufferDirectionalInfo;
     }
     {
-      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
-      bufferPointInfo[0].buffer = _lightPointSSBOViewProjectionStub->getData();
-      bufferPointInfo[0].offset = 0;
-      bufferPointInfo[0].range = _lightPointSSBOViewProjectionStub->getSize();
-      if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
-        bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
-        bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
-      }
-      bufferInfo[1] = bufferPointInfo;
-    }
-    {
       std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
       // write stub buffer as default value
       bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOStub->getData();
@@ -342,7 +321,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         bufferDirectionalInfo[0].buffer = _lightDirectionalSSBO[currentFrame]->getData();
         bufferDirectionalInfo[0].range = _lightDirectionalSSBO[currentFrame]->getSize();
       }
-      bufferInfo[2] = bufferDirectionalInfo;
+      bufferInfo[1] = bufferDirectionalInfo;
     }
     {
       std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
@@ -353,7 +332,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         bufferPointInfo[0].buffer = _lightPointSSBO[currentFrame]->getData();
         bufferPointInfo[0].range = _lightPointSSBO[currentFrame]->getSize();
       }
-      bufferInfo[3] = bufferPointInfo;
+      bufferInfo[2] = bufferPointInfo;
     }
     {
       std::vector<VkDescriptorBufferInfo> bufferAmbientInfo(1);
@@ -364,7 +343,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         bufferAmbientInfo[0].buffer = _lightAmbientSSBO[currentFrame]->getData();
         bufferAmbientInfo[0].range = _lightAmbientSSBO[currentFrame]->getSize();
       }
-      bufferInfo[4] = bufferAmbientInfo;
+      bufferInfo[3] = bufferAmbientInfo;
     }
     {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
@@ -374,7 +353,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
         directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
       }
-      textureInfo[5] = directionalImageInfo;
+      textureInfo[4] = directionalImageInfo;
 
       std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
       for (int j = 0; j < pointImageInfo.size(); j++) {
@@ -383,7 +362,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
         pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
       }
-      textureInfo[6] = pointImageInfo;
+      textureInfo[5] = pointImageInfo;
     }
     _descriptorSetGlobalPhong->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -404,17 +383,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[0] = bufferDirectionalInfo;
     }
     {
-      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
-      bufferPointInfo[0].buffer = _lightPointSSBOViewProjectionStub->getData();
-      bufferPointInfo[0].offset = 0;
-      bufferPointInfo[0].range = _lightPointSSBOViewProjectionStub->getSize();
-      if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
-        bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
-        bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
-      }
-      bufferInfo[1] = bufferPointInfo;
-    }
-    {
       std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
       // write stub buffer as default value
       bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOStub->getData();
@@ -424,7 +392,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         bufferDirectionalInfo[0].buffer = _lightDirectionalSSBO[currentFrame]->getData();
         bufferDirectionalInfo[0].range = _lightDirectionalSSBO[currentFrame]->getSize();
       }
-      bufferInfo[2] = bufferDirectionalInfo;
+      bufferInfo[1] = bufferDirectionalInfo;
     }
     {
       std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
@@ -435,7 +403,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         bufferPointInfo[0].buffer = _lightPointSSBO[currentFrame]->getData();
         bufferPointInfo[0].range = _lightPointSSBO[currentFrame]->getSize();
       }
-      bufferInfo[3] = bufferPointInfo;
+      bufferInfo[2] = bufferPointInfo;
     }
     {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
@@ -445,7 +413,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
         directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
       }
-      textureInfo[4] = directionalImageInfo;
+      textureInfo[3] = directionalImageInfo;
 
       std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
       for (int j = 0; j < pointImageInfo.size(); j++) {
@@ -454,7 +422,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
         pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
         pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
       }
-      textureInfo[5] = pointImageInfo;
+      textureInfo[4] = pointImageInfo;
     }
     _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
