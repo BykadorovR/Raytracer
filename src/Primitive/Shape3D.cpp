@@ -59,6 +59,9 @@ Shape3D::Shape3D(ShapeType shapeType,
   _renderPass->initializeGraphic();
   _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPassDepth->initializeLightDepth();
+
+  _uniformBufferCamera = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
+                                                         sizeof(BufferMVP), state);
   // setup normals
   {
     _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_state->getDevice());
@@ -76,8 +79,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     _descriptorSetLayoutNormalsMesh->createCustom(layoutNormalsMesh);
 
     // TODO: we can just have one buffer and put it twice to descriptor
-    _uniformBufferNormalsMesh = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                sizeof(BufferMVP) + sizeof(BufferMVP), state);
+
     _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                                 _descriptorSetLayoutNormalsMesh,
                                                                 state->getDescriptorPool(), state->getDevice());
@@ -85,14 +87,14 @@ Shape3D::Shape3D(ShapeType shapeType,
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
-      bufferInfoVertex[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
+      bufferInfoVertex[0].buffer = _uniformBufferCamera->getBuffer()[i]->getData();
       bufferInfoVertex[0].offset = 0;
       bufferInfoVertex[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[0] = bufferInfoVertex;
       // write for binding = 1 for geometry shader
       std::vector<VkDescriptorBufferInfo> bufferInfoGeometry(1);
-      bufferInfoGeometry[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
-      bufferInfoGeometry[0].offset = sizeof(BufferMVP);
+      bufferInfoGeometry[0].buffer = _uniformBufferCamera->getBuffer()[i]->getData();
+      bufferInfoGeometry[0].offset = 0;
       bufferInfoGeometry[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[1] = bufferInfoGeometry;
       _descriptorSetNormalsMesh->createCustom(i, bufferInfoNormalsMesh, {});
@@ -224,7 +226,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
       _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -233,7 +235,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
@@ -323,7 +325,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
       _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -332,30 +334,15 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("fragment"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
 
-  // initialize camera UBO and descriptor sets for draw
-  // initialize UBO
+  // shadows
   auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
   layoutCamera->createUniformBuffer();
 
-  {
-    _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                           state->getDescriptorPool(), state->getDevice());
-    for (int i = 0; i < state->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoCamera;
-      std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoVertex[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
-      bufferInfoVertex[0].offset = 0;
-      bufferInfoVertex[0].range = sizeof(BufferMVP);
-      bufferInfoCamera[0] = bufferInfoVertex;
-      _descriptorSetCamera->createCustom(i, bufferInfoCamera, {});
-    }
-  }
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
@@ -401,14 +388,14 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"camera", layoutCamera}}, {},
+        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"depth", layoutCamera}}, {},
         _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPassDepth);
   }
 
   // initialize shadows point
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["fragment"] = DepthConstants::getPushConstant(0);
+    defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_state);
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
@@ -417,7 +404,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     _pipelinePoint->createGraphic3DShadow(VK_CULL_MODE_NONE,
                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                          {{"camera", layoutCamera}}, defaultPushConstants,
+                                          {{"depth", layoutCamera}}, defaultPushConstants,
                                           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
                                           _renderPassDepth);
   }
@@ -430,7 +417,7 @@ void Shape3D::_updateColorDesctiptor(std::shared_ptr<MaterialColor> material) {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
+    bufferInfoCamera[0].buffer = _uniformBufferCamera->getBuffer()[i]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -452,7 +439,7 @@ void Shape3D::_updatePhongDesctiptor(std::shared_ptr<MaterialPhong> material) {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
+    bufferInfoCamera[0].buffer = _uniformBufferCamera->getBuffer()[i]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -493,7 +480,7 @@ void Shape3D::_updatePBRDesctiptor(std::shared_ptr<MaterialPBR> material) {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _uniformBufferNormalsMesh->getBuffer()[i]->getData();
+    bufferInfoCamera[0].buffer = _uniformBufferCamera->getBuffer()[i]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -620,7 +607,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     // light push constants
-    if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
+    if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
       LightPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
@@ -636,13 +623,11 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     cameraUBO.projection = camera->getProjection();
 
     void* data = nullptr;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(),
-                _uniformBufferNormalsMesh->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(cameraUBO) + sizeof(cameraUBO), 0, &data);
+    vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(),
+                0, sizeof(cameraUBO), 0, &data);
     std::memcpy(data, &cameraUBO, sizeof(cameraUBO));
-    std::memcpy((uint8_t*)(data) + sizeof(cameraUBO), &cameraUBO, sizeof(cameraUBO));
     vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                  _uniformBufferNormalsMesh->getBuffer()[currentFrame]->getMemory());
+                  _uniformBufferCamera->getBuffer()[currentFrame]->getMemory());
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -707,104 +692,15 @@ void Shape3D::draw(std::tuple<int, int> resolution,
                               &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
-    // camera
-    auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                     [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                       return info.first == std::string("camera");
-                                     });
-    if (cameraLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    auto cameraLayoutGeometry = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                             [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                               return info.first == std::string("normal");
-                                             });
-    if (cameraLayoutGeometry != pipelineLayout.end()) {
+    // normals and tangents
+    auto normalTangentLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                            [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                              return info.first == std::string("normal");
+                                            });
+    if (normalTangentLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetNormalsMesh->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    // textures
-    auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                      [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                        return info.first == std::string("texture");
-                                      });
-    if (textureLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
-    }
-
-    // coefficients
-    auto materialCoefficientsLayout = std::find_if(
-        pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-          return info.first == std::string("materialCoefficients");
-        });
-    if (materialCoefficientsLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 5, 1,
-                              &_material->getDescriptorSetCoefficients(currentFrame)->getDescriptorSets()[currentFrame],
-                              0, nullptr);
-    }
-
-    // alpha mask
-    auto alphaMaskLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                          return info.first == std::string("alphaMask");
-                                        });
-    if (alphaMaskLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 6, 1,
-                              &_material->getDescriptorSetAlphaCutoff()->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    // light view projection
-    auto lightVPLayout = std::find_if(
-        pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightVP"; });
-    if (lightVPLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(
-          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 2, 1,
-          &_lightManager->getDSViewProjection(VK_SHADER_STAGE_VERTEX_BIT)->getDescriptorSets()[currentFrame], 0,
-          nullptr);
-    }
-
-    // lights
-    auto lightLayout = std::find_if(
-        pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPhong"; });
-    if (lightLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 3, 1,
-                              &_lightManager->getDSLightPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    lightLayout = std::find_if(
-        pipelineLayout.begin(), pipelineLayout.end(),
-        [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) { return info.first == "lightPBR"; });
-    if (lightLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 3, 1,
-                              &_lightManager->getDSLightPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    // depth texture
-    auto shadowTextureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                            [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                              return info.first == "shadowTexture";
-                                            });
-    if (shadowTextureLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 4, 1,
-                              &_lightManager->getDSShadowTexture()[currentFrame]->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
     }
 
     vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
@@ -868,7 +764,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
+  if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
       pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
@@ -915,7 +811,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("camera");
+                                     return info.first == std::string("depth");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(

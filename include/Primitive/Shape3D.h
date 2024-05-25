@@ -22,9 +22,8 @@ class Shape3D : public Drawable, public Shadowable {
       _descriptorSetLayout;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
   std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh, _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
-  std::shared_ptr<UniformBuffer> _uniformBufferNormalsMesh;
+  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
 
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
