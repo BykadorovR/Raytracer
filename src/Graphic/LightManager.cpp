@@ -9,6 +9,83 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
 
+  // update global descriptor for Phong and PBR (2 separate)
+  {
+    _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
+    layoutPhong[0].binding = 0;
+    layoutPhong[0].descriptorCount = 1;
+    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[0].pImmutableSamplers = nullptr;
+    layoutPhong[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPhong[1].binding = 1;
+    layoutPhong[1].descriptorCount = 1;
+    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[1].pImmutableSamplers = nullptr;
+    layoutPhong[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPhong[2].binding = 2;
+    layoutPhong[2].descriptorCount = 1;
+    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[2].pImmutableSamplers = nullptr;
+    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[3].binding = 3;
+    layoutPhong[3].descriptorCount = 1;
+    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[3].pImmutableSamplers = nullptr;
+    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[4].binding = 4;
+    layoutPhong[4].descriptorCount = 1;
+    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPhong[4].pImmutableSamplers = nullptr;
+    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[5].binding = 5;
+    layoutPhong[5].descriptorCount = 2;
+    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPhong[5].pImmutableSamplers = nullptr;
+    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[6].binding = 6;
+    layoutPhong[6].descriptorCount = 4;
+    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPhong[6].pImmutableSamplers = nullptr;
+    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
+  }
+  {
+    _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
+    layoutPBR[0].binding = 0;
+    layoutPBR[0].descriptorCount = 1;
+    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPBR[0].pImmutableSamplers = nullptr;
+    layoutPBR[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPBR[1].binding = 1;
+    layoutPBR[1].descriptorCount = 1;
+    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPBR[1].pImmutableSamplers = nullptr;
+    layoutPBR[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutPBR[2].binding = 2;
+    layoutPBR[2].descriptorCount = 1;
+    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPBR[2].pImmutableSamplers = nullptr;
+    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[3].binding = 3;
+    layoutPBR[3].descriptorCount = 1;
+    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutPBR[3].pImmutableSamplers = nullptr;
+    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[4].binding = 4;
+    layoutPBR[4].descriptorCount = 2;
+    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPBR[4].pImmutableSamplers = nullptr;
+    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[5].binding = 5;
+    layoutPBR[5].descriptorCount = 4;
+    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPBR[5].pImmutableSamplers = nullptr;
+    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
+  }
+
   // create descriptor layouts for light info for direct, point and ambient lights for fragment shaders
   {
     _descriptorSetLayoutLightPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
@@ -148,6 +225,12 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _lightPointSSBOViewProjectionStub->unmap();
   }
 
+  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                              _descriptorSetLayoutGlobalPhong, _descriptorPool,
+                                                              _state->getDevice());
+  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                            _descriptorSetLayoutGlobalPBR, _descriptorPool,
+                                                            _state->getDevice());
   _descriptorSetLightPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                              _descriptorSetLayoutLightPhong, _descriptorPool,
                                                              _state->getDevice());
@@ -222,6 +305,160 @@ std::vector<std::shared_ptr<AmbientLight>> LightManager::getAmbientLights() {
 }
 
 void LightManager::_setLightDescriptors(int currentFrame) {
+  // global Phong descriptor set
+  {
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfo;
+    {
+      std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjectionStub->getData();
+      bufferDirectionalInfo[0].offset = 0;
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjectionStub->getSize();
+      if (_lightDirectionalSSBOViewProjection.size() > currentFrame &&
+          _lightDirectionalSSBOViewProjection[currentFrame]) {
+        bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
+        bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
+      }
+      bufferInfo[0] = bufferDirectionalInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+      bufferPointInfo[0].buffer = _lightPointSSBOViewProjectionStub->getData();
+      bufferPointInfo[0].offset = 0;
+      bufferPointInfo[0].range = _lightPointSSBOViewProjectionStub->getSize();
+      if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
+        bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
+        bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
+      }
+      bufferInfo[1] = bufferPointInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+      // write stub buffer as default value
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOStub->getData();
+      bufferDirectionalInfo[0].offset = 0;
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOStub->getSize();
+      if (_lightDirectionalSSBO.size() > currentFrame && _lightDirectionalSSBO[currentFrame]) {
+        bufferDirectionalInfo[0].buffer = _lightDirectionalSSBO[currentFrame]->getData();
+        bufferDirectionalInfo[0].range = _lightDirectionalSSBO[currentFrame]->getSize();
+      }
+      bufferInfo[2] = bufferDirectionalInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+      bufferPointInfo[0].buffer = _lightPointSSBOStub->getData();
+      bufferPointInfo[0].offset = 0;
+      bufferPointInfo[0].range = _lightPointSSBOStub->getSize();
+      if (_lightPointSSBO.size() > currentFrame && _lightPointSSBO[currentFrame]) {
+        bufferPointInfo[0].buffer = _lightPointSSBO[currentFrame]->getData();
+        bufferPointInfo[0].range = _lightPointSSBO[currentFrame]->getSize();
+      }
+      bufferInfo[3] = bufferPointInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferAmbientInfo(1);
+      bufferAmbientInfo[0].buffer = _lightAmbientSSBOStub->getData();
+      bufferAmbientInfo[0].offset = 0;
+      bufferAmbientInfo[0].range = _lightAmbientSSBOStub->getSize();
+      if (_lightAmbientSSBO.size() > currentFrame && _lightAmbientSSBO[currentFrame]) {
+        bufferAmbientInfo[0].buffer = _lightAmbientSSBO[currentFrame]->getData();
+        bufferAmbientInfo[0].range = _lightAmbientSSBO[currentFrame]->getSize();
+      }
+      bufferInfo[4] = bufferAmbientInfo;
+    }
+    {
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      for (int j = 0; j < directionalImageInfo.size(); j++) {
+        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
+
+        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+      }
+      textureInfo[5] = directionalImageInfo;
+
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      for (int j = 0; j < pointImageInfo.size(); j++) {
+        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
+        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+      }
+      textureInfo[6] = pointImageInfo;
+    }
+    _descriptorSetGlobalPhong->createCustom(currentFrame, bufferInfo, textureInfo);
+  }
+  // global PBR descriptor set
+  {
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfo;
+    {
+      std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjectionStub->getData();
+      bufferDirectionalInfo[0].offset = 0;
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjectionStub->getSize();
+      if (_lightDirectionalSSBOViewProjection.size() > currentFrame &&
+          _lightDirectionalSSBOViewProjection[currentFrame]) {
+        bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
+        bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
+      }
+      bufferInfo[0] = bufferDirectionalInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+      bufferPointInfo[0].buffer = _lightPointSSBOViewProjectionStub->getData();
+      bufferPointInfo[0].offset = 0;
+      bufferPointInfo[0].range = _lightPointSSBOViewProjectionStub->getSize();
+      if (_lightPointSSBOViewProjection.size() > currentFrame && _lightPointSSBOViewProjection[currentFrame]) {
+        bufferPointInfo[0].buffer = _lightPointSSBOViewProjection[currentFrame]->getData();
+        bufferPointInfo[0].range = _lightPointSSBOViewProjection[currentFrame]->getSize();
+      }
+      bufferInfo[1] = bufferPointInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
+      // write stub buffer as default value
+      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOStub->getData();
+      bufferDirectionalInfo[0].offset = 0;
+      bufferDirectionalInfo[0].range = _lightDirectionalSSBOStub->getSize();
+      if (_lightDirectionalSSBO.size() > currentFrame && _lightDirectionalSSBO[currentFrame]) {
+        bufferDirectionalInfo[0].buffer = _lightDirectionalSSBO[currentFrame]->getData();
+        bufferDirectionalInfo[0].range = _lightDirectionalSSBO[currentFrame]->getSize();
+      }
+      bufferInfo[2] = bufferDirectionalInfo;
+    }
+    {
+      std::vector<VkDescriptorBufferInfo> bufferPointInfo(1);
+      bufferPointInfo[0].buffer = _lightPointSSBOStub->getData();
+      bufferPointInfo[0].offset = 0;
+      bufferPointInfo[0].range = _lightPointSSBOStub->getSize();
+      if (_lightPointSSBO.size() > currentFrame && _lightPointSSBO[currentFrame]) {
+        bufferPointInfo[0].buffer = _lightPointSSBO[currentFrame]->getData();
+        bufferPointInfo[0].range = _lightPointSSBO[currentFrame]->getSize();
+      }
+      bufferInfo[3] = bufferPointInfo;
+    }
+    {
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      for (int j = 0; j < directionalImageInfo.size(); j++) {
+        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
+
+        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+      }
+      textureInfo[4] = directionalImageInfo;
+
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      for (int j = 0; j < pointImageInfo.size(); j++) {
+        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
+        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+      }
+      textureInfo[5] = pointImageInfo;
+    }
+    _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
+  }
+
   // light info descriptor sets
   {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoPBR;
@@ -621,10 +858,22 @@ std::shared_ptr<DescriptorSet> LightManager::getDSViewProjection(VkShaderStageFl
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLightPhong() { return _descriptorSetLayoutLightPhong; }
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLLightPBR() { return _descriptorSetLayoutLightPBR; }
+std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
+std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPBR() { return _descriptorSetLayoutGlobalPBR; }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSLightPhong() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _descriptorSetLightPhong;
+}
+
+std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPhong() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _descriptorSetGlobalPhong;
+}
+
+std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPBR() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _descriptorSetGlobalPBR;
 }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSLightPBR() {

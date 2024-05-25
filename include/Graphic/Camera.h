@@ -55,6 +55,7 @@ class CameraFly : public Camera, public InputSubscriber {
   std::shared_ptr<State> _state;
   bool _once;
   float _sensitivity = 0.1f;
+  float _moveSpeed = 0.01f;
   float _aspect;
 
  public:

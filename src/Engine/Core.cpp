@@ -498,7 +498,6 @@ void Core::_renderGraphic() {
   _loggerGPU->end();
 
   // draw scene here
-  // TODO: should be just before ModelManagers
   for (auto& animation : _animations) {
     if (_futureAnimationUpdate[animation].valid()) {
       _futureAnimationUpdate[animation].get();

@@ -44,6 +44,10 @@ void Material::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
 
 bool Material::getDoubleSided() { return _doubleSided; }
 
+std::shared_ptr<UniformBuffer> Material::getBufferCoefficients() { return _uniformBufferCoefficients; }
+
+std::shared_ptr<UniformBuffer> Material::getBufferAlphaCutoff() { return _uniformBufferAlphaCutoff; }
+
 std::shared_ptr<DescriptorSet> Material::getDescriptorSetCoefficients(int currentFrame) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   if (_changedCoefficients[currentFrame]) {

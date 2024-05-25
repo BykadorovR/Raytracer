@@ -30,8 +30,10 @@ class LightManager {
   std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjectionStub, _lightPointSSBOViewProjectionStub;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLightPhong, _descriptorSetLayoutLightPBR;
+  std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR, _descriptorSetGlobalPhong,
+      _descriptorSetGlobalPBR;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLightPhong, _descriptorSetLayoutLightPBR,
+      _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSet>> _descriptorSetViewProjection;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayoutViewProjection;
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
@@ -78,11 +80,16 @@ class LightManager {
 
   std::shared_ptr<DescriptorSetLayout> getDSLLightPhong();
   std::shared_ptr<DescriptorSetLayout> getDSLLightPBR();
+  std::shared_ptr<DescriptorSetLayout> getDSLGlobalPhong();
+  std::shared_ptr<DescriptorSetLayout> getDSLGlobalPBR();
   std::shared_ptr<DescriptorSet> getDSLightPhong();
   std::shared_ptr<DescriptorSet> getDSLightPBR();
+  std::shared_ptr<DescriptorSet> getDSGlobalPhong();
+  std::shared_ptr<DescriptorSet> getDSGlobalPBR();
   std::shared_ptr<DescriptorSetLayout> getDSLViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();
   std::vector<std::shared_ptr<DescriptorSet>> getDSShadowTexture();
+
   void draw(int currentFrame);
 };

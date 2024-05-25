@@ -117,10 +117,24 @@ void CameraFly::cursorNotify(float xPos, float yPos) {
   _direction = glm::normalize(_direction);
 }
 
-void CameraFly::mouseNotify(int button, int action, int mods) {}
+void CameraFly::mouseNotify(int button, int action, int mods) {
+#ifdef __ANDROID__
+  if (action == 0) _once = false;
+#endif
+}
 
 void CameraFly::keyNotify(int key, int scancode, int action, int mods) {
-#ifndef __ANDROID__
+#ifdef __ANDROID__
+  _keyStatus[key] = true;
+
+  if (action == 0) {
+    _keyStatus[key] = false;
+  }
+
+  if ((action == 1 && key == 87) || _keyStatus[87]) {
+    _eye += _moveSpeed * _direction;
+  }
+#else
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {

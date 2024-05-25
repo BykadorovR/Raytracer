@@ -37,7 +37,7 @@ for f in files:
 	else:
 		continue
 
-	debug_key = ""
+	debug_key = "-Os"
 	if debug:
 		debug_key = "-g"
 	command_line = f"{compiler_path} -c {debug_key} {f} -o {output_path}{file_name}{extension_new}"

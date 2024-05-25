@@ -11,15 +11,15 @@ layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 1, binding = 0) uniform samplerCube texSampler;
-layout(set = 1, binding = 1) uniform samplerCube normalSampler;
-layout(set = 1, binding = 2) uniform samplerCube metallicSampler;
-layout(set = 1, binding = 3) uniform samplerCube roughnessSampler;
-layout(set = 1, binding = 4) uniform samplerCube occlusionSampler;
-layout(set = 1, binding = 5) uniform samplerCube emissiveSampler;
-layout(set = 1, binding = 6) uniform samplerCube irradianceSampler;
-layout(set = 1, binding = 7) uniform samplerCube specularIBLSampler;
-layout(set = 1, binding = 8) uniform sampler2D specularBRDFSampler;
+layout(set = 0, binding = 1) uniform samplerCube texSampler;
+layout(set = 0, binding = 2) uniform samplerCube normalSampler;
+layout(set = 0, binding = 3) uniform samplerCube metallicSampler;
+layout(set = 0, binding = 4) uniform samplerCube roughnessSampler;
+layout(set = 0, binding = 5) uniform samplerCube occlusionSampler;
+layout(set = 0, binding = 6) uniform samplerCube emissiveSampler;
+layout(set = 0, binding = 7) uniform samplerCube irradianceSampler;
+layout(set = 0, binding = 8) uniform samplerCube specularIBLSampler;
+layout(set = 0, binding = 9) uniform sampler2D specularBRDFSampler;
 
 struct LightDirectional {
     //
@@ -42,21 +42,21 @@ struct LightAmbient {
     vec3 color; //radiance
 };
 
-layout(std140, set = 3, binding = 0) readonly buffer LightBufferDirectional {
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferDirectional {
     int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std140, set = 3, binding = 1) readonly buffer LightBufferPoint {
+layout(std140, set = 1, binding = 3) readonly buffer LightBufferPoint {
     int lightPointNumber;
     LightPoint lightPoint[];
 };
 
-layout(set = 4, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 4, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
 
 //coefficients from base color
-layout(set = 5, binding = 0) uniform Material {
+layout(set = 0, binding = 10) uniform Material {
     float metallicFactor;
     float roughnessFactor;
     // occludedColor = mix(color, color * <sampled occlusion texture value>, <occlusion strength>)
@@ -64,7 +64,7 @@ layout(set = 5, binding = 0) uniform Material {
     vec3 emissiveFactor;
 } material;
 
-layout(set = 6, binding = 0) uniform AlphaMask {
+layout(set = 0, binding = 11) uniform AlphaMask {
     bool alphaMask;
     float alphaMaskCutoff;
 } alphaMask;

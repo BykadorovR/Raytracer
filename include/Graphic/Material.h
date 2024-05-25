@@ -3,6 +3,7 @@
 #include "Descriptor.h"
 #include "Cubemap.h"
 
+// TODO: IMPORTANT, dynamic texture change of materials isn't supported!
 enum class MaterialType { PHONG, PBR, COLOR };
 
 enum class MaterialTarget { SIMPLE = 1, TERRAIN = 4 };
@@ -13,7 +14,6 @@ class Material {
     bool alphaMask = false;
     float alphaCutoff = 0.f;
   };
-
   AlphaCutoff _alphaCutoff;
   bool _doubleSided = false;
 
@@ -38,6 +38,8 @@ class Material {
   void setDoubleSided(bool doubleSided);
   void setAlphaCutoff(bool alphaCutoff, float alphaMask);
   bool getDoubleSided();
+  std::shared_ptr<UniformBuffer> getBufferCoefficients();
+  std::shared_ptr<UniformBuffer> getBufferAlphaCutoff();
 
   std::shared_ptr<DescriptorSet> getDescriptorSetAlphaCutoff();
   std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutAlphaCutoff();
@@ -107,7 +109,6 @@ class MaterialPhong : public Material {
     alignas(16) glm::vec3 _specular{0.5f};
     float _shininess{64.f};
   };
-
   std::vector<std::shared_ptr<Texture>> _textureColor;
   std::vector<std::shared_ptr<Texture>> _textureNormal;
   std::vector<std::shared_ptr<Texture>> _textureSpecular;

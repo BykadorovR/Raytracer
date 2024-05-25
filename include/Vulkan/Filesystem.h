@@ -14,12 +14,12 @@ class Filesystem {
   AAssetManager* _assetManager;
   template <class T>
   std::vector<T> _readFileAndroid(const std::string& filename) {
-    /*AAssetDir* assetDir = AAssetManager_openDir(_assetManager, "shaders/IBL");
+    AAssetDir* assetDir = AAssetManager_openDir(_assetManager, "shaders/shape");
     auto name = AAssetDir_getNextFileName(assetDir);
     while (name != nullptr) {
       std::cout << name << std::endl;
-        name = AAssetDir_getNextFileName(assetDir);
-    }*/
+      name = AAssetDir_getNextFileName(assetDir);
+    }
 
     AAsset* file = AAssetManager_open(_assetManager, filename.c_str(), AASSET_MODE_BUFFER);
     if (file == nullptr) throw std::runtime_error("failed to open file " + filename);

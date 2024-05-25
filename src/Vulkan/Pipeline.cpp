@@ -283,8 +283,9 @@ void Pipeline::createGraphic3D(
   pipelineInfo.renderPass = renderPass->getRenderPass();
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-  if (vkCreateGraphicsPipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &_pipeline) !=
-      VK_SUCCESS) {
+  auto status = vkCreateGraphicsPipelines(_device->getLogicalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
+                                          &_pipeline);
+  if (status != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics pipeline!");
   }
 }

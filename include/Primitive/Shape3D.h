@@ -20,9 +20,11 @@ class Shape3D : public Drawable, public Shadowable {
   std::shared_ptr<Mesh3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh;
-  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera, _descriptorSetCameraGeometry;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
+  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh, _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+  std::shared_ptr<UniformBuffer> _uniformBufferNormalsMesh;
+
+  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineWireframe;
@@ -35,8 +37,13 @@ class Shape3D : public Drawable, public Shadowable {
   std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
   DrawType _drawType = DrawType::FILL;
+  VkCullModeFlags _cullMode;
   bool _enableShadow = true;
   bool _enableLighting = true;
+
+  void _updateColorDesctiptor(std::shared_ptr<MaterialColor> material);
+  void _updatePhongDesctiptor(std::shared_ptr<MaterialPhong> material);
+  void _updatePBRDesctiptor(std::shared_ptr<MaterialPBR> material);
 
  public:
   Shape3D(ShapeType shapeType,
