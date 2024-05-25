@@ -40,6 +40,7 @@ void Material::setDoubleSided(bool doubleSided) { _doubleSided = doubleSided; }
 void Material::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
   _alphaCutoff.alphaCutoff = alphaCutoff;
   _alphaCutoff.alphaMask = alphaCutoff;
+  for (int i = 0; i < _state->getFrameInFlight(); i++) _updateAlphaCutoffDescriptors(i);
 }
 
 bool Material::getDoubleSided() { return _doubleSided; }
@@ -50,10 +51,6 @@ std::shared_ptr<UniformBuffer> Material::getBufferAlphaCutoff() { return _unifor
 
 std::shared_ptr<DescriptorSet> Material::getDescriptorSetCoefficients(int currentFrame) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  if (_changedCoefficients[currentFrame]) {
-    _updateCoefficientDescriptors(currentFrame);
-    _changedCoefficients[currentFrame] = false;
-  }
   return _descriptorSetCoefficients;
 }
 
@@ -299,7 +296,7 @@ void MaterialPBR::setCoefficients(float metallicFactor,
   _coefficients.roughnessFactor = roughnessFactor;
   _coefficients.occlusionStrength = occlusionStrength;
   _coefficients.emissiveFactor = emissiveFactor;
-  for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) _updateCoefficientDescriptors(i);
 }
 
 MaterialPhong::MaterialPhong(MaterialTarget target,
@@ -407,7 +404,7 @@ void MaterialPhong::setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::v
   _coefficients._diffuse = diffuse;
   _coefficients._specular = specular;
   _coefficients._shininess = shininess;
-  for (int i = 0; i < _changedCoefficients.size(); i++) _changedCoefficients[i] = true;
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) _updateCoefficientDescriptors(i);
 }
 
 MaterialColor::MaterialColor(MaterialTarget target,
