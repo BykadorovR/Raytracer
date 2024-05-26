@@ -12,14 +12,9 @@ layout(std140, set = 1, binding = 0) readonly buffer JointMatrices {
     mat4 jointMatrices[];
 };
 
-layout(std140, set = 3, binding = 0) readonly buffer LightMatrixDirectional {
+layout(std140, set = 2, binding = 0) readonly buffer LightMatrixDirectional {
     int lightDirectionalNumber;
     mat4 lightDirectionalVP[];
-};
-
-layout(std140, set = 3, binding = 1) readonly buffer LightMatrixPoint {
-    int lightPointNumber;
-    mat4 lightPointVP[];
 };
 
 layout(location = 0) in vec3 inPosition;

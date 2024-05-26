@@ -161,7 +161,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     _descriptorSetColor = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
                                                           state->getDevice());
-    _updateColorDesctiptor(_defaultMaterialColor);
+    _updateColorDescriptor(_defaultMaterialColor);
     // initialize color
     {
       auto shader = std::make_shared<Shader>(_state);
@@ -462,7 +462,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 }
 
-void Shape3D::_updateColorDesctiptor(std::shared_ptr<MaterialColor> material) {
+void Shape3D::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
   std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
@@ -484,7 +484,7 @@ void Shape3D::_updateColorDesctiptor(std::shared_ptr<MaterialColor> material) {
   }
 }
 
-void Shape3D::_updatePhongDesctiptor(std::shared_ptr<MaterialPhong> material) {
+void Shape3D::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
   std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
@@ -525,7 +525,7 @@ void Shape3D::_updatePhongDesctiptor(std::shared_ptr<MaterialPhong> material) {
   }
 }
 
-void Shape3D::_updatePBRDesctiptor(std::shared_ptr<MaterialPBR> material) {
+void Shape3D::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
   std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
@@ -618,19 +618,19 @@ void Shape3D::enableLighting(bool enable) { _enableLighting = enable; }
 void Shape3D::setMaterial(std::shared_ptr<MaterialColor> material) {
   _material = material;
   _materialType = MaterialType::COLOR;
-  _updateColorDesctiptor(material);
+  _updateColorDescriptor(material);
 }
 
 void Shape3D::setMaterial(std::shared_ptr<MaterialPhong> material) {
   _material = material;
   _materialType = MaterialType::PHONG;
-  _updatePhongDesctiptor(material);
+  _updatePhongDescriptor(material);
 }
 
 void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
   _material = material;
   _materialType = MaterialType::PBR;
-  _updatePBRDesctiptor(material);
+  _updatePBRDescriptor(material);
 }
 
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
@@ -861,11 +861,11 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
                        0, VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
-  auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("depth");
-                                   });
-  if (cameraLayout != pipelineLayout.end()) {
+  auto depthLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                  [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                    return info.first == std::string("depth");
+                                  });
+  if (depthLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
         commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
         0, 1, &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);

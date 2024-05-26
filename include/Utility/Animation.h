@@ -10,11 +10,8 @@ class Animation {
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::shared_ptr<LoggerCPU> _loggerCPU;
   std::shared_ptr<State> _state;
-  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   // separate descriptor for each skin
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
-  std::shared_ptr<Buffer> _ssboJointsStub;
   int _animationIndex = 0;
   std::map<int, glm::mat4> _matricesJoint;
   bool _play = true;
@@ -38,6 +35,5 @@ class Animation {
 
   void updateAnimation(float deltaTime);
 
-  std::shared_ptr<DescriptorSetLayout> getDescriptorSetLayoutJoints();
-  std::vector<std::shared_ptr<DescriptorSet>> getDescriptorSetJoints();
+  std::vector<std::vector<std::shared_ptr<Buffer>>> getJointMatricesBuffer();
 };

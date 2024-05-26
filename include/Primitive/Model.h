@@ -25,11 +25,16 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<CommandPool> _commandPool;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
   std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetJoints;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
+  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor, _descriptorSetLayoutPhong, _descriptorSetLayoutPBR;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineCullOff, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
@@ -56,6 +61,11 @@ class Model3D : public Drawable, public Shadowable {
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
+
+  void _updateJointsDescriptor();
+  void _updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials);
+  void _updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials);
+  void _updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials);
 
   void _drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,

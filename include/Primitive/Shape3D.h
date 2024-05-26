@@ -40,9 +40,9 @@ class Shape3D : public Drawable, public Shadowable {
   bool _enableShadow = true;
   bool _enableLighting = true;
 
-  void _updateColorDesctiptor(std::shared_ptr<MaterialColor> material);
-  void _updatePhongDesctiptor(std::shared_ptr<MaterialPhong> material);
-  void _updatePBRDesctiptor(std::shared_ptr<MaterialPBR> material);
+  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
+  void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
+  void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
 
  public:
   Shape3D(ShapeType shapeType,
