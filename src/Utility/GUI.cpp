@@ -15,9 +15,8 @@ GUI::GUI(std::shared_ptr<State> state) {
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
-  io.FontGlobalScale = _fontScale;
+
   ImGuiStyle& style = ImGui::GetStyle();
-  style.ScaleAllSizes(_fontScale);
   // Color scheme
   style.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
   style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
@@ -280,17 +279,20 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   ImGui::NewFrame();
 }
 
-void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size) {
+void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale) {
   ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
   // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
   ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
 
   ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::GetFont()->Scale = fontScale;
+  ImGui::PushFont(ImGui::GetFont());
 }
 
 std::tuple<int, int, int, int> GUI::endWindow() {
   ImVec2 size = ImGui::GetWindowSize();
   ImVec2 position = ImGui::GetWindowPos();
+  ImGui::PopFont();
   ImGui::End();
   return {position.x, position.y, size.x, size.y};
 }

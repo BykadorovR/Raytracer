@@ -114,7 +114,11 @@ Shape3D::Shape3D(ShapeType shapeType,
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(),
+          _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _renderPass);
     }
     // initialize Tangent (per vertex)
     {
@@ -130,7 +134,11 @@ Shape3D::Shape3D(ShapeType shapeType,
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(),
+          _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                                           {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}}),
+          _renderPass);
     }
   }
   // setup color
@@ -159,20 +167,33 @@ Shape3D::Shape3D(ShapeType shapeType,
       auto shader = std::make_shared<Shader>(_state);
       shader->add(_shadersColor[_shapeType][MaterialType::COLOR][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::COLOR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipeline[MaterialType::COLOR]->createGraphic3D(_cullMode, VK_POLYGON_MODE_FILL,
-                                                      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                      _descriptorSetLayout[MaterialType::COLOR], {},
-                                                      _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
-                                                      _renderPass);
-      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(
+      _pipeline[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                              _state->getDevice());
+      std::vector<std::tuple<VkFormat, uint32_t>> attributes;
+      if (_shapeType == ShapeType::CUBE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}};
+      } else if (_shapeType == ShapeType::SPHERE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}};
+      }
+      _pipeline[_shapeType][MaterialType::COLOR]->createGraphic3D(
+          _cullMode, VK_POLYGON_MODE_FILL,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
+          _mesh->getAttributeDescriptions(attributes), _renderPass);
+      _pipelineWireframe[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                                       _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::COLOR]->createGraphic3D(
           _cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-          _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -220,23 +241,39 @@ Shape3D::Shape3D(ShapeType shapeType,
       shader->add(_shadersColor[_shapeType][MaterialType::PHONG][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::PHONG][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipeline[MaterialType::PHONG]->createGraphic3D(
+      _pipeline[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                              _state->getDevice());
+
+      std::vector<std::tuple<VkFormat, uint32_t>> attributes;
+      if (_shapeType == ShapeType::CUBE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                      {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
+      } else if (_shapeType == ShapeType::SPHERE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
+                      {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
+      }
+      _pipeline[_shapeType][MaterialType::PHONG]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
-      _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
+      _pipelineWireframe[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                                       _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::PHONG]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -319,23 +356,37 @@ Shape3D::Shape3D(ShapeType shapeType,
       shader->add(_shadersColor[_shapeType][MaterialType::PBR][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::PBR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipeline[MaterialType::PBR]->createGraphic3D(
+      _pipeline[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      std::vector<std::tuple<VkFormat, uint32_t>> attributes;
+      if (_shapeType == ShapeType::CUBE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                      {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
+      } else if (_shapeType == ShapeType::SPHERE) {
+        attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                      {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
+                      {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
+      }
+      _pipeline[_shapeType][MaterialType::PBR]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
-      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipelineWireframe[MaterialType::PBR]->createGraphic3D(
+      _pipelineWireframe[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(),
+                                                                                     _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::PBR]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -389,7 +440,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"depth", layoutCamera}}, {},
-        _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPassDepth);
+        _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}), _renderPassDepth);
   }
 
   // initialize shadows point
@@ -401,12 +453,12 @@ Shape3D::Shape3D(ShapeType shapeType,
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersLight[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-    _pipelinePoint->createGraphic3DShadow(VK_CULL_MODE_NONE,
-                                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                          {{"depth", layoutCamera}}, defaultPushConstants,
-                                          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(),
-                                          _renderPassDepth);
+    _pipelinePoint->createGraphic3DShadow(
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"depth", layoutCamera}}, defaultPushConstants, _mesh->getBindingDescription(),
+        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}), _renderPassDepth);
   }
 }
 
@@ -707,8 +759,8 @@ void Shape3D::draw(std::tuple<int, int> resolution,
                      static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
   };
 
-  auto pipeline = _pipeline[_materialType];
-  if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
+  auto pipeline = _pipeline[_shapeType][_materialType];
+  if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_shapeType][_materialType];
   if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalMesh;
   if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangentMesh;
   drawShape3D(pipeline);

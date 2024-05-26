@@ -62,6 +62,8 @@ class Mesh3D : public Mesh {
   std::shared_ptr<VertexBuffer<uint32_t>> getIndexBuffer();
   VkVertexInputBindingDescription getBindingDescription();
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
+  std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions(
+      std::vector<std::tuple<VkFormat, uint32_t>> fields);
 };
 
 class MeshCube : public Mesh3D {

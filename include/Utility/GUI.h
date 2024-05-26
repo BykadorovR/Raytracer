@@ -45,7 +45,6 @@ struct VertexGUI {
 
 class GUI : public InputSubscriber {
  private:
-  float _fontScale = 1.f;
   std::tuple<int, int> _resolution;
   std::shared_ptr<State> _state;
   std::shared_ptr<Image> _fontImage;
@@ -69,8 +68,7 @@ class GUI : public InputSubscriber {
   GUI(std::shared_ptr<State> state);
   void reset();
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
-
-  void startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size);
+  void startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale = 1.f);
   std::tuple<int, int, int, int> endWindow();
   bool startTree(std::string name, bool open = true);
   void endTree();

@@ -23,7 +23,9 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr
                         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                         {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
-                        _mesh->getAttributeDescriptions(), _renderPass);
+                        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+                        _renderPass);
 }
 
 std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }

@@ -95,6 +95,18 @@ VkVertexInputBindingDescription Mesh3D::getBindingDescription() {
   return bindingDescription;
 }
 
+std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
+    std::vector<std::tuple<VkFormat, uint32_t>> fields) {
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(fields.size());
+  for (int i = 0; i < fields.size(); i++) {
+    attributeDescriptions[i].binding = 0;
+    attributeDescriptions[i].location = i;
+    attributeDescriptions[i].format = std::get<0>(fields[i]);
+    attributeDescriptions[i].offset = std::get<1>(fields[i]);
+  }
+  return attributeDescriptions;
+}
+
 std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions() {
   std::vector<VkVertexInputAttributeDescription> attributeDescriptions(7);
 
