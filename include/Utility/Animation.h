@@ -15,6 +15,7 @@ class Animation {
   int _animationIndex = 0;
   std::map<int, glm::mat4> _matricesJoint;
   bool _play = true;
+  std::mutex _mutex;
 
   void _updateJoints(std::shared_ptr<NodeGLTF> node);
   void _fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent);

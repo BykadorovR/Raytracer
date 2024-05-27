@@ -87,23 +87,24 @@ std::vector<std::string> Animation::getAnimations() {
 }
 
 void Animation::setAnimation(std::string name) {
+  std::unique_lock<std::mutex> lock(_mutex);
   for (int i = 0; i < _animations.size(); i++) {
     if (_animations[i]->name == name) _animationIndex = i;
   }
-  setPlay(true);
 }
 
-void Animation::setPlay(bool play) { _play = play; }
+void Animation::setPlay(bool play) {
+  std::unique_lock<std::mutex> lock(_mutex);
+  _play = play;
+}
 
 std::tuple<float, float> Animation::getTimeline() {
   return {_animations[_animationIndex]->start, _animations[_animationIndex]->end};
 }
 
 void Animation::setTime(float time) {
-  setPlay(true);
+  std::unique_lock<std::mutex> lock(_mutex);
   _animations[_animationIndex]->currentTime = time;
-  updateAnimation(time);
-  setPlay(false);
 }
 
 std::tuple<float, float> Animation::getTimeRange() {
@@ -114,6 +115,7 @@ std::tuple<float, float> Animation::getTimeRange() {
 float Animation::getCurrentTime() { return _animations[_animationIndex]->currentTime; }
 
 void Animation::updateAnimation(float deltaTime) {
+  std::unique_lock<std::mutex> lock(_mutex);
   if (_play == false || _animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }

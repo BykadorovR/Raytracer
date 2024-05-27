@@ -99,7 +99,12 @@ void Swapchain::_initialize() {
   }
 
   createInfo.preTransform = surfaceCapabilities.currentTransform;
+#if __ANDROID__
+  // TODO: should be requested from device capabilities
+  createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+#else
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+#endif
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
 

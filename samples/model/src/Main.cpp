@@ -261,45 +261,45 @@ Main::Main() {
     _core->addDrawable(modelFish);
   }
 
-  //// draw skeletal dancing model with one animation
-  //{
-  //  auto gltfModelDancing = _core->createModelGLTF("../assets/BrainStem/BrainStem.gltf");
-  //  auto modelDancing = _core->createModel3D(gltfModelDancing);
-  //  auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
-  //  for (auto& material : materialModelDancing) {
-  //    fillMaterialPBR(material);
-  //  }
-  //  modelDancing->setMaterial(materialModelDancing);
-  //  auto animationDancing = _core->createAnimation(gltfModelDancing);
-  //  // set animation to model, so joints will be passed to shader
-  //  modelDancing->setAnimation(animationDancing);
-  //  {
-  //    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-  //    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-  //    modelDancing->setModel(model);
-  //  }
-  //  _core->addDrawable(modelDancing);
-  //}
+  // draw skeletal dancing model with one animation
+  {
+    auto gltfModelDancing = _core->createModelGLTF("../assets/BrainStem/BrainStem.gltf");
+    auto modelDancing = _core->createModel3D(gltfModelDancing);
+    auto materialModelDancing = gltfModelDancing->getMaterialsPBR();
+    for (auto& material : materialModelDancing) {
+      fillMaterialPBR(material);
+    }
+    modelDancing->setMaterial(materialModelDancing);
+    auto animationDancing = _core->createAnimation(gltfModelDancing);
+    // set animation to model, so joints will be passed to shader
+    modelDancing->setAnimation(animationDancing);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelDancing->setModel(model);
+    }
+    _core->addDrawable(modelDancing);
+  }
 
-  //// draw skeletal walking model with one animation
-  //{
-  //  auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
-  //  auto modelWalking = _core->createModel3D(gltfModelWalking);
-  //  auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
-  //  for (auto& material : materialModelWalking) {
-  //    fillMaterialPhong(material);
-  //  }
-  //  modelWalking->setMaterial(materialModelWalking);
-  //  auto animationWalking = _core->createAnimation(gltfModelWalking);
-  //  // set animation to model, so joints will be passed to shader
-  //  modelWalking->setAnimation(animationWalking);
-  //  {
-  //    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
-  //    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-  //    modelWalking->setModel(model);
-  //  }
-  //  _core->addDrawable(modelWalking);
-  //}
+  // draw skeletal walking model with one animation
+  {
+    auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
+    auto modelWalking = _core->createModel3D(gltfModelWalking);
+    auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
+    for (auto& material : materialModelWalking) {
+      fillMaterialPhong(material);
+    }
+    modelWalking->setMaterial(materialModelWalking);
+    auto animationWalking = _core->createAnimation(gltfModelWalking);
+    // set animation to model, so joints will be passed to shader
+    modelWalking->setAnimation(animationWalking);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelWalking->setModel(model);
+    }
+    _core->addDrawable(modelWalking);
+  }
 
   _core->endRecording();
 
@@ -335,12 +335,15 @@ void Main::update() {
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
-  if (i > 150.f) _animationFish->setPlay(false);
-  if (i > 200.f) _animationFish->setPlay(true);
-  if (i > 250.f) _animationFish->setAnimation("bite");
-  if (i > 350.f) _animationFish->setTime(0);
-  if (i > 400.f) _animationFish->setTime(0.5f);
-  if (i > 500.f) _animationFish->setAnimation(_animationFish->getAnimations()[0]);
+
+  if (i > 350.f)
+    _animationFish->setAnimation(_animationFish->getAnimations()[0]);
+  else if (i > 250.f)
+    _animationFish->setAnimation("bite");
+  else if (i > 200.f)
+    _animationFish->setPlay(true);
+  else if (i > 150.f)
+    _animationFish->setPlay(false);
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
   auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
