@@ -19,13 +19,14 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                        {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
-                        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
-                        _renderPass);
+  _pipeline->createLine(
+      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+      {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
+      _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                             {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+      _renderPass);
 }
 
 std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }

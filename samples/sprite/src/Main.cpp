@@ -35,7 +35,7 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1920, 1080});
+  settings->setResolution(std::tuple{720, 480});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
@@ -45,8 +45,8 @@ Main::Main() {
   settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
   settings->setAnisotropicSamples(0);
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
-  settings->setMaxFramesInFlight(1);
-  settings->setThreadsInPool(1);
+  settings->setMaxFramesInFlight(2);
+  settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
@@ -115,8 +115,7 @@ Main::Main() {
 
   // draw textured Sprite, check alpha blending
   {
-    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureAuxilaryFormat(),
-                                        mipMapLevels);
+    auto texture = _core->createTexture("../assets/buterfly.png", settings->getLoadTextureColorFormat(), mipMapLevels);
     auto sprite = _core->createSprite();
     auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
     materialColor->setBaseColor({texture});
@@ -129,7 +128,6 @@ Main::Main() {
 
     _core->addDrawable(sprite);
   }
-
   // draw textured Sprite without lighting
   {
     auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureAuxilaryFormat(),
@@ -300,7 +298,6 @@ Main::Main() {
 
     _core->addDrawable(sprite);
   }
-
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));

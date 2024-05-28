@@ -4,6 +4,18 @@
 
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
+std::vector<VkVertexInputAttributeDescription> Mesh::getAttributeDescriptions(
+    std::vector<std::tuple<VkFormat, uint32_t>> fields) {
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(fields.size());
+  for (int i = 0; i < fields.size(); i++) {
+    attributeDescriptions[i].binding = 0;
+    attributeDescriptions[i].location = i;
+    attributeDescriptions[i].format = std::get<0>(fields[i]);
+    attributeDescriptions[i].offset = std::get<1>(fields[i]);
+  }
+  return attributeDescriptions;
+}
+
 Mesh3D::Mesh3D(std::shared_ptr<State> state) : Mesh(state) {
   _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
   _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
@@ -93,18 +105,6 @@ VkVertexInputBindingDescription Mesh3D::getBindingDescription() {
   bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
   return bindingDescription;
-}
-
-std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions(
-    std::vector<std::tuple<VkFormat, uint32_t>> fields) {
-  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(fields.size());
-  for (int i = 0; i < fields.size(); i++) {
-    attributeDescriptions[i].binding = 0;
-    attributeDescriptions[i].location = i;
-    attributeDescriptions[i].format = std::get<0>(fields[i]);
-    attributeDescriptions[i].offset = std::get<1>(fields[i]);
-  }
-  return attributeDescriptions;
 }
 
 std::vector<VkVertexInputAttributeDescription> Mesh3D::getAttributeDescriptions() {

@@ -3,6 +3,7 @@
 #undef far
 
 void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
+
 bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
@@ -11,7 +12,6 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state) {
-  _commandBufferTransfer = commandBufferTransfer;
   _state = state;
   _loggerCPU = std::make_shared<LoggerCPU>();
   _nodes = nodes;
@@ -25,32 +25,17 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _defaultMaterialPhong->setNormal({resourceManager->getTextureZero()});
   _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPBR->setBaseColor({resourceManager->getTextureOne()});
-  _defaultMaterialPBR->setNormal({resourceManager->getTextureZero()});
-  _defaultMaterialPBR->setMetallic({resourceManager->getTextureZero()});
-  _defaultMaterialPBR->setRoughness({resourceManager->getTextureZero()});
-  _defaultMaterialPBR->setOccluded({resourceManager->getTextureZero()});
-  _defaultMaterialPBR->setEmissive({resourceManager->getTextureZero()});
-  _defaultMaterialPBR->setDiffuseIBL(resourceManager->getCubemapZero()->getTexture());
-  _defaultMaterialPBR->setSpecularIBL(resourceManager->getCubemapZero()->getTexture(),
-                                      resourceManager->getTextureZero());
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
   _mesh = std::make_shared<Mesh3D>(state);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
   _animation = _defaultAnimation;
-  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  layoutCamera->createUniformBuffer();
-  auto layoutCameraGeometry = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  layoutCameraGeometry->createUniformBuffer(VK_SHADER_STAGE_GEOMETRY_BIT);
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
   _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPassDepth->initializeLightDepth();
 
-  // initialize camera UBO and descriptor sets for draw pass
   // initialize UBO
   _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    _state);
@@ -121,9 +106,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
         _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
         _renderPass);
 
     // it's kind of pointless, but if material is set, double sided property can be handled
@@ -135,9 +120,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
         _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                         {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
         _renderPass);
 
     // initialize Tangent (per vertex)
@@ -155,9 +140,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
           _renderPass);
 
       // it's kind of pointless, but if material is set, double sided property can be handled
@@ -169,9 +154,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
           _renderPass);
     }
   }
@@ -192,7 +177,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutColor->createCustom(layoutColor);
 
-    _updateColorDescriptor({_defaultMaterialColor});
+    // phong is default, will form default descriptor only for it here
+    // descriptors are formed in setMaterial
 
     // initialize Color
     {
@@ -213,7 +199,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
       _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
       _pipelineCullOff[MaterialType::COLOR]->createGraphic3D(
@@ -221,7 +207,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
       _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(
@@ -229,7 +215,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -377,7 +363,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     _descriptorSetLayoutPBR->createCustom(layoutPBR);
 
-    _updatePBRDescriptor({_defaultMaterialPBR});
+    // phong is default, will form default descriptor only for it here
+    // descriptors are formed in setMaterial
 
     // initialize PBR
     {
@@ -420,8 +407,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     }
   }
 
-  // initialize camera UBO and descriptor sets for shadow
-  // initialize UBO
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  layoutCamera->createUniformBuffer();
+
   int lightNumber = _state->getSettings()->getMaxDirectionalLights() + _state->getSettings()->getMaxPointLights();
   for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
     _cameraUBODepth.push_back(
@@ -465,9 +453,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                         {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
-                                         {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
+        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
+                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
         _renderPassDepth);
   }
 
@@ -485,9 +473,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, defaultPushConstants,
         _mesh->getBindingDescription(),
-        _mesh->getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                         {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
-                                         {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
+        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
+                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
         _renderPassDepth);
   }
 }
