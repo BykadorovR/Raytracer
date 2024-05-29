@@ -686,11 +686,12 @@ void Model3D::_updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>>
       bufferInfoColor[0] = bufferInfoCamera;
 
       // write for binding = 1 for textures
+      auto texture = _defaultMaterialColor->getBaseColor();
+      if (materials[material]->getBaseColor().size() > 0) texture = materials[material]->getBaseColor();
       std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout =
-          materials[material]->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = materials[material]->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = materials[material]->getBaseColor()[0]->getSampler()->getSampler();
+      bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
+      bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
+      bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
       textureInfoColor[1] = bufferInfoTexture;
       _descriptorSetColor[material]->createCustom(i, bufferInfoColor, textureInfoColor);
     }

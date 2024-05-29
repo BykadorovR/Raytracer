@@ -537,7 +537,7 @@ void Core::_renderGraphic() {
     _futureAnimationUpdate[animation] = _pool->submit([&]() {
       _loggerCPU->begin("Update animation " + std::to_string(globalFrame));
       // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
-      animation->updateAnimation(_timer->getElapsedCurrent());
+      animation->updateAnimation(_state->getFrameInFlight(), _timer->getElapsedCurrent());
       _loggerCPU->end();
     });
   }

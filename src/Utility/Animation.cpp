@@ -44,7 +44,7 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
 std::vector<std::vector<std::shared_ptr<Buffer>>> Animation::getJointMatricesBuffer() { return _ssboJoints; }
 
-void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
+void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) {
   if (node->skin > -1) {
     // Update the joint matrices
     // glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
@@ -57,7 +57,7 @@ void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
     // we update for the next frame
-    auto frameInFlight = (_state->getFrameInFlight() + 1) % _state->getSettings()->getMaxFramesInFlight();
+    auto frameInFlight = (currentImage + 1) % _state->getSettings()->getMaxFramesInFlight();
     int jointNumber = jointMatrices.size();
     _ssboJoints[node->skin][frameInFlight]->map();
     memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
@@ -67,7 +67,7 @@ void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
   }
 
   for (auto& child : node->children) {
-    _updateJoints(child);
+    _updateJoints(currentImage, child);
   }
 }
 
@@ -114,7 +114,7 @@ std::tuple<float, float> Animation::getTimeRange() {
 // TODO: mutex?
 float Animation::getCurrentTime() { return _animations[_animationIndex]->currentTime; }
 
-void Animation::updateAnimation(float deltaTime) {
+void Animation::updateAnimation(int currentImage, float deltaTime) {
   std::unique_lock<std::mutex> lock(_mutex);
   if (_play == false || _animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
@@ -174,7 +174,7 @@ void Animation::updateAnimation(float deltaTime) {
     _fillMatricesJoint(node, glm::mat4(1.f));
   }
   for (auto& node : _nodes) {
-    _updateJoints(node);
+    _updateJoints(currentImage, node);
   }
   _loggerCPU->end();
 }

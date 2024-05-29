@@ -17,7 +17,7 @@ class Animation {
   bool _play = true;
   std::mutex _mutex;
 
-  void _updateJoints(std::shared_ptr<NodeGLTF> node);
+  void _updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node);
   void _fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent);
 
  public:
@@ -34,7 +34,7 @@ class Animation {
   std::tuple<float, float> getTimeline();
   float getCurrentTime();
 
-  void updateAnimation(float deltaTime);
+  void updateAnimation(int currentImage, float deltaTime);
 
   std::vector<std::vector<std::shared_ptr<Buffer>>> getJointMatricesBuffer();
 };
