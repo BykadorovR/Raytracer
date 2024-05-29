@@ -62,6 +62,7 @@ class CameraFly : public Camera, public InputSubscriber {
   CameraFly(std::shared_ptr<State> state);
   void setProjectionParameters(float fov, float near, float far);
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
+  void setSpeed(float rotate, float translate);
   glm::mat4 getProjection() override;
   glm::vec3 getAngles();
   void setAngles(float yaw, float pitch, float roll);

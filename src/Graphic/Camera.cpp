@@ -66,6 +66,11 @@ void CameraFly::setAngles(float yaw, float pitch, float roll) {
   _roll = roll;
 }
 
+void CameraFly::setSpeed(float rotate, float translate) {
+  _sensitivity = rotate;
+  _moveSpeed = translate;
+}
+
 void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
   Camera::setViewParameters(eye, direction, up);
 }

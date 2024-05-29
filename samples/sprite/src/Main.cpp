@@ -35,7 +35,7 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{720, 480});
+  settings->setResolution(std::tuple{1920, 1080});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
