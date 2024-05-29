@@ -128,7 +128,7 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
       loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
     else if (extension == "glb")
       loaded = _loader.LoadBinaryFromFile(&modelInternal, &err, &warn, path);
-    if (loaded == false) throw std::runtime_error("Can't load model");
+    if (loaded == false) throw std::runtime_error("Can't load model: " + path);
 
     // allocate meshes
     for (int i = 0; i < modelInternal.meshes.size(); i++) {
