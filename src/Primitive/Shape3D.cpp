@@ -231,6 +231,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
                                                           state->getDevice());
+    // update descriptor set in setMaterial
+
     // initialize Phong
     {
       auto shader = std::make_shared<Shader>(state);

@@ -12,11 +12,9 @@ layout(location = 8) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 4, binding = 0) uniform sampler2D texSampler[4];
-layout(set = 4, binding = 1) uniform sampler2D normalSampler[4];
-layout(set = 4, binding = 2) uniform sampler2D specularSampler[4];
-layout(set = 5, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 5, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
+layout(set = 0, binding = 4) uniform sampler2D normalSampler[4];
+layout(set = 0, binding = 5) uniform sampler2D specularSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];
@@ -48,23 +46,26 @@ struct LightAmbient {
     vec3 color; //radiance
 };
 
-layout(std140, set = 6, binding = 0) readonly buffer LightBufferDirectional {
+layout(std140, set = 1, binding = 1) readonly buffer LightBufferDirectional {
     int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std140, set = 6, binding = 1) readonly buffer LightBufferPoint {
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
     int lightPointNumber;
     LightPoint lightPoint[];
 };
 
-layout(std140, set = 6, binding = 2) readonly buffer LightBufferAmbient {
+layout(std140, set = 1, binding = 3) readonly buffer LightBufferAmbient {
     int lightAmbientNumber;
     LightAmbient lightAmbient[];
 };
 
+layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
+
 //coefficients from base color
-layout(set = 7, binding = 0) uniform Material {
+layout(set = 0, binding = 6) uniform Material {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;

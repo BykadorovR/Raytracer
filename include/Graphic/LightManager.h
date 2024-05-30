@@ -31,9 +31,11 @@ class LightManager {
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
   std::shared_ptr<DescriptorSet> _descriptorSetLightPhong, _descriptorSetLightPBR, _descriptorSetGlobalPhong,
-      _descriptorSetGlobalPBR;
+      _descriptorSetGlobalPBR, _descriptorSetGlobalTerrainColor, _descriptorSetGlobalTerrainPhong,
+      _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutLightPhong, _descriptorSetLayoutLightPBR,
-      _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR;
+      _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR, _descriptorSetLayoutGlobalTerrainColor,
+      _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSet>> _descriptorSetViewProjection;
   std::map<VkShaderStageFlagBits, std::shared_ptr<DescriptorSetLayout>> _descriptorSetLayoutViewProjection;
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
@@ -82,10 +84,16 @@ class LightManager {
   std::shared_ptr<DescriptorSetLayout> getDSLLightPBR();
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPhong();
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPBR();
+  std::shared_ptr<DescriptorSetLayout> getDSLGlobalTerrainColor();
+  std::shared_ptr<DescriptorSetLayout> getDSLGlobalTerrainPhong();
+  std::shared_ptr<DescriptorSetLayout> getDSLGlobalTerrainPBR();
   std::shared_ptr<DescriptorSet> getDSLightPhong();
   std::shared_ptr<DescriptorSet> getDSLightPBR();
   std::shared_ptr<DescriptorSet> getDSGlobalPhong();
   std::shared_ptr<DescriptorSet> getDSGlobalPBR();
+  std::shared_ptr<DescriptorSet> getDSGlobalTerrainColor();
+  std::shared_ptr<DescriptorSet> getDSGlobalTerrainPhong();
+  std::shared_ptr<DescriptorSet> getDSGlobalTerrainPBR();
   std::shared_ptr<DescriptorSetLayout> getDSLViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSet> getDSViewProjection(VkShaderStageFlagBits stage);
   std::shared_ptr<DescriptorSetLayout> getDSLShadowTexture();

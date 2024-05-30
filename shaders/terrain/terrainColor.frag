@@ -11,10 +11,7 @@ layout(location = 8) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 4, binding = 0) uniform sampler2D texSampler[4];
-
-layout(set = 5, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 5, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];

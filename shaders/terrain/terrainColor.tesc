@@ -74,6 +74,6 @@ void main() {
         gl_TessLevelInner[1] = max(tessLevel0, tessLevel2);
     }
 
-    tessColor[gl_InvocationID] = hsv2rgb(vec3((gl_TessLevelOuter[gl_InvocationID] - push.minTessellationLevel) / 
-                                              (push.maxTessellationLevel - push.minTessellationLevel), 1, 1));
+    tessColor[gl_InvocationID] = vec3(1.0, 0.0, 0.0);/*hsv2rgb(vec3((gl_TessLevelOuter[gl_InvocationID] - push.minTessellationLevel) / 
+                                              (push.maxTessellationLevel - push.minTessellationLevel), 1, 1));*/
 }

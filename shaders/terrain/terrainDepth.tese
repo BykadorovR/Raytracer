@@ -6,13 +6,13 @@ layout (quads, fractional_odd_spacing, ccw) in;
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
 
-layout(set = 1, binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 1) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
 } mvp;
 
-layout(set = 2, binding = 0) uniform sampler2D heightMap;
+layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout(location = 0) out vec4 modelCoords;
 
 layout( push_constant ) uniform constants {
