@@ -662,6 +662,8 @@ void Terrain::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
 
     _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetColor);
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
 }
 
 void Terrain::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
@@ -719,6 +721,9 @@ void Terrain::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
     bufferInfoColor[6] = bufferInfoCoefficients;
     _descriptorSetPhong->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetPhong);
+  material->registerUpdate(_descriptorSetPhong,
+                           {{MaterialTexture::COLOR, 3}, {MaterialTexture::NORMAL, 4}, {MaterialTexture::SPECULAR, 5}});
 }
 
 void Terrain::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
@@ -827,6 +832,16 @@ void Terrain::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
 
     _descriptorSetPBR->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetPBR);
+  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 3},
+                                               {MaterialTexture::NORMAL, 4},
+                                               {MaterialTexture::METALLIC, 5},
+                                               {MaterialTexture::ROUGHNESS, 6},
+                                               {MaterialTexture::OCCLUSION, 7},
+                                               {MaterialTexture::EMISSIVE, 8},
+                                               {MaterialTexture::IBL_DIFFUSE, 9},
+                                               {MaterialTexture::IBL_SPECULAR, 10},
+                                               {MaterialTexture::BRDF_SPECULAR, 11}});
 }
 
 void Terrain::setTessellationLevel(int min, int max) {

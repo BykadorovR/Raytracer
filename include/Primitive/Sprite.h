@@ -49,7 +49,7 @@ class Sprite : public Drawable, public Shadowable {
   void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
   void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
-  void _updateShadowDescriptor(std::shared_ptr<Texture> baseColor);
+  void _updateShadowDescriptor(std::shared_ptr<MaterialColor> baseColor);
 
  public:
   Sprite(std::shared_ptr<LightManager> lightManager,

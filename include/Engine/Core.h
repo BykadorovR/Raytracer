@@ -58,7 +58,7 @@ class Core {
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
-
+  std::set<std::shared_ptr<Material>> _materials;
   std::shared_ptr<GUI> _gui;
   std::shared_ptr<Camera> _camera;
 

@@ -570,6 +570,24 @@ void DescriptorSet::createCustom(int currentFrame,
   vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
+void DescriptorSet::updateImages(int currentFrame, std::map<int, std::vector<VkDescriptorImageInfo>> images) {
+  auto info = _layout->getLayoutInfo();
+  std::vector<VkWriteDescriptorSet> descriptorWrites;
+  for (auto& [key, value] : images) {
+    VkWriteDescriptorSet descriptor{};
+    descriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptor.dstSet = _descriptorSets[currentFrame];
+    descriptor.dstBinding = key;
+    descriptor.dstArrayElement = 0;
+    descriptor.descriptorType = info[key].descriptorType;
+    descriptor.descriptorCount = info[key].descriptorCount;
+    descriptor.pImageInfo = value.data();
+    descriptorWrites.push_back(descriptor);
+  }
+
+  vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+}
+
 void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};

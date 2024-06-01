@@ -489,6 +489,8 @@ void Sprite::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
     textureInfoColor[1] = bufferInfoTexture;
     _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetColor);
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 1}});
 }
 
 void Sprite::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
@@ -530,6 +532,9 @@ void Sprite::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
     bufferInfoColor[4] = bufferInfoCoefficients;
     _descriptorSetPhong->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetPhong);
+  material->registerUpdate(_descriptorSetPhong,
+                           {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
 }
 
 void Sprite::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
@@ -609,9 +614,19 @@ void Sprite::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
 
     _descriptorSetPBR->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  _material->unregisterUpdate(_descriptorSetPBR);
+  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 1},
+                                               {MaterialTexture::NORMAL, 2},
+                                               {MaterialTexture::METALLIC, 3},
+                                               {MaterialTexture::ROUGHNESS, 4},
+                                               {MaterialTexture::OCCLUSION, 5},
+                                               {MaterialTexture::EMISSIVE, 6},
+                                               {MaterialTexture::IBL_DIFFUSE, 7},
+                                               {MaterialTexture::IBL_SPECULAR, 8},
+                                               {MaterialTexture::BRDF_SPECULAR, 9}});
 }
 
-void Sprite::_updateShadowDescriptor(std::shared_ptr<Texture> baseColor) {
+void Sprite::_updateShadowDescriptor(std::shared_ptr<MaterialColor> material) {
   for (int d = 0; d < _state->getSettings()->getMaxDirectionalLights(); d++) {
     for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
@@ -625,12 +640,14 @@ void Sprite::_updateShadowDescriptor(std::shared_ptr<Texture> baseColor) {
 
       // write for binding = 1 for textures
       std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout = baseColor->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = baseColor->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = baseColor->getSampler()->getSampler();
+      bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+      bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+      bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
       textureInfoColor[1] = bufferInfoTexture;
       _descriptorSetCameraDepth[d][0]->createCustom(i, bufferInfoColor, textureInfoColor);
     }
+    _material->unregisterUpdate(_descriptorSetCameraDepth[d][0]);
+    material->registerUpdate(_descriptorSetCameraDepth[d][0], {{MaterialTexture::COLOR, 1}});
   }
 
   for (int p = 0; p < _state->getSettings()->getMaxPointLights(); p++) {
@@ -649,36 +666,39 @@ void Sprite::_updateShadowDescriptor(std::shared_ptr<Texture> baseColor) {
 
         // write for binding = 1 for textures
         std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-        bufferInfoTexture[0].imageLayout = baseColor->getImageView()->getImage()->getImageLayout();
-        bufferInfoTexture[0].imageView = baseColor->getImageView()->getImageView();
-        bufferInfoTexture[0].sampler = baseColor->getSampler()->getSampler();
+        bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+        bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+        bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
         textureInfoColor[1] = bufferInfoTexture;
         _descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
             i, bufferInfoColor, textureInfoColor);
       }
+      _material->unregisterUpdate(_descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f]);
+      material->registerUpdate(_descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f],
+                               {{MaterialTexture::COLOR, 1}});
     }
   }
 }
 
 void Sprite::setMaterial(std::shared_ptr<MaterialPBR> material) {
-  _material = material;
   _materialType = MaterialType::PBR;
   _updatePBRDescriptor(material);
-  _updateShadowDescriptor(material->getBaseColor()[0]);
+  _updateShadowDescriptor(material);
+  _material = material;
 }
 
 void Sprite::setMaterial(std::shared_ptr<MaterialPhong> material) {
-  _material = material;
   _materialType = MaterialType::PHONG;
   _updatePhongDescriptor(material);
-  _updateShadowDescriptor(material->getBaseColor()[0]);
+  _updateShadowDescriptor(material);
+  _material = material;
 }
 
 void Sprite::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _material = material;
   _materialType = MaterialType::COLOR;
   _updateColorDescriptor(material);
-  _updateShadowDescriptor(material->getBaseColor()[0]);
+  _updateShadowDescriptor(material);
+  _material = material;
 }
 
 MaterialType Sprite::getMaterialType() { return _materialType; }

@@ -504,6 +504,11 @@ void Core::_renderGraphic() {
     }
   }
 
+  // first update materials
+  for (auto& e : _materials) {
+    e->update(frameInFlight);
+  }
+
   // should be draw first
   if (_skybox) {
     _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
@@ -850,7 +855,13 @@ std::shared_ptr<Cubemap> Core::createCubemap(std::vector<std::string> paths, VkF
       _commandBufferTransfer, _state);
 }
 
-std::shared_ptr<ModelGLTF> Core::createModelGLTF(std::string path) { return _resourceManager->loadModel(path); }
+std::shared_ptr<ModelGLTF> Core::createModelGLTF(std::string path) {
+  auto model = _resourceManager->loadModel(path);
+  _materials.insert(model->getMaterialsColor().begin(), model->getMaterialsColor().end());
+  _materials.insert(model->getMaterialsPhong().begin(), model->getMaterialsPhong().end());
+  _materials.insert(model->getMaterialsPBR().begin(), model->getMaterialsPBR().end());
+  return model;
+}
 
 std::shared_ptr<Animation> Core::createAnimation(std::shared_ptr<ModelGLTF> modelGLTF) {
   auto animation = std::make_shared<Animation>(modelGLTF->getNodes(), modelGLTF->getSkins(), modelGLTF->getAnimations(),
@@ -864,15 +875,21 @@ std::shared_ptr<Equirectangular> Core::createEquirectangular(std::string path) {
 }
 
 std::shared_ptr<MaterialColor> Core::createMaterialColor(MaterialTarget target) {
-  return std::make_shared<MaterialColor>(target, _commandBufferTransfer, _state);
+  auto material = std::make_shared<MaterialColor>(target, _commandBufferTransfer, _state);
+  _materials.insert(material);
+  return material;
 }
 
 std::shared_ptr<MaterialPhong> Core::createMaterialPhong(MaterialTarget target) {
-  return std::make_shared<MaterialPhong>(target, _commandBufferTransfer, _state);
+  auto material = std::make_shared<MaterialPhong>(target, _commandBufferTransfer, _state);
+  _materials.insert(material);
+  return material;
 }
 
 std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
-  return std::make_shared<MaterialPBR>(target, _commandBufferTransfer, _state);
+  auto material = std::make_shared<MaterialPBR>(target, _commandBufferTransfer, _state);
+  _materials.insert(material);
+  return material;
 }
 
 std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {

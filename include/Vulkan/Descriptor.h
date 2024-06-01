@@ -43,6 +43,7 @@ class DescriptorSet {
   void createCustom(int currentFrame,
                     std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
                     std::map<int, std::vector<VkDescriptorImageInfo>> images);
+  void updateImages(int currentFrame, std::map<int, std::vector<VkDescriptorImageInfo>> images);
   void createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
   void createParticleComputeBuffer(std::shared_ptr<UniformBuffer> uniformBuffer,
                                    std::shared_ptr<Buffer> bufferIn,

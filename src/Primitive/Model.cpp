@@ -596,6 +596,16 @@ void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> mat
 
       _descriptorSetPBR[material]->createCustom(i, bufferInfoColor, textureInfoColor);
     }
+    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
+    materials[material]->registerUpdate(_descriptorSetPBR[material], {{MaterialTexture::COLOR, 1},
+                                                                      {MaterialTexture::NORMAL, 2},
+                                                                      {MaterialTexture::METALLIC, 3},
+                                                                      {MaterialTexture::ROUGHNESS, 4},
+                                                                      {MaterialTexture::OCCLUSION, 5},
+                                                                      {MaterialTexture::EMISSIVE, 6},
+                                                                      {MaterialTexture::IBL_DIFFUSE, 7},
+                                                                      {MaterialTexture::IBL_SPECULAR, 8},
+                                                                      {MaterialTexture::BRDF_SPECULAR, 9}});
   }
 }
 
@@ -654,6 +664,10 @@ void Model3D::_updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>>
 
       _descriptorSetPhong[material]->createCustom(i, bufferInfoColor, textureInfoColor);
     }
+    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
+    materials[material]->registerUpdate(
+        _descriptorSetPhong[material],
+        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
   }
 }
 
@@ -683,34 +697,39 @@ void Model3D::_updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>>
       textureInfoColor[1] = bufferInfoTexture;
       _descriptorSetColor[material]->createCustom(i, bufferInfoColor, textureInfoColor);
     }
+    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
+    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
   }
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
+  _materialType = MaterialType::COLOR;
+  _updateColorDescriptor(materials);
+
   _materials.clear();
   for (auto& material : materials) {
     _materials.push_back(material);
   }
-  _materialType = MaterialType::COLOR;
-  _updateColorDescriptor(materials);
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
+  _materialType = MaterialType::PHONG;
+  _updatePhongDescriptor(materials);
+
   _materials.clear();
   for (auto& material : materials) {
     _materials.push_back(material);
   }
-  _materialType = MaterialType::PHONG;
-  _updatePhongDescriptor(materials);
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+  _materialType = MaterialType::PBR;
+  _updatePBRDescriptor(materials);
+
   _materials.clear();
   for (auto& material : materials) {
     _materials.push_back(material);
   }
-  _materialType = MaterialType::PBR;
-  _updatePBRDescriptor(materials);
 }
 
 void Model3D::setDrawType(DrawType drawType) { _drawType = drawType; }

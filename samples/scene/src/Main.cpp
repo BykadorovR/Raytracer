@@ -62,7 +62,24 @@ Main::Main() {
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto gui = _core->getGUI();
+  auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getSpecular().size() == 0) material->setSpecular({core->getResourceManager()->getTextureZero()});
+  };
+
+  auto fillMaterialPBR = [core = _core](std::shared_ptr<MaterialPBR> material) {
+    if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0) material->setNormal({core->getResourceManager()->getTextureZero()});
+    if (material->getMetallic().size() == 0) material->setMetallic({core->getResourceManager()->getTextureZero()});
+    if (material->getRoughness().size() == 0) material->setRoughness({core->getResourceManager()->getTextureZero()});
+    if (material->getOccluded().size() == 0) material->setOccluded({core->getResourceManager()->getTextureZero()});
+    if (material->getEmissive().size() == 0) material->setEmissive({core->getResourceManager()->getTextureZero()});
+    material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
+    material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
+                             core->getResourceManager()->getTextureZero());
+  };
+
   auto postprocessing = _core->getPostprocessing();
 
   _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
@@ -81,9 +98,6 @@ Main::Main() {
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
-
-  auto cameraSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  cameraSetLayout->createUniformBuffer();
 
   {
     auto texture = _core->createTexture("../../sprite/assets/brickwall.jpg", settings->getLoadTextureColorFormat(), 1);
@@ -160,6 +174,9 @@ Main::Main() {
 
   auto modelGLTFPBR = _core->createModel3D(modelGLTF);
   auto pbrMaterial = modelGLTF->getMaterialsPBR();
+  for (auto& material : pbrMaterial) {
+    fillMaterialPBR(material);
+  }
   modelGLTFPBR->setMaterial(pbrMaterial);
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));

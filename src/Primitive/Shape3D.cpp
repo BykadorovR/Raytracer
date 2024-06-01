@@ -482,6 +482,8 @@ void Shape3D::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
     textureInfoColor[1] = bufferInfoTexture;
     _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  material->unregisterUpdate(_descriptorSetColor);
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 1}});
 }
 
 void Shape3D::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
@@ -523,6 +525,9 @@ void Shape3D::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
     bufferInfoColor[4] = bufferInfoCoefficients;
     _descriptorSetPhong->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  material->unregisterUpdate(_descriptorSetPhong);
+  material->registerUpdate(_descriptorSetPhong,
+                           {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
 }
 
 void Shape3D::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
@@ -609,6 +614,16 @@ void Shape3D::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
 
     _descriptorSetPBR->createCustom(i, bufferInfoColor, textureInfoColor);
   }
+  material->unregisterUpdate(_descriptorSetPBR);
+  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 1},
+                                               {MaterialTexture::NORMAL, 2},
+                                               {MaterialTexture::METALLIC, 3},
+                                               {MaterialTexture::ROUGHNESS, 4},
+                                               {MaterialTexture::OCCLUSION, 5},
+                                               {MaterialTexture::EMISSIVE, 6},
+                                               {MaterialTexture::IBL_DIFFUSE, 7},
+                                               {MaterialTexture::IBL_SPECULAR, 8},
+                                               {MaterialTexture::BRDF_SPECULAR, 9}});
 }
 
 void Shape3D::enableShadow(bool enable) { _enableShadow = enable; }
@@ -616,21 +631,21 @@ void Shape3D::enableShadow(bool enable) { _enableShadow = enable; }
 void Shape3D::enableLighting(bool enable) { _enableLighting = enable; }
 
 void Shape3D::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _material = material;
   _materialType = MaterialType::COLOR;
   _updateColorDescriptor(material);
+  _material = material;
 }
 
 void Shape3D::setMaterial(std::shared_ptr<MaterialPhong> material) {
-  _material = material;
   _materialType = MaterialType::PHONG;
   _updatePhongDescriptor(material);
+  _material = material;
 }
 
 void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
-  _material = material;
   _materialType = MaterialType::PBR;
   _updatePBRDescriptor(material);
+  _material = material;
 }
 
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
