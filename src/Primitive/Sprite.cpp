@@ -20,12 +20,11 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
   _mesh = std::make_shared<Mesh2D>(state);
   // 3   0
   // 2   1
-  _mesh->setVertices(
-      {Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.f, 0.f}},
-       Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-       Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.f, 0.f}},
-       Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.f, 0.f}}},
-      commandBufferTransfer);
+  _mesh->setVertices({Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 0.f}, {1.f, 0.f, 0.f, 1.f}},
+                      Vertex2D{{0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 1.f}, {1.f, 0.f, 0.f, 1.f}},
+                      Vertex2D{{-0.5f, -0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 1.f}, {1.f, 0.f, 0.f, 1.f}},
+                      Vertex2D{{-0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {0.f, 0.f}, {1.f, 0.f, 0.f, 1.f}}},
+                     commandBufferTransfer);
   _mesh->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
 
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
@@ -89,9 +88,9 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"normal", _descriptorSetLayoutNormalsMesh}}, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, normal)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)}}),
           _renderPass);
     }
 
@@ -109,9 +108,9 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"normal", _descriptorSetLayoutNormalsMesh}}, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
-                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}}),
+          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex2D, tangent)}}),
           _renderPass);
     }
   }

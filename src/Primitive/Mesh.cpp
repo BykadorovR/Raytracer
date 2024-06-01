@@ -413,7 +413,7 @@ std::vector<VkVertexInputAttributeDescription> Mesh2D::getAttributeDescriptions(
 
   attributeDescriptions[4].binding = 0;
   attributeDescriptions[4].location = 4;
-  attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+  attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
   attributeDescriptions[4].offset = offsetof(Vertex2D, tangent);
 
   return attributeDescriptions;

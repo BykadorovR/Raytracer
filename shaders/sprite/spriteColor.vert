@@ -14,9 +14,6 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 texCoords;
 
 void main() {
-    vec4 afterModel = mvp.model * vec4(inPosition, 1.0);
-    mat3 normalMatrix = mat3(transpose(inverse(mvp.model)));
-
     fragColor = inColor;
     texCoords = inTexCoord;
     gl_Position = mvp.proj * mvp.view * mvp.model * vec4(inPosition, 1.0);

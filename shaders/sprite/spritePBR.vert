@@ -16,7 +16,7 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inColor;
 layout(location = 3) in vec2 inTexCoord;
-layout(location = 4) in vec3 inTangent;
+layout(location = 4) in vec4 inTangent;
 
 layout(location = 0) out vec3 fragPosition;
 layout(location = 1) out vec3 fragNormal;
@@ -39,10 +39,10 @@ void main() {
     fragNormal = normalize(normalMatrix * inNormal);
     fragTBN = mat3(1.0);
     if (length(inTangent) > epsilon) {
-        vec3 tangent = normalize(normalMatrix * inTangent);
+        vec3 tangent = normalize(normalMatrix * inTangent.xyz);
         // re-orthogonalize T with respect to N
         tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
-        vec3 bitangent = normalize(cross(fragNormal, tangent));
+        vec3 bitangent = normalize(cross(fragNormal, tangent)) * inTangent.w;
         fragTBN = mat3(tangent, bitangent, fragNormal);
     }
     for (int i = 0; i < lightDirectionalNumber; i++)

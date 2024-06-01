@@ -13,7 +13,7 @@ struct Vertex2D {
   glm::vec3 normal;
   glm::vec3 color;
   glm::vec2 texCoord;
-  glm::vec3 tangent;
+  glm::vec4 tangent;
 };
 
 struct Vertex3D {
