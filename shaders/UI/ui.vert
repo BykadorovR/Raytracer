@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 0) uniform UniformData {
+layout(set = 0, binding = 0) uniform UniformData {
 	vec2 scale;
 	vec2 translate;
 } data;

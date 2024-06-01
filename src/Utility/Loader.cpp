@@ -10,7 +10,8 @@ LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   _state = state;
 }
 
-std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU(std::string path) {
+template <>
+std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<uint8_t>(std::string path) {
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
@@ -27,43 +28,22 @@ std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::l
   return {pixels, {texWidth, texHeight, 4}};
 }
 
-std::shared_ptr<BufferImage> LoaderImage::loadGPU(std::vector<std::string> paths) {
-  for (auto& path : paths) {
-    if (_images.contains(path) == false) {
-      auto [pixels, dimension] = loadCPU({path});
-      VkDeviceSize imageSize = std::get<0>(dimension) * std::get<1>(dimension) * std::get<2>(dimension);
-      // fill buffer
-      _images[path] = std::make_shared<BufferImage>(
-          std::tuple{std::get<0>(dimension), std::get<1>(dimension)}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-      _images[path]->map();
-      memcpy(_images[path]->getMappedMemory(), pixels.get(), static_cast<size_t>(imageSize));
-      _images[path]->unmap();
-    }
+template <>
+std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<float>(std::string path) {
+  int texWidth, texHeight, texChannels;
+#ifdef __ANDROID__
+  std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
+  std::shared_ptr<float[]> pixels(stbi_loadf_from_memory(fileContent.data(), fileContent.size(), &texWidth, &texHeight,
+                                                         &texChannels, STBI_rgb_alpha));
+#else
+  // load texture
+  std::shared_ptr<float[]> pixels(stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha),
+                                  stbi_image_free);
+#endif
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image " + path);
   }
-
-  std::shared_ptr<BufferImage> bufferDst = _images[paths.front()];
-  if (paths.size() > 1) {
-    bufferDst = std::make_shared<BufferImage>(
-        bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-    for (int i = 0; i < paths.size(); i++) {
-      auto bufferSrc = _images[paths[i]];
-      bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
-    }
-    // barrier for further image copy from buffer
-    VkMemoryBarrier memoryBarrier = {};
-    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memoryBarrier.pNext = nullptr;
-    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
-                         nullptr, 0, nullptr);
-  }
-
-  return bufferDst;
+  return {pixels, {texWidth, texHeight, 4}};
 }
 
 void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
@@ -258,8 +238,8 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(_loaderImage->loadGPU({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                          _commandBufferTransfer, _state);
+      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({filePath}), format,
+                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer, _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;

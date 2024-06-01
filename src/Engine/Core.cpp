@@ -829,13 +829,15 @@ void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
 }
 
 std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> Core::loadImageCPU(std::string path) {
-  return _resourceManager->loadImageCPU(path);
+  return _resourceManager->loadImageCPU<uint8_t>(path);
 }
 
-std::shared_ptr<BufferImage> Core::loadImageGPU(std::string path) { return _resourceManager->loadImageGPU({path}); }
+std::shared_ptr<BufferImage> Core::loadImageGPU(std::string path) {
+  return _resourceManager->loadImageGPU<uint8_t>({path});
+}
 
 std::shared_ptr<Texture> Core::createTexture(std::string name, VkFormat format, int mipMapLevels) {
-  auto texture = std::make_shared<Texture>(_resourceManager->loadImageGPU({name}), format,
+  auto texture = std::make_shared<Texture>(_resourceManager->loadImageGPU<uint8_t>({name}), format,
                                            VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, _commandBufferTransfer,
                                            _state);
   return texture;
@@ -843,7 +845,7 @@ std::shared_ptr<Texture> Core::createTexture(std::string name, VkFormat format, 
 
 std::shared_ptr<Cubemap> Core::createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels) {
   return std::make_shared<Cubemap>(
-      _resourceManager->loadImageGPU(paths), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
+      _resourceManager->loadImageGPU<uint8_t>(paths), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       _commandBufferTransfer, _state);
 }
@@ -889,8 +891,8 @@ std::shared_ptr<Sprite> Core::createSprite() {
 }
 
 std::shared_ptr<Terrain> Core::createTerrain(std::string heightmap, std::pair<int, int> patches) {
-  return std::make_shared<Terrain>(_resourceManager->loadImageGPU({heightmap}), patches, _commandBufferTransfer,
-                                   _lightManager, _state);
+  return std::make_shared<Terrain>(_resourceManager->loadImageGPU<uint8_t>({heightmap}), patches,
+                                   _commandBufferTransfer, _lightManager, _state);
 }
 
 std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferTransfer, _state); }

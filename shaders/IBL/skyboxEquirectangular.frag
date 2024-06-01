@@ -1,7 +1,7 @@
 #version 450
 
 layout(location = 0) in vec3 TexCoords;
-layout(set = 1, binding = 0) uniform sampler2D skybox;
+layout(set = 0, binding = 1) uniform sampler2D skybox;
 
 layout(location = 0) out vec4 outColor;
 

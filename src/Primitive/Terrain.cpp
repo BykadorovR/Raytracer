@@ -829,6 +829,23 @@ void Terrain::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
   }
 }
 
+void Terrain::setTessellationLevel(int min, int max) {
+  _minTessellationLevel = min;
+  _maxTessellationLevel = max;
+}
+
+void Terrain::setDisplayDistance(int min, int max) {
+  _minDistance = min;
+  _maxDistance = max;
+}
+
+void Terrain::setHeight(float scale, float shift) {
+  _heightScale = scale;
+  _heightShift = shift;
+}
+
+void Terrain::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }
+
 void Terrain::enableShadow(bool enable) { _enableShadow = enable; }
 
 void Terrain::enableLighting(bool enable) { _enableLighting = enable; }
@@ -1131,7 +1148,7 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto normalLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("normal");
+                                     return info.first == std::string("shadows");
                                    });
   if (normalLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(

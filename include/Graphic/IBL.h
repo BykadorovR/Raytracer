@@ -17,10 +17,11 @@ class IBL {
   std::vector<std::shared_ptr<UniformBuffer>> _cameraBufferCubemap;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor;
+  std::shared_ptr<DescriptorSet> _descriptorSetBRDF;
   std::shared_ptr<Pipeline> _pipelineDiffuse, _pipelineSpecular, _pipelineSpecularBRDF;
-  std::shared_ptr<Material> _material;
+  std::shared_ptr<MaterialColor> _material;
   std::shared_ptr<LightManager> _lightManager;
   glm::mat4 _model = glm::mat4(1.f);
   std::shared_ptr<LoggerGPU> _loggerGPU;
@@ -35,6 +36,7 @@ class IBL {
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferDiffuse;
   std::shared_ptr<Framebuffer> _frameBufferBRDF;
 
+  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   void _draw(int face,
              std::shared_ptr<Camera> camera,
              std::shared_ptr<CommandBuffer> commandBuffer,

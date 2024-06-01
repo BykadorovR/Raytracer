@@ -32,32 +32,75 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
   _material = _defaultMaterialColor;
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state);
-  auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createUniformBuffer();
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
-                                                         state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(state);
-  shader->add("shaders/skybox/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/skybox/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeGraphic();
-  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createSkybox(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                          {std::pair{std::string("camera"), setLayout},
-                           std::pair{std::string("texture"), _material->getDescriptorSetLayoutTextures()}},
-                          {}, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
+  // setup color
+  {
+    _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
+    layoutColor[0].binding = 0;
+    layoutColor[0].descriptorCount = 1;
+    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutColor[0].pImmutableSamplers = nullptr;
+    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    layoutColor[1].binding = 1;
+    layoutColor[1].descriptorCount = 1;
+    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutColor[1].pImmutableSamplers = nullptr;
+    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayout->createCustom(layoutColor);
+
+    _descriptorSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
+                                                     state->getDescriptorPool(), state->getDevice());
+
+    _updateColorDescriptor({_defaultMaterialColor});
+
+    // initialize Color
+    {
+      auto shader = std::make_shared<Shader>(state);
+      shader->add("shaders/skybox/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+      shader->add("shaders/skybox/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+
+      _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline->createSkybox(
+          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          {std::pair{std::string("color"), _descriptorSetLayout}}, {}, _mesh->getBindingDescription(),
+          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}), _renderPass);
+    }
+  }
+}
+
+void Skybox::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _uniformBuffer->getBuffer()[i]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for textures
+    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+    bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+    bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoTexture;
+    _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
+  }
 }
 
 void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
   _material = material;
   _materialType = MaterialType::COLOR;
+  _updateColorDescriptor(material);
 }
 
 void Skybox::setModel(glm::mat4 model) { _model = model; }
@@ -106,22 +149,11 @@ void Skybox::draw(std::tuple<int, int> resolution,
   auto pipelineLayout = _pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("camera");
+                                     return info.first == std::string("color");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                      return info.first == std::string("texture");
-                                    });
-  if (textureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 1, 1,
-                            &_material->getDescriptorSetTextures(currentFrame)->getDescriptorSets()[currentFrame], 0,
+                            _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
                             nullptr);
   }
 

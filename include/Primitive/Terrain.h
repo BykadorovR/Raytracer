@@ -33,7 +33,7 @@ class Terrain : public Drawable, public Shadowable {
   std::shared_ptr<LightManager> _lightManager;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
-  float _heightLevels[4] = {16, 128, 192, 256};
+  std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 0, _maxTessellationLevel = 8;
   float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;
@@ -52,6 +52,11 @@ class Terrain : public Drawable, public Shadowable {
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<State> state);
+
+  void setTessellationLevel(int min, int max);
+  void setDisplayDistance(int min, int max);
+  void setColorHeightLevels(std::array<float, 4> levels);
+  void setHeight(float scale, float shift);
 
   void enableShadow(bool enable);
   void enableLighting(bool enable);

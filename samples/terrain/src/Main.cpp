@@ -49,6 +49,12 @@ Main::Main() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
+  float heightScale = 64.f;
+  float heightShift = 16.f;
+  std::array<float, 4> heightLevels = {16, 128, 192, 256};
+  int minTessellationLevel = 4, maxTessellationLevel = 32;
+  float minDistance = 30, maxDistance = 100;
+
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
@@ -64,13 +70,6 @@ Main::Main() {
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
-  _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
 
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
@@ -86,17 +85,6 @@ Main::Main() {
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
-
-  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
-  cubeColoredLightDirectional->getMesh()->setColor(
-      std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
-  _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
@@ -144,6 +132,10 @@ Main::Main() {
       _terrainColor->setModel(scaleMatrix);
     }
 
+    _terrainColor->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
+    _terrainColor->setDisplayDistance(minDistance, maxDistance);
+    _terrainColor->setColorHeightLevels(heightLevels);
+    _terrainColor->setHeight(heightScale, heightShift);
     _core->addDrawable(_terrainColor);
   }
 
@@ -176,6 +168,10 @@ Main::Main() {
       auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
       _terrainPhong->setModel(scaleMatrix);
     }
+    _terrainPhong->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
+    _terrainPhong->setDisplayDistance(minDistance, maxDistance);
+    _terrainPhong->setColorHeightLevels(heightLevels);
+    _terrainPhong->setHeight(heightScale, heightShift);
 
     _core->addDrawable(_terrainPhong);
   }
@@ -239,6 +235,10 @@ Main::Main() {
       auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
       _terrainPBR->setModel(scaleMatrix);
     }
+    _terrainPBR->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
+    _terrainPBR->setDisplayDistance(minDistance, maxDistance);
+    _terrainPBR->setColorHeightLevels(heightLevels);
+    _terrainPBR->setHeight(heightScale, heightShift);
 
     _core->addDrawable(_terrainPBR);
   }

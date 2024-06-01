@@ -38,6 +38,9 @@ void main() {
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
 
+    //set default level for tessColor
+    gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
+    
     // ----------------------------------------------------------------------
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {
@@ -74,6 +77,6 @@ void main() {
         gl_TessLevelInner[1] = max(tessLevel0, tessLevel2);
     }
 
-    tessColor[gl_InvocationID] = vec3(1.0, 0.0, 0.0);/*hsv2rgb(vec3((gl_TessLevelOuter[gl_InvocationID] - push.minTessellationLevel) / 
-                                              (push.maxTessellationLevel - push.minTessellationLevel), 1, 1));*/
+    tessColor[gl_InvocationID] = hsv2rgb(vec3((gl_TessLevelOuter[gl_InvocationID] - push.minTessellationLevel) / 
+                                              (push.maxTessellationLevel - push.minTessellationLevel), 1, 1));
 }

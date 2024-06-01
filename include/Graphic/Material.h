@@ -23,6 +23,7 @@ class Material {
   std::shared_ptr<DescriptorSet> _descriptorSetAlphaCutoff;
   std::shared_ptr<UniformBuffer> _uniformBufferCoefficients;
   std::shared_ptr<UniformBuffer> _uniformBufferAlphaCutoff;
+  std::vector<std::tuple<int, std::shared_ptr<DescriptorSet>>> _descriptorsUpdate;
   std::shared_ptr<State> _state;
   std::vector<bool> _changedTexture;
   std::vector<bool> _changedCoefficients;

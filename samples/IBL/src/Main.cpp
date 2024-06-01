@@ -44,7 +44,7 @@ Main::Main() {
   settings->setResolution(std::tuple{1920, 1080});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
-  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+  settings->setGraphicColorFormat(VK_FORMAT_R16G16B16A16_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion out of box (!)
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
