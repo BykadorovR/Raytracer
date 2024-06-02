@@ -13,10 +13,12 @@ void ResourceManager::initialize() {
 #endif
   _stubTextureOne = std::make_shared<Texture>(loadImageGPU<uint8_t>({_assetEnginePath + "stubs/Texture1x1.png"}),
                                               _state->getSettings()->getLoadTextureColorFormat(),
-                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer, _state);
+                                              VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
+                                              _commandBufferTransfer, _state);
   _stubTextureZero = std::make_shared<Texture>(loadImageGPU<uint8_t>({_assetEnginePath + "stubs/Texture1x1Black.png"}),
                                                _state->getSettings()->getLoadTextureColorFormat(),
-                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer, _state);
+                                               VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
+                                               _commandBufferTransfer, _state);
 
   _stubCubemapZero = std::make_shared<Cubemap>(
       loadImageGPU<uint8_t>(std::vector<std::string>{

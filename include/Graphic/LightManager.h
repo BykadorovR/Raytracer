@@ -30,11 +30,10 @@ class LightManager {
   std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjectionStub, _lightPointSSBOViewProjectionStub;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetGlobalPhong, _descriptorSetGlobalPBR, _descriptorSetGlobalTerrainColor,
-      _descriptorSetGlobalTerrainPhong, _descriptorSetGlobalTerrainPBR;
+  std::shared_ptr<DescriptorSet> _descriptorSetGlobalPhong, _descriptorSetGlobalPBR, _descriptorSetGlobalTerrainPhong,
+      _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR,
-      _descriptorSetLayoutGlobalTerrainColor, _descriptorSetLayoutGlobalTerrainPhong,
-      _descriptorSetLayoutGlobalTerrainPBR;
+      _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
   std::vector<std::shared_ptr<LoggerGPU>> _loggerGPUDirectional;
@@ -82,7 +81,6 @@ class LightManager {
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalTerrainPBR();
   std::shared_ptr<DescriptorSet> getDSGlobalPhong();
   std::shared_ptr<DescriptorSet> getDSGlobalPBR();
-  std::shared_ptr<DescriptorSet> getDSGlobalTerrainColor();
   std::shared_ptr<DescriptorSet> getDSGlobalTerrainPhong();
   std::shared_ptr<DescriptorSet> getDSGlobalTerrainPBR();
 

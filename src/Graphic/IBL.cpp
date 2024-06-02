@@ -159,7 +159,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
                           VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
   auto brdfImageView = std::make_shared<ImageView>(brdfImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                    VK_IMAGE_ASPECT_COLOR_BIT, state);
-  _textureSpecularBRDF = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, brdfImageView, state);
+  _textureSpecularBRDF = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
+                                                   brdfImageView, state);
 
   _cameraSpecularBRDF = std::make_shared<CameraOrtho>();
   _cameraSpecularBRDF->setProjectionParameters({-1, 1, 1, -1}, 0, 1);

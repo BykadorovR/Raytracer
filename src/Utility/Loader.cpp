@@ -239,7 +239,8 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
       texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({filePath}), format,
-                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _commandBufferTransfer, _state);
+                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _commandBufferTransfer,
+                                          _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -285,7 +286,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state);
-      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
+      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, imageView, _state);
       if (deleteBuffer) {
         delete[] buffer;
       }

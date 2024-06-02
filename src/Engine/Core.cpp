@@ -16,7 +16,8 @@ void Core::_initializeTextures() {
                                _commandBufferTransfer);
     auto graphicImageView = std::make_shared<ImageView>(graphicImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                         VK_IMAGE_ASPECT_COLOR_BIT, _state);
-    _textureRender[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, graphicImageView, _state);
+    _textureRender[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                                  graphicImageView, _state);
     {
       auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
                                                VK_IMAGE_TILING_OPTIMAL,
@@ -26,7 +27,8 @@ void Core::_initializeTextures() {
                               _commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, _state);
-      _textureBlurIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
+      _textureBlurIn[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                                    blurImageView, _state);
     }
     {
       auto blurImage = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getGraphicColorFormat(),
@@ -37,7 +39,8 @@ void Core::_initializeTextures() {
                               _commandBufferTransfer);
       auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                        VK_IMAGE_ASPECT_COLOR_BIT, _state);
-      _textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, blurImageView, _state);
+      _textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                                     blurImageView, _state);
     }
   }
 }
@@ -843,8 +846,8 @@ std::shared_ptr<BufferImage> Core::loadImageGPU(std::string path) {
 
 std::shared_ptr<Texture> Core::createTexture(std::string name, VkFormat format, int mipMapLevels) {
   auto texture = std::make_shared<Texture>(_resourceManager->loadImageGPU<uint8_t>({name}), format,
-                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, _commandBufferTransfer,
-                                           _state);
+                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, VK_FILTER_LINEAR,
+                                           _commandBufferTransfer, _state);
   return texture;
 }
 

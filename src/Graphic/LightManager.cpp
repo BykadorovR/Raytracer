@@ -75,17 +75,6 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
-  // global descriptor set for Terrain color, Phong and PBR (3 different)
-  {
-    _descriptorSetLayoutGlobalTerrainColor = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(1);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    _descriptorSetLayoutGlobalTerrainColor->createCustom(layoutColor);
-  }
   {
     _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
@@ -223,9 +212,6 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                             _descriptorSetLayoutGlobalPBR, _descriptorPool,
                                                             _state->getDevice());
-  _descriptorSetGlobalTerrainColor = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                     _descriptorSetLayoutGlobalTerrainColor,
-                                                                     _descriptorPool, _state->getDevice());
   _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                                      _descriptorSetLayoutGlobalTerrainPhong,
                                                                      _descriptorPool, _state->getDevice());
@@ -236,8 +222,8 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // stub texture
   _stubTexture = std::make_shared<Texture>(
       resourceManager->loadImageGPU<uint8_t>({resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"}),
-      _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer,
-      _state);
+      _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
+      commandBufferTransfer, _state);
   _stubCubemap = std::make_shared<Cubemap>(
       resourceManager->loadImageGPU<uint8_t>(
           std::vector<std::string>(6, resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png")),
@@ -413,23 +399,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
     _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
 
-  // global Terrain Color descriptor set
-  {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
-    {
-      std::vector<VkDescriptorBufferInfo> bufferDirectionalInfo(1);
-      bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjectionStub->getData();
-      bufferDirectionalInfo[0].offset = 0;
-      bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjectionStub->getSize();
-      if (_lightDirectionalSSBOViewProjection.size() > currentFrame &&
-          _lightDirectionalSSBOViewProjection[currentFrame]) {
-        bufferDirectionalInfo[0].buffer = _lightDirectionalSSBOViewProjection[currentFrame]->getData();
-        bufferDirectionalInfo[0].range = _lightDirectionalSSBOViewProjection[currentFrame]->getSize();
-      }
-      bufferInfo[0] = bufferDirectionalInfo;
-    }
-    _descriptorSetGlobalTerrainColor->createCustom(currentFrame, bufferInfo, {});
-  }
   // Terrain global Phong
   {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo;
@@ -818,7 +787,8 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
                         VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, _commandBufferTransfer);
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
                                                  _state);
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, imageView, _state));
+    depthTexture.push_back(
+        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR, imageView, _state));
   }
 
   auto light = std::make_shared<DirectionalLight>();
@@ -854,9 +824,6 @@ const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLight
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPBR() { return _descriptorSetLayoutGlobalPBR; }
-std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalTerrainColor() {
-  return _descriptorSetLayoutGlobalTerrainColor;
-}
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalTerrainPhong() {
   return _descriptorSetLayoutGlobalTerrainPhong;
 }
@@ -872,11 +839,6 @@ std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPhong() {
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPBR() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _descriptorSetGlobalPBR;
-}
-
-std::shared_ptr<DescriptorSet> LightManager::getDSGlobalTerrainColor() {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetGlobalTerrainColor;
 }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalTerrainPhong() {

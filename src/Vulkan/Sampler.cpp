@@ -1,12 +1,16 @@
 #include "Sampler.h"
 
-Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSamples, std::shared_ptr<State> state) {
+Sampler::Sampler(VkSamplerAddressMode mode,
+                 int mipMapLevels,
+                 int anisotropicSamples,
+                 VkFilter filter,
+                 std::shared_ptr<State> state) {
   _state = state;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  samplerInfo.magFilter = VK_FILTER_LINEAR;
-  samplerInfo.minFilter = VK_FILTER_LINEAR;
+  samplerInfo.magFilter = filter;
+  samplerInfo.minFilter = filter;
   samplerInfo.addressModeU = mode;
   samplerInfo.addressModeV = mode;
   samplerInfo.addressModeW = mode;
@@ -16,8 +20,7 @@ Sampler::Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSam
   samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
   samplerInfo.compareEnable = VK_FALSE;
-  samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-  samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  if (mipMapLevels > 1) samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.mipLodBias = 0.0f;
   samplerInfo.minLod = 0.0f;
   samplerInfo.maxLod = static_cast<float>(mipMapLevels);

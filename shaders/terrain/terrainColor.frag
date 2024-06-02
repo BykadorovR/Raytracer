@@ -2,12 +2,7 @@
 
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 fragNormal;
-layout(location = 3) in vec3 tessColor;
-layout(location = 4) in vec3 fragPosition;
-layout(location = 5) in mat3 fragTBN;
-//mat3 takes 3 slots
-layout(location = 8) in vec4 fragLightDirectionalCoord[2];
+layout(location = 2) in vec3 tessColor;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;

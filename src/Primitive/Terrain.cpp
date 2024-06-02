@@ -66,7 +66,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
   _heightMap = std::make_shared<Texture>(heightMap, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
+                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
+                                         state);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   std::vector<Vertex3D> vertices;
   _mesh = std::make_shared<Mesh3D>(state);
@@ -394,7 +395,6 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutColor[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::COLOR].push_back({"globalColor", lightManager->getDSLGlobalTerrainColor()});
     _descriptorSetColor = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
                                                           state->getDevice());
@@ -486,7 +486,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+      shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PHONG]->createGraphicTerrain(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -601,7 +601,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+      shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PBR]->createGraphicTerrain(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
@@ -972,17 +972,6 @@ void Terrain::draw(std::tuple<int, int> resolution,
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
-    }
-
-    // global color
-    auto globalLayoutColor = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                          [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                            return info.first == std::string("globalColor");
-                                          });
-    if (globalLayoutColor != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalTerrainColor()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     // Phong

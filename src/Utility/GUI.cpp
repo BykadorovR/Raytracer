@@ -78,7 +78,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                            _state);
-  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _imageView, _state);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView, _state);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
@@ -312,8 +312,11 @@ void GUI::cursorNotify(float xPos, float yPos) {
 }
 
 void GUI::mouseNotify(int button, int action, int mods) {
-#ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
+#ifdef __ANDROID__
+  if (action == 1) io.MouseDown[0] = true;
+  if (action == 0) io.MouseDown[0] = false;
+#else
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     io.MouseDown[0] = true;
   }

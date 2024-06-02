@@ -15,10 +15,12 @@ class Texture {
           VkFormat format,
           VkSamplerAddressMode mode,
           int mipMapLevels,
+          VkFilter filter,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   Texture(VkSamplerAddressMode mode,
           int mipMapLevels,
+          VkFilter filter,
           std::shared_ptr<ImageView> imageView,
           std::shared_ptr<State> state);
   std::shared_ptr<ImageView> getImageView();
