@@ -1,65 +1,110 @@
-#include "Main.h"
-#include "IBL.h"
-#include "Equirectangular.h"
-#include <random>
+// Copyright 2022 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#include "DebugVisualization.h"
+#include <Core.h>
+#include <android/log.h>
+#include <cassert>
+#include <game-activity/native_app_glue/android_native_app_glue.h>
 #include <glm/gtc/random.hpp>
+#include <random>
+#include <vector>
 
-InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
+// Android log function wrappers
+static const char* kTAG = "AndroidApplication";
+#define LOGI(...) ((void)__android_log_print(ANDROID_LOG_INFO, kTAG, __VA_ARGS__))
+#define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN, kTAG, __VA_ARGS__))
+#define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, kTAG, __VA_ARGS__))
 
-void InputHandler::cursorNotify(float xPos, float yPos) {}
+// We will call this function the window is opened.
+// This is where we will initialise everything
+std::shared_ptr<Core> _core;
+android_app* _app;
+bool _initialized = false;
+std::shared_ptr<CameraFly> _camera;
+std::shared_ptr<PointLight> _pointLightVertical;
+std::shared_ptr<PointLight> _pointLightHorizontal;
+std::shared_ptr<DirectionalLight> _directionalLight;
+std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubeTextured, _cubeTexturedWireframe;
+std::shared_ptr<Animation> _animationFish;
+std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
+bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
+float _directionalValue = 0.5f, _pointVerticalValue = 1.f, _pointHorizontalValue = 10.f;
+std::tuple<int, int> _resolution = {1080, 2400};
+std::shared_ptr<DebugVisualization> _debugVisualization;
 
-void InputHandler::mouseNotify(int button, int action, int mods) {}
+void update() {
+  // update light position
+  float radius = 15.f;
+  static float angleHorizontal = 90.f;
+  glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
+                                                radius * sin(glm::radians(angleHorizontal)));
+  _pointLightHorizontal->setPosition(lightPositionHorizontal);
 
-void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
-#ifndef __ANDROID__
-  if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
-    } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
-    }
+  angleHorizontal += 0.05f;
+
+  auto [FPSLimited, FPSReal] = _core->getFPS();
+  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help", {20, 120}, {widthScreen / 5, 0}, 3.f);
+  if (_core->getGUI()->startTree("Main", false)) {
+    _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
+    _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
+    _core->getGUI()->endTree();
   }
-#endif
+  if (_core->getGUI()->startTree("Debug", false)) {
+    _debugVisualization->update();
+    _core->getGUI()->endTree();
+  }
+  _core->getGUI()->endWindow();
 }
 
-void InputHandler::charNotify(unsigned int code) {}
-
-void InputHandler::scrollNotify(double xOffset, double yOffset) {}
-
-Main::Main() {
+void initialize() {
+  if (!InitVulkan()) {
+    LOGE("Vulkan is unavailable, install vulkan and re-start");
+  }
   int mipMapLevels = 4;
+
   auto settings = std::make_shared<Settings>();
   settings->setName("Sprite");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1920, 1080});
-  // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
+  settings->setResolution(_resolution);
+  // for HDR, linear 16 bit per channel to represent values outside of 0-1 range
+  // (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
-  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
-  settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
+  settings->setGraphicColorFormat(VK_FORMAT_R16G16B16A16_SFLOAT);
+  settings->setSwapchainColorFormat(VK_FORMAT_R8G8B8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion out of box (!)
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
   settings->setLoadTextureAuxilaryFormat(VK_FORMAT_R8G8B8A8_UNORM);
   settings->setAnisotropicSamples(0);
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
-  settings->setThreadsInPool(6);
-  settings->setDesiredFPS(1000);
+  settings->setThreadsInPool(0);
+  settings->setDesiredFPS(60);
 
   _core = std::make_shared<Core>(settings);
+  _core->setAssetManager(_app->activity->assetManager);
+  _core->setNativeWindow(_app->window);
   _core->initialize();
-  // start transfer command buffer
   auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
+
+  _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _camera->setSpeed(0.1f, 0.05f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
-  _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -92,7 +137,7 @@ Main::Main() {
   ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
 
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
-  _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
+  _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
   _directionalLight->setPosition({0.f, 35.f, 0.f});
   _directionalLight->setCenter({0.f, 0.f, 0.f});
   _directionalLight->setUp({0.f, 0.f, -1.f});
@@ -100,9 +145,8 @@ Main::Main() {
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
   {
-    auto texture = _core->createTexture("../../sprite/assets/brickwall.jpg", settings->getLoadTextureColorFormat(), 1);
-    auto normalMap = _core->createTexture("../../sprite/assets/brickwall_normal.jpg",
-                                          settings->getLoadTextureAuxilaryFormat(), 1);
+    auto texture = _core->createTexture("brickwall.jpg", settings->getLoadTextureColorFormat(), 1);
+    auto normalMap = _core->createTexture("brickwall_normal.jpg", settings->getLoadTextureAuxilaryFormat(), 1);
 
     auto material = _core->createMaterialPhong(MaterialTarget::SIMPLE);
     material->setBaseColor({texture});
@@ -161,7 +205,7 @@ Main::Main() {
     }
     _core->addDrawable(spriteBot);
   }
-  auto modelGLTF = _core->createModelGLTF("../../IBL/assets/DamagedHelmet/DamagedHelmet.gltf");
+  auto modelGLTF = _core->createModelGLTF("DamagedHelmet/DamagedHelmet.gltf");
   auto modelGLTFPhong = _core->createModel3D(modelGLTF);
   modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
   {
@@ -186,12 +230,12 @@ Main::Main() {
   _core->addDrawable(modelGLTFPBR);
   _core->addShadowable(modelGLTFPBR);
 
-  auto tile0 = _core->createTexture("../assets/Terrain/dirt.jpg", settings->getLoadTextureColorFormat(), 6);
-  auto tile1 = _core->createTexture("../assets/Terrain/grass.jpg", settings->getLoadTextureColorFormat(), 6);
-  auto tile2 = _core->createTexture("../assets/Terrain/rock_gray.png", settings->getLoadTextureColorFormat(), 6);
-  auto tile3 = _core->createTexture("../assets/Terrain/snow.png", settings->getLoadTextureColorFormat(), 6);
+  auto tile0 = _core->createTexture("dirt.jpg", settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto tile1 = _core->createTexture("grass.jpg", settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto tile2 = _core->createTexture("rock_gray.png", settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto tile3 = _core->createTexture("snow.png", settings->getLoadTextureColorFormat(), mipMapLevels);
 
-  auto terrain = _core->createTerrain("../assets/Terrain/heightmap.png", std::pair{12, 12});
+  auto terrain = _core->createTerrain("heightmap.png", std::pair{12, 12});
   auto materialTerrain = _core->createMaterialPhong(MaterialTarget::TERRAIN);
   materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
   auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -212,8 +256,7 @@ Main::Main() {
   _core->addDrawable(terrain, AlphaType::OPAQUE);
   _core->addShadowable(terrain);
 
-  auto particleTexture = _core->createTexture("../../Particles/assets/gradient.png",
-                                              settings->getLoadTextureAuxilaryFormat(), 1);
+  auto particleTexture = _core->createTexture("gradient.png", settings->getLoadTextureAuxilaryFormat(), 1);
 
   std::default_random_engine rndEngine((unsigned)time(nullptr));
   std::uniform_real_distribution<float> rndDist(0.0f, 1.0f);
@@ -297,10 +340,8 @@ Main::Main() {
   }
 
   auto [width, height] = settings->getResolution();
-  auto cubemap = _core->createCubemap(
-      {"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
-       "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"},
-      settings->getLoadTextureColorFormat(), 1);
+  auto cubemap = _core->createCubemap({"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"},
+                                      settings->getLoadTextureColorFormat(), 1);
 
   auto cube = _core->createShape3D(ShapeType::CUBE);
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
@@ -335,7 +376,7 @@ Main::Main() {
   }
   _core->addDrawable(specularCube);
 
-  auto equirectangular = _core->createEquirectangular("../../IBL/assets/newport_loft.hdr");
+  auto equirectangular = _core->createEquirectangular("newport_loft.hdr");
   auto cubemapConverted = equirectangular->getCubemap();
   auto materialColorEq = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorEq->setBaseColor({cubemapConverted->getTexture()});
@@ -385,49 +426,149 @@ Main::Main() {
   _core->addDrawable(spriteBRDF);
 
   _core->endRecording();
+  _core->registerUpdate(std::bind(&update));
 
-  _core->registerUpdate(std::bind(&Main::update, this));
-  // can be lambda passed that calls reset
-  _core->registerReset(std::bind(&Main::reset, this, std::placeholders::_1, std::placeholders::_2));
+  _initialized = true;
 }
 
-void Main::update() {
-  // update light position
-  float radius = 15.f;
-  static float angleHorizontal = 90.f;
-  glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
-                                                radius * sin(glm::radians(angleHorizontal)));
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+void terminate(void) {}
 
-  angleHorizontal += 0.05f;
+bool _move = false;
+void handle_input(android_app* app) {
+  if (_move) {
+    LOGI("Movement process");
+    _core->getState()->getInput()->keyHandler(87, 0, 1, 0);
+  }
 
-  auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
-  if (_core->getGUI()->startTree("Main")) {
-    _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
-    _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
-    _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
-    _core->getGUI()->endTree();
+  auto* inputBuffer = android_app_swap_input_buffers(app);
+  if (!inputBuffer) {
+    // no inputs yet.
+    return;
   }
-  if (_core->getGUI()->startTree("Debug")) {
-    _debugVisualization->update();
-    _core->getGUI()->endTree();
+
+  // handle motion events (motionEventsCounts can be 0).
+  for (auto i = 0; i < inputBuffer->motionEventsCount; i++) {
+    auto& motionEvent = inputBuffer->motionEvents[i];
+    auto action = motionEvent.action;
+
+    // Find the pointer index, mask and bitshift to turn it into a readable
+    // value.
+    auto pointerIndex = (action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+    LOGI("Pointer(s): ");
+
+    // get the x and y position of this event if it is not ACTION_MOVE.
+    auto& pointer = motionEvent.pointers[pointerIndex];
+    auto x = GameActivityPointerAxes_getX(&pointer);
+    auto y = GameActivityPointerAxes_getY(&pointer);
+
+    // determine the action type and process the event accordingly.
+    switch (action & AMOTION_EVENT_ACTION_MASK) {
+      case AMOTION_EVENT_ACTION_DOWN:
+      case AMOTION_EVENT_ACTION_POINTER_DOWN:
+        LOGI("( %d, %f, %f ) Pointer Down", pointer.id, x, y);
+        if (pointer.id == 1) {
+          LOGI("Start movement");
+          _move = true;
+        }
+        if (pointer.id == 0) {
+          // 0 - left button, 1 - press, 0 = mod, doesn't matter
+          _core->getState()->getInput()->cursorHandler(x, y);
+          _core->getState()->getInput()->mouseHandler(0, 1, 0);
+        }
+        break;
+
+      case AMOTION_EVENT_ACTION_CANCEL:
+        // treat the CANCEL as an UP event: doing nothing in the app, except
+        // removing the pointer from the cache if pointers are locally saved.
+        // code pass through on purpose.
+      case AMOTION_EVENT_ACTION_UP:
+      case AMOTION_EVENT_ACTION_POINTER_UP:
+        LOGI("( %d, %f, %f ) Pointer Up", pointer.id, x, y);
+        if (pointer.id == 1) {
+          _move = false;
+          LOGI("End movement");
+          _core->getState()->getInput()->keyHandler(87, 0, 0, 0);
+        }
+        if (pointer.id == 0) {
+          // 0 - left button, 0 - release, 0 = mod, doesn't matter
+          _core->getState()->getInput()->cursorHandler(x, y);
+          _core->getState()->getInput()->mouseHandler(0, 0, 0);
+        }
+        break;
+
+      case AMOTION_EVENT_ACTION_MOVE:
+        // There is no pointer index for ACTION_MOVE, only a snapshot of
+        // all active pointers; app needs to cache previous active pointers
+        // to figure out which ones are actually moved.
+        for (auto index = 0; index < motionEvent.pointerCount; index++) {
+          pointer = motionEvent.pointers[index];
+          x = GameActivityPointerAxes_getX(&pointer);
+          y = GameActivityPointerAxes_getY(&pointer);
+          if (pointer.id == 0) {
+            _core->getState()->getInput()->cursorHandler(x, y);
+          }
+        }
+        break;
+      default:
+        LOGI("Unknown MotionEvent Action: %d", action);
+    }
   }
-  _core->getGUI()->endWindow();
+  // clear the motion input count in this render_buffer for main thread to
+  // re-use.
+  android_app_clear_motion_events(inputBuffer);
+
+  // handle input key events.
+  for (auto i = 0; i < inputBuffer->keyEventsCount; i++) {
+    auto& keyEvent = inputBuffer->keyEvents[i];
+    LOGI("Key: %d", keyEvent.keyCode);
+    switch (keyEvent.action) {
+      case AKEY_EVENT_ACTION_DOWN:
+        LOGI("Key down");
+        break;
+      case AKEY_EVENT_ACTION_UP:
+        LOGI("Key up");
+        break;
+      case AKEY_EVENT_ACTION_MULTIPLE:
+        // Deprecated since Android API level 29.
+        LOGI("Mulptiple key actions");
+        ;
+        break;
+      default:
+        LOGI("Unknown key event %d", keyEvent.action);
+    }
+  }
+  // clear the key input count too.
+  android_app_clear_key_events(inputBuffer);
 }
 
-void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }
+// typical Android NativeActivity entry function
+void android_main(android_app* app) {
+  _app = app;
+  app->onAppCmd = [](android_app* app, int32_t cmd) {
+    switch (cmd) {
+      case APP_CMD_INIT_WINDOW:
+        // The window is being shown, get it ready.
+        initialize();
+        break;
+      case APP_CMD_TERM_WINDOW:
+        // The window is being hidden or closed, clean it up.
+        terminate();
+        break;
+      default:
+        LOGI("event not handled: %d", cmd);
+    }
+  };
 
-void Main::start() { _core->draw(); }
+  int events;
+  android_poll_source* source;
+  do {
+    auto number = ALooper_pollAll(_initialized ? 1 : 0, nullptr, &events, (void**)&source);
+    if (number >= 0) {
+      if (source != NULL) source->process(app, source);
+    }
 
-int main() {
-  try {
-    auto main = std::make_shared<Main>();
-    main->start();
-  } catch (const std::exception& e) {
-    std::cerr << e.what() << std::endl;
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+    handle_input(app);
+
+    if (_initialized) _core->draw();
+  } while (app->destroyRequested == 0);
 }
