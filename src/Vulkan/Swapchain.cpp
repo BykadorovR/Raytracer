@@ -41,12 +41,14 @@ void Swapchain::_initialize() {
   }
   // pick surface present mode
   VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+#ifndef __ANDROID__
   for (const auto& availablePresentMode : _state->getDevice()->getSupportedSurfacePresentModes()) {
     // triple buffering
     if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
       presentMode = availablePresentMode;
     }
   }
+#endif
   // swap extent is the resolution of the swap chain images and
   // it's almost always exactly equal to the resolution of the window
   auto surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
