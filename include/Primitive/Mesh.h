@@ -13,7 +13,7 @@ struct Vertex2D {
   glm::vec3 normal;
   glm::vec3 color;
   glm::vec2 texCoord;
-  glm::vec3 tangent;
+  glm::vec4 tangent;
 };
 
 struct Vertex3D {
@@ -32,6 +32,8 @@ class Mesh {
 
  public:
   Mesh(std::shared_ptr<State> state);
+  std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions(
+      std::vector<std::tuple<VkFormat, uint32_t>> fields);
   virtual VkVertexInputBindingDescription getBindingDescription() = 0;
   virtual std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() = 0;
 };

@@ -5,7 +5,7 @@ layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec2 texCoords;
 layout(location = 2) in vec4 modelCoords;
 
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
+layout(set = 0, binding = 1) uniform sampler2D texSampler;
 
 layout( push_constant ) uniform constants {
     layout(offset = 0) vec3 lightPosition;

@@ -37,19 +37,15 @@ find_package(VulkanEngine REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${VulkanEngine_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES})
 
+set(SHADER_COMPILE_DEBUG 1)
 #recompile after every build just in case, it's fast
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                   WORKING_DIRECTORY ${VulkanEngine_ROOT}
-                   COMMAND python compile.py ${Vulkan_GLSLC_EXECUTABLE}
+                   COMMAND python ${VulkanEngine_ROOT}/compile.py ${VulkanEngine_ROOT}/shaders shaders ${Vulkan_GLSLC_EXECUTABLE} ${SHADER_COMPILE_DEBUG}
                    COMMENT "Compile shaders")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                    COMMAND ${CMAKE_COMMAND} -E copy_directory ${VulkanEngine_DLL_PATH} ${CMAKE_BINARY_DIR}
                    COMMENT "Copy engine binaries")
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                   COMMAND ${CMAKE_COMMAND} -E copy_directory ${VulkanEngine_SHADERS} ${CMAKE_BINARY_DIR}/shaders
-                   COMMENT "Copy engine shaders")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
                    COMMAND ${CMAKE_COMMAND} -E copy_directory ${VulkanEngine_ASSETS} ${CMAKE_BINARY_DIR}/assets

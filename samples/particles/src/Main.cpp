@@ -5,25 +5,29 @@
 #include <random>
 #include <glm/gtc/random.hpp>
 
-void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void InputHandler::cursorNotify(float xPos, float yPos) {}
 
-void InputHandler::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void InputHandler::mouseNotify(int button, int action, int mods) {}
+
+void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      _core->getState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      _core->getState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
+#endif
 }
 
-void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
+void InputHandler::charNotify(unsigned int code) {}
 
-void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -47,13 +51,12 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(settings);
+  _core->initialize();
+  _core->startRecording();
+  _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
-  _inputHandler = std::make_shared<InputHandler>();
+  _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
@@ -86,10 +89,8 @@ Main::Main() {
       particle.velocityDirection = glm::vec3(0.f, 1.f, 0.f);
     }
 
-    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/gradient.png"}),
-                                                     settings->getLoadTextureAuxilaryFormat(),
-                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-    auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
+    auto particleTexture = _core->createTexture("../assets/gradient.png", settings->getLoadTextureColorFormat(), 1);
+    auto particleSystem = _core->createParticleSystem(particles, particleTexture);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
       matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -127,10 +128,8 @@ Main::Main() {
       particle.velocityDirection = glm::normalize(lightPositionHorizontal);
     }
 
-    auto particleTexture = std::make_shared<Texture>(_core->getResourceManager()->loadImage({"../assets/circle.png"}),
-                                                     settings->getLoadTextureAuxilaryFormat(),
-                                                     VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, commandBufferTransfer, state);
-    auto particleSystem = std::make_shared<ParticleSystem>(particles, particleTexture, commandBufferTransfer, state);
+    auto particleTexture = _core->createTexture("../assets/circle.png", settings->getLoadTextureColorFormat(), 1);
+    auto particleSystem = _core->createParticleSystem(particles, particleTexture);
     {
       auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));
       matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
@@ -139,19 +138,7 @@ Main::Main() {
     }
     _core->addParticleSystem(particleSystem);
   }
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
-
+  _core->endRecording();
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset
   _core->registerReset(std::bind(&Main::reset, this, std::placeholders::_1, std::placeholders::_2));
@@ -172,9 +159,6 @@ void Main::reset(int width, int height) { _camera->setAspect((float)width / (flo
 void Main::start() { _core->draw(); }
 
 int main() {
-#ifdef WIN32
-  SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#endif
   try {
     auto main = std::make_shared<Main>();
     main->start();

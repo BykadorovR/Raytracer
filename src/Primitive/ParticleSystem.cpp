@@ -25,36 +25,61 @@ ParticleSystem::ParticleSystem(std::vector<Particle> particles,
 }
 
 void ParticleSystem::_initializeGraphic() {
-  auto shader = std::make_shared<Shader>(_state->getDevice());
+  auto shader = std::make_shared<Shader>(_state);
   shader->add("shaders/particles/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/particles/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  auto cameraLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  cameraLayout->createUniformBuffer();
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
 
   _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
                                                          sizeof(BufferMVP), _state);
 
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), cameraLayout,
-                                                         _state->getDescriptorPool(), _state->getDevice());
-  _descriptorSetCamera->createUniformBuffer(_cameraUniformBuffer);
+  auto descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  std::vector<VkDescriptorSetLayoutBinding> layoutGraphic(2);
+  layoutGraphic[0].binding = 0;
+  layoutGraphic[0].descriptorCount = 1;
+  layoutGraphic[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+  layoutGraphic[0].pImmutableSamplers = nullptr;
+  layoutGraphic[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  layoutGraphic[1].binding = 1;
+  layoutGraphic[1].descriptorCount = 1;
+  layoutGraphic[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  layoutGraphic[1].pImmutableSamplers = nullptr;
+  layoutGraphic[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  descriptorSetLayoutGraphic->createCustom(layoutGraphic);
 
-  auto textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  textureLayout->createTexture();
-
-  // TODO: what's the point to use max frames in flight for static textures?
-  _descriptorSetTexture = std::make_shared<DescriptorSet>(1, textureLayout, _state->getDescriptorPool(),
+  _descriptorSetGraphic = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayoutGraphic, _state->getDescriptorPool(),
                                                           _state->getDevice());
-  _descriptorSetTexture->createTexture({_texture});
+
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoVertex[0].buffer = _cameraUniformBuffer->getBuffer()[i]->getData();
+    bufferInfoVertex[0].offset = 0;
+    bufferInfoVertex[0].range = sizeof(BufferMVP);
+    bufferInfoNormalsMesh[0] = bufferInfoVertex;
+    // write for binding = 1 for geometry shader
+    // write for binding = 1 for textures
+    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+    bufferInfoTexture[0].imageLayout = _texture->getImageView()->getImage()->getImageLayout();
+    bufferInfoTexture[0].imageView = _texture->getImageView()->getImageView();
+    bufferInfoTexture[0].sampler = _texture->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoTexture;
+
+    _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
+  }
 
   _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
   _graphicPipeline->createParticleSystemGraphic(
-      std::vector{_state->getSettings()->getGraphicColorFormat(), _state->getSettings()->getGraphicColorFormat()},
       VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-      {std::pair{std::string("camera"), cameraLayout}, std::pair{std::string("texture"), textureLayout}},
+      {std::pair{std::string("graphic"), descriptorSetLayoutGraphic}},
       std::map<std::string, VkPushConstantRange>{{std::string("vertex"), VertexConstants::getPushConstant()}},
-      Particle::getBindingDescription(), Particle::getAttributeDescriptions());
+      Particle::getBindingDescription(), Particle::getAttributeDescriptions(), _renderPass);
 }
 
 void ParticleSystem::_initializeCompute() {
@@ -85,7 +110,7 @@ void ParticleSystem::_initializeCompute() {
         _particlesBuffer[i]);
   }
 
-  auto shader = std::make_shared<Shader>(_state->getDevice());
+  auto shader = std::make_shared<Shader>(_state);
   shader->add("shaders/particles/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
@@ -167,24 +192,14 @@ void ParticleSystem::draw(std::tuple<int, int> resolution,
   vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
 
   auto pipelineLayout = _graphicPipeline->getDescriptorSetLayout();
-  auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                   [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                     return info.first == std::string("camera");
-                                   });
-  if (cameraLayout != pipelineLayout.end()) {
+  auto graphicLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
+                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
+                                      return info.first == std::string("graphic");
+                                    });
+  if (graphicLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _graphicPipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
-  }
-
-  auto textureLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
-                                    [](std::pair<std::string, std::shared_ptr<DescriptorSetLayout>> info) {
-                                      return info.first == std::string("texture");
-                                    });
-  if (textureLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _graphicPipeline->getPipelineLayout(), 1, 1, &_descriptorSetTexture->getDescriptorSets()[0],
-                            0, nullptr);
+                            &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particles.size(), 1, 0, 0);

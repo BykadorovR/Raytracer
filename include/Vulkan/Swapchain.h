@@ -7,10 +7,7 @@ class Swapchain {
   std::shared_ptr<State> _state;
 
   VkSwapchainKHR _swapchain;
-  std::vector<VkImage> _swapchainImages;
   std::vector<std::shared_ptr<ImageView>> _swapchainImageViews;
-  std::shared_ptr<Image> _depthImage;
-  std::shared_ptr<ImageView> _depthImageView;
   VkFormat _swapchainImageFormat;
   VkExtent2D _swapchainExtent;
   VkFormat _imageFormat;
@@ -20,7 +17,7 @@ class Swapchain {
   void _destroy();
 
  public:
-  Swapchain(VkFormat imageFormat, VkFormat depthFormat, std::shared_ptr<State> state);
+  Swapchain(VkFormat imageFormat, std::shared_ptr<State> state);
   void reset();
 
   void overrideImageLayout(VkImageLayout imageLayout);
@@ -28,7 +25,6 @@ class Swapchain {
   VkSwapchainKHR& getSwapchain();
   VkExtent2D& getSwapchainExtent();
   std::vector<std::shared_ptr<ImageView>>& getImageViews();
-  std::shared_ptr<ImageView> getDepthImageView();
   VkFormat& getImageFormat();
   ~Swapchain();
 };

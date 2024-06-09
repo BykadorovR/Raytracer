@@ -38,6 +38,9 @@ void main() {
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
 
+    //set default level for tessColor
+    gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
+    
     // ----------------------------------------------------------------------
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {

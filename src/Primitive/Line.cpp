@@ -1,9 +1,6 @@
 #include "Line.h"
 
-Line::Line(int thick,
-           std::vector<VkFormat> renderFormat,
-           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-           std::shared_ptr<State> state) {
+Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   _state = state;
   _mesh = std::make_shared<Mesh3D>(state);
   _mesh->setIndexes({0, 1}, commandBufferTransfer);
@@ -16,15 +13,20 @@ Line::Line(int thick,
                                                          state->getDescriptorPool(), state->getDevice());
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(state->getDevice());
-  shader->add("shaders/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  auto shader = std::make_shared<Shader>(state);
+  shader->add("shaders/line/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/line/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(renderFormat, VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, thick,
-                        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                        {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
-                        _mesh->getAttributeDescriptions());
+  _pipeline->createLine(
+      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+       shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+      {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
+      _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                             {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+      _renderPass);
 }
 
 std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }

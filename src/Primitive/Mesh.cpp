@@ -4,6 +4,18 @@
 
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
+std::vector<VkVertexInputAttributeDescription> Mesh::getAttributeDescriptions(
+    std::vector<std::tuple<VkFormat, uint32_t>> fields) {
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(fields.size());
+  for (int i = 0; i < fields.size(); i++) {
+    attributeDescriptions[i].binding = 0;
+    attributeDescriptions[i].location = i;
+    attributeDescriptions[i].format = std::get<0>(fields[i]);
+    attributeDescriptions[i].offset = std::get<1>(fields[i]);
+  }
+  return attributeDescriptions;
+}
+
 Mesh3D::Mesh3D(std::shared_ptr<State> state) : Mesh(state) {
   _vertexBuffer = std::make_shared<VertexBuffer<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
   _indexBuffer = std::make_shared<VertexBuffer<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
@@ -401,7 +413,7 @@ std::vector<VkVertexInputAttributeDescription> Mesh2D::getAttributeDescriptions(
 
   attributeDescriptions[4].binding = 0;
   attributeDescriptions[4].location = 4;
-  attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+  attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
   attributeDescriptions[4].offset = offsetof(Vertex2D, tangent);
 
   return attributeDescriptions;

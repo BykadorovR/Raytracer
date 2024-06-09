@@ -11,9 +11,9 @@ layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
-layout(set = 1, binding = 1) uniform sampler2D normalSampler;
-layout(set = 1, binding = 2) uniform sampler2D specularSampler;
+layout(set = 0, binding = 1) uniform sampler2D texSampler;
+layout(set = 0, binding = 2) uniform sampler2D normalSampler;
+layout(set = 0, binding = 3) uniform sampler2D specularSampler;
 
 struct LightDirectional {
     //
@@ -36,23 +36,26 @@ struct LightAmbient {
     vec3 color; //radiance
 };
 
-layout(std140, set = 3, binding = 0) readonly buffer LightBufferDirectional {
+layout(std140, set = 1, binding = 1) readonly buffer LightBufferDirectional {
+    int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std140, set = 3, binding = 1) readonly buffer LightBufferPoint {
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
+    int lightPointNumber;
     LightPoint lightPoint[];
 };
 
-layout(std140, set = 3, binding = 2) readonly buffer LightBufferAmbient {
+layout(std140, set = 1, binding = 3) readonly buffer LightBufferAmbient {
+    int lightAmbientNumber;
     LightAmbient lightAmbient[];
 };
 
-layout(set = 4, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 4, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
 
 //coefficients from base color
-layout(set = 5, binding = 0) uniform Material {
+layout(set = 0, binding = 4) uniform Material {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -88,19 +91,19 @@ void main() {
         if (length(normal) > epsilon) {
             vec3 lightFactor = vec3(0.0, 0.0, 0.0);
             //calculate directional light
-            lightFactor += directionalLight(lightDirectional.length(), fragPosition, normal, specularTexture, push.cameraPosition, 
+            lightFactor += directionalLight(lightDirectionalNumber, fragPosition, normal, specularTexture, push.cameraPosition, 
                                             push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.05);
             //calculate point light
-            lightFactor += pointLight(lightPoint.length(), fragPosition, normal, specularTexture, 
+            lightFactor += pointLight(lightPointNumber, fragPosition, normal, specularTexture, 
                                       push.cameraPosition, push.enableShadow, shadowPointSampler, 0.15);
             //calculate ambient light
-            for (int i = 0;i < lightAmbient.length(); i++) {
+            for (int i = 0;i < lightAmbientNumber; i++) {
                 lightFactor += lightAmbient[i].color;
             }
 
             outColor *= vec4(lightFactor, 1.0);
         }
-    }    
+    }
 
     // check whether fragment output is higher than threshold, if so output as brightness color
     float brightness = dot(outColor.rgb, vec3(0.2126, 0.7152, 0.0722));

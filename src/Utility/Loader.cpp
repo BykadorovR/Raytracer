@@ -1,4 +1,3 @@
-#define TINYOBJLOADER_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_IMPLEMENTATION
 #include "Loader.h"
@@ -11,51 +10,40 @@ LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, s
   _state = state;
 }
 
-std::shared_ptr<BufferImage> LoaderImage::load(std::vector<std::string> paths) {
-  for (auto& path : paths) {
-    if (_images.contains(path) == false) {
-      // load texture
-      int texWidth, texHeight, texChannels;
-      stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-      VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-      if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
-      }
-      // fill buffer
-      _images[path] = std::make_shared<BufferImage>(
-          std::tuple{texWidth, texHeight}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-      _images[path]->map();
-      memcpy(_images[path]->getMappedMemory(), pixels, static_cast<size_t>(imageSize));
-      _images[path]->unmap();
-
-      stbi_image_free(pixels);
-    }
+template <>
+std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<uint8_t>(std::string path) {
+  int texWidth, texHeight, texChannels;
+#ifdef __ANDROID__
+  std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
+  std::shared_ptr<uint8_t[]> pixels(stbi_load_from_memory(fileContent.data(), fileContent.size(), &texWidth, &texHeight,
+                                                          &texChannels, STBI_rgb_alpha));
+#else
+  // load texture
+  std::shared_ptr<uint8_t[]> pixels(stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha),
+                                    stbi_image_free);
+#endif
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image " + path);
   }
+  return {pixels, {texWidth, texHeight, 4}};
+}
 
-  std::shared_ptr<BufferImage> bufferDst = _images[paths.front()];
-  if (paths.size() > 1) {
-    bufferDst = std::make_shared<BufferImage>(
-        bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-    for (int i = 0; i < paths.size(); i++) {
-      auto bufferSrc = _images[paths[i]];
-      bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
-    }
-    // barrier for further image copy from buffer
-    VkMemoryBarrier memoryBarrier = {};
-    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memoryBarrier.pNext = nullptr;
-    memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
-                         nullptr, 0, nullptr);
+template <>
+std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<float>(std::string path) {
+  int texWidth, texHeight, texChannels;
+#ifdef __ANDROID__
+  std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
+  std::shared_ptr<float[]> pixels(stbi_loadf_from_memory(fileContent.data(), fileContent.size(), &texWidth, &texHeight,
+                                                         &texChannels, STBI_rgb_alpha));
+#else
+  // load texture
+  std::shared_ptr<float[]> pixels(stbi_loadf(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha),
+                                  stbi_image_free);
+#endif
+  if (!pixels) {
+    throw std::runtime_error("failed to load texture image " + path);
   }
-
-  return bufferDst;
+  return {pixels, {texWidth, texHeight, 4}};
 }
 
 void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
@@ -100,6 +88,10 @@ LoaderGLTF::LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _loaderImage = loaderImage;
 }
 
+#ifdef __ANDROID__
+void LoaderGLTF::setAssetManager(AAssetManager* assetManager) { tinygltf::asset_manager = assetManager; }
+#endif
+
 std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
   if (_models.contains(path) == false) {
     std::shared_ptr<ModelGLTF> modelExternal = std::make_shared<ModelGLTF>();
@@ -110,8 +102,13 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
     std::vector<std::shared_ptr<Mesh3D>> meshes;
     tinygltf::Model modelInternal;
     std::string err, warn;
-    bool loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
-    if (loaded == false) throw std::runtime_error("Can't load model");
+    bool loaded = false;
+    std::string extension = path.substr(path.find_last_of(".") + 1);
+    if (extension == "gltf")
+      loaded = _loader.LoadASCIIFromFile(&modelInternal, &err, &warn, path);
+    else if (extension == "glb")
+      loaded = _loader.LoadBinaryFromFile(&modelInternal, &err, &warn, path);
+    if (loaded == false) throw std::runtime_error("Can't load model: " + path);
 
     // allocate meshes
     for (int i = 0; i < modelInternal.meshes.size(); i++) {
@@ -241,8 +238,9 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(_loaderImage->load({filePath}), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, 1,
-                                          _commandBufferTransfer, _state);
+      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({filePath}), format,
+                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _commandBufferTransfer,
+                                          _state);
     } else {
       // Get the image data from the glTF loader
       unsigned char* buffer = nullptr;
@@ -288,7 +286,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state);
-      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, imageView, _state);
+      texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, imageView, _state);
       if (deleteBuffer) {
         delete[] buffer;
       }

@@ -7,19 +7,16 @@ layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 proj;
 } mvp;
 
-layout(std140, set = 2, binding = 0) readonly buffer LightMatrixDirectional {
+layout(std140, set = 1, binding = 0) readonly buffer LightMatrixDirectional {
+    int lightDirectionalNumber;
     mat4 lightDirectionalVP[];
-};
-
-layout(std140, set = 2, binding = 1) readonly buffer LightMatrixPoint {
-    mat4 lightPointVP[];
 };
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inColor;
 layout(location = 3) in vec2 inTexCoord;
-layout(location = 4) in vec3 inTangent;
+layout(location = 4) in vec4 inTangent;
 
 layout(location = 0) out vec3 fragPosition;
 layout(location = 1) out vec3 fragNormal;
@@ -42,12 +39,12 @@ void main() {
     fragNormal = normalize(normalMatrix * inNormal);
     fragTBN = mat3(1.0);
     if (length(inTangent) > epsilon) {
-        vec3 tangent = normalize(normalMatrix * inTangent);
+        vec3 tangent = normalize(normalMatrix * inTangent.xyz);
         // re-orthogonalize T with respect to N
         tangent = normalize(tangent - dot(tangent, fragNormal) * fragNormal);
-        vec3 bitangent = normalize(cross(fragNormal, tangent));
+        vec3 bitangent = normalize(cross(fragNormal, tangent)) * inTangent.w;
         fragTBN = mat3(tangent, bitangent, fragNormal);
     }
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
+    for (int i = 0; i < lightDirectionalNumber; i++)
         fragLightDirectionalCoord[i] = lightDirectionalVP[i] * afterModel;
 }

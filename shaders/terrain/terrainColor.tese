@@ -6,30 +6,18 @@ layout (quads, fractional_odd_spacing, ccw) in;
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
 layout (location = 1) in vec3 tessColor[];
-layout(set = 1, binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 1) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
 } mvp;
 
-layout(set = 2, binding = 0) uniform sampler2D heightMap;
+layout(set = 0, binding = 2) uniform sampler2D heightMap;
 
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
-layout (location = 2) out vec3 normalCross;
-layout (location = 3) out vec3 outTessColor;
-layout (location = 4) out vec3 fragPosition;
-layout (location = 5) out mat3 fragTBN;
-layout (location = 8) out vec4 fragLightDirectionalCoord[2];
-
-layout(std140, set = 3, binding = 0) readonly buffer LightMatrixDirectional {
-    mat4 lightDirectionalVP[];
-};
-
-layout(std140, set = 3, binding = 1) readonly buffer LightMatrixPoint {
-    mat4 lightPointVP[];
-};
+layout (location = 2) out vec3 outTessColor;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -37,6 +25,31 @@ layout( push_constant ) uniform constants {
     float heightScale;
     float heightShift;
 } push;
+
+
+float calculateHeightTexture(in vec2 TexCoord, inout vec2 texCoord) {
+    texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
+    return texture(heightMap, texCoord).x;
+}
+
+float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
+    vec2 textureSize = textureSize(heightMap, 0);
+    vec2 pos = p + (textureSize - vec2(1.0)) / vec2(2.0);
+    ivec2 integral = ivec2(floor(pos));
+    texCoord = fract(pos);
+    ivec2 index0 = integral;
+    ivec2 index1 = integral + ivec2(1, 0);
+    ivec2 index2 = integral + ivec2(0, 1);
+    ivec2 index3 = integral + ivec2(1, 1);
+    float sample0 = texelFetch(heightMap, index0, 0).x;
+    float sample1 = texelFetch(heightMap, index1, 0).x;
+    float sample2 = texelFetch(heightMap, index2, 0).x;
+    float sample3 = texelFetch(heightMap, index3, 0).x;
+    float fxy1 = sample0 + texCoord.x * (sample1 - sample0);
+    float fxy2 = sample2 + texCoord.x * (sample3 - sample2);
+    float heightValue = fxy1 + texCoord.y * (fxy2 - fxy1);
+    return heightValue;
+}
 
 void main() {
     // get patch coordinate (2D)
@@ -64,13 +77,8 @@ void main() {
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
     TexCoord = (t1 - t0) * v + t0;
-    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
     // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float heightValue = texture(heightMap, texCoord).y;
-    // we don't want to deal with negative values in fragment shaders, 
-    // so all thresholds are positive even though real height can be negative
-    Height = heightValue * 256.0;
 
     // ----------------------------------------------------------------------
     // retrieve control point position coordinates
@@ -89,38 +97,17 @@ void main() {
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
 
+    vec2 texCoord;
+    float heightValue = calculateHeightTexture(TexCoord, texCoord);
+    // calculate the same way as in C++, but result is the same as in the line above
+    //float heightValue = calculateHeightPosition(p.xz, texCoord);
+
+    // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
+    // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
+    Height = heightValue * 256.0;
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
-
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;
-
-    fragPosition = (mvp.model * p).xyz;
-    //
-    //we sample from full size texture only, because we use stepCoords
-    vec2 textureSize = textureSize(heightMap, 0);
-    //classic implementation
-    //vec2 stepCoords = vec2(1.0, 1.0);
-    //my implementation
-    vec2 stepCoords = textureSize / (vec2(push.patchDimX, push.patchDimY) * vec2(gl_TessLevelInner[0], gl_TessLevelInner[1]));
-    vec2 stepTexture = stepCoords / textureSize;
-
-    float left = texture(heightMap, texCoord + vec2(-1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
-    float right = texture(heightMap, texCoord + vec2(1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
-    //in Vulkan 0, 0 is top-left corner
-    float top = texture(heightMap, texCoord + vec2(0, -1 * stepTexture.y)).y * push.heightScale - push.heightShift;
-    float bottom = texture(heightMap, texCoord + vec2(0, 1 * stepTexture.y)).y * push.heightScale - push.heightShift;
-    
-    //here we don't change right - left and top - bottom, it's always it.
-    //direction of cross product is calculated by right hand rule
-    //we don't depend on p
-    vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
-    vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
-    normalCross = normalize(cross(tangent, bitangent));    
-    fragTBN = mat3(tangent, bitangent, normalCross);
-
-
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
-        fragLightDirectionalCoord[i] = lightDirectionalVP[i] * mvp.model * p;
 }

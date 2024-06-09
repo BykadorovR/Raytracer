@@ -10,25 +10,29 @@
 #include "Equirectangular.h"
 #include "IBL.h"
 
-void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void InputHandler::cursorNotify(float xPos, float yPos) {}
 
-void InputHandler::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void InputHandler::mouseNotify(int button, int action, int mods) {}
+
+void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      _core->getState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      _core->getState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
+#endif
 }
 
-void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
+void InputHandler::charNotify(unsigned int code) {}
 
-void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -40,7 +44,7 @@ Main::Main() {
   settings->setResolution(std::tuple{1920, 1080});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
-  settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+  settings->setGraphicColorFormat(VK_FORMAT_R16G16B16A16_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion out of box (!)
   settings->setLoadTextureColorFormat(VK_FORMAT_R8G8B8A8_SRGB);
@@ -52,22 +56,20 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(settings);
+  _core->initialize();
+  _core->startRecording();
+  _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
-  _inputHandler = std::make_shared<InputHandler>();
+  _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
@@ -76,28 +78,22 @@ Main::Main() {
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -105,26 +101,23 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto equirectangular = std::make_shared<Equirectangular>("../assets/newport_loft.hdr", commandBufferTransfer,
-                                                           _core->getResourceManager(), state);
-  auto cubemapConverted = equirectangular->convertToCubemap(commandBufferTransfer);
-  auto materialSkybox = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
+  auto cubemapConverted = equirectangular->getCubemap();
+  auto materialSkybox = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
-  auto skybox = std::make_shared<Skybox>(commandBufferTransfer, _core->getResourceManager(), state);
+  auto skybox = _core->createSkybox();
   skybox->setMaterial(materialSkybox);
   _core->addSkybox(skybox);
 
-  auto ibl = std::make_shared<IBL>(lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto ibl = _core->createIBL();
   ibl->setMaterial(materialSkybox);
-  ibl->drawDiffuse(commandBufferTransfer);
-  ibl->drawSpecular(commandBufferTransfer);
-  ibl->drawSpecularBRDF(commandBufferTransfer);
+  ibl->drawDiffuse();
+  ibl->drawSpecular();
+  ibl->drawSpecularBRDF();
 
   {
-    auto modelGLTF = _core->getResourceManager()->loadModel("../assets/DamagedHelmet/DamagedHelmet.gltf");
-    auto modelPBR = std::make_shared<Model3D>(
-        std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, modelGLTF->getNodes(),
-        modelGLTF->getMeshes(), lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+    auto modelGLTF = _core->createModelGLTF("../assets/DamagedHelmet/DamagedHelmet.gltf");
+    auto modelPBR = _core->createModel3D(modelGLTF);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
     for (auto& material : materialDamagedHelmet) {
       material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
@@ -139,19 +132,7 @@ Main::Main() {
     _core->addDrawable(modelPBR);
   }
 
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
-
+  _core->endRecording();
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset
   _core->registerReset(std::bind(&Main::reset, this, std::placeholders::_1, std::placeholders::_2));
@@ -206,9 +187,6 @@ void Main::reset(int width, int height) { _camera->setAspect((float)width / (flo
 void Main::start() { _core->draw(); }
 
 int main() {
-#ifdef WIN32
-  SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#endif
   try {
     auto main = std::make_shared<Main>();
     main->start();

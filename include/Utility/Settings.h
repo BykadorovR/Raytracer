@@ -1,7 +1,12 @@
 #pragma once
+#ifdef __ANDROID__
+#include "VulkanWrapper.h"
+#else
+#include <vulkan/vulkan.h>
+#endif
 #include <tuple>
 #include <string>
-#include "vulkan/vulkan.hpp"
+#include <vector>
 
 enum class DrawType { FILL = 1, WIREFRAME = 2, NORMAL = 3, TANGENT = 4 };
 

@@ -1,23 +1,28 @@
 #pragma once
+#ifdef __ANDROID__
+#include <VulkanWrapper.h>
+#else
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
+#endif
 #include "tuple"
-#include <vector>
 #include <memory>
 
 class Window {
  private:
-  GLFWwindow* _window;
+  void* _window;
   std::tuple<int, int> _resolution;
   bool _resized = false;
 
  public:
   Window(std::tuple<int, int> resolution);
-  GLFWwindow* getWindow();
+#ifdef __ANDROID__
+  void setNativeWindow(ANativeWindow* window);
+#endif
+  void initialize();
+  void* getWindow();
   bool getResized();
   void setResized(bool resized);
-  std::vector<const char*> getExtensions();
-
+  std::tuple<int, int> getResolution();
   ~Window();
 };
