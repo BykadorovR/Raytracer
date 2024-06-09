@@ -32,10 +32,8 @@ bool Device::_isDeviceSuitable(VkPhysicalDevice device) {
     auto queueFamily = queueFamilies[i];
     if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
       _family[QueueType::GRAPHIC] = i;
-    }
-
-    if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
       _family[QueueType::COMPUTE] = i;
+      _family[QueueType::TRANSFER] = i;
     }
 
     VkBool32 presentSupport = false;
@@ -127,10 +125,10 @@ void Device::_pickPhysicalDevice() {
   for (const auto& device : devices) {
     VkPhysicalDeviceProperties props;
     vkGetPhysicalDeviceProperties(device, &props);
-    if (_isDeviceSuitable(device) && props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+    if (_isDeviceSuitable(device)) {
       _physicalDevice = device;
       _deviceLimits = props.limits;
-      break;
+      if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) break;
     }
   }
 
@@ -158,28 +156,10 @@ void Device::_createLogicalDevice() {
   deviceFeatures.samplerAnisotropy = VK_TRUE;
   deviceFeatures.fillModeNonSolid = VK_TRUE;
   deviceFeatures.tessellationShader = VK_TRUE;
-  deviceFeatures.wideLines = VK_TRUE;
   deviceFeatures.geometryShader = VK_TRUE;
-
-  VkPhysicalDeviceVulkan12Features dynamicDeviceFeatures12{
-      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
-      .timelineSemaphore = VK_TRUE};
-
-  VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
-      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-      .pNext = &dynamicDeviceFeatures12,
-      .dynamicRendering = VK_TRUE};
-
-  VkPhysicalDeviceRobustness2FeaturesEXT robustnessFeature{
-      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
-      .pNext = (void*)&dynamicRenderingFeature,
-      .robustBufferAccess2 = VK_FALSE,
-      .robustImageAccess2 = VK_FALSE,
-      .nullDescriptor = VK_TRUE};
 
   VkDeviceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  createInfo.pNext = &robustnessFeature;
 
   createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
   createInfo.pQueueCreateInfos = queueCreateInfos.data();

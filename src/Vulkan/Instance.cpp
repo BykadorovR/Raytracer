@@ -1,10 +1,17 @@
 #include "Instance.h"
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                              VkDebugUtilsMessageTypeFlagsEXT messageType,
                                              const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                              void* pUserData) {
+#ifdef __ANDROID__
+  __android_log_print(ANDROID_LOG_ERROR, "validation layer: ", "%s", pCallbackData->pMessage);
+#else
   std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+#endif
   return VK_FALSE;
 }
 
@@ -33,7 +40,7 @@ bool Instance::_checkValidationLayersSupport() {
   return true;
 }
 
-Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> window) {
+Instance::Instance(std::string name, bool validation) {
   _validation = validation;
 
   if (_validation && _checkValidationLayersSupport() == false) {
@@ -46,21 +53,28 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = "No Engine";
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0);
+  appInfo.apiVersion = VK_MAKE_API_VERSION(0, 1, 1, 0);
 
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
 
-  // extensions
-  std::vector<const char*> extensions = window->getExtensions();
-  extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-  createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-  createInfo.ppEnabledExtensionNames = extensions.data();
+// extensions
+#ifdef WIN32
+  _extensionsInstance.push_back("VK_KHR_win32_surface");
+#elif __ANDROID__
+  _extensionsInstance.push_back("VK_KHR_android_surface");
+#else
+  throw std::runtime_error("Define surface extension for current platform!")
+#endif
+  if (_validation) _extensionsInstance.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+  createInfo.enabledExtensionCount = static_cast<uint32_t>(_extensionsInstance.size());
+  createInfo.ppEnabledExtensionNames = _extensionsInstance.data();
 
   // validation
   createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
   createInfo.ppEnabledLayerNames = _validationLayers.data();
+#ifndef __ANDROID__
   if (_validation) {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -74,7 +88,7 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
 
     createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
   }
-
+#endif
   if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS) {
     throw std::runtime_error("failed to create instance!");
   }
@@ -93,10 +107,9 @@ Instance::Instance(std::string name, bool validation, std::shared_ptr<Window> wi
     createInfo.pfnUserCallback = debugCallback;
 
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr)
-      func(_instance, &createInfo, nullptr, &_debugMessenger);
-    else
-      throw std::runtime_error("failed to set up debug messenger!");
+    if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
+    auto result = func(_instance, &createInfo, nullptr, &_debugMessenger);
+    if (result != VK_SUCCESS) throw std::runtime_error("failed to set up debug messenger!");
 
     PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
     CreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(

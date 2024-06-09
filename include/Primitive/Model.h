@@ -22,16 +22,15 @@ class Model3D : public Drawable, public Shadowable {
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
-  std::shared_ptr<CommandPool> _commandPool;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
-  std::shared_ptr<DescriptorSet> _descriptorSetJointsDefault;
-  std::shared_ptr<DescriptorPool> _descriptorPool;
-  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout;
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR,
+      _descriptorSetJoints;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
+  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor, _descriptorSetLayoutPhong, _descriptorSetLayoutPBR;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline, _pipelineCullOff, _pipelineWireframe;
+  std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
   std::shared_ptr<Pipeline> _pipelineNormalMesh, _pipelineNormalMeshCullOff, _pipelineTangentMesh,
       _pipelineTangentMeshCullOff;
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
@@ -41,12 +40,7 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<Mesh3D> _mesh;
   std::shared_ptr<Animation> _defaultAnimation;
-  // used only for pipeline layout, not used for bind pipeline (layout is the same in every pipeline)
-  std::shared_ptr<Texture> _stubTexture;
-  std::shared_ptr<Texture> _stubTextureNormal;
-  std::vector<std::shared_ptr<Buffer>> _defaultSSBO;
   bool _enableDepth = true;
-  int _animationIndex = 0;
   bool _enableShadow = true;
   bool _enableLighting = true;
   std::shared_ptr<LightManager> _lightManager;
@@ -55,6 +49,11 @@ class Model3D : public Drawable, public Shadowable {
   std::vector<std::shared_ptr<Mesh3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
+
+  void _updateJointsDescriptor();
+  void _updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials);
+  void _updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials);
+  void _updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials);
 
   void _drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,
@@ -66,8 +65,7 @@ class Model3D : public Drawable, public Shadowable {
                  std::shared_ptr<NodeGLTF> node);
 
  public:
-  Model3D(std::vector<VkFormat> renderFormat,
-          const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+  Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -91,5 +89,5 @@ class Model3D : public Drawable, public Shadowable {
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,
             std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer);
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

@@ -4,25 +4,29 @@
 #include "Main.h"
 #include "Line.h"
 
-void InputHandler::cursorNotify(GLFWwindow* window, float xPos, float yPos) {}
+InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void InputHandler::cursorNotify(float xPos, float yPos) {}
 
-void InputHandler::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void InputHandler::mouseNotify(int button, int action, int mods) {}
+
+void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+      _core->getState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+      _core->getState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
+#endif
 }
 
-void InputHandler::charNotify(GLFWwindow* window, unsigned int code) {}
+void InputHandler::charNotify(unsigned int code) {}
 
-void InputHandler::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -46,22 +50,21 @@ Main::Main() {
   settings->setDesiredFPS(1000);
 
   _core = std::make_shared<Core>(settings);
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
-  commandBufferTransfer->beginCommands();
+  _core->initialize();
+  _core->startRecording();
   auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(settings);
+  _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
-  _inputHandler = std::make_shared<InputHandler>();
+  _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  auto lightManager = _core->getLightManager();
-  _pointLightVertical = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = lightManager->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = lightManager->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
   // TODO: rename setCenter to lookAt
@@ -70,28 +73,22 @@ Main::Main() {
   _directionalLight->setUp({0.f, 0.f, -1.f});
 
   // cube colored light
-  _cubeColoredLightVertical = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -100,46 +97,38 @@ Main::Main() {
   _core->addDrawable(cubeColoredLightDirectional);
 
   // lines
-  auto lineVertical = std::make_shared<Line>(
-      3, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      state);
-  lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+  auto lineVertical = _core->createLine();
+  lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
+                                    _core->getCommandBufferTransfer());
   lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)},
-                                       commandBufferTransfer);
+                                       _core->getCommandBufferTransfer());
   _core->addDrawable(lineVertical);
 
-  auto lineHorizontal = std::make_shared<Line>(
-      5, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()}, commandBufferTransfer,
-      state);
-  lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
+  auto lineHorizontal = _core->createLine();
+  lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)},
+                                      _core->getCommandBufferTransfer());
   lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)},
-                                         commandBufferTransfer);
+                                         _core->getCommandBufferTransfer());
   _core->addDrawable(lineHorizontal);
 
   // cube colored
-  auto cubeColored = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColored = _core->createShape3D(ShapeType::CUBE);
   cubeColored->getMesh()->setColor(
-      std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)}, commandBufferTransfer);
+      std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
     cubeColored->setModel(model);
   }
   _core->addDrawable(cubeColored);
   // cube textured
-  auto cubemap = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{"../assets/right.jpg", "../assets/left.jpg",
-                                                                         "../assets/top.jpg", "../assets/bottom.jpg",
-                                                                         "../assets/front.jpg", "../assets/back.jpg"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto materialCubeTextured = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto cubemap = _core->createCubemap(
+      std::vector<std::string>{"../assets/right.jpg", "../assets/left.jpg", "../assets/top.jpg", "../assets/bottom.jpg",
+                               "../assets/front.jpg", "../assets/back.jpg"},
+      settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto materialCubeTextured = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialCubeTextured->setBaseColor({cubemap->getTexture()});
-  _cubeTextured = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeTextured = _core->createShape3D(ShapeType::CUBE);
   _cubeTextured->setMaterial(materialCubeTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
@@ -148,28 +137,23 @@ Main::Main() {
   _core->addDrawable(_cubeTextured);
 
   //  cube Phong
-  auto cubemapColorPhong = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(
-          std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg",
-                                   "../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto cubemapNormalPhong = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{
-          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto materialCubePhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto cubemapColorPhong = _core->createCubemap(
+      std::vector<std::string>{"../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg",
+                               "../assets/brickwall.jpg", "../assets/brickwall.jpg", "../assets/brickwall.jpg"},
+      settings->getLoadTextureColorFormat(), mipMapLevels);
+
+  auto cubemapNormalPhong = _core->createCubemap(
+      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+
+  auto materialCubePhong = _core->createMaterialPhong(MaterialTarget::SIMPLE);
   materialCubePhong->setBaseColor({cubemapColorPhong->getTexture()});
   materialCubePhong->setNormal({cubemapNormalPhong->getTexture()});
   materialCubePhong->setSpecular({_core->getResourceManager()->getCubemapZero()->getTexture()});
 
-  auto cubeTexturedPhong = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedPhong = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhong->setMaterial(materialCubePhong);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
@@ -178,13 +162,11 @@ Main::Main() {
   _core->addDrawable(cubeTexturedPhong);
 
   // cube colored wireframe
-  auto cubeColoredWireframe = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeColoredWireframe = _core->createShape3D(ShapeType::CUBE);
   cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
   cubeColoredWireframe->getMesh()->setColor(
       std::vector{cubeColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, -3.f));
     cubeColoredWireframe->setModel(model);
@@ -192,9 +174,7 @@ Main::Main() {
   _core->addDrawable(cubeColoredWireframe);
 
   // cube texture wireframe
-  _cubeTexturedWireframe = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  _cubeTexturedWireframe = _core->createShape3D(ShapeType::CUBE);
   _cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   _cubeTexturedWireframe->setMaterial(materialCubeTextured);
   {
@@ -204,9 +184,7 @@ Main::Main() {
   _core->addDrawable(_cubeTexturedWireframe);
 
   // cube Phong wireframe
-  auto cubeTexturedWireframePhong = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedWireframePhong = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   cubeTexturedWireframePhong->setMaterial(materialCubePhong);
   {
@@ -216,9 +194,7 @@ Main::Main() {
   _core->addDrawable(cubeTexturedWireframePhong);
 
   // cube Phong mesh normal
-  auto cubeTexturedPhongNormalMesh = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedPhongNormalMesh = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
@@ -227,19 +203,14 @@ Main::Main() {
   _core->addDrawable(cubeTexturedPhongNormalMesh);
 
   // cube Color fragment normal
-  auto cubemapNormal = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{
-          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
-          "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto materialCubeTexturedNormalFragment = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
-                                                                            commandBufferTransfer, state);
+  auto cubemapNormal = _core->createCubemap(
+      std::vector<std::string>{"../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg",
+                               "../assets/brickwall_normal.jpg", "../assets/brickwall_normal.jpg"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialCubeTexturedNormalFragment = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialCubeTexturedNormalFragment->setBaseColor({cubemapNormal->getTexture()});
-  auto cubeTexturedNormalFragment = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedNormalFragment = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedNormalFragment->setMaterial(materialCubeTexturedNormalFragment);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
@@ -248,30 +219,23 @@ Main::Main() {
   _core->addDrawable(cubeTexturedNormalFragment);
 
   // cube Phong: specular without normal
-  auto cubemapColorPhongContainer = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(
-          std::vector<std::string>{"../assets/container.png", "../assets/container.png", "../assets/container.png",
-                                   "../assets/container.png", "../assets/container.png", "../assets/container.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto cubemapSpecularPhong = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{
-          "../assets/container_specular.png", "../assets/container_specular.png", "../assets/container_specular.png",
-          "../assets/container_specular.png", "../assets/container_specular.png", "../assets/container_specular.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto materialCubePhongSpecular = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer,
-                                                                   state);
+  auto cubemapColorPhongContainer = _core->createCubemap(
+      std::vector<std::string>{"../assets/container.png", "../assets/container.png", "../assets/container.png",
+                               "../assets/container.png", "../assets/container.png", "../assets/container.png"},
+      settings->getLoadTextureColorFormat(), mipMapLevels);
+
+  auto cubemapSpecularPhong = _core->createCubemap(
+      std::vector<std::string>{"../assets/container_specular.png", "../assets/container_specular.png",
+                               "../assets/container_specular.png", "../assets/container_specular.png",
+                               "../assets/container_specular.png", "../assets/container_specular.png"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialCubePhongSpecular = _core->createMaterialPhong(MaterialTarget::SIMPLE);
   materialCubePhongSpecular->setBaseColor({cubemapColorPhongContainer->getTexture()});
   materialCubePhongSpecular->setNormal({_core->getResourceManager()->getCubemapZero()->getTexture()});
   materialCubePhongSpecular->setSpecular({cubemapSpecularPhong->getTexture()});
   materialCubePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
 
-  auto cubeTexturedPhongSpecular = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedPhongSpecular = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhongSpecular->setMaterial(materialCubePhongSpecular);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, -3.f));
@@ -281,38 +245,27 @@ Main::Main() {
 
   // cube PBR
   // TODO: fix mipmaping
-  auto cubemapColorPBR = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(
-          std::vector<std::string>{"../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
-                                   "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
-                                   "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto cubemapNormalPBR = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(std::vector<std::string>{
-          "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
-          "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto cubemapMetallicPBR = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(
-          std::vector<std::string>{"../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
-                                   "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
-                                   "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto cubemapRoughnessPBR = std::make_shared<Cubemap>(
-      _core->getResourceManager()->loadImageGPU(
-          std::vector<std::string>{"../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
-                                   "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
-                                   "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png"}),
-      settings->getLoadTextureColorFormat(), mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      commandBufferTransfer, state);
-  auto materialCubePBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto cubemapColorPBR = _core->createCubemap(
+      std::vector<std::string>{"../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
+                               "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png",
+                               "../assets/rustediron2_basecolor.png", "../assets/rustediron2_basecolor.png"},
+      settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto cubemapNormalPBR = _core->createCubemap(
+      std::vector<std::string>{"../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
+                               "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png",
+                               "../assets/rustediron2_normal.png", "../assets/rustediron2_normal.png"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto cubemapMetallicPBR = _core->createCubemap(
+      std::vector<std::string>{"../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
+                               "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png",
+                               "../assets/rustediron2_metallic.png", "../assets/rustediron2_metallic.png"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto cubemapRoughnessPBR = _core->createCubemap(
+      std::vector<std::string>{"../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
+                               "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png",
+                               "../assets/rustediron2_roughness.png", "../assets/rustediron2_roughness.png"},
+      settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialCubePBR = _core->createMaterialPBR(MaterialTarget::SIMPLE);
   // material can't have default state because it can be either cubemap or texture2D
   materialCubePBR->setBaseColor({cubemapColorPBR->getTexture()});
   materialCubePBR->setNormal({cubemapNormalPBR->getTexture()});
@@ -324,9 +277,7 @@ Main::Main() {
   materialCubePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                   _core->getResourceManager()->getTextureZero());
 
-  auto cubeTexturedPBR = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeTexturedPBR = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPBR->setMaterial(materialCubePBR);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, -3.f));
@@ -335,9 +286,7 @@ Main::Main() {
   _core->addDrawable(cubeTexturedPBR);
 
   // cube PBR wireframe
-  auto cubeWireframePBR = std::make_shared<Shape3D>(
-      ShapeType::CUBE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto cubeWireframePBR = _core->createShape3D(ShapeType::CUBE);
   cubeWireframePBR->setMaterial(materialCubePBR);
   cubeWireframePBR->setDrawType(DrawType::WIREFRAME);
   {
@@ -347,11 +296,10 @@ Main::Main() {
   _core->addDrawable(cubeWireframePBR);
 
   // sphere colored
-  auto sphereColored = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereColored = _core->createShape3D(ShapeType::SPHERE);
   sphereColored->getMesh()->setColor(
-      std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
+      std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 3.f));
     sphereColored->setModel(model);
@@ -359,14 +307,10 @@ Main::Main() {
   _core->addDrawable(sphereColored);
 
   // sphere textured
-  auto sphereTexture = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/right.jpg"}), settings->getLoadTextureAuxilaryFormat(),
-      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-  auto materialSphereTextured = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto sphereTexture = _core->createTexture("../assets/right.jpg", settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto materialSphereTextured = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSphereTextured->setBaseColor({sphereTexture});
-  auto sphereTextured = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTextured = _core->createShape3D(ShapeType::SPHERE);
   sphereTextured->setMaterial(materialSphereTextured);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
@@ -375,21 +319,16 @@ Main::Main() {
   _core->addDrawable(sphereTextured);
 
   // sphere Phong
-  auto sphereTexturePhong = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/brickwall.jpg"}), settings->getLoadTextureAuxilaryFormat(),
-      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-  auto sphereNormalPhong = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/brickwall_normal.jpg"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto materialSpherePhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto sphereTexturePhong = _core->createTexture("../assets/brickwall.jpg", settings->getLoadTextureColorFormat(),
+                                                 mipMapLevels);
+  auto sphereNormalPhong = _core->createTexture("../assets/brickwall_normal.jpg",
+                                                settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialSpherePhong = _core->createMaterialPhong(MaterialTarget::SIMPLE);
   materialSpherePhong->setBaseColor({sphereTexturePhong});
   materialSpherePhong->setNormal({sphereNormalPhong});
   materialSpherePhong->setSpecular({_core->getResourceManager()->getTextureZero()});
 
-  auto sphereTexturedPhong = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedPhong = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhong->setMaterial(materialSpherePhong);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, 3.f));
@@ -398,13 +337,11 @@ Main::Main() {
   _core->addDrawable(sphereTexturedPhong);
 
   // sphere colored wireframe
-  auto sphereColoredWireframe = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereColoredWireframe = _core->createShape3D(ShapeType::SPHERE);
   sphereColoredWireframe->setDrawType(DrawType::WIREFRAME);
   sphereColoredWireframe->getMesh()->setColor(
       std::vector{sphereColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-      commandBufferTransfer);
+      _core->getCommandBufferTransfer());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
     sphereColoredWireframe->setModel(model);
@@ -412,9 +349,7 @@ Main::Main() {
   _core->addDrawable(sphereColoredWireframe);
 
   // sphere texture wireframe
-  auto sphereTexturedWireframe = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedWireframe = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframe->setMaterial(materialSphereTextured);
   {
@@ -424,9 +359,7 @@ Main::Main() {
   _core->addDrawable(sphereTexturedWireframe);
 
   // sphere Phong wireframe
-  auto sphereTexturedWireframePhong = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedWireframePhong = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframePhong->setMaterial(materialSpherePhong);
   {
@@ -436,9 +369,7 @@ Main::Main() {
   _core->addDrawable(sphereTexturedWireframePhong);
 
   // sphere Phong mesh normal
-  auto sphereTexturedPhongNormalMesh = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedPhongNormalMesh = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
@@ -447,12 +378,9 @@ Main::Main() {
   _core->addDrawable(sphereTexturedPhongNormalMesh);
 
   // sphere Color fragment normal
-  auto materialSphereTexturedNormalFragment = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
-                                                                              commandBufferTransfer, state);
+  auto materialSphereTexturedNormalFragment = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSphereTexturedNormalFragment->setBaseColor({sphereNormalPhong});
-  auto sphereTexturedNormalFragment = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedNormalFragment = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedNormalFragment->setMaterial(materialSphereTexturedNormalFragment);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
@@ -461,23 +389,17 @@ Main::Main() {
   _core->addDrawable(sphereTexturedNormalFragment);
 
   // cube Phong: specular without normal
-  auto sphereColorPhongContainer = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/container.png"}), settings->getLoadTextureAuxilaryFormat(),
-      VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer, state);
-  auto sphereSpecularPhongContainer = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/container_specular.png"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto materialSpherePhongSpecular = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer,
-                                                                     state);
+  auto sphereColorPhongContainer = _core->createTexture("../assets/container.png",
+                                                        settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto sphereSpecularPhongContainer = _core->createTexture("../assets/container_specular.png",
+                                                           settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialSpherePhongSpecular = _core->createMaterialPhong(MaterialTarget::SIMPLE);
   materialSpherePhongSpecular->setBaseColor({sphereColorPhongContainer});
   materialSpherePhongSpecular->setNormal({_core->getResourceManager()->getTextureZero()});
   materialSpherePhongSpecular->setSpecular({sphereSpecularPhongContainer});
   materialSpherePhongSpecular->setCoefficients(glm::vec3(0.f), glm::vec3(0.2f), glm::vec3(1.f), 32);
 
-  auto sphereTexturedPhongSpecular = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedPhongSpecular = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhongSpecular->setMaterial(materialSpherePhongSpecular);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, 3.f));
@@ -487,23 +409,15 @@ Main::Main() {
 
   // TODO: color is not so bright in comparison with cube
   // sphere PBR
-  auto sphereColorPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_basecolor.png"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto sphereNormalPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_normal.png"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto sphereMetallicPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_metallic.png"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto sphereRoughnessPBR = std::make_shared<Texture>(
-      _core->getResourceManager()->loadImageGPU({"../assets/rustediron2_roughness.png"}),
-      settings->getLoadTextureAuxilaryFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, commandBufferTransfer,
-      state);
-  auto materialSpherePBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  auto sphereColorPBR = _core->createTexture("../assets/rustediron2_basecolor.png",
+                                             settings->getLoadTextureColorFormat(), mipMapLevels);
+  auto sphereNormalPBR = _core->createTexture("../assets/rustediron2_normal.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto sphereMetallicPBR = _core->createTexture("../assets/rustediron2_metallic.png",
+                                                settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto sphereRoughnessPBR = _core->createTexture("../assets/rustediron2_roughness.png",
+                                                 settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+  auto materialSpherePBR = _core->createMaterialPBR(MaterialTarget::SIMPLE);
   // material can't have default state because it can be either cubemap or texture2D
   materialSpherePBR->setBaseColor({sphereColorPBR});
   materialSpherePBR->setNormal({sphereNormalPBR});
@@ -515,9 +429,7 @@ Main::Main() {
   materialSpherePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                     _core->getResourceManager()->getTextureZero());
 
-  auto sphereTexturedPBR = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereTexturedPBR = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPBR->setMaterial(materialSpherePBR);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, 3.f));
@@ -526,9 +438,7 @@ Main::Main() {
   _core->addDrawable(sphereTexturedPBR);
 
   // cube PBR wireframe
-  auto sphereWireframePBR = std::make_shared<Shape3D>(
-      ShapeType::SPHERE, std::vector{settings->getGraphicColorFormat(), settings->getGraphicColorFormat()},
-      VK_CULL_MODE_BACK_BIT, lightManager, commandBufferTransfer, _core->getResourceManager(), state);
+  auto sphereWireframePBR = _core->createShape3D(ShapeType::SPHERE);
   sphereWireframePBR->setMaterial(materialSpherePBR);
   sphereWireframePBR->setDrawType(DrawType::WIREFRAME);
   {
@@ -536,19 +446,7 @@ Main::Main() {
     sphereWireframePBR->setModel(model);
   }
   _core->addDrawable(sphereWireframePBR);
-
-  commandBufferTransfer->endCommands();
-  // TODO: remove vkQueueWaitIdle, add fence or semaphore
-  // TODO: move this function to core
-  {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBufferTransfer->getCommandBuffer()[0];
-    auto queue = state->getDevice()->getQueue(QueueType::GRAPHIC);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-  }
+  _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
   // can be lambda passed that calls reset
@@ -605,9 +503,6 @@ void Main::reset(int width, int height) { _camera->setAspect((float)width / (flo
 void Main::start() { _core->draw(); }
 
 int main() {
-#ifdef WIN32
-  SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS);
-#endif
   try {
     auto main = std::make_shared<Main>();
     main->start();

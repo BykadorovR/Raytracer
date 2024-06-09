@@ -39,8 +39,8 @@ glm::mat4 CameraOrtho::getProjection() {
   return projection;
 }
 
-CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
-  _settings = settings;
+CameraFly::CameraFly(std::shared_ptr<State> state) : Camera() {
+  _state = state;
   _once = false;
   _xLast = 0.f;
   _yLast = 0.f;
@@ -52,7 +52,8 @@ CameraFly::CameraFly(std::shared_ptr<Settings> settings) : Camera() {
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
-  _aspect = (float)std::get<0>(_settings->getResolution()) / (float)std::get<1>(_settings->getResolution());
+  _aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
+            (float)std::get<1>(_state->getSettings()->getResolution());
 }
 
 void CameraFly::setAspect(float aspect) { _aspect = aspect; }
@@ -63,6 +64,11 @@ void CameraFly::setAngles(float yaw, float pitch, float roll) {
   _yaw = yaw;
   _pitch = pitch;
   _roll = roll;
+}
+
+void CameraFly::setSpeed(float rotate, float translate) {
+  _sensitivity = rotate;
+  _moveSpeed = translate;
 }
 
 void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
@@ -82,11 +88,13 @@ glm::mat4 CameraFly::getProjection() {
 
 float CameraFly::getFOV() { return _fov; }
 
-void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
-  if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+void CameraFly::cursorNotify(float xPos, float yPos) {
+#ifndef __ANDROID__
+  if (glfwGetInputMode((GLFWwindow*)(_state->getWindow()->getWindow()), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;
     return;
   }
+#endif
 
   if (_once == false) {
     _xLast = xPos;
@@ -114,9 +122,24 @@ void CameraFly::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
   _direction = glm::normalize(_direction);
 }
 
-void CameraFly::mouseNotify(GLFWwindow* window, int button, int action, int mods) {}
+void CameraFly::mouseNotify(int button, int action, int mods) {
+#ifdef __ANDROID__
+  if (action == 0) _once = false;
+#endif
+}
 
-void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void CameraFly::keyNotify(int key, int scancode, int action, int mods) {
+#ifdef __ANDROID__
+  _keyStatus[key] = true;
+
+  if (action == 0) {
+    _keyStatus[key] = false;
+  }
+
+  if ((action == 1 && key == 87) || _keyStatus[87]) {
+    _eye += _moveSpeed * _direction;
+  }
+#else
   _keyStatus[key] = true;
 
   if (action == GLFW_RELEASE) {
@@ -142,8 +165,9 @@ void CameraFly::keyNotify(GLFWwindow* window, int key, int scancode, int action,
   if ((action == GLFW_PRESS && key == GLFW_KEY_SPACE) || _keyStatus[GLFW_KEY_SPACE]) {
     _eye += _sensitivity * _up;
   }
+#endif
 }
 
-void CameraFly::charNotify(GLFWwindow* window, unsigned int code) {}
+void CameraFly::charNotify(unsigned int code) {}
 
-void CameraFly::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {}
+void CameraFly::scrollNotify(double xOffset, double yOffset) {}

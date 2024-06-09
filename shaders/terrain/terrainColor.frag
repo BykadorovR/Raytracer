@@ -2,19 +2,11 @@
 
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 fragNormal;
-layout(location = 3) in vec3 tessColor;
-layout(location = 4) in vec3 fragPosition;
-layout(location = 5) in mat3 fragTBN;
-//mat3 takes 3 slots
-layout(location = 8) in vec4 fragLightDirectionalCoord[2];
+layout(location = 2) in vec3 tessColor;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 4, binding = 0) uniform sampler2D texSampler[4];
-
-layout(set = 5, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 5, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];

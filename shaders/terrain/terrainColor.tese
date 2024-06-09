@@ -6,30 +6,18 @@ layout (quads, fractional_odd_spacing, ccw) in;
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
 layout (location = 1) in vec3 tessColor[];
-layout(set = 1, binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 1) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
 } mvp;
 
-layout(set = 2, binding = 0) uniform sampler2D heightMap;
+layout(set = 0, binding = 2) uniform sampler2D heightMap;
 
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
-layout (location = 2) out vec3 normalCross;
-layout (location = 3) out vec3 outTessColor;
-layout (location = 4) out vec3 fragPosition;
-layout (location = 5) out mat3 fragTBN;
-layout (location = 8) out vec4 fragLightDirectionalCoord[2];
-
-layout(std140, set = 3, binding = 0) readonly buffer LightMatrixDirectional {
-    mat4 lightDirectionalVP[];
-};
-
-layout(std140, set = 3, binding = 1) readonly buffer LightMatrixPoint {
-    mat4 lightPointVP[];
-};
+layout (location = 2) out vec3 outTessColor;
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -122,31 +110,4 @@ void main() {
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;
-    fragPosition = (mvp.model * p).xyz;
-    //
-    //we sample from full size texture only, because we use stepCoords
-    vec2 textureSize = textureSize(heightMap, 0);
-    //classic implementation
-    //vec2 stepCoords = vec2(1.0, 1.0);
-    //my implementation
-    vec2 stepCoords = textureSize / (vec2(push.patchDimX, push.patchDimY) * vec2(gl_TessLevelInner[0], gl_TessLevelInner[1]));
-    vec2 stepTexture = stepCoords / textureSize;
-
-    float left = texture(heightMap, texCoord + vec2(-1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
-    float right = texture(heightMap, texCoord + vec2(1 * stepTexture.x, 0)).y * push.heightScale - push.heightShift;
-    //in Vulkan 0, 0 is top-left corner
-    float top = texture(heightMap, texCoord + vec2(0, -1 * stepTexture.y)).y * push.heightScale - push.heightShift;
-    float bottom = texture(heightMap, texCoord + vec2(0, 1 * stepTexture.y)).y * push.heightScale - push.heightShift;
-    
-    //here we don't change right - left and top - bottom, it's always it.
-    //direction of cross product is calculated by right hand rule
-    //we don't depend on p
-    vec3 tangent = vec3(2.0 * stepCoords.x, right - left, 0.0);
-    vec3 bitangent = vec3(0.0, top - bottom, -2.0 * stepCoords.y);
-    normalCross = normalize(cross(tangent, bitangent));    
-    fragTBN = mat3(tangent, bitangent, normalCross);
-
-
-    for (int i = 0; i < lightDirectionalVP.length(); i++)
-        fragLightDirectionalCoord[i] = lightDirectionalVP[i] * mvp.model * p;
 }

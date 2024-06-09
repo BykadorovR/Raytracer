@@ -5,7 +5,7 @@
 #include "Model.h"
 #include "Shape3D.h"
 
-class DebugVisualization : public InputSubscriber {
+class DebugVisualization {
  private:
   std::shared_ptr<Core> _core;
   std::vector<std::shared_ptr<Line>> _lineFrustum;
@@ -41,10 +41,4 @@ class DebugVisualization : public InputSubscriber {
  public:
   DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core);
   void update();
-
-  void cursorNotify(GLFWwindow* window, float xPos, float yPos) override;
-  void mouseNotify(GLFWwindow* window, int button, int action, int mods) override;
-  void keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) override;
-  void charNotify(GLFWwindow* window, unsigned int code) override;
-  void scrollNotify(GLFWwindow* window, double xOffset, double yOffset) override;
 };

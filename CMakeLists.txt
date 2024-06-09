@@ -14,28 +14,23 @@ endfunction()
 
 set(CMAKE_CXX_STANDARD 20)
 
-#need for mismatch resolving
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/libraries)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/libraries)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+if(MSVC)
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+endif()
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 include(FetchContent)
 
-ExternalProject_Add(
-  glfw
-  PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw
-  GIT_REPOSITORY https://github.com/glfw/glfw.git
-  GIT_TAG 4afa227a056681d2628894b0893527bf69496a41
-  UPDATE_COMMAND ""
-  CONFIGURE_COMMAND ${CMAKE_COMMAND} -DGLFW_BUILD_EXAMPLES=OFF -DGLFW_BUILD_TESTS=OFF -DGLFW_BUILD_DOCS=OFF -DBUILD_SHARED_LIBS=ON -G "${CMAKE_GENERATOR}" ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw 
-                                     -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG=${CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG}
-                                     -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE=${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE}
-                                     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG}
-                                     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE}
-  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include ${CMAKE_BINARY_DIR}/include
-)
+if (NOT ANDROID)
+  set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Disable GLFW examples")
+  set(GLFW_BUILD_TESTS OFF CACHE BOOL "Disable GLFW tests")
+  set(GLFW_BUILD_DOCS OFF CACHE BOOL "Disable GLFW docs")
+  FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 4afa227a056681d2628894b0893527bf69496a41
+  )
+endif()
+
 
 set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "Disable tinygltf loader example")
 set(TINYGLTF_HEADER_ONLY ON CACHE BOOL "Build header only tinygltf")
@@ -69,7 +64,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   glm
   GIT_REPOSITORY https://github.com/g-truc/glm.git
-  GIT_TAG        aa6a2757a5152bfa0db667380fa93c64d5999d63
+  GIT_TAG        45008b225e28eb700fa0f7d3ff69b7c1db94fadf
 )
 
 file(MAKE_DIRECTORY ${FETCHCONTENT_BASE_DIR}/imgui)
@@ -98,7 +93,11 @@ FetchContent_Declare(
         GIT_TAG        release-v3
 )
 
-FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
+if (NOT ANDROID)
+  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx glfw)
+else()
+  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
+endif()
 
 #affects all projects, add folder "include" to include section in VS
 include_directories("include/Graphic")
@@ -106,6 +105,9 @@ include_directories("include/Primitive")
 include_directories("include/Utility")
 include_directories("include/Engine")
 include_directories("include/Vulkan")
+if (ANDROID)
+  include_directories("include/Platform/Android")
+endif()
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -127,16 +129,38 @@ file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
 source_group("Engine\\src" FILES ${app_source_engine})
 file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
 source_group("Engine\\include" FILES ${app_header_engine})
+if (ANDROID)
+  file(GLOB_RECURSE app_header_platform "include/Platform/Android/*.h*")
+  source_group("Platform\\include" FILES ${app_header_platform})
+  file(GLOB_RECURSE app_source_platform "src/Platform/Android/*.c*")
+  source_group("Platform\\src" FILES ${app_source_platform})
+endif()
+
 
 ###############################
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+if (WIN32)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 #include headers to project (so they will be shown in include folder)
-add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
-                                   ${app_header_primitive} ${app_source_primitive}
-                                   ${app_header_utility}   ${app_source_utility}                                   
-                                   ${app_header_vulkan}    ${app_source_vulkan}
-                                   ${app_header_engine}    ${app_source_engine})
+if (NOT ANDROID)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin")
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/libraries)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/libraries)
+  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
+                                     ${app_header_primitive} ${app_source_primitive}
+                                     ${app_header_utility}   ${app_source_utility}                                   
+                                     ${app_header_vulkan}    ${app_source_vulkan}
+                                     ${app_header_engine}    ${app_source_engine})
+else()
+  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
+                                     ${app_header_primitive} ${app_source_primitive}
+                                     ${app_header_utility}   ${app_source_utility}                                   
+                                     ${app_header_vulkan}    ${app_source_vulkan}
+                                     ${app_header_engine}    ${app_source_engine}
+                                     ${app_header_platform}  ${app_source_platform})
+endif()
 ###############################
 
 #enable multiple cores compilation for VS
@@ -146,9 +170,7 @@ endif()
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${Vulkan_LIBRARIES})
-
-add_dependencies(${PROJECT_NAME} glfw)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
 
 file(COPY ${glm_SOURCE_DIR}/glm DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${imgui_SOURCE_DIR}/imgui.h ${imgui_SOURCE_DIR}/imconfig.h DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -156,9 +178,14 @@ file(COPY ${tinygltf_SOURCE_DIR}/tiny_gltf.h ${tinygltf_SOURCE_DIR}/stb_image.h 
 file(COPY ${thread-pool_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${mikktspace_SOURCE_DIR}/mikktspace.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${nvtx_SOURCE_DIR}/c/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
+if (NOT ANDROID)
+  file(COPY ${glfw_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
+endif()
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-#link glfw libraries
-target_link_libraries(${PROJECT_NAME} ${CMAKE_BINARY_DIR}/libraries/glfw3dll.lib)
-
-target_link_libraries(${PROJECT_NAME} imgui mikktspace)
+if (NOT ANDROID)
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace)
+else()
+  target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace)
+endif()

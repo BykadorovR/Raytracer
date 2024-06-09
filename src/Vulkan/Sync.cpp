@@ -1,18 +1,10 @@
 #include "Sync.h"
 
-Semaphore::Semaphore(VkSemaphoreType type, std::shared_ptr<Device> device) {
+Semaphore::Semaphore(std::shared_ptr<Device> device) {
   _device = device;
-  _type = type;
-
-  VkSemaphoreTypeCreateInfo timelineCreateInfo{};
-  timelineCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
-  timelineCreateInfo.pNext = NULL;
-  timelineCreateInfo.semaphoreType = type;
-  timelineCreateInfo.initialValue = 0;
 
   VkSemaphoreCreateInfo semaphoreInfo{};
   semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  semaphoreInfo.pNext = &timelineCreateInfo;
   semaphoreInfo.flags = 0;
 
   if (vkCreateSemaphore(device->getLogicalDevice(), &semaphoreInfo, nullptr, &_semaphore) != VK_SUCCESS)

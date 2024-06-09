@@ -7,22 +7,19 @@ layout(set = 0, binding = 0) uniform UniformCamera {
 } mvp;
 
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inNormal;
-layout(location = 2) in vec3 inColor;
-layout(location = 3) in vec2 inTexCoord;
-layout(location = 4) in vec4 inJointIndices;
-layout(location = 5) in vec4 inJointWeights;
-layout(location = 6) in vec4 inTangent;
+layout(location = 1) in vec4 inJointIndices;
+layout(location = 2) in vec4 inJointWeights;
 
 layout(location = 0) out vec4 modelCoords;
 
 layout(std430, set = 1, binding = 0) readonly buffer JointMatrices {
+    int jointNumber;
     mat4 jointMatrices[];
 };
 
 void main() {
     mat4 skinMat = mat4(1.0);
-    if (jointMatrices.length() > 0) {
+    if (jointNumber > 0) {
         skinMat = inJointWeights.x * jointMatrices[int(inJointIndices.x)] +
                   inJointWeights.y * jointMatrices[int(inJointIndices.y)] +
                   inJointWeights.z * jointMatrices[int(inJointIndices.z)] +

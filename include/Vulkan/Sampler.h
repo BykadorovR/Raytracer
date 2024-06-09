@@ -7,7 +7,11 @@ class Sampler {
   VkSampler _sampler;
 
  public:
-  Sampler(VkSamplerAddressMode mode, int mipMapLevels, int anisotropicSamples, std::shared_ptr<State> state);
+  Sampler(VkSamplerAddressMode mode,
+          int mipMapLevels,
+          int anisotropicSamples,
+          VkFilter filter,
+          std::shared_ptr<State> state);
   VkSampler& getSampler();
 
   ~Sampler();

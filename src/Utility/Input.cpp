@@ -1,65 +1,68 @@
 #include "Input.h"
 #include <memory>
 
-static void cursorCallback(GLFWwindow* window, double xpos, double ypos) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(window, xpos, ypos);
-}
-
-static void mouseCallback(GLFWwindow* window, int button, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(window, button, action, mods);
-}
-
-static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(window, key, scancode, action, mods);
-}
-
-static void charCallback(GLFWwindow* window, unsigned int code) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(window, code);
-}
-
-static void scrollCallback(GLFWwindow* window, double xOffset, double yOffset) {
-  reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(window, xOffset, yOffset);
-}
-
 Input::Input(std::shared_ptr<Window> window) {
-  glfwSetWindowUserPointer(window->getWindow(), this);
-  glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-  // glfwSetInputMode(window->getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-  glfwSetCursorPosCallback(window->getWindow(), cursorCallback);
-  glfwSetMouseButtonCallback(window->getWindow(), mouseCallback);
-  glfwSetCharCallback(window->getWindow(), charCallback);
-  glfwSetKeyCallback(window->getWindow(), keyCallback);
-  glfwSetScrollCallback(window->getWindow(), scrollCallback);
+#ifndef __ANDROID__
+  _window = window;
+  glfwSetWindowUserPointer((GLFWwindow*)(window->getWindow()), this);
+  glfwSetInputMode((GLFWwindow*)(window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetCursorPosCallback((GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, double xpos, double ypos) {
+    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(xpos, ypos);
+  });
+  glfwSetMouseButtonCallback(
+      (GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, int button, int action, int mods) {
+        reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->mouseHandler(button, action, mods);
+      });
+  glfwSetCharCallback((GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, unsigned int code) {
+    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->charHandler(code);
+  });
+  glfwSetKeyCallback(
+      (GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->keyHandler(key, scancode, action, mods);
+      });
+  glfwSetScrollCallback((GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, double xOffset, double yOffset) {
+    reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->scrollHandler(xOffset, yOffset);
+  });
+#endif
 }
 
-void Input::keyHandler(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void Input::keyHandler(int key, int scancode, int action, int mods) {
   for (auto& sub : _subscribers) {
-    sub->keyNotify(window, key, scancode, action, mods);
+    sub->keyNotify(key, scancode, action, mods);
   }
 }
 
-void Input::charHandler(GLFWwindow* window, unsigned int code) {
+void Input::charHandler(unsigned int code) {
   for (auto& sub : _subscribers) {
-    sub->charNotify(window, code);
+    sub->charNotify(code);
   }
 }
 
-void Input::scrollHandler(GLFWwindow* window, double xOffset, double yOffset) {
+void Input::scrollHandler(double xOffset, double yOffset) {
   for (auto& sub : _subscribers) {
-    sub->scrollNotify(window, xOffset, yOffset);
+    sub->scrollNotify(xOffset, yOffset);
   }
 }
 
-void Input::cursorHandler(GLFWwindow* window, double xpos, double ypos) {
+void Input::cursorHandler(double xpos, double ypos) {
   for (auto& sub : _subscribers) {
-    sub->cursorNotify(window, xpos, ypos);
+    sub->cursorNotify(xpos, ypos);
   }
 }
 
-void Input::mouseHandler(GLFWwindow* window, int button, int action, int mods) {
+void Input::mouseHandler(int button, int action, int mods) {
   for (auto& sub : _subscribers) {
-    sub->mouseNotify(window, button, action, mods);
+    sub->mouseNotify(button, action, mods);
   }
 }
 
 void Input::subscribe(std::shared_ptr<InputSubscriber> sub) { _subscribers.push_back(sub); }
+
+#ifndef __ANDROID__
+void Input::showCursor(bool show) {
+  if (show)
+    glfwSetInputMode((GLFWwindow*)(_window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  else
+    glfwSetInputMode((GLFWwindow*)(_window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+#endif

@@ -1,19 +1,15 @@
 #include "Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(VkFormat imageFormat, VkFormat depthFormat, std::shared_ptr<State> state) {
+Swapchain::Swapchain(VkFormat imageFormat, std::shared_ptr<State> state) {
   _state = state;
   _imageFormat = imageFormat;
-  _depthFormat = depthFormat;
-
   _initialize();
 }
 
 VkFormat& Swapchain::getImageFormat() { return _swapchainImageFormat; }
 
 std::vector<std::shared_ptr<ImageView>>& Swapchain::getImageViews() { return _swapchainImageViews; }
-
-std::shared_ptr<ImageView> Swapchain::getDepthImageView() { return _depthImageView; }
 
 void Swapchain::changeImageLayout(VkImageLayout imageLayout, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   for (int i = 0; i < _swapchainImageViews.size(); i++) {
@@ -45,21 +41,25 @@ void Swapchain::_initialize() {
   }
   // pick surface present mode
   VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+#ifndef __ANDROID__
   for (const auto& availablePresentMode : _state->getDevice()->getSupportedSurfacePresentModes()) {
     // triple buffering
     if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
       presentMode = availablePresentMode;
     }
   }
-
+#endif
   // swap extent is the resolution of the swap chain images and
   // it's almost always exactly equal to the resolution of the window
   auto surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
   VkExtent2D extent = surfaceCapabilities.currentExtent;
   if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width, height;
-    glfwGetFramebufferSize(_state->getWindow()->getWindow(), &width, &height);
-
+#ifdef __ANDROID__
+    std::tie(width, height) = _state->getWindow()->getResolution();
+#else
+    glfwGetFramebufferSize((GLFWwindow*)(_state->getWindow()->getWindow()), &width, &height);
+#endif
     VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
     actualExtent.width = std::clamp(actualExtent.width, surfaceCapabilities.minImageExtent.width,
@@ -100,7 +100,12 @@ void Swapchain::_initialize() {
   }
 
   createInfo.preTransform = surfaceCapabilities.currentTransform;
+#if __ANDROID__
+  // TODO: should be requested from device capabilities
+  createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+#else
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+#endif
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
 
@@ -112,38 +117,25 @@ void Swapchain::_initialize() {
       VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
-  _swapchainImages.resize(imageCount);
+  std::vector<VkImage> swapchainImages(imageCount);
   if (vkGetSwapchainImagesKHR(_state->getDevice()->getLogicalDevice(), _swapchain, &imageCount,
-                              _swapchainImages.data()) != VK_SUCCESS) {
+                              swapchainImages.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
 
   _swapchainImageFormat = surfaceFormat.format;
   _swapchainExtent = extent;
 
-  _swapchainImageViews.resize(_swapchainImages.size());
-
-  for (uint32_t i = 0; i < _swapchainImages.size(); i++) {
-    auto image = std::make_shared<Image>(_swapchainImages[i], std::tuple{extent.width, extent.height},
+  _swapchainImageViews.resize(swapchainImages.size());
+  for (uint32_t i = 0; i < swapchainImages.size(); i++) {
+    auto image = std::make_shared<Image>(swapchainImages[i], std::tuple{extent.width, extent.height},
                                          surfaceFormat.format, _state);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                 _state);
-
-    _swapchainImageViews[i] = imageView;
+    _swapchainImageViews[i] = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                          VK_IMAGE_ASPECT_COLOR_BIT, _state);
   }
-
-  _depthImage = std::make_shared<Image>(std::tuple{extent.width, extent.height}, 1, 1, _depthFormat,
-                                        VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-  _depthImageView = std::make_shared<ImageView>(_depthImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                VK_IMAGE_ASPECT_DEPTH_BIT, _state);
 }
 
-void Swapchain::_destroy() {
-  vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr);
-  _swapchainImages.clear();
-  _swapchainImageViews.clear();
-}
+void Swapchain::_destroy() { vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr); }
 
 void Swapchain::reset() {
   if (vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice()) != VK_SUCCESS)

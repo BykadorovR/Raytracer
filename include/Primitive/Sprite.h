@@ -16,15 +16,18 @@
 class Sprite : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
-
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull, _descriptorSetCameraGeometry;
+  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
+  std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh, _descriptorSetLayoutDepth;
+  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout, _descriptorSetLayoutDepth;
+      _descriptorSetLayout;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutBRDF;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineWireframe;
+  std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
   std::shared_ptr<Pipeline> _pipelineNormal, _pipelineTangent;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<LightManager> _lightManager;
@@ -43,9 +46,13 @@ class Sprite : public Drawable, public Shadowable {
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
 
+  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
+  void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
+  void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
+  void _updateShadowDescriptor(std::shared_ptr<MaterialColor> baseColor);
+
  public:
-  Sprite(std::vector<VkFormat> renderFormat,
-         std::shared_ptr<LightManager> lightManager,
+  Sprite(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<ResourceManager> resourceManager,
          std::shared_ptr<State> state);

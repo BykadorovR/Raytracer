@@ -5,7 +5,6 @@
 
 GUI::GUI(std::shared_ptr<State> state) {
   _state = state;
-  _window = state->getWindow();
   _resolution = state->getSettings()->getResolution();
 
   _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
@@ -16,9 +15,8 @@ GUI::GUI(std::shared_ptr<State> state) {
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
   io.IniFilename = nullptr;
-  io.FontGlobalScale = _fontScale;
+
   ImGuiStyle& style = ImGui::GetStyle();
-  style.ScaleAllSizes(_fontScale);
   // Color scheme
   style.Colors[ImGuiCol_TitleBg] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
   style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
@@ -80,7 +78,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                            _state);
-  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, _imageView, _state);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView, _state);
 
   _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
@@ -92,26 +90,26 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                                                    _descriptorPool, _state->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(_state->getDevice());
-  shader->add("shaders/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-  shader->add("shaders/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
+  auto shader = std::make_shared<Shader>(_state);
+  shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+  shader->add("shaders/UI/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass->initializeDebug();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createHUD(_state->getSettings()->getSwapchainColorFormat(),
-                       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+  _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
-                       VertexGUI::getAttributeDescriptions());
+                       VertexGUI::getAttributeDescriptions(), _renderPass);
   ImGui::NewFrame();
 }
 
-void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable) {
+void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
   for (auto& [key, value] : variable) {
     std::vector<const char*> listFormatted;
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
-    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), 2);
+    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber);
   }
 }
 
@@ -173,7 +171,7 @@ bool GUI::drawInputInt(std::map<std::string, int*> variable) {
 
 void GUI::drawText(std::vector<std::string> text) {
   for (auto value : text) {
-    ImGui::Text(value.c_str());
+    ImGui::Text("%s", value.c_str());
   }
 }
 
@@ -281,17 +279,20 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   ImGui::NewFrame();
 }
 
-void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size) {
+void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale) {
   ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
   // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
   ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
 
   ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::GetFont()->Scale = fontScale;
+  ImGui::PushFont(ImGui::GetFont());
 }
 
 std::tuple<int, int, int, int> GUI::endWindow() {
   ImVec2 size = ImGui::GetWindowSize();
   ImVec2 position = ImGui::GetWindowPos();
+  ImGui::PopFont();
   ImGui::End();
   return {position.x, position.y, size.x, size.y};
 }
@@ -305,13 +306,17 @@ void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(GLFWwindow* window, float xPos, float yPos) {
+void GUI::cursorNotify(float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
 }
 
-void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
+void GUI::mouseNotify(int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
+#ifdef __ANDROID__
+  if (action == 1) io.MouseDown[0] = true;
+  if (action == 0) io.MouseDown[0] = false;
+#else
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
     io.MouseDown[0] = true;
   }
@@ -324,20 +329,22 @@ void GUI::mouseNotify(GLFWwindow* window, int button, int action, int mods) {
   if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE) {
     io.MouseDown[1] = false;
   }
+#endif
 }
 
-void GUI::charNotify(GLFWwindow* window, unsigned int code) {
+void GUI::charNotify(unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
 }
 
-void GUI::scrollNotify(GLFWwindow* window, double xOffset, double yOffset) {
+void GUI::scrollNotify(double xOffset, double yOffset) {
   ImGuiIO& io = ImGui::GetIO();
   io.MouseWheelH += (float)xOffset;
   io.MouseWheel += (float)yOffset;
 }
 
-void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void GUI::keyNotify(int key, int scancode, int action, int mods) {
+#ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
     io.AddKeyEvent(ImGuiKey_Backspace, true);
@@ -367,4 +374,5 @@ void GUI::keyNotify(GLFWwindow* window, int key, int scancode, int action, int m
     io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
+#endif
 }

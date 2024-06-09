@@ -11,40 +11,40 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   _loggerCPU = std::make_shared<LoggerCPU>();
 
-  _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  _descriptorSetLayoutJoints->createJoints();
-
-  // initialize joints matrixes for every skin
-  _descriptorSetJoints.resize(_skins.size());
   _ssboJoints.resize(_skins.size());
   for (int i = 0; i < _skins.size(); i++) {
-    _descriptorSetJoints[i] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                              _descriptorSetLayoutJoints, _state->getDescriptorPool(),
-                                                              _state->getDevice());
     _ssboJoints[i].resize(_state->getSettings()->getMaxFramesInFlight());
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
       _ssboJoints[i][j] = std::make_shared<Buffer>(
-          _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+          _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4) + sizeof(glm::vec4),
+          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     }
-    _descriptorSetJoints[i]->createJoints(_ssboJoints[i]);
   }
 
   // store default descriptor set in 0 index and 0 SSBO
-  if (_descriptorSetJoints.size() == 0) {
-    auto descriptorSetJoints = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               _descriptorSetLayoutJoints, _state->getDescriptorPool(),
-                                                               _state->getDevice());
-    descriptorSetJoints->createJoints({});
-    _descriptorSetJoints.push_back(descriptorSetJoints);
+  if (_skins.size() == 0) {
+    std::vector<std::shared_ptr<Buffer>> bufferStubs;
+    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      bufferStubs.push_back(
+          std::make_shared<Buffer>(sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state));
+    }
+    _ssboJoints.push_back(bufferStubs);
+    auto identityMat = glm::mat4(1.f);
+    int jointNumber = 0;
+    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _ssboJoints[0][i]->map();
+      memcpy(_ssboJoints[0][i]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
+      memcpy((uint8_t*)(_ssboJoints[0][i]->getMappedMemory()) + sizeof(glm::vec4), &identityMat, sizeof(glm::mat4));
+      _ssboJoints[0][i]->unmap();
+    }
   }
 }
 
-std::shared_ptr<DescriptorSetLayout> Animation::getDescriptorSetLayoutJoints() { return _descriptorSetLayoutJoints; }
+std::vector<std::vector<std::shared_ptr<Buffer>>> Animation::getJointMatricesBuffer() { return _ssboJoints; }
 
-std::vector<std::shared_ptr<DescriptorSet>> Animation::getDescriptorSetJoints() { return _descriptorSetJoints; }
-
-void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
+void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) {
   if (node->skin > -1) {
     // Update the joint matrices
     // glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
@@ -57,15 +57,17 @@ void Animation::_updateJoints(std::shared_ptr<NodeGLTF> node) {
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
     // we update for the next frame
-    auto frameInFlight = 1 - _state->getFrameInFlight();
+    auto frameInFlight = (currentImage + 1) % _state->getSettings()->getMaxFramesInFlight();
+    int jointNumber = jointMatrices.size();
     _ssboJoints[node->skin][frameInFlight]->map();
-    memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), jointMatrices.data(),
-           jointMatrices.size() * sizeof(glm::mat4));
+    memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
+    memcpy((uint8_t*)(_ssboJoints[node->skin][frameInFlight]->getMappedMemory()) + sizeof(glm::vec4),
+           jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
     _ssboJoints[node->skin][frameInFlight]->unmap();
   }
 
   for (auto& child : node->children) {
-    _updateJoints(child);
+    _updateJoints(currentImage, child);
   }
 }
 
@@ -85,23 +87,24 @@ std::vector<std::string> Animation::getAnimations() {
 }
 
 void Animation::setAnimation(std::string name) {
+  std::unique_lock<std::mutex> lock(_mutex);
   for (int i = 0; i < _animations.size(); i++) {
     if (_animations[i]->name == name) _animationIndex = i;
   }
-  setPlay(true);
 }
 
-void Animation::setPlay(bool play) { _play = play; }
+void Animation::setPlay(bool play) {
+  std::unique_lock<std::mutex> lock(_mutex);
+  _play = play;
+}
 
 std::tuple<float, float> Animation::getTimeline() {
   return {_animations[_animationIndex]->start, _animations[_animationIndex]->end};
 }
 
 void Animation::setTime(float time) {
-  setPlay(true);
+  std::unique_lock<std::mutex> lock(_mutex);
   _animations[_animationIndex]->currentTime = time;
-  updateAnimation(time);
-  setPlay(false);
 }
 
 std::tuple<float, float> Animation::getTimeRange() {
@@ -111,7 +114,8 @@ std::tuple<float, float> Animation::getTimeRange() {
 // TODO: mutex?
 float Animation::getCurrentTime() { return _animations[_animationIndex]->currentTime; }
 
-void Animation::updateAnimation(float deltaTime) {
+void Animation::updateAnimation(int currentImage, float deltaTime) {
+  std::unique_lock<std::mutex> lock(_mutex);
   if (_play == false || _animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
@@ -170,7 +174,7 @@ void Animation::updateAnimation(float deltaTime) {
     _fillMatricesJoint(node, glm::mat4(1.f));
   }
   for (auto& node : _nodes) {
-    _updateJoints(node);
+    _updateJoints(currentImage, node);
   }
   _loggerCPU->end();
 }

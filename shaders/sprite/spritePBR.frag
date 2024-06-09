@@ -11,15 +11,15 @@ layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 1, binding = 0) uniform sampler2D texSampler;
-layout(set = 1, binding = 1) uniform sampler2D normalSampler;
-layout(set = 1, binding = 2) uniform sampler2D metallicSampler;
-layout(set = 1, binding = 3) uniform sampler2D roughnessSampler;
-layout(set = 1, binding = 4) uniform sampler2D occlusionSampler;
-layout(set = 1, binding = 5) uniform sampler2D emissiveSampler;
-layout(set = 1, binding = 6) uniform samplerCube irradianceSampler;
-layout(set = 1, binding = 7) uniform samplerCube specularIBLSampler;
-layout(set = 1, binding = 8) uniform sampler2D specularBRDFSampler;
+layout(set = 0, binding = 1) uniform sampler2D texSampler;
+layout(set = 0, binding = 2) uniform sampler2D normalSampler;
+layout(set = 0, binding = 3) uniform sampler2D metallicSampler;
+layout(set = 0, binding = 4) uniform sampler2D roughnessSampler;
+layout(set = 0, binding = 5) uniform sampler2D occlusionSampler;
+layout(set = 0, binding = 6) uniform sampler2D emissiveSampler;
+layout(set = 0, binding = 7) uniform samplerCube irradianceSampler;
+layout(set = 0, binding = 8) uniform samplerCube specularIBLSampler;
+layout(set = 0, binding = 9) uniform sampler2D specularBRDFSampler;
 
 struct LightDirectional {
     //
@@ -38,23 +38,21 @@ struct LightPoint {
     vec3 position;
 };
 
-struct LightAmbient {
-    vec3 color; //radiance
-};
-
-layout(std140, set = 3, binding = 0) readonly buffer LightBufferDirectional {
+layout(std140, set = 1, binding = 1) readonly buffer LightBufferDirectional {
+    int lightDirectionalNumber;
     LightDirectional lightDirectional[];
 };
 
-layout(std140, set = 3, binding = 1) readonly buffer LightBufferPoint {
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
+    int lightPointNumber;
     LightPoint lightPoint[];
 };
 
-layout(set = 4, binding = 0) uniform sampler2D shadowDirectionalSampler[2];
-layout(set = 4, binding = 1) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 3) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 4) uniform samplerCube shadowPointSampler[4];
 
 //coefficients from base color
-layout(set = 5, binding = 0) uniform Material {
+layout(set = 0, binding = 10) uniform Material {
     float metallicFactor;
     float roughnessFactor;
     // occludedColor = mix(color, color * <sampled occlusion texture value>, <occlusion strength>)
@@ -108,7 +106,7 @@ void main() {
 
             // reflectance equation
             vec3 Lr = vec3(0.0);
-            for (int i = 0; i < lightDirectional.length(); i++) {
+            for (int i = 0; i < lightDirectionalNumber; i++) {
                 vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
                 vec3 inRadiance = getLightDir(i).color;
                 vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
@@ -118,7 +116,7 @@ void main() {
                 Lr += directional * (1 - shadow);
             }
 
-            for (int i = 0; i < lightPoint.length(); i++) {
+            for (int i = 0; i < lightPointNumber; i++) {
                 vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
                 float distance = length(getLightPoint(i).position - fragPosition);
                 if (distance > getLightPoint(i).distance) break;

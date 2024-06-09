@@ -7,7 +7,7 @@ layout(location = 1) in vec3 inColor[];
 layout(location = 0) out vec3 outColor;
 const float MAGNITUDE = 0.01;
   
-layout(set = 3, binding = 0) uniform UniformCamera {
+layout(set = 0, binding = 3) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
