@@ -2,13 +2,13 @@
 
 [![ClangFormat](https://github.com/BykadorovR/Raytracer/actions/workflows/clang-format-check.yml/badge.svg)](https://github.com/BykadorovR/Raytracer/actions/workflows/clang-format-check.yml)
 
-This project is a graphics engine utilizing the Vulkan API, offering a comprehensive set of features to facilitate the development of visually compelling applications. The engine includes support for terrain rendering, various lighting models, particle systems, skeletal animation and more.
+This project is a cross-platform (Windows, Linux, Android) graphic engine utilizing the Vulkan API, offering a comprehensive set of features to facilitate the development of visually compelling applications. The engine includes support for terrain rendering, various lighting models, particle systems, skeletal animation and more.
 
 # Structure
 
 - **dev/master** branch contains classic rasterization engine
 - **raytracing** branch contains Path Tracer with importance sampling using compute shader
-- [samples](samples) set of samples which demonstates how to use the engine
+- [samples](samples) set of samples which demonstates how to use the engine with description and videos
 
 # Architecture
 
@@ -21,7 +21,6 @@ This project is a graphics engine utilizing the Vulkan API, offering a comprehen
 - [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/)
 - C++ compiler with C++20 support
 - [Python](https://www.python.org/) 3.12.0 or above to download assets
-- Currently Windows is the only tested and supported OS
 
 ## Build
 
