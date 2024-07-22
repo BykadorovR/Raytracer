@@ -17,7 +17,6 @@
 class Model3D : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<LoggerCPU> _loggerCPU;
 
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;

@@ -19,6 +19,7 @@
 #include <glm/gtc/random.hpp>
 #include <random>
 #include <vector>
+#include <android/trace.h>
 
 // Android log function wrappers
 static const char* kTAG = "AndroidApplication";
@@ -44,7 +45,6 @@ std::tuple<int, int> _resolution = {1080, 2400};
 std::shared_ptr<DebugVisualization> _debugVisualization;
 
 void update() {
-  // update light position
   float radius = 15.f;
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
@@ -569,6 +569,12 @@ void android_main(android_app* app) {
 
     handle_input(app);
 
+    char* customEventName = new char[32];
+    sprintf(customEventName, "draw call");
+    ATrace_beginSection(customEventName);
+
     if (_initialized) _core->draw();
+
+    ATrace_endSection();
   } while (app->destroyRequested == 0);
 }

@@ -95,12 +95,11 @@ void Core::initialize() {
   // start transfer command buffer
   _commandBufferTransfer->beginCommands();
 
-  _loggerGPU = std::make_shared<LoggerGPU>(_state);
-  _loggerPostprocessing = std::make_shared<LoggerGPU>(_state);
-  _loggerParticles = std::make_shared<LoggerGPU>(_state);
-  _loggerGUI = std::make_shared<LoggerGPU>(_state);
-  _loggerGPUDebug = std::make_shared<LoggerGPU>(_state);
-  _loggerCPU = std::make_shared<LoggerCPU>();
+  _logger = std::make_shared<Logger>(_state);
+  _loggerPostprocessing = std::make_shared<Logger>(_state);
+  _loggerParticles = std::make_shared<Logger>(_state);
+  _loggerGUI = std::make_shared<Logger>(_state);
+  _loggerDebug = std::make_shared<Logger>(_state);
 
   _resourceManager = std::make_shared<ResourceManager>(_commandBufferTransfer, _state);
 #ifdef __ANDROID__
@@ -186,9 +185,7 @@ void Core::_directionalLightCalculator(int index) {
 
   // record command buffer
   commandBuffer->beginCommands();
-  loggerGPU->setCommandBufferName("Directional command buffer", commandBuffer);
-
-  loggerGPU->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()));
+  _logger->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   //
   auto directionalLights = _lightManager->getDirectionalLights();
 
@@ -210,12 +207,12 @@ void Core::_directionalLightCalculator(int index) {
   auto globalFrame = _timer->getFrameCounter();
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
-    loggerGPU->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame));
+    _logger->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame), commandBuffer);
     shadowable->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
-    loggerGPU->end();
+    _logger->end(commandBuffer);
   }
   vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[frameInFlight]);
-  loggerGPU->end();
+  _logger->end(commandBuffer);
 
   // record command buffer
   commandBuffer->endCommands();
@@ -233,10 +230,8 @@ void Core::_pointLightCalculator(int index, int face) {
   auto commandBuffer = _lightManager->getPointLightCommandBuffers()[index][face];
   auto loggerGPU = _lightManager->getPointLightLoggers()[index][face];
   // record command buffer
-  loggerGPU->setCommandBufferName("Point " + std::to_string(index) + "x" + std::to_string(face) + " command buffer",
-                                  commandBuffer);
   commandBuffer->beginCommands();
-  loggerGPU->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()));
+  _logger->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
       _frameBufferPointLightDepth[index][frameInFlight][face]);
   VkClearValue clearDepth;
@@ -259,12 +254,12 @@ void Core::_pointLightCalculator(int index, int face) {
   // draw scene here
   for (auto shadowable : _shadowables) {
     std::string drawableName = typeid(shadowable).name();
-    loggerGPU->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame));
+    _logger->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame), commandBuffer);
     shadowable->drawShadow(LightType::POINT, index, face, commandBuffer);
-    loggerGPU->end();
+    _logger->end(commandBuffer);
   }
   vkCmdEndRenderPass(commandBuffer->getCommandBuffer()[frameInFlight]);
-  loggerGPU->end();
+  _logger->end(commandBuffer);
 
   // record command buffer
   commandBuffer->endCommands();
@@ -280,7 +275,6 @@ void Core::_computeParticles() {
   auto frameInFlight = _state->getFrameInFlight();
 
   _commandBufferParticleSystem->beginCommands();
-  _loggerParticles->setCommandBufferName("Particles compute command buffer", _commandBufferParticleSystem);
 
   // any read from SSBO should wait for write to SSBO
   // First dispatch writes to a storage buffer, second dispatch reads from that storage buffer.
@@ -292,12 +286,13 @@ void Core::_computeParticles() {
                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,  // dstStageMask
                        0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 
-  _loggerParticles->begin("Particle system compute " + std::to_string(_timer->getFrameCounter()));
+  _loggerParticles->begin("Particle system compute " + std::to_string(_timer->getFrameCounter()),
+                          _commandBufferParticleSystem);
   for (auto& particleSystem : _particleSystem) {
     particleSystem->drawCompute(_commandBufferParticleSystem);
     particleSystem->updateTimer(_timer->getElapsedCurrent());
   }
-  _loggerParticles->end();
+  _loggerParticles->end(_commandBufferParticleSystem);
 
   VkSubmitInfo submitInfoCompute{};
   submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -315,15 +310,15 @@ void Core::_computePostprocessing(int swapchainImageIndex) {
   auto frameInFlight = _state->getFrameInFlight();
 
   _commandBufferPostprocessing->beginCommands();
-  _loggerPostprocessing->setCommandBufferName("Postprocessing command buffer", _commandBufferPostprocessing);
   int bloomPasses = _state->getSettings()->getBloomPasses();
   // blur cycle:
   // in - out - horizontal
   // out - in - vertical
   for (int i = 0; i < bloomPasses; i++) {
-    _loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(_timer->getFrameCounter()));
+    _loggerPostprocessing->begin("Blur horizontal compute " + std::to_string(_timer->getFrameCounter()),
+                                 _commandBufferPostprocessing);
     _blur->drawCompute(frameInFlight, true, _commandBufferPostprocessing);
-    _loggerPostprocessing->end();
+    _loggerPostprocessing->end(_commandBufferPostprocessing);
 
     // sync between horizontal and vertical
     // wait dst (textureOut) to be written
@@ -348,9 +343,10 @@ void Core::_computePostprocessing(int swapchainImageIndex) {
       );
     }
 
-    _loggerPostprocessing->begin("Blur vertical compute " + std::to_string(_timer->getFrameCounter()));
+    _loggerPostprocessing->begin("Blur vertical compute " + std::to_string(_timer->getFrameCounter()),
+                                 _commandBufferPostprocessing);
     _blur->drawCompute(frameInFlight, false, _commandBufferPostprocessing);
-    _loggerPostprocessing->end();
+    _loggerPostprocessing->end(_commandBufferPostprocessing);
 
     // wait blur image to be ready
     // blurTextureIn stores result after blur (vertical part, out - in)
@@ -395,9 +391,10 @@ void Core::_computePostprocessing(int swapchainImageIndex) {
     );
   }
 
-  _loggerPostprocessing->begin("Postprocessing compute " + std::to_string(_timer->getFrameCounter()));
+  _loggerPostprocessing->begin("Postprocessing compute " + std::to_string(_timer->getFrameCounter()),
+                               _commandBufferPostprocessing);
   _postprocessing->drawCompute(frameInFlight, swapchainImageIndex, _commandBufferPostprocessing);
-  _loggerPostprocessing->end();
+  _loggerPostprocessing->end(_commandBufferPostprocessing);
   _commandBufferPostprocessing->endCommands();
 }
 
@@ -405,7 +402,6 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   auto frameInFlight = _state->getFrameInFlight();
 
   _commandBufferGUI->beginCommands();
-  _loggerGPUDebug->setCommandBufferName("GUI command buffer", _commandBufferGUI);
 
   auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferDebug[swapchainImageIndex]);
   VkClearValue clearColor;
@@ -416,10 +412,10 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   // TODO: only one depth texture?
   vkCmdBeginRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
-  _loggerGPUDebug->begin("Render GUI " + std::to_string(_timer->getFrameCounter()));
+  _loggerDebug->begin("Render GUI " + std::to_string(_timer->getFrameCounter()), _commandBufferGUI);
   _gui->updateBuffers(frameInFlight);
   _gui->drawFrame(frameInFlight, _commandBufferGUI);
-  _loggerGPUDebug->end();
+  _loggerDebug->end(_commandBufferGUI);
   vkCmdEndRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight]);
 
   _commandBufferGUI->endCommands();
@@ -430,8 +426,6 @@ void Core::_renderGraphic() {
 
   // record command buffer
   _commandBufferRender->beginCommands();
-  _loggerGPU->setCommandBufferName("Draw command buffer", _commandBufferRender);
-
   /////////////////////////////////////////////////////////////////////////////////////////
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
@@ -496,9 +490,9 @@ void Core::_renderGraphic() {
   vkCmdBeginRenderPass(_commandBufferRender->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 
-  _loggerGPU->begin("Render light " + std::to_string(globalFrame));
+  _logger->begin("Render light " + std::to_string(globalFrame), _commandBufferRender);
   _lightManager->draw(frameInFlight);
-  _loggerGPU->end();
+  _logger->end(_commandBufferRender);
 
   // draw scene here
   for (auto& animation : _animations) {
@@ -514,17 +508,17 @@ void Core::_renderGraphic() {
 
   // should be draw first
   if (_skybox) {
-    _loggerGPU->begin("Render skybox " + std::to_string(globalFrame));
+    _logger->begin("Render skybox " + std::to_string(globalFrame), _commandBufferRender);
     _skybox->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
-    _loggerGPU->end();
+    _logger->end(_commandBufferRender);
   }
 
   for (auto& drawable : _drawables[AlphaType::OPAQUE]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
-    _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
+    _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
     drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
-    _loggerGPU->end();
+    _logger->end(_commandBufferRender);
   }
 
   std::sort(_drawables[AlphaType::TRANSPARENT].begin(), _drawables[AlphaType::TRANSPARENT].end(),
@@ -535,18 +529,18 @@ void Core::_renderGraphic() {
   for (auto& drawable : _drawables[AlphaType::TRANSPARENT]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
-    _loggerGPU->begin("Render " + drawableName + " " + std::to_string(globalFrame));
+    _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
     drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
-    _loggerGPU->end();
+    _logger->end(_commandBufferRender);
   }
 
   // submit model3D update
   for (auto& animation : _animations) {
     _futureAnimationUpdate[animation] = _pool->submit([&]() {
-      _loggerCPU->begin("Update animation " + std::to_string(globalFrame));
+      _logger->begin("Update animation " + std::to_string(globalFrame));
       // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
       animation->updateAnimation(_state->getFrameInFlight(), _timer->getElapsedCurrent());
-      _loggerCPU->end();
+      _logger->end();
     });
   }
 
@@ -788,7 +782,7 @@ void Core::draw() {
     // if GPU frames are limited by driver it will happen during display
     _displayFrame(&imageIndex);
 
-    _timer->sleep(_state->getSettings()->getDesiredFPS(), _loggerCPU);
+    _timer->sleep(_state->getSettings()->getDesiredFPS());
     _timer->tock();
     _timerFPSLimited->tock();
   }

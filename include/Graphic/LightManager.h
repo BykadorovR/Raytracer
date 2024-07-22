@@ -36,8 +36,8 @@ class LightManager {
       _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
-  std::vector<std::shared_ptr<LoggerGPU>> _loggerGPUDirectional;
-  std::vector<std::vector<std::shared_ptr<LoggerGPU>>> _loggerGPUPoint;
+  std::vector<std::shared_ptr<Logger>> _loggerDirectional;
+  std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
   // for 2 frames
   std::mutex _accessMutex;
 
@@ -66,13 +66,13 @@ class LightManager {
   const std::vector<std::shared_ptr<PointLight>>& getPointLights();
   void removePointLights(std::shared_ptr<PointLight> pointLight);
   const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& getPointLightCommandBuffers();
-  const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& getPointLightLoggers();
+  const std::vector<std::vector<std::shared_ptr<Logger>>>& getPointLightLoggers();
 
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
   void removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight);
   const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();
-  const std::vector<std::shared_ptr<LoggerGPU>>& getDirectionalLightLoggers();
+  const std::vector<std::shared_ptr<Logger>>& getDirectionalLightLoggers();
 
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPhong();
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPBR();

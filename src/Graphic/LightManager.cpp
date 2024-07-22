@@ -718,15 +718,15 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   // should be unique command pool for every command buffer to work in parallel.
   // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
   std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
-  std::vector<std::shared_ptr<LoggerGPU>> loggerGPU(6);
+  std::vector<std::shared_ptr<Logger>> logger(6);
   for (int j = 0; j < commandBuffer.size(); j++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
     commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
                                                        _state);
-    loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
+    logger[j] = std::make_shared<Logger>(_state);
   }
   _commandBufferPoint.push_back(commandBuffer);
-  _loggerGPUPoint.push_back(loggerGPU);
+  _loggerPoint.push_back(logger);
 
   return light;
 }
@@ -740,7 +740,7 @@ void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
   if (index > 0) {
     _pointLights.erase(_pointLights.begin() + index);
     _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
-    _loggerGPUPoint.erase(_loggerGPUPoint.begin() + index);
+    _loggerPoint.erase(_loggerPoint.begin() + index);
     for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
@@ -756,7 +756,7 @@ void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> dire
   if (index > 0) {
     _directionalLights.erase(_directionalLights.begin() + index);
     _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
-    _loggerGPUDirectional.erase(_loggerGPUDirectional.begin() + index);
+    _loggerDirectional.erase(_loggerDirectional.begin() + index);
     for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
@@ -772,9 +772,7 @@ const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::ge
   return _commandBufferPoint;
 }
 
-const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& LightManager::getPointLightLoggers() {
-  return _loggerGPUPoint;
-}
+const std::vector<std::vector<std::shared_ptr<Logger>>>& LightManager::getPointLightLoggers() { return _loggerPoint; }
 
 std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
   std::vector<std::shared_ptr<Texture>> depthTexture;
@@ -804,7 +802,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
   auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
   _commandBufferDirectional.push_back(
       std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state));
-  _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
+  _loggerDirectional.push_back(std::make_shared<Logger>(_state));
 
   return light;
 }
@@ -818,9 +816,7 @@ const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalL
   return _commandBufferDirectional;
 }
 
-const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
-  return _loggerGPUDirectional;
-}
+const std::vector<std::shared_ptr<Logger>>& LightManager::getDirectionalLightLoggers() { return _loggerDirectional; }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPBR() { return _descriptorSetLayoutGlobalPBR; }

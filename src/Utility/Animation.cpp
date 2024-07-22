@@ -9,7 +9,7 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _animations = animations;
   _state = state;
 
-  _loggerCPU = std::make_shared<LoggerCPU>();
+  _logger = std::make_shared<Logger>();
 
   _ssboJoints.resize(_skins.size());
   for (int i = 0; i < _skins.size(); i++) {
@@ -120,7 +120,7 @@ void Animation::updateAnimation(int currentImage, float deltaTime) {
     return;
   }
 
-  _loggerCPU->begin("Update translate/scale/rotation");
+  _logger->begin("Update translate/scale/rotation");
   std::shared_ptr<AnimationGLTF> animation = _animations[_animationIndex];
   animation->currentTime += deltaTime;
   animation->currentTime = fmod(animation->currentTime, animation->end - animation->start);
@@ -166,9 +166,9 @@ void Animation::updateAnimation(int currentImage, float deltaTime) {
       }
     }
   }
-  _loggerCPU->end();
+  _logger->end();
 
-  _loggerCPU->begin("Update matrixes");
+  _logger->begin("Update matrixes");
   _matricesJoint.clear();
   for (auto& node : _nodes) {
     _fillMatricesJoint(node, glm::mat4(1.f));
@@ -176,5 +176,5 @@ void Animation::updateAnimation(int currentImage, float deltaTime) {
   for (auto& node : _nodes) {
     _updateJoints(currentImage, node);
   }
-  _loggerCPU->end();
+  _logger->end();
 }

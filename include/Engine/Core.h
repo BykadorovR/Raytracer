@@ -48,10 +48,9 @@ class Core {
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
   std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
-  std::shared_ptr<LoggerGPU> _loggerGPU, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerGPUDebug;
-  std::vector<std::shared_ptr<LoggerGPU>> _loggerGPUDirectional;
-  std::vector<std::vector<std::shared_ptr<LoggerGPU>>> _loggerGPUPoint;
-  std::shared_ptr<LoggerCPU> _loggerCPU;
+  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerDebug;
+  std::vector<std::shared_ptr<Logger>> _loggerDirectional;
+  std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;

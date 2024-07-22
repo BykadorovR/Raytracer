@@ -3,14 +3,30 @@
 #include <android/log.h>
 #endif
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                             VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-                                             void* pUserData) {
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallbackUtils(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                  VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                                  const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                                                  void* pUserData) {
 #ifdef __ANDROID__
   __android_log_print(ANDROID_LOG_ERROR, "validation layer: ", "%s", pCallbackData->pMessage);
 #else
   std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+#endif
+  return VK_FALSE;
+}
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallbackReport(VkDebugReportFlagsEXT flags,
+                                                          VkDebugReportObjectTypeEXT /*type*/,
+                                                          uint64_t /*object*/,
+                                                          size_t /*location*/,
+                                                          int32_t /*message_code*/,
+                                                          const char* layerPrefix,
+                                                          const char* message,
+                                                          void* /*user_data*/) {
+#ifdef __ANDROID__
+  __android_log_print(ANDROID_LOG_ERROR, "validation layer: ", "%s", message);
+#else
+  std::cerr << "validation layer: " << message << std::endl;
 #endif
   return VK_FALSE;
 }
@@ -47,6 +63,14 @@ Instance::Instance(std::string name, bool validation) {
     throw std::runtime_error("validation layers requested, but not available!");
   }
 
+  uint32_t instanceExtensionCount;
+  auto result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr);
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't query instance extension properties");
+
+  std::vector<VkExtensionProperties> instanceExtensionsAvailable(instanceExtensionCount);
+  result = vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, instanceExtensionsAvailable.data());
+  if (result != VK_SUCCESS) throw std::runtime_error("Can't query instance extension properties");
+
   VkApplicationInfo appInfo{};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = name.c_str();
@@ -67,53 +91,66 @@ Instance::Instance(std::string name, bool validation) {
 #else
   throw std::runtime_error("Define surface extension for current platform!")
 #endif
-  if (_validation) _extensionsInstance.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+  bool debugUtils = false;
+  if (_validation) {
+    for (auto& available_extension : instanceExtensionsAvailable) {
+      if (strcmp(available_extension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
+        debugUtils = true;
+        _extensionsInstance.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        break;
+      }
+    }
+    if (!debugUtils) {
+      _extensionsInstance.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    }
+  }
   createInfo.enabledExtensionCount = static_cast<uint32_t>(_extensionsInstance.size());
   createInfo.ppEnabledExtensionNames = _extensionsInstance.data();
 
   // validation
   createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
   createInfo.ppEnabledLayerNames = _validationLayers.data();
-#ifndef __ANDROID__
-  if (_validation) {
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                      VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                      VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                                  VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                  VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    debugCreateInfo.pfnUserCallback = debugCallback;
 
-    createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+  VkDebugUtilsMessengerCreateInfoEXT debugCreateInfoUtils = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+  VkDebugReportCallbackCreateInfoEXT debugCreateInfoReport = {VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT};
+  if (_validation) {
+    if (debugUtils) {
+      debugCreateInfoUtils.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+                                             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                                             VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+      debugCreateInfoUtils.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                                         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                                         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+      debugCreateInfoUtils.pfnUserCallback = debugCallbackUtils;
+      createInfo.pNext = &debugCreateInfoUtils;
+    } else {
+      debugCreateInfoReport.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+      debugCreateInfoReport.pfnCallback = debugCallbackReport;
+      createInfo.pNext = &debugCreateInfoReport;
+    }
   }
-#endif
+
   if (vkCreateInstance(&createInfo, nullptr, &_instance) != VK_SUCCESS) {
     throw std::runtime_error("failed to create instance!");
   }
 
-  {
-    VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-    createInfo.pNext = nullptr;
-    createInfo.flags = 0;
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
-
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance, "vkCreateDebugUtilsMessengerEXT");
-    if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
-    auto result = func(_instance, &createInfo, nullptr, &_debugMessenger);
-    if (result != VK_SUCCESS) throw std::runtime_error("failed to set up debug messenger!");
-
-    PFN_vkCreateDebugReportCallbackEXT CreateDebugReportCallback = VK_NULL_HANDLE;
-    CreateDebugReportCallback = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(
-        _instance, "vkCreateDebugReportCallbackEXT");
+  if (_validation) {
+    // if utils are supported
+    if (debugUtils) {
+      auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance,
+                                                                            "vkCreateDebugUtilsMessengerEXT");
+      if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
+      result = func(_instance, &debugCreateInfoUtils, nullptr, &_debugMessenger);
+      if (result != VK_SUCCESS) throw std::runtime_error("failed to set up debug messenger!");
+    } else {
+      // if report is supported
+      auto func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance,
+                                                                            "vkCreateDebugReportCallbackEXT");
+      if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
+      result = func(_instance, &debugCreateInfoReport, nullptr, &_debugReportCallback);
+      if (result != VK_SUCCESS) throw std::runtime_error("failed to set up debug messenger!");
+    }
   }
 }
 
@@ -125,10 +162,19 @@ const std::vector<const char*>& Instance::getValidationLayers() { return _valida
 
 Instance::~Instance() {
   if (_validation) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance,
-                                                                           "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-      func(_instance, _debugMessenger, nullptr);
+    {
+      auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance,
+                                                                             "vkDestroyDebugUtilsMessengerEXT");
+      if (func != nullptr) {
+        func(_instance, _debugMessenger, nullptr);
+      }
+    }
+    {
+      auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(_instance,
+                                                                             "vkDestroyDebugReportCallbackEXT");
+      if (func != nullptr) {
+        func(_instance, _debugReportCallback, nullptr);
+      }
     }
   }
   vkDestroyInstance(_instance, nullptr);

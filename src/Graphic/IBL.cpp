@@ -141,7 +141,7 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
     }
   }
 
-  _loggerGPU = std::make_shared<LoggerGPU>(state);
+  _logger = std::make_shared<Logger>(state);
 
   _cubemapDiffuse = std::make_shared<Cubemap>(
       _state->getSettings()->getDiffuseIBLResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
@@ -279,7 +279,6 @@ void IBL::_draw(int face,
 
 void IBL::drawSpecular() {
   if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
-  _loggerGPU->setCommandBufferName("Draw specular buffer", _commandBufferTransfer);
 
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -300,7 +299,7 @@ void IBL::drawSpecular() {
       vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                            VK_SUBPASS_CONTENTS_INLINE);
 
-      _loggerGPU->begin("Render specular");
+      _logger->begin("Render specular", _commandBufferTransfer);
       // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
       switch (i) {
         case 0:
@@ -357,7 +356,7 @@ void IBL::drawSpecular() {
 
       _draw(i, _camera, _commandBufferTransfer, _pipelineSpecular);
 
-      _loggerGPU->end();
+      _logger->end(_commandBufferTransfer);
 
       vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
     }
@@ -367,7 +366,6 @@ void IBL::drawSpecular() {
 void IBL::drawDiffuse() {
   if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
   // render cubemap to diffuse
-  _loggerGPU->setCommandBufferName("Draw diffuse buffer", _commandBufferTransfer);
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineDiffuse->getPipeline());
@@ -384,7 +382,7 @@ void IBL::drawDiffuse() {
     vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
-    _loggerGPU->begin("Render diffuse");
+    _logger->begin("Render diffuse", _commandBufferTransfer);
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
     switch (i) {
       case 0:
@@ -428,7 +426,7 @@ void IBL::drawDiffuse() {
     vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
     _draw(i, _camera, _commandBufferTransfer, _pipelineDiffuse);
 
-    _loggerGPU->end();
+    _logger->end(_commandBufferTransfer);
 
     vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
   }
@@ -436,7 +434,6 @@ void IBL::drawDiffuse() {
 
 void IBL::drawSpecularBRDF() {
   if (_commandBufferTransfer->getActive() == false) throw std::runtime_error("Command buffer isn't in record state");
-  _loggerGPU->setCommandBufferName("Draw specular brdf", _commandBufferTransfer);
 
   auto resolution = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
   int currentFrame = _state->getFrameInFlight();
@@ -463,7 +460,7 @@ void IBL::drawSpecularBRDF() {
   vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
 
-  _loggerGPU->begin("Render specular brdf");
+  _logger->begin("Render specular brdf", _commandBufferTransfer);
   BufferMVP cameraMVP{};
   auto model = glm::scale(_model, glm::vec3(2.f, 2.f, 1.f));
   cameraMVP.model = model;
@@ -500,7 +497,7 @@ void IBL::drawSpecularBRDF() {
 
   vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer()[currentFrame],
                    static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1, 0, 0, 0);
-  _loggerGPU->end();
+  _logger->end(_commandBufferTransfer);
 
   vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
 }

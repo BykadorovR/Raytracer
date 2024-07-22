@@ -13,7 +13,6 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state) {
   _state = state;
-  _loggerCPU = std::make_shared<LoggerCPU>();
   _nodes = nodes;
   _meshes = meshes;
   _lightManager = lightManager;

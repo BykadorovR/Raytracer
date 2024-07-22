@@ -138,7 +138,7 @@ Equirectangular::Equirectangular(std::string path,
     }
   }
 
-  _loggerGPU = std::make_shared<LoggerGPU>(state);
+  _logger = std::make_shared<Logger>(state);
 
   _camera = std::make_shared<CameraFly>(_state);
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
@@ -183,8 +183,7 @@ void Equirectangular::_convertToCubemap() {
     vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
-    _loggerGPU->setCommandBufferName("Equirectangular", _commandBufferTransfer);
-    _loggerGPU->begin("Render equirectangular");
+    _logger->begin("Render equirectangular", _commandBufferTransfer);
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
     switch (i) {
       case 0:
@@ -256,7 +255,7 @@ void Equirectangular::_convertToCubemap() {
 
     vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer()[currentFrame],
                      static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
-    _loggerGPU->end();
+    _logger->end(_commandBufferTransfer);
 
     vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
 

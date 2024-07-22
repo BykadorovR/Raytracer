@@ -14,7 +14,11 @@
 class Instance {
  private:
   VkInstance _instance;
-  VkDebugUtilsMessengerEXT _debugMessenger;
+  // newer API, can be not supported. Includes validation layers + API for code instrumentation
+  VkDebugUtilsMessengerEXT _debugMessenger{VK_NULL_HANDLE};
+  // old API, used if utils are not supported. Includes validation layers only
+  VkDebugReportCallbackEXT _debugReportCallback{VK_NULL_HANDLE};
+
   // validation
   bool _validation = false;
   const std::vector<const char*> _validationLayers = {"VK_LAYER_KHRONOS_validation"};
