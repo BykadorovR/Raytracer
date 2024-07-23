@@ -12,6 +12,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state) {
+  setName("Model3D");
   _state = state;
   _nodes = nodes;
   _meshes = meshes;

@@ -5,6 +5,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
+  setName("Sprite");
   _state = state;
   _lightManager = lightManager;
   auto settings = state->getSettings();

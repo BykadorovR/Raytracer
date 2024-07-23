@@ -7,6 +7,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<ResourceManager> resourceManager,
                  std::shared_ptr<State> state) {
+  setName("Shape3D");
   _shapeType = shapeType;
   _state = state;
   _lightManager = lightManager;

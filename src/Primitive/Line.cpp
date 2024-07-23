@@ -1,6 +1,7 @@
 #include "Line.h"
 
 Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+  setName("Line");
   _state = state;
   _mesh = std::make_shared<Mesh3D>(state);
   _mesh->setIndexes({0, 1}, commandBufferTransfer);

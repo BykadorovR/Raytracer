@@ -61,24 +61,49 @@ void Core::initialize() {
   _timer = std::make_shared<Timer>();
   _timerFPSReal = std::make_shared<TimerFPS>();
   _timerFPSLimited = std::make_shared<TimerFPS>();
+  _debuggerUtils = std::make_shared<DebuggerUtils>(_state->getInstance(), _state->getDevice());
 
   _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _debuggerUtils->setName("Command pool for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolRender->getCommandPool()});
   _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender, _state);
+  _debuggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferRender->getCommandBuffer());
   _commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _debuggerUtils->setName("Command pool for transfer graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolTransfer->getCommandPool()});
   // frameInFlight != 0 can be used in reset
   _commandBufferTransfer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolTransfer,
                                                            _state);
+  _debuggerUtils->setName("Command buffer for transfer", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferTransfer->getCommandBuffer());
   _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _debuggerUtils->setName("Command pool for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolEquirectangular->getCommandPool()});
   _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                   _commandPoolEquirectangular, _state);
+  _debuggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferEquirectangular->getCommandBuffer());
   _commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, _state->getDevice());
+  _debuggerUtils->setName("Command pool for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolParticleSystem->getCommandPool()});
   _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                  _commandPoolParticleSystem, _state);
+  _debuggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferParticleSystem->getCommandBuffer());
   _commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, _state->getDevice());
+  _debuggerUtils->setName("Command pool for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolPostprocessing->getCommandPool()});
   _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                  _commandPoolPostprocessing, _state);
+  _debuggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferPostprocessing->getCommandBuffer());
   _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
+  _debuggerUtils->setName("Command pool for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
+                          std::vector{_commandPoolGUI->getCommandPool()});
   _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI, _state);
+  _debuggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferGUI->getCommandBuffer());
 
   _frameSubmitInfoPreCompute.resize(settings->getMaxFramesInFlight());
   _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
@@ -206,8 +231,8 @@ void Core::_directionalLightCalculator(int index) {
   // draw scene here
   auto globalFrame = _timer->getFrameCounter();
   for (auto shadowable : _shadowables) {
-    std::string drawableName = typeid(shadowable).name();
-    _logger->begin(drawableName + " to directional depth buffer " + std::to_string(globalFrame), commandBuffer);
+    _logger->begin(shadowable->getName() + " to directional depth buffer " + std::to_string(globalFrame),
+                   commandBuffer);
     shadowable->drawShadow(LightType::DIRECTIONAL, index, 0, commandBuffer);
     _logger->end(commandBuffer);
   }
@@ -253,8 +278,7 @@ void Core::_pointLightCalculator(int index, int face) {
 
   // draw scene here
   for (auto shadowable : _shadowables) {
-    std::string drawableName = typeid(shadowable).name();
-    _logger->begin(drawableName + " to point depth buffer " + std::to_string(globalFrame), commandBuffer);
+    _logger->begin(shadowable->getName() + " to point depth buffer " + std::to_string(globalFrame), commandBuffer);
     shadowable->drawShadow(LightType::POINT, index, face, commandBuffer);
     _logger->end(commandBuffer);
   }
@@ -527,9 +551,7 @@ void Core::_renderGraphic() {
                      glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
             });
   for (auto& drawable : _drawables[AlphaType::TRANSPARENT]) {
-    // TODO: add getName() to drawable?
-    std::string drawableName = typeid(drawable.get()).name();
-    _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
+    _logger->begin("Render " + drawable->getName() + " " + std::to_string(globalFrame), _commandBufferRender);
     drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
     _logger->end(_commandBufferRender);
   }

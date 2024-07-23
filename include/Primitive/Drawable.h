@@ -1,6 +1,7 @@
 #pragma once
 #include "Settings.h"
 #include "Command.h"
+#include "Base.h"
 #include "LightManager.h"
 #include "Camera.h"
 #undef OPAQUE
@@ -8,7 +9,7 @@
 
 enum class AlphaType { TRANSPARENT, OPAQUE };
 
-class Drawable {
+class Drawable : virtual public Named {
  protected:
   glm::mat4 _model = glm::mat4(1.f);
 
@@ -21,7 +22,7 @@ class Drawable {
 };
 
 // Such objects can be influenced by shadow (shadows can appear on them and they can generate shadows)
-class Shadowable {
+class Shadowable : virtual public Named {
  public:
   virtual void drawShadow(LightType lightType,
                           int lightIndex,

@@ -24,12 +24,12 @@ LoggerUtils::LoggerUtils(std::shared_ptr<State> state) {
                                                                                     "vkCmdEndDebugUtilsLabelEXT");
 }
 
-void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer) {
+void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color) {
   auto frameInFlight = _state->getFrameInFlight();
-
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = marker.c_str();
+  std::copy(color.begin(), color.end(), markerInfo.color);
   _cmdBeginDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight], &markerInfo);
 }
 
@@ -54,12 +54,12 @@ Logger::Logger(std::shared_ptr<State> state) {
 #endif
 }
 
-void Logger::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer) {
+void Logger::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color) {
 #ifdef __ANDROID__
   _loggerAndroid->begin(marker);
 #else
   if (buffer)
-    _loggerUtils->begin(marker, buffer);
+    _loggerUtils->begin(marker, buffer, color);
   else
     _loggerNVTX->begin(marker);
 #endif
@@ -74,4 +74,12 @@ void Logger::end(std::shared_ptr<CommandBuffer> buffer) {
   else
     _loggerNVTX->end();
 #endif
+}
+
+DebuggerUtils::DebuggerUtils(std::shared_ptr<Instance> instance, std::shared_ptr<Device> device) {
+  _setDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(instance->getInstance(),
+                                                                                        "vkSetDebugUtilsObjectNameEXT");
+  _setDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)vkGetInstanceProcAddr(instance->getInstance(),
+                                                                                      "vkSetDebugUtilsObjectTagEXT");
+  _device = device;
 }

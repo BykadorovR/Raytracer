@@ -1,5 +1,6 @@
 #pragma once
 #include "Device.h"
+#include "Base.h"
 #include <array>
 #include "Command.h"
 #define GLM_ENABLE_EXPERIMENTAL

@@ -15,6 +15,7 @@ ParticleSystem::ParticleSystem(std::vector<Particle> particles,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<State> state) {
+  setName("Particle system");
   _particles = particles;
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;

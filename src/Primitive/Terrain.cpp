@@ -57,6 +57,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<State> state) {
+  setName("Terrain");
   _state = state;
   _patchNumber = patchNumber;
   _lightManager = lightManager;

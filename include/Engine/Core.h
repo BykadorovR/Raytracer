@@ -61,6 +61,7 @@ class Core {
   std::shared_ptr<GUI> _gui;
   std::shared_ptr<Camera> _camera;
 
+  std::shared_ptr<DebuggerUtils> _debuggerUtils;
   std::shared_ptr<CameraOrtho> _cameraOrtho;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
