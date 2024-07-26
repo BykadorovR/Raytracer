@@ -1,13 +1,21 @@
 #pragma once
 #include "Settings.h"
 #include "Command.h"
-#include "Base.h"
 #include "LightManager.h"
 #include "Camera.h"
 #undef OPAQUE
 #undef TRANSPARENT
 
 enum class AlphaType { TRANSPARENT, OPAQUE };
+
+class Named {
+ private:
+  std::string _name;
+
+ public:
+  void setName(std::string name);
+  std::string getName();
+};
 
 class Drawable : virtual public Named {
  protected:

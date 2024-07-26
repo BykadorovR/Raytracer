@@ -41,37 +41,3 @@ class Logger {
              std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 0.0f});
   void end(std::shared_ptr<CommandBuffer> buffer = nullptr);
 };
-
-class DebuggerUtils {
-  PFN_vkSetDebugUtilsObjectNameEXT _setDebugUtilsObjectNameEXT;
-  PFN_vkSetDebugUtilsObjectTagEXT _setDebugUtilsObjectTagEXT;
-  std::shared_ptr<Device> _device;
-
- public:
-  DebuggerUtils(std::shared_ptr<Instance> instance, std::shared_ptr<Device> device);
-  template <class T>
-  void setName(std::string name, VkObjectType type, std::vector<T> handlers) {
-    for (int i = 0; i < handlers.size(); i++) {
-      std::string modified = name + " " + std::to_string(i);
-      VkDebugUtilsObjectNameInfoEXT nameInfo = {VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
-      nameInfo.objectType = type;
-      nameInfo.objectHandle = (uint64_t)handlers[i];
-      nameInfo.pObjectName = modified.c_str();
-      _setDebugUtilsObjectNameEXT(_device->getLogicalDevice(), &nameInfo);
-    }
-  }
-
-  template <class T>
-  void setTag(std::string tag, VkObjectType type, std::vector<T> handlers) {
-    for (int i = 0; i < handlers.size(); i++) {
-      std::string modified = tag + " " + std::to_string(i);
-      VkDebugUtilsObjectTagInfoEXT tagInfo = {VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_TAG_INFO_EXT};
-      tagInfo.objectType = type;
-      tagInfo.objectHandle = (uint64_t)handlers[i];
-      tagInfo.tagName = 0;
-      tagInfo.tagSize = modified.size();
-      tagInfo.pTag = modified.c_str();
-      _setDebugUtilsObjectTagEXT(_device->getLogicalDevice(), &tagInfo);
-    }
-  }
-};

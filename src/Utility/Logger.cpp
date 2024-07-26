@@ -75,11 +75,3 @@ void Logger::end(std::shared_ptr<CommandBuffer> buffer) {
     _loggerNVTX->end();
 #endif
 }
-
-DebuggerUtils::DebuggerUtils(std::shared_ptr<Instance> instance, std::shared_ptr<Device> device) {
-  _setDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(instance->getInstance(),
-                                                                                        "vkSetDebugUtilsObjectNameEXT");
-  _setDebugUtilsObjectTagEXT = (PFN_vkSetDebugUtilsObjectTagEXT)vkGetInstanceProcAddr(instance->getInstance(),
-                                                                                      "vkSetDebugUtilsObjectTagEXT");
-  _device = device;
-}

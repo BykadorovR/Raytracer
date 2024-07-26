@@ -92,16 +92,15 @@ Instance::Instance(std::string name, bool validation) {
   throw std::runtime_error("Define surface extension for current platform!")
 #endif
 
-  bool debugUtils = false;
   if (_validation) {
-    for (auto& available_extension : instanceExtensionsAvailable) {
-      if (strcmp(available_extension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
-        debugUtils = true;
+    for (auto& availableExtension : instanceExtensionsAvailable) {
+      if (strcmp(availableExtension.extensionName, VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
+        _debugUtils = true;
         _extensionsInstance.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         break;
       }
     }
-    if (!debugUtils) {
+    if (!_debugUtils) {
       _extensionsInstance.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
     }
   }
@@ -115,7 +114,7 @@ Instance::Instance(std::string name, bool validation) {
   VkDebugUtilsMessengerCreateInfoEXT debugCreateInfoUtils = {VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
   VkDebugReportCallbackCreateInfoEXT debugCreateInfoReport = {VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT};
   if (_validation) {
-    if (debugUtils) {
+    if (_debugUtils) {
       debugCreateInfoUtils.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
                                              VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                              VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -137,7 +136,7 @@ Instance::Instance(std::string name, bool validation) {
 
   if (_validation) {
     // if utils are supported
-    if (debugUtils) {
+    if (_debugUtils) {
       auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(_instance,
                                                                             "vkCreateDebugUtilsMessengerEXT");
       if (func == nullptr) throw std::runtime_error("failed to set up debug messenger!");
@@ -157,6 +156,8 @@ Instance::Instance(std::string name, bool validation) {
 const VkInstance& Instance::getInstance() { return _instance; }
 
 bool Instance::isValidation() { return _validation; }
+
+bool Instance::isDebug() { return _debugUtils; }
 
 const std::vector<const char*>& Instance::getValidationLayers() { return _validationLayers; }
 

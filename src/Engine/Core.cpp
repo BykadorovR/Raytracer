@@ -62,45 +62,39 @@ void Core::initialize() {
   _timerFPSReal = std::make_shared<TimerFPS>();
   _timerFPSLimited = std::make_shared<TimerFPS>();
   _debuggerUtils = std::make_shared<DebuggerUtils>(_state->getInstance(), _state->getDevice());
+  _debuggerUtils->setName("Queue graphic", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                          _state->getDevice()->getQueue(QueueType::GRAPHIC));
+  _debuggerUtils->setName("Queue present", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                          _state->getDevice()->getQueue(QueueType::PRESENT));
+  _debuggerUtils->setName("Queue compute", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                          _state->getDevice()->getQueue(QueueType::COMPUTE));
 
   _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _debuggerUtils->setName("Command pool for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolRender->getCommandPool()});
   _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender, _state);
   _debuggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferRender->getCommandBuffer());
   _commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _debuggerUtils->setName("Command pool for transfer graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolTransfer->getCommandPool()});
   // frameInFlight != 0 can be used in reset
   _commandBufferTransfer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolTransfer,
                                                            _state);
   _debuggerUtils->setName("Command buffer for transfer", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferTransfer->getCommandBuffer());
   _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _debuggerUtils->setName("Command pool for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolEquirectangular->getCommandPool()});
   _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                   _commandPoolEquirectangular, _state);
   _debuggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferEquirectangular->getCommandBuffer());
   _commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, _state->getDevice());
-  _debuggerUtils->setName("Command pool for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolParticleSystem->getCommandPool()});
   _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                  _commandPoolParticleSystem, _state);
   _debuggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferParticleSystem->getCommandBuffer());
   _commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, _state->getDevice());
-  _debuggerUtils->setName("Command pool for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolPostprocessing->getCommandPool()});
   _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                  _commandPoolPostprocessing, _state);
   _debuggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferPostprocessing->getCommandBuffer());
   _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _debuggerUtils->setName("Command pool for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_POOL,
-                          std::vector{_commandPoolGUI->getCommandPool()});
   _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI, _state);
   _debuggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferGUI->getCommandBuffer());

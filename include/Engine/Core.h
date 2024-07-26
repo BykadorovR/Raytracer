@@ -3,6 +3,7 @@
 #include "Swapchain.h"
 #include "Settings.h"
 #include "Logger.h"
+#include "Debug.h"
 #include "GUI.h"
 #include "Postprocessing.h"
 #include "Camera.h"

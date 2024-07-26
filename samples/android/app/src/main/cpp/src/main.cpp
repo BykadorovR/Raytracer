@@ -205,9 +205,16 @@ void initialize() {
     }
     _core->addDrawable(spriteBot);
   }
-  auto modelGLTF = _core->createModelGLTF("DamagedHelmet/DamagedHelmet.gltf");
+  auto modelGLTF = _core->createModelGLTF("BrainStem/BrainStem.gltf");
   auto modelGLTFPhong = _core->createModel3D(modelGLTF);
-  modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
+  auto phongMaterial = modelGLTF->getMaterialsPhong();
+  for (auto& material : phongMaterial) {
+    fillMaterialPhong(material);
+  }
+  modelGLTFPhong->setMaterial(phongMaterial);
+  auto animationDancing = _core->createAnimation(modelGLTF);
+  // set animation to model, so joints will be passed to shader
+  modelGLTFPhong->setAnimation(animationDancing);
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
     model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
