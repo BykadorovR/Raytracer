@@ -522,11 +522,6 @@ void Core::_renderGraphic() {
     _logger->end();
   }
 
-  // first update materials
-  for (auto& e : _materials) {
-    e->update(frameInFlight);
-  }
-
   // should be draw first
   if (_skybox) {
     _logger->begin("Render skybox " + std::to_string(globalFrame), _commandBufferRender);
@@ -642,6 +637,11 @@ void Core::_drawFrame(int imageIndex) {
   auto frameInFlight = _state->getFrameInFlight();
   // submit compute particles
   auto particlesFuture = _pool->submit(std::bind(&Core::_computeParticles, this));
+
+  // first update materials
+  for (auto& e : _materials) {
+    e->update(frameInFlight);
+  }
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // render to depth buffer

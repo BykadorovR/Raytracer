@@ -8,6 +8,7 @@
 #include <memory>
 #include "State.h"
 #include "Logger.h"
+#include "Debug.h"
 #include "Material.h"
 #include "ResourceManager.h"
 
@@ -22,6 +23,7 @@ class LightManager {
   std::vector<std::shared_ptr<AmbientLight>> _ambientLights;
 
   std::shared_ptr<State> _state;
+  std::shared_ptr<DebuggerUtils> _debuggerUtils;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;

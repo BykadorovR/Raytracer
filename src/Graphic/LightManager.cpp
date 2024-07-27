@@ -5,6 +5,7 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<ResourceManager> resourceManager,
                            std::shared_ptr<State> state) {
   _state = state;
+  _debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
   _commandBufferTransfer = commandBufferTransfer;
 
   _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
@@ -209,15 +210,23 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _descriptorPool,
                                                               _state->getDevice());
+  _debuggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                          _descriptorSetGlobalPhong->getDescriptorSets());
   _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                             _descriptorSetLayoutGlobalPBR, _descriptorPool,
                                                             _state->getDevice());
+  _debuggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                          _descriptorSetGlobalPBR->getDescriptorSets());
   _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                                      _descriptorSetLayoutGlobalTerrainPhong,
                                                                      _descriptorPool, _state->getDevice());
+  _debuggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                          _descriptorSetGlobalTerrainPhong->getDescriptorSets());
   _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
                                                                    _descriptorSetLayoutGlobalTerrainPBR,
                                                                    _descriptorPool, _state->getDevice());
+  _debuggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                          _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
   // stub texture
   _stubTexture = std::make_shared<Texture>(
@@ -723,6 +732,8 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
     commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
                                                        _state);
+    _debuggerUtils->setName("Command buffer point " + std::to_string(_pointLights.size() - 1) + "x" + std::to_string(j),
+                            VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer[j]->getCommandBuffer());
     logger[j] = std::make_shared<Logger>(_state);
   }
   _commandBufferPoint.push_back(commandBuffer);
@@ -800,8 +811,11 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
   }
 
   auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _commandBufferDirectional.push_back(
-      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state));
+  auto commandBuffer = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
+                                                       _state);
+  _debuggerUtils->setName("Command buffer directional " + std::to_string(_directionalLights.size() - 1),
+                          VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer->getCommandBuffer());
+  _commandBufferDirectional.push_back(commandBuffer);
   _loggerDirectional.push_back(std::make_shared<Logger>(_state));
 
   return light;
