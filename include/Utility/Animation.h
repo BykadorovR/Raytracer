@@ -34,7 +34,8 @@ class Animation {
   std::tuple<float, float> getTimeline();
   float getCurrentTime();
 
-  void updateAnimation(int currentImage, float deltaTime);
+  void calculateJoints(float deltaTime);
+  void updateBuffers(int currentImage);
 
   std::vector<std::vector<std::shared_ptr<Buffer>>> getJointMatricesBuffer();
 };

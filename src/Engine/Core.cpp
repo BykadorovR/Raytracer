@@ -514,9 +514,12 @@ void Core::_renderGraphic() {
 
   // draw scene here
   for (auto& animation : _animations) {
+    _logger->begin("Update animation buffers " + std::to_string(globalFrame));
     if (_futureAnimationUpdate[animation].valid()) {
       _futureAnimationUpdate[animation].get();
     }
+    animation->updateBuffers(_state->getFrameInFlight());
+    _logger->end();
   }
 
   // first update materials
@@ -552,10 +555,10 @@ void Core::_renderGraphic() {
 
   // submit model3D update
   for (auto& animation : _animations) {
-    _futureAnimationUpdate[animation] = _pool->submit([&]() {
-      _logger->begin("Update animation " + std::to_string(globalFrame));
+    _futureAnimationUpdate[animation] = _pool->submit([&, frame = globalFrame]() {
+      _logger->begin("Calculate animation joints " + std::to_string(frame));
       // we want update model for next frame, current frame we can't touch and update because it will be used on GPU
-      animation->updateAnimation(_state->getFrameInFlight(), _timer->getElapsedCurrent());
+      animation->calculateJoints(_timer->getElapsedCurrent());
       _logger->end();
     });
   }

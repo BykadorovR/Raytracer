@@ -228,6 +228,7 @@ void initialize() {
   for (auto& material : pbrMaterial) {
     fillMaterialPBR(material);
   }
+  modelGLTFPBR->setAnimation(animationDancing);
   modelGLTFPBR->setMaterial(pbrMaterial);
   {
     glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
