@@ -1,12 +1,7 @@
 #include "Material.h"
 
 void Material::_updateAlphaCutoffDescriptors(int currentFrame) {
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->getMemory(), 0, sizeof(AlphaCutoff), 0, &data);
-  memcpy(data, &_alphaCutoff, sizeof(AlphaCutoff));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->getMemory());
+  _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->setData(&_alphaCutoff);
 }
 
 void Material::_updateDescriptor(int currentFrame, MaterialTexture type) {
@@ -99,12 +94,7 @@ MaterialPBR::MaterialPBR(MaterialTarget target,
 }
 
 void MaterialPBR::_updateCoefficientBuffer(int currentFrame) {
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory(), 0, sizeof(Coefficients), 0, &data);
-  memcpy(data, &_coefficients, sizeof(Coefficients));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory());
+  _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
 }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPBR::getNormal() { return _textures[MaterialTexture::NORMAL]; }
@@ -225,12 +215,7 @@ MaterialPhong::MaterialPhong(MaterialTarget target,
 }
 
 void MaterialPhong::_updateCoefficientBuffer(int currentFrame) {
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory(), 0, sizeof(Coefficients), 0, &data);
-  memcpy(data, &_coefficients, sizeof(Coefficients));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _uniformBufferCoefficients->getBuffer()[currentFrame]->getMemory());
+  _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
 }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPhong::getNormal() { return _textures[MaterialTexture::NORMAL]; }

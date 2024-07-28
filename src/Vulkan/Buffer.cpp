@@ -65,6 +65,9 @@ VkBuffer& Buffer::getData() { return _data; }
 
 VkDeviceMemory& Buffer::getMemory() { return _memory; }
 
+// VK_WHOLE_SIZE is used because otherwise memory must be aligned manually to 64 or something
+// so can't just use _size
+// TODO: try to align memory manually?
 void Buffer::map() { vkMapMemory(_state->getDevice()->getLogicalDevice(), _memory, 0, VK_WHOLE_SIZE, 0, &_mapped); }
 
 void Buffer::flush() {

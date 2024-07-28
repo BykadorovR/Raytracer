@@ -248,12 +248,7 @@ void IBL::_draw(int face,
   cameraUBO.view = camera->getView();
   cameraUBO.projection = camera->getProjection();
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _cameraBufferCubemap[face]->getBuffer()[currentFrame]->getMemory(), 0, sizeof(cameraUBO), 0, &data);
-  memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _cameraBufferCubemap[face]->getBuffer()[currentFrame]->getMemory());
+  _cameraBufferCubemap[face]->getBuffer()[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -467,11 +462,7 @@ void IBL::drawSpecularBRDF() {
   cameraMVP.view = _cameraSpecularBRDF->getView();
   cameraMVP.projection = _cameraSpecularBRDF->getProjection();
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(cameraMVP), 0, &data);
-  memcpy(data, &cameraMVP, sizeof(cameraMVP));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory());
+  _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraMVP);
 
   VkBuffer vertexBuffers[] = {_mesh2D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

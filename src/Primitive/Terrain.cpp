@@ -953,11 +953,7 @@ void Terrain::draw(std::tuple<int, int> resolution,
     cameraUBO.view = camera->getView();
     cameraUBO.projection = camera->getProjection();
 
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(cameraUBO), 0, &data);
-    memcpy(data, &cameraUBO, sizeof(cameraUBO));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _cameraBuffer->getBuffer()[currentFrame]->getMemory());
+    _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -1138,13 +1134,7 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   cameraUBO.view = view;
   cameraUBO.projection = projection;
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _cameraBufferDepth[lightIndexTotal][face]->getBuffer()[currentFrame]->getMemory(), 0, sizeof(cameraUBO),
-              0, &data);
-  memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _cameraBufferDepth[lightIndexTotal][face]->getBuffer()[currentFrame]->getMemory());
+  _cameraBufferDepth[lightIndexTotal][face]->getBuffer()[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

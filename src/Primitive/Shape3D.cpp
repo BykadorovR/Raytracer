@@ -690,12 +690,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     cameraUBO.view = camera->getView();
     cameraUBO.projection = camera->getProjection();
 
-    void* data = nullptr;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBufferCamera->getBuffer()[currentFrame]->getMemory(),
-                0, sizeof(cameraUBO), 0, &data);
-    std::memcpy(data, &cameraUBO, sizeof(cameraUBO));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                  _uniformBufferCamera->getBuffer()[currentFrame]->getMemory());
+    _uniformBufferCamera->getBuffer()[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -861,13 +856,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(),
-              _cameraUBODepth[lightIndexTotal][face]->getBuffer()[currentFrame]->getMemory(), 0, sizeof(cameraMVP), 0,
-              &data);
-  memcpy(data, &cameraMVP, sizeof(cameraMVP));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(),
-                _cameraUBODepth[lightIndexTotal][face]->getBuffer()[currentFrame]->getMemory());
+  _cameraUBODepth[lightIndexTotal][face]->getBuffer()[currentFrame]->setData(&cameraMVP);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

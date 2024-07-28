@@ -268,10 +268,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
-      void* data;
-      vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-      memcpy(data, buffer, bufferSize);
-      vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
+      stagingBuffer->setData(buffer);
 
       // for some textures SRGB is used but for others linear format
       auto image = std::make_shared<Image>(

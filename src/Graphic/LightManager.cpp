@@ -151,60 +151,50 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   {
     auto lightTmp = std::make_shared<DirectionalLight>();
     _lightDirectionalSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
-    // fill only number of lights
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightDirectionalSSBOStub->map();
-    memcpy((uint8_t*)(_lightDirectionalSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightDirectionalSSBOStub->unmap();
+    _lightDirectionalSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
     auto lightTmp = std::make_shared<PointLight>(_state->getSettings());
     _lightPointSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightPointSSBOStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightPointSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightPointSSBOStub->unmap();
+    _lightPointSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
     auto lightTmp = std::make_shared<AmbientLight>();
     _lightAmbientSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightAmbientSSBOStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightAmbientSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightAmbientSSBOStub->unmap();
+    _lightAmbientSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
     _lightDirectionalSSBOViewProjectionStub = std::make_shared<Buffer>(
-        sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightDirectionalSSBOViewProjectionStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjectionStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightDirectionalSSBOViewProjectionStub->unmap();
+    _lightDirectionalSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
   {
     _lightPointSSBOViewProjectionStub = std::make_shared<Buffer>(
-        sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightPointSSBOViewProjectionStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightPointSSBOViewProjectionStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightPointSSBOViewProjectionStub->unmap();
+    _lightPointSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
 
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),

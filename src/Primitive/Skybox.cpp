@@ -133,11 +133,7 @@ void Skybox::draw(std::tuple<int, int> resolution,
   cameraUBO.view = glm::mat4(glm::mat3(camera->getView()));
   cameraUBO.projection = camera->getProjection();
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(cameraUBO), 0, &data);
-  memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+  _uniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

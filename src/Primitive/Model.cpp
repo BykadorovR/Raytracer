@@ -771,11 +771,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     cameraMVP.view = view;
     cameraMVP.projection = projection;
 
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), cameraUBO->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(cameraMVP), 0, &data);
-    memcpy(data, &cameraMVP, sizeof(cameraMVP));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), cameraUBO->getBuffer()[currentFrame]->getMemory());
+    cameraUBO->getBuffer()[currentFrame]->setData(&cameraMVP);
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
 

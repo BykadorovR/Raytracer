@@ -16,7 +16,7 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _ssboJoints[i].resize(_state->getSettings()->getMaxFramesInFlight());
     for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
       _ssboJoints[i][j] = std::make_shared<Buffer>(
-          _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4) + sizeof(glm::vec4),
+          sizeof(glm::vec4) + _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4),
           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     }

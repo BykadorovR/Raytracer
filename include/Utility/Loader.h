@@ -28,9 +28,7 @@ class LoaderImage {
         _images[path] = std::make_shared<BufferImage>(
             std::tuple{std::get<0>(dimension), std::get<1>(dimension)}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-        _images[path]->map();
-        memcpy(_images[path]->getMappedMemory(), pixels.get(), static_cast<size_t>(imageSize));
-        _images[path]->unmap();
+        _images[path]->setData(pixels.get());
       }
     }
 

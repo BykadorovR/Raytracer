@@ -90,9 +90,7 @@ void ParticleSystem::_initializeCompute() {
     _particlesBuffer[i] = std::make_shared<Buffer>(
         _particles.size() * sizeof(Particle), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-    _particlesBuffer[i]->map();
-    memcpy((uint8_t*)(_particlesBuffer[i]->getMappedMemory()), _particles.data(), _particles.size() * sizeof(Particle));
-    _particlesBuffer[i]->unmap();
+    _particlesBuffer[i]->setData(_particles.data());
   }
 
   _deltaUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(float),
@@ -126,11 +124,7 @@ void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
 void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   float timeDelta = _frameTimer * 2.f;
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _deltaUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(timeDelta), 0, &data);
-  memcpy(data, &timeDelta, sizeof(timeDelta));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _deltaUniformBuffer->getBuffer()[currentFrame]->getMemory());
+  _deltaUniformBuffer->getBuffer()[currentFrame]->setData(&timeDelta);
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                     _computePipeline->getPipeline());
@@ -182,11 +176,7 @@ void ParticleSystem::draw(std::tuple<int, int> resolution,
   cameraUBO.view = camera->getView();
   cameraUBO.projection = camera->getProjection();
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _cameraUniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(cameraUBO), 0, &data);
-  memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _cameraUniformBuffer->getBuffer()[currentFrame]->getMemory());
+  _cameraUniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_particlesBuffer[currentFrame]->getData()};
   VkDeviceSize offsets[] = {0};

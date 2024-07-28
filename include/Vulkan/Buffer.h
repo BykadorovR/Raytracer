@@ -85,6 +85,17 @@ class Buffer {
                 VkDeviceSize srcOffset,
                 VkDeviceSize dstOffset,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  template <class T>
+  void setData(T* data, VkDeviceSize size) {
+    map();
+    memcpy(_mapped, data, size);
+    unmap();
+  }
+
+  template <class T>
+  void setData(T* data) {
+    setData(data, _size);
+  }
   VkBuffer& getData();
   VkDeviceSize& getSize();
   VkDeviceMemory& getMemory();
@@ -138,11 +149,7 @@ class VertexBuffer {
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
     }
-
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
+    _stagingBuffer->setData(vertices.data());
     if (_buffer == nullptr || bufferSize != _buffer->getSize()) {
       _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | _type,
                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);

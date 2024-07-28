@@ -62,10 +62,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
-  memcpy(data, fontData, uploadSize);
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
+  stagingBuffer->setData(fontData);
 
   _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
                                        _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
@@ -207,11 +204,11 @@ void GUI::updateBuffers(int current) {
   ImDrawIdx* idxDst = (ImDrawIdx*)_indexBuffer[current]->getMappedMemory();
 
   for (int n = 0; n < imDrawData->CmdListsCount; n++) {
-    const ImDrawList* cmd_list = imDrawData->CmdLists[n];
-    memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-    memcpy(idxDst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-    vtxDst += cmd_list->VtxBuffer.Size;
-    idxDst += cmd_list->IdxBuffer.Size;
+    const ImDrawList* cmdList = imDrawData->CmdLists[n];
+    memcpy(vtxDst, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert));
+    memcpy(idxDst, cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
+    vtxDst += cmdList->VtxBuffer.Size;
+    idxDst += cmdList->IdxBuffer.Size;
   }
 
   _vertexBuffer[current]->flush();
@@ -237,11 +234,7 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   uniformData.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
   uniformData.translate = glm::vec2(-1.0f);
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory(), 0,
-              sizeof(uniformData), 0, &data);
-  memcpy(data, &uniformData, sizeof(uniformData));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory());
+  _uniformBuffer->getBuffer()[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,

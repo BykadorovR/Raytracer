@@ -18,10 +18,7 @@ Equirectangular::Equirectangular(std::string path,
   _stagingBuffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                                             state);
-  void* data;
-  vkMapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-  memcpy((stbi_uc*)data, pixels, static_cast<size_t>(bufferSize));
-  vkUnmapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
+  _stagingBuffer->setData(pixels);
 
   // image
   auto [width, height] = state->getSettings()->getResolution();
@@ -229,11 +226,7 @@ void Equirectangular::_convertToCubemap() {
     cameraUBO.view = _camera->getView();
     cameraUBO.projection = _camera->getProjection();
 
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _bufferCubemap[i]->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(cameraUBO), 0, &data);
-    memcpy(data, &cameraUBO, sizeof(cameraUBO));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _bufferCubemap[i]->getBuffer()[currentFrame]->getMemory());
+    _bufferCubemap[i]->getBuffer()[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
