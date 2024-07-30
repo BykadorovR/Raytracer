@@ -39,9 +39,10 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1920, 1080});
-  // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
-  // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
+  settings->setResolution(std::tuple{1280, 720});
+  // settings->setDepthResolution(std::tuple{1024, 1024});
+  //  for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
+  //  https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion out of box (!)

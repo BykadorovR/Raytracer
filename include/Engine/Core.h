@@ -92,6 +92,7 @@ class Core {
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
   void _initializeTextures();
+  void _initializeFramebuffer();
   void _renderGraphic();
 
   VkResult _getImageIndex(uint32_t* imageIndex);

@@ -43,6 +43,28 @@ void Core::_initializeTextures() {
                                                      blurImageView, _state);
     }
   }
+
+  auto depthAttachment = std::make_shared<Image>(settings->getResolution(), 1, 1, settings->getDepthFormat(),
+                                                 VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+  _depthAttachmentImageView = std::make_shared<ImageView>(depthAttachment, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                          VK_IMAGE_ASPECT_DEPTH_BIT, _state);
+}
+
+void Core::_initializeFramebuffer() {
+  _frameBufferGraphic.resize(_state->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _frameBufferGraphic[i] = std::make_shared<Framebuffer>(
+        std::vector{_textureRender[i]->getImageView(), _textureBlurIn[i]->getImageView(), _depthAttachmentImageView},
+        _textureRender[i]->getImageView()->getImage()->getResolution(), _renderPassGraphic, _state->getDevice());
+  }
+
+  _frameBufferDebug.resize(_swapchain->getImageViews().size());
+  for (int i = 0; i < _frameBufferDebug.size(); i++) {
+    _frameBufferDebug[i] = std::make_shared<Framebuffer>(std::vector{_swapchain->getImageViews()[i]},
+                                                         _swapchain->getImageViews()[i]->getImage()->getResolution(),
+                                                         _renderPassDebug, _state->getDevice());
+  }
 }
 
 #ifdef __ANDROID__
@@ -161,28 +183,9 @@ void Core::initialize() {
 
   _lightManager = std::make_shared<LightManager>(_commandBufferTransfer, _resourceManager, _state);
 
-  auto depthAttachment = std::make_shared<Image>(
-      std::tuple{_swapchain->getSwapchainExtent().width, _swapchain->getSwapchainExtent().height}, 1, 1,
-      settings->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
-  _depthAttachmentImageView = std::make_shared<ImageView>(depthAttachment, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                          VK_IMAGE_ASPECT_DEPTH_BIT, _state);
-
   _commandBufferTransfer->endCommands();
 
-  _frameBufferGraphic.resize(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _frameBufferGraphic[i] = std::make_shared<Framebuffer>(
-        std::vector{_textureRender[i]->getImageView(), _textureBlurIn[i]->getImageView(), _depthAttachmentImageView},
-        _textureRender[i]->getImageView()->getImage()->getResolution(), _renderPassGraphic, _state->getDevice());
-  }
-
-  _frameBufferDebug.resize(_swapchain->getImageViews().size());
-  for (int i = 0; i < _frameBufferDebug.size(); i++) {
-    _frameBufferDebug[i] = std::make_shared<Framebuffer>(std::vector{_swapchain->getImageViews()[i]},
-                                                         _swapchain->getImageViews()[i]->getImage()->getResolution(),
-                                                         _renderPassDebug, _state->getDevice());
-  }
+  _initializeFramebuffer();
 
   {
     // TODO: remove vkQueueWaitIdle, add fence or semaphore
@@ -619,6 +622,7 @@ void Core::_reset() {
 
   _commandBufferTransfer->endCommands();
 
+  _initializeFramebuffer();
   {
     // TODO: remove vkQueueWaitIdle, add fence or semaphore
     VkSubmitInfo submitInfo{};
