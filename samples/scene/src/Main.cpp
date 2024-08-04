@@ -409,8 +409,10 @@ void Main::update() {
     _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
     _core->getGUI()->endTree();
   }
-  if (_core->getGUI()->startTree("Debug")) {
-    _debugVisualization->update();
+
+  _debugVisualization->update();
+  if (_core->getGUI()->startTree("Debug", false)) {
+    _debugVisualization->draw();
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

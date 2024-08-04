@@ -149,8 +149,10 @@ void update() {
     }
     _core->getGUI()->endTree();
   }
+
+  _debugVisualization->update();
   if (_core->getGUI()->startTree("Debug", false)) {
-    _debugVisualization->update();
+    _debugVisualization->draw();
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

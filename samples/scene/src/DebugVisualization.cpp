@@ -204,6 +204,24 @@ void DebugVisualization::_drawFrustum() {
 }
 
 void DebugVisualization::update() {
+  if (_registerLights == false) {
+    for (int i = 0; i < _core->getPointLights().size(); i++) {
+      {
+        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
+        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+        _pointLightModels[i]->setModel(model);
+      }
+    }
+
+    for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
+      auto model = glm::translate(glm::mat4(1.f), _core->getDirectionalLights()[i]->getPosition());
+      model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+      _directionalLightModels[i]->setModel(model);
+    }
+  }
+}
+
+void DebugVisualization::draw() {
   auto gui = _core->getGUI();
 
   auto [resX, resY] = _core->getState()->getSettings()->getResolution();
@@ -339,11 +357,6 @@ void DebugVisualization::update() {
         if (_registerLights) _core->addDrawable(_pointLightModels[i]);
         {
           auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
-          model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-          _pointLightModels[i]->setModel(model);
-        }
-        {
-          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
           if (_enableSpheres) {
             if (_lightSpheresIndex < 0) _lightSpheresIndex = _core->getPointLights()[i]->getAttenuationIndex();
             _core->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);
@@ -365,9 +378,6 @@ void DebugVisualization::update() {
       }
       for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_directionalLightModels[i]);
-        auto model = glm::translate(glm::mat4(1.f), _core->getDirectionalLights()[i]->getPosition());
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-        _directionalLightModels[i]->setModel(model);
       }
       _registerLights = false;
     } else {
