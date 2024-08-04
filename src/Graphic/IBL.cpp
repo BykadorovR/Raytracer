@@ -146,11 +146,11 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
   _cubemapDiffuse = std::make_shared<Cubemap>(
       _state->getSettings()->getDiffuseIBLResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, state);
   _cubemapSpecular = std::make_shared<Cubemap>(
       _state->getSettings()->getSpecularIBLResolution(), _state->getSettings()->getGraphicColorFormat(),
       _state->getSettings()->getSpecularMipMap(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, state);
+      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, state);
   auto brdfImage = std::make_shared<Image>(_state->getSettings()->getDepthResolution(), 1, 1,
                                            _state->getSettings()->getGraphicColorFormat(), VK_IMAGE_TILING_OPTIMAL,
                                            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

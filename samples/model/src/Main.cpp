@@ -75,20 +75,20 @@ Main::Main() {
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
   ;
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -283,7 +283,7 @@ Main::Main() {
 
   // draw skeletal walking model with one animation
   {
-    auto gltfModelWalking = _core->getResourceManager()->loadModel("../assets/CesiumMan/CesiumMan.gltf");
+    auto gltfModelWalking = _core->createModelGLTF("../assets/CesiumMan/CesiumMan.gltf");
     auto modelWalking = _core->createModel3D(gltfModelWalking);
     auto materialModelWalking = gltfModelWalking->getMaterialsPhong();
     for (auto& material : materialModelWalking) {

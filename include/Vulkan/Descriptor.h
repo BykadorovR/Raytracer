@@ -29,6 +29,7 @@ class DescriptorSet {
   std::vector<VkDescriptorSet> _descriptorSets;
   std::shared_ptr<Device> _device;
   std::shared_ptr<DescriptorSetLayout> _layout;
+  std::shared_ptr<DescriptorPool> _pool;
 
  public:
   DescriptorSet(int number,
@@ -52,4 +53,5 @@ class DescriptorSet {
   void createBlur(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
   void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
   std::vector<VkDescriptorSet>& getDescriptorSets();
+  ~DescriptorSet();
 };

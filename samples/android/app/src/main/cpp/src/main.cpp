@@ -43,6 +43,9 @@ bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatche
 float _directionalValue = 0.5f, _pointVerticalValue = 1.f, _pointHorizontalValue = 10.f;
 std::tuple<int, int> _resolution = {1080, 2400};
 std::shared_ptr<DebugVisualization> _debugVisualization;
+std::shared_ptr<Cubemap> _cubemapSkybox;
+std::shared_ptr<IBL> _ibl;
+std::shared_ptr<Equirectangular> _equirectangular;
 
 void update() {
   float radius = 15.f;
@@ -98,7 +101,7 @@ void initialize() {
   _core->setAssetManager(_app->activity->assetManager);
   _core->setNativeWindow(_app->window);
   _core->initialize();
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
+  auto commandBufferTransfer = _core->getCommandBufferApplication();
 
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getState());
@@ -348,20 +351,18 @@ void initialize() {
   }
 
   auto [width, height] = settings->getResolution();
-  auto cubemap = _core->createCubemap({"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"},
-                                      settings->getLoadTextureColorFormat(), 1);
+  _cubemapSkybox = _core->createCubemap({"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"},
+                                        settings->getLoadTextureColorFormat(), 1);
 
   auto cube = _core->createShape3D(ShapeType::CUBE);
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
-  materialColor->setBaseColor({cubemap->getTexture()});
+  materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
     cube->setModel(model);
   }
   _core->addDrawable(cube);
-
-  auto ibl = _core->createIBL();
 
   auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
   {
@@ -384,41 +385,42 @@ void initialize() {
   }
   _core->addDrawable(specularCube);
 
-  auto equirectangular = _core->createEquirectangular("newport_loft.hdr");
-  auto cubemapConverted = equirectangular->getCubemap();
+  _ibl = _core->createIBL();
+  _equirectangular = _core->createEquirectangular("newport_loft.hdr");
+  auto cubemapConverted = _equirectangular->getCubemap();
   auto materialColorEq = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorEq->setBaseColor({cubemapConverted->getTexture()});
-  ibl->setMaterial(materialColorEq);
+  _ibl->setMaterial(materialColorEq);
   auto materialColorCM = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorDiffuse = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorSpecular = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorCM->setBaseColor({cubemapConverted->getTexture()});
   equiCube->setMaterial(materialColorCM);
 
-  ibl->drawDiffuse();
-  ibl->drawSpecular();
-  ibl->drawSpecularBRDF();
+  _ibl->drawDiffuse();
+  _ibl->drawSpecular();
+  _ibl->drawSpecularBRDF();
 
   // display specular as texture
-  materialColorSpecular->setBaseColor({ibl->getCubemapSpecular()->getTexture()});
+  materialColorSpecular->setBaseColor({_ibl->getCubemapSpecular()->getTexture()});
   specularCube->setMaterial(materialColorSpecular);
 
   // display diffuse as texture
-  materialColorDiffuse->setBaseColor({ibl->getCubemapDiffuse()->getTexture()});
+  materialColorDiffuse->setBaseColor({_ibl->getCubemapDiffuse()->getTexture()});
   diffuseCube->setMaterial(materialColorDiffuse);
 
   // set diffuse to material
   for (auto& material : pbrMaterial) {
-    material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+    material->setDiffuseIBL(_ibl->getCubemapDiffuse()->getTexture());
   }
 
   // set specular to material
   for (auto& material : pbrMaterial) {
-    material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
+    material->setSpecularIBL(_ibl->getCubemapSpecular()->getTexture(), _ibl->getTextureSpecularBRDF());
   }
 
   auto materialBRDF = _core->createMaterialPhong(MaterialTarget::SIMPLE);
-  materialBRDF->setBaseColor({ibl->getTextureSpecularBRDF()});
+  materialBRDF->setBaseColor({_ibl->getTextureSpecularBRDF()});
   materialBRDF->setNormal({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setSpecular({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);

@@ -100,14 +100,18 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   ImGui::NewFrame();
 }
 
-void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
+bool GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
+  bool result = false;
+
   for (auto& [key, value] : variable) {
     std::vector<const char*> listFormatted;
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
-    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber);
+    if (ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber)) result = true;
   }
+
+  return result;
 }
 
 bool GUI::drawButton(std::string label, bool hideWindow) {

@@ -10,16 +10,16 @@
 
 class LoaderImage {
  private:
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<State> _state;
   std::map<std::string, std::shared_ptr<BufferImage>> _images;
 
  public:
-  LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  LoaderImage(std::shared_ptr<State> state);
   template <class T>
   std::tuple<std::shared_ptr<T[]>, std::tuple<int, int, int>> loadCPU(std::string path);
   template <class T>
-  std::shared_ptr<BufferImage> loadGPU(std::vector<std::string> paths) {
+  std::shared_ptr<BufferImage> loadGPU(std::vector<std::string> paths,
+                                       std::shared_ptr<CommandBuffer> commandBufferTransfer) {
     for (auto& path : paths) {
       if (_images.contains(path) == false) {
         auto [pixels, dimension] = loadCPU<T>({path});
@@ -40,7 +40,7 @@ class LoaderImage {
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
       for (int i = 0; i < paths.size(); i++) {
         auto bufferSrc = _images[paths[i]];
-        bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), _commandBufferTransfer);
+        bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), commandBufferTransfer);
       }
       // barrier for further image copy from buffer
       VkMemoryBarrier memoryBarrier = {};
@@ -48,7 +48,7 @@ class LoaderImage {
       memoryBarrier.pNext = nullptr;
       memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
       memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
+      vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
                            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
                            nullptr, 0, nullptr);
     }
@@ -151,7 +151,6 @@ class LoaderGLTF {
  private:
   std::filesystem::path _path;
   std::shared_ptr<State> _state;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<LoaderImage> _loaderImage;
   tinygltf::TinyGLTF _loader;
   std::map<std::string, std::shared_ptr<ModelGLTF>> _models;
@@ -159,10 +158,12 @@ class LoaderGLTF {
   std::shared_ptr<Texture> _loadTexture(int imageIndex,
                                         VkFormat format,
                                         const tinygltf::Model& modelInternal,
-                                        std::vector<std::shared_ptr<Texture>>& textures);
+                                        std::vector<std::shared_ptr<Texture>>& textures,
+                                        std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void _loadMaterials(const tinygltf::Model& modelInternal,
                       std::vector<std::shared_ptr<MaterialGLTF>>& materialGLTF,
-                      std::shared_ptr<ModelGLTF> modelExternal);
+                      std::shared_ptr<ModelGLTF> modelExternal,
+                      std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void _loadAnimations(const tinygltf::Model& modelInternal,
                        const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                        std::vector<std::shared_ptr<AnimationGLTF>>& animations);
@@ -179,14 +180,13 @@ class LoaderGLTF {
                  uint32_t nodeIndex,
                  const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
                  const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-                 std::vector<std::shared_ptr<NodeGLTF>>& nodes);
+                 std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
 
  public:
-  LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-             std::shared_ptr<LoaderImage> loaderImage,
-             std::shared_ptr<State> state);
+  LoaderGLTF(std::shared_ptr<LoaderImage> loaderImage, std::shared_ptr<State> state);
 #ifdef __ANDROID__
   void setAssetManager(AAssetManager* assetManager);
 #endif
-  std::shared_ptr<ModelGLTF> load(std::string path);
+  std::shared_ptr<ModelGLTF> load(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer);
 };

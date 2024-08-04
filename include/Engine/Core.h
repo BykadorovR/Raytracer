@@ -41,10 +41,10 @@ class Core {
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
   std::shared_ptr<ResourceManager> _resourceManager;
-  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
-      _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
-  std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferTransfer, _commandBufferEquirectangular,
-      _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
+  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
+      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
+  std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
+      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
 
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
@@ -55,6 +55,9 @@ class Core {
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
+  std::vector<std::shared_ptr<Semaphore>> _semaphoreResourcesReady, _semaphoreApplicationReady;
+  std::map<int, bool> _waitSemaphoreResourcesReady, _waitSemaphoreApplicationReady;
+
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
@@ -69,6 +72,7 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
   std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
+  std::map<int, std::vector<std::shared_ptr<Drawable>>> _unused;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
@@ -98,6 +102,7 @@ class Core {
   VkResult _getImageIndex(uint32_t* imageIndex);
   void _displayFrame(uint32_t* imageIndex);
   void _drawFrame(int imageIndex);
+  void _clearUnusedData();
   void _reset();
 
  public:
@@ -144,7 +149,7 @@ class Core {
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   std::shared_ptr<AmbientLight> createAmbientLight();
 
-  std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
+  std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();
   const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
   std::vector<std::shared_ptr<PointLight>> getPointLights();

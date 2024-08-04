@@ -28,6 +28,60 @@ void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
+void Main::_createTerrainPhong() {
+  _core->removeDrawable(_terrain);
+  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain->setMaterial(_materialPhong);
+  {
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
+    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    _terrain->setModel(scaleMatrix);
+  }
+
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+}
+
+void Main::_createTerrainPBR() {
+  _core->removeDrawable(_terrain);
+  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain->setMaterial(_materialPBR);
+  {
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
+    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    _terrain->setModel(scaleMatrix);
+  }
+
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+}
+
+void Main::_createTerrainColor() {
+  _core->removeDrawable(_terrain);
+  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain->setMaterial(_materialColor);
+  {
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
+    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    _terrain->setModel(scaleMatrix);
+  }
+
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+}
+
 Main::Main() {
   int mipMapLevels = 8;
   auto settings = std::make_shared<Settings>();
@@ -48,12 +102,6 @@ Main::Main() {
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
-
-  float heightScale = 64.f;
-  float heightShift = 16.f;
-  std::array<float, 4> heightLevels = {16, 128, 192, 256};
-  int minTessellationLevel = 4, maxTessellationLevel = 32;
-  float minDistance = 30, maxDistance = 100;
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
@@ -77,13 +125,13 @@ Main::Main() {
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -121,22 +169,8 @@ Main::Main() {
                                       mipMapLevels);
     auto tile3 = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
-
-    _terrainColor = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
-    materialColor->setBaseColor({tile0, tile1, tile2, tile3});
-    _terrainColor->setMaterial(materialColor);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainColor->setModel(scaleMatrix);
-    }
-
-    _terrainColor->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainColor->setDisplayDistance(minDistance, maxDistance);
-    _terrainColor->setColorHeightLevels(heightLevels);
-    _terrainColor->setHeight(heightScale, heightShift);
-    _core->addDrawable(_terrainColor);
+    _materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
+    _materialColor->setBaseColor({tile0, tile1, tile2, tile3});
   }
 
   {
@@ -157,23 +191,10 @@ Main::Main() {
     auto tile3Normal = _core->createTexture("../assets/ground/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
 
-    _terrainPhong = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
-    materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
-    materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
-    fillMaterialPhong(materialPhong);
-    _terrainPhong->setMaterial(materialPhong);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainPhong->setModel(scaleMatrix);
-    }
-    _terrainPhong->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainPhong->setDisplayDistance(minDistance, maxDistance);
-    _terrainPhong->setColorHeightLevels(heightLevels);
-    _terrainPhong->setHeight(heightScale, heightShift);
-
-    _core->addDrawable(_terrainPhong);
+    _materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
+    _materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    fillMaterialPhong(_materialPhong);
   }
 
   {
@@ -221,27 +242,16 @@ Main::Main() {
     auto tile3AO = _core->createTexture("../assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    _terrainPBR = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
-    materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
-    materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
-    materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
-    materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
-    materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
-    fillMaterialPBR(materialPBR);
-    _terrainPBR->setMaterial(materialPBR);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainPBR->setModel(scaleMatrix);
-    }
-    _terrainPBR->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainPBR->setDisplayDistance(minDistance, maxDistance);
-    _terrainPBR->setColorHeightLevels(heightLevels);
-    _terrainPBR->setHeight(heightScale, heightShift);
-
-    _core->addDrawable(_terrainPBR);
+    _materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
+    _materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    _materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
+    _materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
+    _materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
+    fillMaterialPBR(_materialPBR);
   }
+
+  _createTerrainColor();
 
   _core->endRecording();
 
@@ -288,32 +298,40 @@ void Main::update() {
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Toggles")) {
+    std::map<std::string, int*> terrainType;
+    terrainType["##Type"] = &_typeIndex;
+    if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
+      _core->startRecording();
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor();
+          break;
+        case 1:
+          _createTerrainPhong();
+          break;
+        case 2:
+          _createTerrainPBR();
+          break;
+      }
+      _core->endRecording();
+    }
+
     if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
-      _terrainColor->patchEdge(_showPatches);
-      _terrainPhong->patchEdge(_showPatches);
-      _terrainPBR->patchEdge(_showPatches);
+      _terrain->patchEdge(_showPatches);
     }
     if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
-      _terrainColor->showLoD(_showLoD);
-      _terrainPhong->showLoD(_showLoD);
-      _terrainPBR->showLoD(_showLoD);
+      _terrain->showLoD(_showLoD);
     }
     if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrainColor->setDrawType(DrawType::WIREFRAME);
-      _terrainPhong->setDrawType(DrawType::WIREFRAME);
-      _terrainPBR->setDrawType(DrawType::WIREFRAME);
+      _terrain->setDrawType(DrawType::WIREFRAME);
       _showNormals = false;
     }
     if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrainColor->setDrawType(DrawType::NORMAL);
-      _terrainPhong->setDrawType(DrawType::NORMAL);
-      _terrainPBR->setDrawType(DrawType::NORMAL);
+      _terrain->setDrawType(DrawType::NORMAL);
       _showWireframe = false;
     }
     if (_showWireframe == false && _showNormals == false) {
-      _terrainColor->setDrawType(DrawType::FILL);
-      _terrainPhong->setDrawType(DrawType::FILL);
-      _terrainPBR->setDrawType(DrawType::FILL);
+      _terrain->setDrawType(DrawType::FILL);
     }
     _core->getGUI()->endTree();
   }

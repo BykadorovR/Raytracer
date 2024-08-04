@@ -15,7 +15,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   for (int i = 0; i < _lineFrustum.size(); i++) {
     auto line = _core->createLine();
     auto mesh = line->getMesh();
-    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, _core->getCommandBufferTransfer());
+    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, _core->getCommandBufferApplication());
     _lineFrustum[i] = line;
   }
 
@@ -85,48 +85,48 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
     float width1 = height1 * ((float)resX / (float)resY);
     _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[3]->getMesh()->setPosition({glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
                                              glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
     float width2 = height2 * ((float)resX / (float)resY);
     _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[7]->getMesh()->setPosition({glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
                                              glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     // bottom
     _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
-                                         _core->getCommandBufferTransfer());
+                                         _core->getCommandBufferApplication());
     _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos},
-                                            _core->getCommandBufferTransfer());
+                                            _core->getCommandBufferApplication());
     _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
-                                         _core->getCommandBufferTransfer());
+                                         _core->getCommandBufferApplication());
     // top
     _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos},
-                                             _core->getCommandBufferTransfer());
+                                             _core->getCommandBufferApplication());
     _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                          _core->getCommandBufferTransfer());
+                                          _core->getCommandBufferApplication());
     _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos},
-                                             _core->getCommandBufferTransfer());
+                                             _core->getCommandBufferApplication());
     _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                          _core->getCommandBufferTransfer());
+                                          _core->getCommandBufferApplication());
   }
 }
 

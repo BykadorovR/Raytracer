@@ -6,7 +6,6 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<State> state) {
   _state = state;
   _debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
-  _commandBufferTransfer = commandBufferTransfer;
 
   _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
 
@@ -220,14 +219,16 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // stub texture
   _stubTexture = std::make_shared<Texture>(
-      resourceManager->loadImageGPU<uint8_t>({resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"}),
+      resourceManager->loadImageGPU<uint8_t>({resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"},
+                                             commandBufferTransfer),
       _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
       commandBufferTransfer, _state);
   _stubCubemap = std::make_shared<Cubemap>(
       resourceManager->loadImageGPU<uint8_t>(
-          std::vector<std::string>(6, resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png")),
+          std::vector<std::string>(6, resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"),
+          commandBufferTransfer),
       _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, _state);
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, _state);
 
   _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
   _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
@@ -695,13 +696,21 @@ void LightManager::_updatePointTexture(int currentFrame) {
     _pointTextures[i] = _pointLights[i]->getDepthCubemap()[currentFrame]->getTexture();
 }
 
-std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
+std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution,
+                                                           std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+#ifdef __ANDROID__
     depthCubemap.push_back(std::make_shared<Cubemap>(
         resolution, _state->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        _commandBufferTransfer, _state));
+        VK_FILTER_NEAREST, commandBufferTransfer, _state));
+#else
+    depthCubemap.push_back(std::make_shared<Cubemap>(
+        resolution, _state->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_FILTER_LINEAR, commandBufferTransfer, _state));
+#endif
   }
 
   auto light = std::make_shared<PointLight>(_state->getSettings());
@@ -775,7 +784,9 @@ const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::ge
 
 const std::vector<std::vector<std::shared_ptr<Logger>>>& LightManager::getPointLightLoggers() { return _loggerPoint; }
 
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
+    std::tuple<int, int> resolution,
+    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::vector<std::shared_ptr<Texture>> depthTexture;
   for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
@@ -783,11 +794,17 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tupl
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         _state);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                        VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, _commandBufferTransfer);
+                        VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, commandBufferTransfer);
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
                                                  _state);
+// android doesn't support linear + d32 texture
+#ifdef __ANDROID__
+    depthTexture.push_back(
+        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST, imageView, _state));
+#else
     depthTexture.push_back(
         std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR, imageView, _state));
+#endif
   }
 
   auto light = std::make_shared<DirectionalLight>();
