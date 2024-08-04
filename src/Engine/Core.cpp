@@ -894,12 +894,15 @@ void Core::addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem) {
 }
 
 void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
+  if (drawable == nullptr) return;
+
   for (auto& [_, drawableVector] : _drawables) {
+    auto position = std::find(drawableVector.begin(), drawableVector.end(), drawable);
     // we can remove this object only after current frame on GPU ends processing
-    auto remove = std::remove(drawableVector.begin(), drawableVector.end(), drawable);
-    if (remove != drawableVector.end()) {
-      _unused[_state->getFrameInFlight() + 1].push_back(*remove);
-      drawableVector.erase(remove, drawableVector.end());
+    if (position != drawableVector.end()) {
+      _unused[(_state->getFrameInFlight() + 1) % _state->getSettings()->getMaxFramesInFlight()].push_back(*position);
+      drawableVector.erase(position);
+      break;
     }
   }
 }
