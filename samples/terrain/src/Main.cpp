@@ -42,6 +42,17 @@ void Main::_createTerrainPhong() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
+  _terrain->patchEdge(_showPatches);
+  _terrain->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrain->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrain->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrain->setDrawType(DrawType::FILL);
+  }
 
   _core->addDrawable(_terrain);
 }
@@ -60,6 +71,17 @@ void Main::_createTerrainPBR() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
+  _terrain->patchEdge(_showPatches);
+  _terrain->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrain->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrain->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrain->setDrawType(DrawType::FILL);
+  }
 
   _core->addDrawable(_terrain);
 }
@@ -78,6 +100,17 @@ void Main::_createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
+  _terrain->patchEdge(_showPatches);
+  _terrain->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrain->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrain->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrain->setDrawType(DrawType::FILL);
+  }
 
   _core->addDrawable(_terrain);
 }
@@ -314,6 +347,29 @@ void Main::update() {
           break;
       }
       _core->endRecording();
+    }
+
+    std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
+    if (_core->getGUI()->drawInputInt(patchesNumber)) {
+      _core->startRecording();
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor();
+          break;
+        case 1:
+          _createTerrainPhong();
+          break;
+        case 2:
+          _createTerrainPBR();
+          break;
+      }
+      _core->endRecording();
+    }
+
+    std::map<std::string, int*> tesselationLevels{{"Tesselation min", &_minTessellationLevel},
+                                                  {"Tesselation max", &_maxTessellationLevel}};
+    if (_core->getGUI()->drawInputInt(tesselationLevels)) {
+      _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
 
     if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
