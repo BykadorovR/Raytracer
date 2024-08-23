@@ -4,6 +4,9 @@ project(Geodata LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 
+include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+include(FetchContent)
+
 #need for mismatch resolving
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}")
@@ -20,6 +23,25 @@ source_group("src" FILES ${app_source})
 file(GLOB_RECURSE app_header "include/*.h*")
 source_group("include" FILES ${app_header})
 
+FetchContent_Declare(
+  jolt
+  GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+  GIT_TAG        7a14ab982e279c3e20826f6769bb93d5637242b8
+  SOURCE_SUBDIR  Build
+)
+
+#hack to force MD (default mode) instead of MT
+if (NOT WINDOWS_STORE)
+  set(WINDOWS_STORE ON)
+  set(WINDOWS_STORE_CHANGE ON)
+endif()
+
+FetchContent_MakeAvailable(jolt)
+
+if (WINDOWS_STORE_CHANGE)
+  set(WINDOWS_STORE OFF)
+endif()
+
 ###############################
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
@@ -33,9 +55,11 @@ if(MSVC)
  target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
 endif()
 
+file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
+
 find_package(VulkanEngine REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${VulkanEngine_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES} Jolt)
 
 set(SHADER_COMPILE_DEBUG 1)
 #recompile after every build just in case, it's fast

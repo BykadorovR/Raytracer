@@ -93,10 +93,28 @@ FetchContent_Declare(
         GIT_TAG        release-v3
 )
 
+FetchContent_Declare(
+  jolt
+  GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+  GIT_TAG        7a14ab982e279c3e20826f6769bb93d5637242b8
+  SOURCE_SUBDIR  Build
+)
+
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
 if (NOT ANDROID)
-  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx glfw)
-else()
-  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
+  FetchContent_MakeAvailable(glfw)
+endif()
+
+#hack to force MD (default mode) instead of MT
+if (NOT WINDOWS_STORE)
+  set(WINDOWS_STORE ON)
+  set(WINDOWS_STORE_CHANGE ON)
+endif()
+
+FetchContent_MakeAvailable(jolt)
+
+if (WINDOWS_STORE_CHANGE)
+  set(WINDOWS_STORE OFF)
 endif()
 
 #affects all projects, add folder "include" to include section in VS
@@ -165,7 +183,7 @@ endif()
 
 #enable multiple cores compilation for VS
 if(MSVC)
- target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
+ target_compile_options(${PROJECT_NAME} PRIVATE "/MP") 
 endif()
 
 find_package(Vulkan REQUIRED)
@@ -181,11 +199,14 @@ file(COPY ${nvtx_SOURCE_DIR}/c/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 if (NOT ANDROID)
   file(COPY ${glfw_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 endif()
+#TODO: how to copy only headers?
+file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
 
+#Jolt should start with capital J
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt)
 endif()
