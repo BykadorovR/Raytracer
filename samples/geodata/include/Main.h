@@ -6,12 +6,12 @@
 class InputHandler : public InputSubscriber {
  private:
   bool _cursorEnabled = false;
-  std::function<void(glm::vec3)> _callback;
+  std::function<void(std::optional<glm::vec3>)> _callback;
   std::shared_ptr<Core> _core;
 
  public:
   InputHandler(std::shared_ptr<Core> core);
-  void setMoveCallback(std::function<void(glm::vec3)> callback);
+  void setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback);
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;
   void keyNotify(int key, int scancode, int action, int mods) override;

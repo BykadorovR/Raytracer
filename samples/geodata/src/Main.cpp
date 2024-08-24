@@ -17,8 +17,9 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 
-using namespace JPH::literals;
-
+JPH::PhysicsSystem _physicsSystem;
+JPH::BodyID _boxID;
+std::optional<glm::vec3> _shift;
 // Layer that objects can be in, determines which other objects it can collide with
 // Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
 // layers if you want. E.g. you could have a layer for high detail collision (which is not used by the physics
@@ -115,7 +116,7 @@ class MyContactListener : public JPH::ContactListener {
                                                 const JPH::Body& inBody2,
                                                 JPH::RVec3Arg inBaseOffset,
                                                 const JPH::CollideShapeResult& inCollisionResult) override {
-    std::cout << "Contact validate callback" << std::endl;
+    // std::cout << "Contact validate callback" << std::endl;
 
     // Allows you to ignore a contact before it is created (using layers to not make objects collide is cheaper!)
     return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
@@ -125,18 +126,18 @@ class MyContactListener : public JPH::ContactListener {
                               const JPH::Body& inBody2,
                               const JPH::ContactManifold& inManifold,
                               JPH::ContactSettings& ioSettings) override {
-    std::cout << "A contact was added" << std::endl;
+    // std::cout << "A contact was added" << std::endl;
   }
 
   virtual void OnContactPersisted(const JPH::Body& inBody1,
                                   const JPH::Body& inBody2,
                                   const JPH::ContactManifold& inManifold,
                                   JPH::ContactSettings& ioSettings) override {
-    std::cout << "A contact was persisted" << std::endl;
+    // std::cout << "A contact was persisted" << std::endl;
   }
 
   virtual void OnContactRemoved(const JPH::SubShapeIDPair& inSubShapePair) override {
-    std::cout << "A contact was removed" << std::endl;
+    // std::cout << "A contact was removed" << std::endl;
   }
 };
 
@@ -190,7 +191,7 @@ float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>
   return sample * 64.f - 16.f;
 }
 
-void InputHandler::setMoveCallback(std::function<void(glm::vec3)> callback) { _callback = callback; }
+void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callback = callback; }
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -210,22 +211,25 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
     }
   }
   std::optional<glm::vec3> shift = std::nullopt;
-  if (action == GLFW_PRESS && key == GLFW_KEY_UP) {
+  if (action != GLFW_RELEASE && key == GLFW_KEY_UP) {
     shift = glm::vec3(0.f, 0.f, -1.f);
   }
-  if (action == GLFW_PRESS && key == GLFW_KEY_DOWN) {
+  if (action != GLFW_RELEASE && key == GLFW_KEY_DOWN) {
     shift = glm::vec3(0.f, 0.f, 1.f);
   }
-  if (action == GLFW_PRESS && key == GLFW_KEY_LEFT) {
+  if (action != GLFW_RELEASE && key == GLFW_KEY_LEFT) {
     shift = glm::vec3(-1.f, 0.f, 0.f);
   }
-  if (action == GLFW_PRESS && key == GLFW_KEY_RIGHT) {
+  if (action != GLFW_RELEASE && key == GLFW_KEY_RIGHT) {
     shift = glm::vec3(1.f, 0.f, 0.f);
   }
 
-  if (shift) {
-    _callback(shift.value());
+  if (action == GLFW_PRESS && key == GLFW_KEY_P) {
+    JPH::BodyInterface& bodyInterface = _physicsSystem.GetBodyInterface();
+    bodyInterface.SetPosition(_boxID, {0, 50, 0}, JPH::EActivation::Activate);
   }
+
+  _callback(shift);
 #endif
 }
 
@@ -245,7 +249,6 @@ JPH::Array<JPH::uint8> ReadData(const char* inFileName) {
 }
 
 std::jthread _physicSimulate;
-JPH::PhysicsSystem _physicsSystem;
 std::shared_ptr<JPH::TempAllocatorImpl> _tempAllocator;
 std::shared_ptr<JPH::JobSystemThreadPool> _jobSystem;
 // Create mapping table from object layer to broadphase layer
@@ -259,7 +262,6 @@ ObjectVsBroadPhaseLayerFilterImpl _objectVsBroadphaseLayerFilter;
 ObjectLayerPairFilterImpl _objectVsObjectLayerFilter;
 MyBodyActivationListener _bodyActivationListener;
 MyContactListener _contactListener;
-JPH::BodyID _boxID;
 std::ofstream ofp("test.txt");
 
 JPH::Array<float> mTerrain;
@@ -436,13 +438,13 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [player = _cubePlayer, heightmap = heightmapCPU](glm::vec3 shift) {
-    glm::vec3 position = getPosition(player);
-    position += shift;
-    auto height = getHeight(heightmap, position);
-    position.y = height;
-    auto model = glm::translate(glm::mat4(1.f), position);
-    player->setModel(model);
+  auto callbackPosition = [&](std::optional<glm::vec3> shift) {
+    _shift = shift;
+    static int step = 0;
+    if (shift)
+      std::cout << step++ << " " << _shift.value().x << " " << _shift.value().y << " " << _shift.value().z << std::endl;
+    else
+      std::cout << step++ << "null passed" << std::endl;
   };
   _inputHandler->setMoveCallback(callbackPosition);
 
@@ -537,14 +539,27 @@ void Main::update() {
 
   const float deltaTime = 1.0f / 60.0f;
   JPH::BodyInterface& bodyInterface = _physicsSystem.GetBodyInterface();
+  if (_shift.has_value()) {
+    bodyInterface.SetLinearVelocity(_boxID, {_shift.value().x, _shift.value().y, _shift.value().z});
+  }
   // Next step
   // Output current position and velocity of the sphere
   JPH::RVec3 position = bodyInterface.GetCenterOfMassPosition(_boxID);
   JPH::Vec3 velocity = bodyInterface.GetLinearVelocity(_boxID);
   ofp << ": Position = (" << position.GetX() << ", " << position.GetY() << ", " << position.GetZ() << "), Velocity = ("
       << velocity.GetX() << ", " << velocity.GetY() << ", " << velocity.GetZ() << ")" << std::endl;
+  JPH::RMat44 transform = bodyInterface.GetWorldTransform(_boxID);
+  glm::mat4 converted = glm::mat4(1.f);
+  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
+                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
+  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
+                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
+  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
+                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
+  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
+                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
 
-  _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(position.GetX(), position.GetY(), position.GetZ())));
+  _cubePlayer->setModel(converted);
   // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps in order to keep
   // the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
   const int collisionSteps = 1;
