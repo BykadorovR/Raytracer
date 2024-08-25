@@ -1,4 +1,4 @@
-#include "ResourceManager.h"
+#include "Utility/ResourceManager.h"
 
 ResourceManager::ResourceManager(std::shared_ptr<State> state) { _state = state; }
 

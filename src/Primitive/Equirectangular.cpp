@@ -1,4 +1,4 @@
-#include "Equirectangular.h"
+#include "Primitive/Equirectangular.h"
 
 Equirectangular::Equirectangular(std::string path,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,

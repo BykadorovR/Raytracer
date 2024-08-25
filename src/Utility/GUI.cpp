@@ -1,7 +1,4 @@
-#include "GUI.h"
-#include "Sampler.h"
-#include "Descriptor.h"
-#include "Input.h"
+#include "Utility/GUI.h"
 
 GUI::GUI(std::shared_ptr<State> state) {
   _state = state;

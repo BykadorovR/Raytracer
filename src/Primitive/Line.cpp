@@ -1,4 +1,4 @@
-#include "Line.h"
+#include "Primitive/Line.h"
 
 Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   setName("Line");

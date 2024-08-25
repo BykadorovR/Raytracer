@@ -1,10 +1,10 @@
 #pragma once
+#include "Vulkan/Device.h"
+#include "Vulkan/Image.h"
+#include "Vulkan/Pipeline.h"
+#include "Utility/Input.h"
 #include <imgui.h>
-#include "Device.h"
-#include "Image.h"
-#include "Pipeline.h"
 #include <chrono>
-#include "Input.h"
 
 struct UniformData {
   glm::vec2 scale;

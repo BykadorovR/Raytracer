@@ -1,4 +1,4 @@
-#include "Debug.h"
+#include "Vulkan/Debug.h"
 
 DebuggerUtils::DebuggerUtils(std::shared_ptr<Instance> instance, std::shared_ptr<Device> device) {
   _device = device;

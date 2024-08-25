@@ -401,17 +401,15 @@ Main::Main() {
   // Registering one is entirely optional.
   _physicsSystem.SetContactListener(&_contactListener);
 
+  std::vector<float> terrainPhysic;
+  int terrainWidth;
   {
-    const int n = 256;
-    // Get height samples
-    JPH::Array<JPH::uint8> data = ReadData("heightmap.bin");
-    mTerrainSize = n;
-    mTerrain.resize(n * n);
-    memcpy(mTerrain.data(), data.data(), n * n * sizeof(float));
-
-    // Determine scale and offset
-    mTerrainOffset = JPH::Vec3(0.f, -16.0f, 0.f);
-    mTerrainScale = JPH::Vec3(1.f, 64.f, 1.f);
+    auto [data, size] = _core->loadImageCPU("../assets/heightmap.png");
+    auto [w, h, c] = size;
+    for (int i = 0; i < w * h * c; i += c) {
+      terrainPhysic.push_back((float)data[i] / 255.f);
+    }
+    terrainWidth = w;
   }
 
   // The main way to interact with the bodies in the physics system is through the body interface. There is a locking
@@ -420,7 +418,8 @@ Main::Main() {
   JPH::BodyInterface& bodyInterface = _physicsSystem.GetBodyInterface();
 
   // Create height field
-  JPH::HeightFieldShapeSettings settingsTerrain(mTerrain.data(), mTerrainOffset, mTerrainScale, mTerrainSize);
+  JPH::HeightFieldShapeSettings settingsTerrain(terrainPhysic.data(), JPH::Vec3(0.f, -16.0f, 0.f),
+                                                JPH::Vec3(1.f, 64.f, 1.f), terrainWidth);
   mHeightField = JPH::StaticCast<JPH::HeightFieldShape>(settingsTerrain.Create().Get());
 
   JPH::Body* terrain = bodyInterface.CreateBody(JPH::BodyCreationSettings(
@@ -438,14 +437,7 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [&](std::optional<glm::vec3> shift) {
-    _shift = shift;
-    static int step = 0;
-    if (shift)
-      std::cout << step++ << " " << _shift.value().x << " " << _shift.value().y << " " << _shift.value().z << std::endl;
-    else
-      std::cout << step++ << "null passed" << std::endl;
-  };
+  auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
 
   // Add it to the world
@@ -464,20 +456,6 @@ Main::Main() {
     _terrainColor->setMaterial(materialColor);
     _core->addDrawable(_terrainColor);
   }
-
-  /*{
-    auto [data, size] = _core->loadImageCPU("../assets/heightmap.png");
-    auto [w, h, c] = size;
-    std::vector<float> transformed;
-    for (int i = 0; i < w * h * c; i += c) {
-      transformed.push_back((float) data[i] / 255.f);
-    }
-    std::ofstream ofp("heightmap.bin", std::ios::out | std::ios::binary);
-    for (int i = 0; i < w * h; i++) {
-      ofp.write(reinterpret_cast<const char*>(transformed.data() + i), sizeof(float));
-    }
-    ofp.close();
-  }*/
 
   _core->endRecording();
 

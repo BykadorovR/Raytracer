@@ -1,8 +1,8 @@
 #pragma once
-#include "State.h"
-#include "Texture.h"
-#include "Cubemap.h"
-#include "Loader.h"
+#include "Utility/State.h"
+#include "Utility/Loader.h"
+#include "Graphic/Texture.h"
+#include "Primitive/Cubemap.h"
 
 class ResourceManager {
  private:

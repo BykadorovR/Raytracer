@@ -1,6 +1,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_IMPLEMENTATION
-#include "Loader.h"
+#include "Utility/Loader.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <filesystem>
 #include "mikktspace.h"

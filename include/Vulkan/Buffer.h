@@ -1,7 +1,7 @@
 #pragma once
-#include "Device.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Command.h"
 #include <array>
-#include "Command.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #undef far

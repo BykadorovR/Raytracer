@@ -1,4 +1,4 @@
-#include "Input.h"
+#include "Utility/Input.h"
 #include <memory>
 
 Input::Input(std::shared_ptr<Window> window) {

@@ -1,6 +1,6 @@
 #pragma once
-#include "State.h"
-#include "Texture.h"
+#include "Utility/State.h"
+#include "Graphic/Texture.h"
 
 class Cubemap {
  private:

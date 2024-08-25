@@ -1,13 +1,12 @@
 #pragma once
-
-#include "State.h"
-#include "Camera.h"
-#include "Mesh.h"
-#include "Descriptor.h"
-#include "Pipeline.h"
-#include "Drawable.h"
-#include "Material.h"
-#include "ResourceManager.h"
+#include "Utility/State.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Pipeline.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Mesh.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
 
 enum class ShapeType { CUBE = 0, SPHERE = 1 };
 

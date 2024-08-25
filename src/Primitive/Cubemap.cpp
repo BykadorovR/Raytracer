@@ -1,5 +1,5 @@
-#include "Cubemap.h"
-#include "Buffer.h"
+#include "Primitive/Cubemap.h"
+#include "Vulkan/Buffer.h"
 
 Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
                  VkFormat format,

@@ -1,6 +1,6 @@
 #pragma once
-#include "Device.h"
-#include "Image.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Image.h"
 
 class Swapchain {
  private:

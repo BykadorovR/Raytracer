@@ -1,6 +1,6 @@
 #pragma once
-#include "State.h"
-#include "Command.h"
+#include "Utility/State.h"
+#include "Vulkan/Command.h"
 #include <array>
 
 class LoggerAndroid {

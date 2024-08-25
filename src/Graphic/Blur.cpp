@@ -1,4 +1,4 @@
-#include "Blur.h"
+#include "Graphic/Blur.h"
 #include <numbers>
 
 void Blur::_updateWeights() {

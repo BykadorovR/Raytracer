@@ -118,14 +118,7 @@ if (WINDOWS_STORE_CHANGE)
 endif()
 
 #affects all projects, add folder "include" to include section in VS
-include_directories("include/Graphic")
-include_directories("include/Primitive")
-include_directories("include/Utility")
-include_directories("include/Engine")
-include_directories("include/Vulkan")
-if (ANDROID)
-  include_directories("include/Platform/Android")
-endif()
+include_directories("include")
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -143,6 +136,10 @@ file(GLOB_RECURSE app_source_vulkan "src/Vulkan/*.c*")
 source_group("Vulkan\\src" FILES ${app_source_vulkan})
 file(GLOB_RECURSE app_header_vulkan "include/Vulkan/*.h*")
 source_group("Vulkan\\include" FILES ${app_header_vulkan})
+file(GLOB_RECURSE app_source_physics "src/Physics/*.c*")
+source_group("Physics\\src" FILES ${app_source_physics})
+file(GLOB_RECURSE app_header_physics "include/Physics/*.h*")
+source_group("Physics\\include" FILES ${app_header_physics})
 file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
 source_group("Engine\\src" FILES ${app_source_engine})
 file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
@@ -170,6 +167,7 @@ if (NOT ANDROID)
                                      ${app_header_primitive} ${app_source_primitive}
                                      ${app_header_utility}   ${app_source_utility}                                   
                                      ${app_header_vulkan}    ${app_source_vulkan}
+                                     ${app_header_physics}   ${app_source_physics}
                                      ${app_header_engine}    ${app_source_engine})
 else()
   add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
@@ -177,6 +175,7 @@ else()
                                      ${app_header_utility}   ${app_source_utility}                                   
                                      ${app_header_vulkan}    ${app_source_vulkan}
                                      ${app_header_engine}    ${app_source_engine}
+                                     ${app_header_physics}   ${app_source_physics}
                                      ${app_header_platform}  ${app_source_platform})
 endif()
 ###############################

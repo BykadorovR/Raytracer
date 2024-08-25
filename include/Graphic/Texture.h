@@ -1,7 +1,7 @@
 #pragma once
-#include "Image.h"
-#include "Sampler.h"
-#include "State.h"
+#include "Vulkan/Image.h"
+#include "Vulkan/Sampler.h"
+#include "Utility/State.h"
 #include <string>
 #include "stb_image.h"
 

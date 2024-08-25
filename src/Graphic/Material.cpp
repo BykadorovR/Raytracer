@@ -1,4 +1,4 @@
-#include "Material.h"
+#include "Graphic/Material.h"
 
 void Material::_updateAlphaCutoffDescriptors(int currentFrame) {
   _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->setData(&_alphaCutoff);

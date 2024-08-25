@@ -1,11 +1,11 @@
 #pragma once
-#include "State.h"
+#include "Utility/State.h"
+#include "Graphic/Material.h"
+#include "Primitive/Mesh.h"
 #ifdef __ANDROID__
 #define TINYGLTF_ANDROID_LOAD_FROM_ASSETS
 #endif
 #include "tiny_gltf.h"
-#include "Material.h"
-#include "Mesh.h"
 #include <filesystem>
 
 class LoaderImage {

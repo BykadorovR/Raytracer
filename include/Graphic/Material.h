@@ -1,7 +1,7 @@
 #pragma once
-#include "State.h"
-#include "Descriptor.h"
-#include "Cubemap.h"
+#include "Utility/State.h"
+#include "Vulkan/Descriptor.h"
+#include "Primitive/Cubemap.h"
 
 enum class MaterialType { PHONG, PBR, COLOR };
 

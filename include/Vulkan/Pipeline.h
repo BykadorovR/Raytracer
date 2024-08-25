@@ -1,9 +1,9 @@
 #pragma once
-#include "Settings.h"
-#include "Shader.h"
-#include "Buffer.h"
-#include "Descriptor.h"
-#include "Render.h"
+#include "Utility/Settings.h"
+#include "Vulkan/Shader.h"
+#include "Vulkan/Buffer.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Render.h"
 
 class Pipeline {
  private:

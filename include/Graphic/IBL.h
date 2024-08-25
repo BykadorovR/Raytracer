@@ -1,13 +1,13 @@
 #pragma once
-#include "Drawable.h"
-#include "State.h"
-#include "Cubemap.h"
-#include "Camera.h"
-#include "Material.h"
-#include "Mesh.h"
-#include "LightManager.h"
-#include "ResourceManager.h"
-#include "Render.h"
+#include "Utility/State.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Render.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Cubemap.h"
+#include "Primitive/Mesh.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Graphic/LightManager.h"
 
 class IBL {
  private:

@@ -1,4 +1,4 @@
-#include "Image.h"
+#include "Vulkan/Image.h"
 
 Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state) {
   _image = image;

@@ -1,8 +1,8 @@
 #pragma once
-#include "Settings.h"
-#include "Command.h"
-#include "LightManager.h"
-#include "Camera.h"
+#include "Utility/Settings.h"
+#include "Vulkan/Command.h"
+#include "Graphic/LightManager.h"
+#include "Graphic/Camera.h"
 #undef OPAQUE
 #undef TRANSPARENT
 

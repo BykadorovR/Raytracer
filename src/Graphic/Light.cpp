@@ -1,4 +1,4 @@
-#include "Light.h"
+#include "Graphic/Light.h"
 
 int PointLight::getSize() { return sizeof(LightFields); }
 

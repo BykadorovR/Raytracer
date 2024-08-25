@@ -1,4 +1,4 @@
-#include "Device.h"
+#include "Vulkan/Device.h"
 
 std::vector<VkPresentModeKHR>& Device::getSupportedSurfacePresentModes() { return _surfacePresentModes; }
 

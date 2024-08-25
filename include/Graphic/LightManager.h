@@ -1,16 +1,16 @@
 #pragma once
-#include "Light.h"
-#include "Command.h"
-#include "Pipeline.h"
-#include "Descriptor.h"
-#include "Settings.h"
+#include "Graphic/Light.h"
+#include "Graphic/Material.h"
+#include "Utility/State.h"
+#include "Utility/Logger.h"
+#include "Utility/Settings.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Command.h"
+#include "Vulkan/Pipeline.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Debug.h"
 #include <vector>
 #include <memory>
-#include "State.h"
-#include "Logger.h"
-#include "Debug.h"
-#include "Material.h"
-#include "ResourceManager.h"
 
 enum class LightType { DIRECTIONAL = 0, POINT = 1, AMBIENT = 2 };
 

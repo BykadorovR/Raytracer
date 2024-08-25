@@ -1,4 +1,4 @@
-#include "Animation.h"
+#include "Utility/Animation.h"
 
 Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                      const std::vector<std::shared_ptr<SkinGLTF>>& skins,

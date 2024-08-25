@@ -1,4 +1,4 @@
-#include "Sampler.h"
+#include "Vulkan/Sampler.h"
 
 Sampler::Sampler(VkSamplerAddressMode mode,
                  int mipMapLevels,

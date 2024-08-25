@@ -1,9 +1,9 @@
 #pragma once
-#include "Cubemap.h"
-#include "Camera.h"
-#include "Shape3D.h"
-#include "Mesh.h"
-#include "Render.h"
+#include "Vulkan/Render.h"
+#include "Primitive/Cubemap.h"
+#include "Primitive/Shape3D.h"
+#include "Primitive/Mesh.h"
+#include "Graphic/Camera.h"
 
 class Equirectangular {
  private:

@@ -1,4 +1,4 @@
-#include "IBL.h"
+#include "Graphic/IBL.h"
 
 IBL::IBL(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<CommandBuffer> commandBufferTransfer,

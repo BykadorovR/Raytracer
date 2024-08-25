@@ -3,12 +3,12 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "State.h"
-#include "Window.h"
-#include "Input.h"
 #include <memory>
 #include <map>
 #include <array>
+#include "Utility/State.h"
+#include "Utility/Input.h"
+#include "Vulkan/Window.h"
 #undef near
 #undef far
 

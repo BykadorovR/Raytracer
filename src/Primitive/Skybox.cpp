@@ -1,4 +1,4 @@
-#include "Skybox.h"
+#include "Primitive/Skybox.h"
 
 Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,

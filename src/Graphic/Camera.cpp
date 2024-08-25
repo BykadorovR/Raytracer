@@ -1,5 +1,5 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include "Camera.h"
+#include "Graphic/Camera.h"
 #include "glm/gtc/matrix_transform.hpp"
 
 Camera::Camera() {

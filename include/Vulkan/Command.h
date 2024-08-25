@@ -1,8 +1,8 @@
 #pragma once
-#include "Device.h"
-#include "Sync.h"
-#include "Pool.h"
-#include "State.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Sync.h"
+#include "Vulkan/Pool.h"
+#include "Utility/State.h"
 
 class CommandBuffer {
  private:

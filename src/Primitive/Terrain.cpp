@@ -1,4 +1,6 @@
-#include "Terrain.h"
+#include "Primitive/Terrain.h"
+#undef far
+#undef near
 
 struct LoDConstants {
   int minTessellationLevel;

@@ -1,4 +1,4 @@
-#include "Drawable.h"
+#include "Primitive/Drawable.h"
 
 void Named::setName(std::string name) { _name = name; }
 

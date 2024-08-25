@@ -1,8 +1,8 @@
 #pragma once
-#include "Device.h"
-#include "Buffer.h"
-#include "Texture.h"
-#include "Pool.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Buffer.h"
+#include "Vulkan/Pool.h"
+#include "Graphic/Texture.h"
 
 class DescriptorSetLayout {
  private:

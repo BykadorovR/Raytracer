@@ -1,7 +1,7 @@
 #pragma once
-#include "State.h"
-#include "Texture.h"
-#include "Pipeline.h"
+#include "Utility/State.h"
+#include "Graphic/Texture.h"
+#include "Vulkan/Pipeline.h"
 
 class Postprocessing {
  private:

@@ -1,6 +1,6 @@
 #pragma once
-#include "Buffer.h"
-#include "State.h"
+#include "Vulkan/Buffer.h"
+#include "Utility/State.h"
 
 struct MeshPrimitive {
   int firstIndex;

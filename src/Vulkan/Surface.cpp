@@ -1,4 +1,4 @@
-#include "Surface.h"
+#include "Vulkan/Surface.h"
 
 Surface::Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> instance) {
   _instance = instance;

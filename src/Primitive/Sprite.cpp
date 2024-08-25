@@ -1,4 +1,4 @@
-#include "Sprite.h"
+#include "Primitive/Sprite.h"
 #undef far
 
 Sprite::Sprite(std::shared_ptr<LightManager> lightManager,

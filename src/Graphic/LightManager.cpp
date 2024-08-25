@@ -1,5 +1,5 @@
-#include "LightManager.h"
-#include "Buffer.h"
+#include "Graphic/LightManager.h"
+#include "Vulkan/Buffer.h"
 
 LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<ResourceManager> resourceManager,

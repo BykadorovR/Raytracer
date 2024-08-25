@@ -1,10 +1,10 @@
 #pragma once
-#include "Drawable.h"
-#include "State.h"
-#include "Camera.h"
-#include "LightManager.h"
-#include "Mesh.h"
-#include "Material.h"
+#include "Utility/State.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Graphic/LightManager.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Mesh.h"
 
 class Terrain : public Drawable, public Shadowable {
  private:

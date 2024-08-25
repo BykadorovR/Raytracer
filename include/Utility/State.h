@@ -1,12 +1,12 @@
 #pragma once
-#include "Window.h"
-#include "Instance.h"
-#include "Surface.h"
-#include "Device.h"
-#include "Settings.h"
-#include "Input.h"
-#include "Pool.h"
-#include "Filesystem.h"
+#include "Vulkan/Window.h"
+#include "Vulkan/Instance.h"
+#include "Vulkan/Surface.h"
+#include "Vulkan/Pool.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Filesystem.h"
+#include "Utility/Settings.h"
+#include "Utility/Input.h"
 
 class State {
  private:

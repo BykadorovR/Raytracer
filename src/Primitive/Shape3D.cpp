@@ -1,4 +1,4 @@
-#include "Shape3D.h"
+#include "Primitive/Shape3D.h"
 #undef far
 
 Shape3D::Shape3D(ShapeType shapeType,

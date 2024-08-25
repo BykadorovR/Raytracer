@@ -1,5 +1,5 @@
-#include "Pipeline.h"
-#include "Buffer.h"
+#include "Vulkan/Pipeline.h"
+#include "Vulkan/Buffer.h"
 #include <ranges>
 
 Pipeline::Pipeline(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device) {
