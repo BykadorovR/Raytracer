@@ -391,16 +391,6 @@ Main::Main() {
   _physicsSystem.Init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, _broadPhaseLayerInterface,
                       _objectVsBroadphaseLayerFilter, _objectVsObjectLayerFilter);
 
-  // A body activation listener gets notified when bodies activate and go to sleep
-  // Note that this is called from a job so whatever you do here needs to be thread safe.
-  // Registering one is entirely optional.
-  _physicsSystem.SetBodyActivationListener(&_bodyActivationListener);
-
-  // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
-  // Note that this is called from a job so whatever you do here needs to be thread safe.
-  // Registering one is entirely optional.
-  _physicsSystem.SetContactListener(&_contactListener);
-
   std::vector<float> terrainPhysic;
   int terrainWidth;
   {
