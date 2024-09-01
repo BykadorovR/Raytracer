@@ -1,6 +1,6 @@
 #pragma once
 #ifdef __ANDROID__
-#include "VulkanWrapper.h"
+#include <Platform/Android/VulkanWrapper.h>
 #else
 #include <vulkan/vulkan.h>
 #endif

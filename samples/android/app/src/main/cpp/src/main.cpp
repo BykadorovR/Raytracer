@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #include "DebugVisualization.h"
-#include <Core.h>
+#include <Engine/Core.h>
 #include <android/log.h>
 #include <cassert>
 #include <game-activity/native_app_glue/android_native_app_glue.h>
@@ -60,7 +60,7 @@ float _minDistance = 30, _maxDistance = 100;
 
 void _createTerrainPhong() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
@@ -78,7 +78,7 @@ void _createTerrainPhong() {
 
 void _createTerrainPBR() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
@@ -96,7 +96,7 @@ void _createTerrainPBR() {
 
 void _createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
