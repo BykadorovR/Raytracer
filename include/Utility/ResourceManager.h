@@ -26,13 +26,12 @@ class ResourceManager {
   std::string getAssetEnginePath();
   // vector is required to load cubemap
   template <class T>
-  std::shared_ptr<BufferImage> loadImageGPU(std::vector<std::string> paths,
-                                            std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-    return _loaderImage->loadGPU<T>(paths, commandBufferTransfer);
+  std::shared_ptr<BufferImage> loadImageGPU(std::vector<std::shared_ptr<ImageCPU<T>>> images) {
+    return _loaderImage->loadGPU<T>(images);
   }
 
   template <class T>
-  std::tuple<std::shared_ptr<T[]>, std::tuple<int, int, int>> loadImageCPU(std::string path) {
+  std::shared_ptr<ImageCPU<T>> loadImageCPU(std::string path) {
     return _loaderImage->loadCPU<T>(path);
   }
   std::shared_ptr<ModelGLTF> loadModel(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer);

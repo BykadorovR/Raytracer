@@ -28,9 +28,8 @@ class Equirectangular {
   void _convertToCubemap();
 
  public:
-  Equirectangular(std::string path,
+  Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<ResourceManager> resourceManager,
                   std::shared_ptr<State> state);
 
   std::shared_ptr<Texture> getTexture();

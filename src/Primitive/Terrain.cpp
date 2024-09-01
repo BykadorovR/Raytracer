@@ -1,6 +1,47 @@
 #include "Primitive/Terrain.h"
 #undef far
 #undef near
+#include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
+
+TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                               std::tuple<int, int> heightScaleOffset,
+                               std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  _resolution = heightmap->getResolution();
+  auto [w, h] = _resolution;
+  int c = heightmap->getChannels();
+  for (int i = 0; i < w * h * c; i += c) {
+    _terrainPhysic.push_back((float)heightmap->getData()[i] / 255.f);
+  }
+
+  // Create height field
+  JPH::HeightFieldShapeSettings settingsTerrain(_terrainPhysic.data(),
+                                                JPH::Vec3(0.f, -std::get<1>(heightScaleOffset), 0.f),
+                                                JPH::Vec3(1.f, std::get<0>(heightScaleOffset), 1.f), w);
+  auto heightField = JPH::StaticCast<JPH::HeightFieldShape>(settingsTerrain.Create().Get());
+
+  _terrainBody = _physicsManager->getBodyInterface().CreateBody(JPH::BodyCreationSettings(
+      heightField, JPH::RVec3::sZero(), JPH::Quat::sIdentity(), JPH::EMotionType::Static, Layers::NON_MOVING));
+  _physicsManager->getBodyInterface().AddBody(_terrainBody->GetID(), JPH::EActivation::DontActivate);
+  _position = glm::vec3(-w / 2.f, 0, -w / 2.f);
+  // anchor point is top-left corner in physics, but center in graphic
+  _physicsManager->getBodyInterface().SetPosition(
+      _terrainBody->GetID(), JPH::Vec3(_position.x, _position.y, _position.z), JPH::EActivation::DontActivate);
+}
+
+void TerrainPhysics::setPosition(glm::vec3 position) {
+  int w = std::get<0>(_resolution);
+  _position = glm::vec3(-w / 2.f + position.x, position.y, -w / 2.f + position.z);
+  _physicsManager->getBodyInterface().SetPosition(
+      _terrainBody->GetID(), JPH::Vec3(_position.x, _position.y, _position.z), JPH::EActivation::DontActivate);
+}
+
+glm::vec3 TerrainPhysics::getPosition() { return _position; }
+
+TerrainPhysics::~TerrainPhysics() {
+  _physicsManager->getBodyInterface().RemoveBody(_terrainBody->GetID());
+  _physicsManager->getBodyInterface().DestroyBody(_terrainBody->GetID());
+}
 
 struct LoDConstants {
   int minTessellationLevel;

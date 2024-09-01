@@ -2,7 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
+#include "Primitive/Line.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 

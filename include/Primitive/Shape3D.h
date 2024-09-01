@@ -7,8 +7,26 @@
 #include "Primitive/Mesh.h"
 #include "Graphic/Camera.h"
 #include "Graphic/Material.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
 
 enum class ShapeType { CUBE = 0, SPHERE = 1 };
+
+class Shape3DPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  // destructor is private, can't use smart pointer
+  JPH::Body* _shapeBody;
+  glm::vec3 _position;
+
+ public:
+  Shape3DPhysics(ShapeType shapeType, std::shared_ptr<PhysicsManager> physicsManager);
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+  void setLinearVelocity(glm::vec3 velocity);
+  glm::mat4 getModel();
+  ~Shape3DPhysics();
+};
 
 class Shape3D : public Drawable, public Shadowable {
  private:

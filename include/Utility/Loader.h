@@ -8,52 +8,47 @@
 #include "tiny_gltf.h"
 #include <filesystem>
 
+template <class T>
+class ImageCPU {
+ private:
+  std::shared_ptr<T[]> _data;
+  std::tuple<int, int> _resolution;
+  int _channels;
+
+ public:
+  void setData(std::shared_ptr<T[]> data) { _data = data; }
+  void setResolution(std::tuple<int, int> resolution) { _resolution = resolution; }
+  void setChannels(int channels) { _channels = channels; }
+
+  std::shared_ptr<T[]> getData() { return _data; }
+  std::tuple<int, int> getResolution() { return _resolution; }
+  int getChannels() { return _channels; }
+};
+
 class LoaderImage {
  private:
   std::shared_ptr<State> _state;
-  std::map<std::string, std::shared_ptr<BufferImage>> _images;
 
  public:
   LoaderImage(std::shared_ptr<State> state);
   template <class T>
-  std::tuple<std::shared_ptr<T[]>, std::tuple<int, int, int>> loadCPU(std::string path);
+  std::shared_ptr<ImageCPU<T>> loadCPU(std::string path);
+
+  // have to support vector of inputs for cubemap
   template <class T>
-  std::shared_ptr<BufferImage> loadGPU(std::vector<std::string> paths,
-                                       std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-    for (auto& path : paths) {
-      if (_images.contains(path) == false) {
-        auto [pixels, dimension] = loadCPU<T>({path});
-        VkDeviceSize imageSize = std::get<0>(dimension) * std::get<1>(dimension) * std::get<2>(dimension);
-        // fill buffer
-        _images[path] = std::make_shared<BufferImage>(
-            std::tuple{std::get<0>(dimension), std::get<1>(dimension)}, 4, 1, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-        _images[path]->setData(pixels.get());
-      }
+  std::shared_ptr<BufferImage> loadGPU(std::vector<std::shared_ptr<ImageCPU<T>>> imagesCPU) {
+    auto [width, height] = imagesCPU[0]->getResolution();
+    int channels = imagesCPU[0]->getChannels();
+    std::shared_ptr<BufferImage> bufferImage = std::make_shared<BufferImage>(
+        std::tuple{width, height}, channels, imagesCPU.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+    for (int i = 0; i < imagesCPU.size(); i++) {
+      auto pixels = imagesCPU[i]->getData();
+      VkDeviceSize imageSize = width * height * channels;
+      bufferImage->setData(pixels.get(), imageSize * sizeof(T), imageSize * sizeof(T) * i);
     }
 
-    std::shared_ptr<BufferImage> bufferDst = _images[paths.front()];
-    if (paths.size() > 1) {
-      bufferDst = std::make_shared<BufferImage>(
-          bufferDst->getResolution(), bufferDst->getChannels(), paths.size(),
-          VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
-      for (int i = 0; i < paths.size(); i++) {
-        auto bufferSrc = _images[paths[i]];
-        bufferDst->copyFrom(bufferSrc, 0, i * bufferSrc->getSize(), commandBufferTransfer);
-      }
-      // barrier for further image copy from buffer
-      VkMemoryBarrier memoryBarrier = {};
-      memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-      memoryBarrier.pNext = nullptr;
-      memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      memoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-      vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
-                           VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memoryBarrier, 0,
-                           nullptr, 0, nullptr);
-    }
-
-    return bufferDst;
+    return bufferImage;
   }
 };
 

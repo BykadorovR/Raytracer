@@ -126,9 +126,9 @@ class Core {
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   void removeDrawable(std::shared_ptr<Drawable> drawable);
 
-  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> loadImageCPU(std::string path);
-  std::shared_ptr<BufferImage> loadImageGPU(std::string path);
-  std::shared_ptr<Texture> createTexture(std::string name, VkFormat format, int mipMapLevels);
+  std::shared_ptr<ImageCPU<uint8_t>> loadImageCPU(std::string path);
+  std::shared_ptr<BufferImage> loadImageGPU(std::shared_ptr<ImageCPU<uint8_t>> imageCPU);
+  std::shared_ptr<Texture> createTexture(std::string path, VkFormat format, int mipMapLevels);
   std::shared_ptr<Cubemap> createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels);
   std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
   std::shared_ptr<Animation> createAnimation(std::shared_ptr<ModelGLTF> modelGLTF);
@@ -139,7 +139,7 @@ class Core {
   std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
-  std::shared_ptr<Terrain> createTerrain(std::string heightmap, std::pair<int, int> patches);
+  std::shared_ptr<Terrain> createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap, std::pair<int, int> patches);
   std::shared_ptr<Line> createLine();
   std::shared_ptr<IBL> createIBL();
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,

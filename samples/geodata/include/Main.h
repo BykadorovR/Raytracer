@@ -29,6 +29,10 @@ class Main {
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer;
   std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  std::shared_ptr<TerrainPhysics> _terrainPhysics;
+  std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
+  std::optional<glm::vec3> _shift;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
 
  public:

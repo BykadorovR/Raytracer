@@ -1,6 +1,6 @@
 #pragma once
-#include "Core.h"
-#include "Shape3D.h"
+#include "Engine/Core.h"
+#include "Primitive/Shape3D.h"
 
 class InputHandler : public InputSubscriber {
  private:

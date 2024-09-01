@@ -907,25 +907,28 @@ void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
   }
 }
 
-std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> Core::loadImageCPU(std::string path) {
+std::shared_ptr<ImageCPU<uint8_t>> Core::loadImageCPU(std::string path) {
   return _resourceManager->loadImageCPU<uint8_t>(path);
 }
 
-std::shared_ptr<BufferImage> Core::loadImageGPU(std::string path) {
-  return _resourceManager->loadImageGPU<uint8_t>({path}, _commandBufferApplication);
+std::shared_ptr<BufferImage> Core::loadImageGPU(std::shared_ptr<ImageCPU<uint8_t>> imageCPU) {
+  return _resourceManager->loadImageGPU<uint8_t>({imageCPU});
 }
 
-std::shared_ptr<Texture> Core::createTexture(std::string name, VkFormat format, int mipMapLevels) {
-  auto texture = std::make_shared<Texture>(_resourceManager->loadImageGPU<uint8_t>({name}, _commandBufferApplication),
-                                           format, VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels, VK_FILTER_LINEAR,
-                                           _commandBufferApplication, _state);
+std::shared_ptr<Texture> Core::createTexture(std::string path, VkFormat format, int mipMapLevels) {
+  auto imageCPU = loadImageCPU(path);
+  auto texture = std::make_shared<Texture>(loadImageGPU(imageCPU), format, VK_SAMPLER_ADDRESS_MODE_REPEAT, mipMapLevels,
+                                           VK_FILTER_LINEAR, _commandBufferApplication, _state);
   return texture;
 }
 
 std::shared_ptr<Cubemap> Core::createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels) {
+  std::vector<std::shared_ptr<ImageCPU<uint8_t>>> images;
+  for (auto path : paths) {
+    images.push_back(loadImageCPU(path));
+  }
   return std::make_shared<Cubemap>(
-      _resourceManager->loadImageGPU<uint8_t>(paths, _commandBufferApplication), format, mipMapLevels,
-      VK_IMAGE_ASPECT_COLOR_BIT,
+      _resourceManager->loadImageGPU<uint8_t>(images), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR,
       _commandBufferApplication, _state);
 }
@@ -946,7 +949,8 @@ std::shared_ptr<Animation> Core::createAnimation(std::shared_ptr<ModelGLTF> mode
 }
 
 std::shared_ptr<Equirectangular> Core::createEquirectangular(std::string path) {
-  return std::make_shared<Equirectangular>(path, _commandBufferApplication, _resourceManager, _state);
+  return std::make_shared<Equirectangular>(_resourceManager->loadImageCPU<float>(path), _commandBufferApplication,
+                                           _state);
 }
 
 std::shared_ptr<MaterialColor> Core::createMaterialColor(MaterialTarget target) {
@@ -982,9 +986,10 @@ std::shared_ptr<Sprite> Core::createSprite() {
   return std::make_shared<Sprite>(_lightManager, _commandBufferApplication, _resourceManager, _state);
 }
 
-std::shared_ptr<Terrain> Core::createTerrain(std::string heightmap, std::pair<int, int> patches) {
-  return std::make_shared<Terrain>(_resourceManager->loadImageGPU<uint8_t>({heightmap}, _commandBufferApplication),
-                                   patches, _commandBufferApplication, _lightManager, _state);
+std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                             std::pair<int, int> patches) {
+  return std::make_shared<Terrain>(_resourceManager->loadImageGPU<uint8_t>({heightmap}), patches,
+                                   _commandBufferApplication, _lightManager, _state);
 }
 
 std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferApplication, _state); }

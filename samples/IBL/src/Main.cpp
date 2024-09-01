@@ -2,13 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
-#include "Equirectangular.h"
-#include "IBL.h"
+#include "Primitive/Model.h"
+#include "Primitive/Equirectangular.h"
+#include "Graphic/IBL.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 

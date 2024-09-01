@@ -1,6 +1,4 @@
 #include "DebugVisualization.h"
-#include "Descriptor.h"
-#include <format>
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core) {
   _camera = camera;

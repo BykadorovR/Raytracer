@@ -86,9 +86,9 @@ class Buffer {
                 VkDeviceSize dstOffset,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
   template <class T>
-  void setData(T* data, VkDeviceSize size) {
+  void setData(T* data, VkDeviceSize size, int offset = 0) {
     map();
-    memcpy(_mapped, data, size);
+    memcpy((char*)_mapped + offset, data, size);
     unmap();
   }
 

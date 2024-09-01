@@ -1,5 +1,50 @@
 #include "Primitive/Shape3D.h"
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
+
+Shape3DPhysics::Shape3DPhysics(ShapeType shapeType, std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  _position = glm::vec3(0.f);
+  if (shapeType == ShapeType::CUBE) {
+    JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(0.5f, 0.5f, 0.5f)),
+                                          JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
+                                          JPH::EMotionType::Dynamic, Layers::MOVING);
+    _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
+  }
+  _physicsManager->getBodyInterface().AddBody(_shapeBody->GetID(), JPH::EActivation::Activate);
+}
+
+// TODO: position should substract half of the shape size?
+void Shape3DPhysics::setPosition(glm::vec3 position) {
+  _position = position;
+  _physicsManager->getBodyInterface().SetPosition(_shapeBody->GetID(), JPH::RVec3(position.x, position.y, position.z),
+                                                  JPH::EActivation::Activate);
+}
+
+glm::vec3 Shape3DPhysics::getPosition() { return _position; }
+
+void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
+  _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
+}
+
+glm::mat4 Shape3DPhysics::getModel() {
+  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_shapeBody->GetID());
+  glm::mat4 converted = glm::mat4(1.f);
+  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
+                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
+  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
+                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
+  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
+                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
+  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
+                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
+  return converted;
+}
+
+Shape3DPhysics::~Shape3DPhysics() {
+  _physicsManager->getBodyInterface().RemoveBody(_shapeBody->GetID());
+  _physicsManager->getBodyInterface().DestroyBody(_shapeBody->GetID());
+}
 
 Shape3D::Shape3D(ShapeType shapeType,
                  VkCullModeFlags cullMode,

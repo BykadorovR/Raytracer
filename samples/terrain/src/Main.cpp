@@ -2,7 +2,6 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Window.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -30,7 +29,7 @@ void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 void Main::_createTerrainPhong() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
@@ -59,7 +58,7 @@ void Main::_createTerrainPhong() {
 
 void Main::_createTerrainPBR() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
@@ -88,7 +87,7 @@ void Main::_createTerrainPBR() {
 
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain("../assets/heightmap.png", {_patchX, _patchY});
+  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));

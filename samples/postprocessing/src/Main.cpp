@@ -2,8 +2,8 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Model.h"
+#include "Primitive/Line.h"
+#include "Primitive/Model.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -186,7 +186,8 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto terrainPhong = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPhong = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
+                                             std::pair{12, 12});
     auto materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
     materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialPhong(materialPhong);

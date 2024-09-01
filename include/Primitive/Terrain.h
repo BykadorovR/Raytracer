@@ -5,6 +5,28 @@
 #include "Graphic/LightManager.h"
 #include "Primitive/Drawable.h"
 #include "Primitive/Mesh.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+
+class TerrainPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  std::vector<float> _terrainPhysic;
+  std::tuple<int, int> _resolution;
+  // destructor is private, can't use smart pointer
+  JPH::Body* _terrainBody;
+
+  glm::vec3 _position;
+
+ public:
+  TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                 std::tuple<int, int> heightScaleOffset,
+                 std::shared_ptr<PhysicsManager> physicsManager);
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+
+  ~TerrainPhysics();
+};
 
 class Terrain : public Drawable, public Shadowable {
  private:

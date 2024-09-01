@@ -1,7 +1,7 @@
 #pragma once
-#include "Core.h"
-#include "Shape3D.h"
-#include "Terrain.h"
+#include "Engine/Core.h"
+#include "Primitive/Shape3D.h"
+#include "Primitive/Terrain.h"
 
 class InputHandler : public InputSubscriber {
  private:

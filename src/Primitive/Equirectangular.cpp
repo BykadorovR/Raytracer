@@ -1,16 +1,13 @@
 #include "Primitive/Equirectangular.h"
 
-Equirectangular::Equirectangular(std::string path,
+Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                 std::shared_ptr<ResourceManager> resourceManager,
                                  std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
 
-  auto image = resourceManager->loadImageCPU<float>({path});
-
-  auto pixels = std::get<0>(image).get();
-  auto [texWidth, texHeight, _] = std::get<1>(image);
+  auto pixels = imageCPU->getData().get();
+  auto [texWidth, texHeight] = imageCPU->getResolution();
 
   int imageSize = texWidth * texHeight * STBI_rgb_alpha;
   int bufferSize = imageSize * sizeof(float);

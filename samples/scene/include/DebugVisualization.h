@@ -1,9 +1,9 @@
 #pragma once
-#include "Core.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
-#include "Shape3D.h"
+#include "Engine/Core.h"
+#include "Primitive/Line.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Model.h"
+#include "Primitive/Shape3D.h"
 
 class DebugVisualization {
  private:

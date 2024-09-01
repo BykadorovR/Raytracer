@@ -8,7 +8,7 @@
 LoaderImage::LoaderImage(std::shared_ptr<State> state) { _state = state; }
 
 template <>
-std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<uint8_t>(std::string path) {
+std::shared_ptr<ImageCPU<uint8_t>> LoaderImage::loadCPU<uint8_t>(std::string path) {
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
@@ -22,11 +22,15 @@ std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::l
   if (!pixels) {
     throw std::runtime_error("failed to load texture image " + path);
   }
-  return {pixels, {texWidth, texHeight, 4}};
+  std::shared_ptr<ImageCPU<uint8_t>> imageCPU = std::make_shared<ImageCPU<uint8_t>>();
+  imageCPU->setData(pixels);
+  imageCPU->setResolution({texWidth, texHeight});
+  imageCPU->setChannels(STBI_rgb_alpha);
+  return imageCPU;
 }
 
 template <>
-std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<float>(std::string path) {
+std::shared_ptr<ImageCPU<float>> LoaderImage::loadCPU<float>(std::string path) {
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
@@ -40,7 +44,12 @@ std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loa
   if (!pixels) {
     throw std::runtime_error("failed to load texture image " + path);
   }
-  return {pixels, {texWidth, texHeight, 4}};
+
+  std::shared_ptr<ImageCPU<float>> imageCPU = std::make_shared<ImageCPU<float>>();
+  imageCPU->setData(pixels);
+  imageCPU->setResolution({texWidth, texHeight});
+  imageCPU->setChannels(STBI_rgb_alpha);
+  return imageCPU;
 }
 
 void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
@@ -233,7 +242,8 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({filePath}, commandBufferTransfer), format,
+      auto imageCPU = _loaderImage->loadCPU<uint8_t>(filePath);
+      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({imageCPU}), format,
                                           VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
                                           _state);
     } else {

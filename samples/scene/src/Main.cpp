@@ -1,8 +1,8 @@
 #include "Main.h"
-#include "IBL.h"
-#include "Equirectangular.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Graphic/IBL.h"
+#include "Primitive/Equirectangular.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -191,7 +191,7 @@ Main::Main() {
   auto tile2 = _core->createTexture("../assets/Terrain/rock_gray.png", settings->getLoadTextureColorFormat(), 6);
   auto tile3 = _core->createTexture("../assets/Terrain/snow.png", settings->getLoadTextureColorFormat(), 6);
 
-  auto terrain = _core->createTerrain("../assets/Terrain/heightmap.png", std::pair{12, 12});
+  auto terrain = _core->createTerrain(_core->loadImageCPU("../assets/Terrain/heightmap.png"), std::pair{12, 12});
   auto materialTerrain = _core->createMaterialPhong(MaterialTarget::TERRAIN);
   materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
   auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {

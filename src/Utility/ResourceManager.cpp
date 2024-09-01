@@ -9,31 +9,31 @@ void ResourceManager::initialize(std::shared_ptr<CommandBuffer> commandBufferTra
   _loaderGLTF->setAssetManager(_assetManager);
 #endif
   _stubTextureOne = std::make_shared<Texture>(
-      loadImageGPU<uint8_t>({_assetEnginePath + "stubs/Texture1x1.png"}, commandBufferTransfer),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png")}),
       _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
       commandBufferTransfer, _state);
   _stubTextureZero = std::make_shared<Texture>(
-      loadImageGPU<uint8_t>({_assetEnginePath + "stubs/Texture1x1Black.png"}, commandBufferTransfer),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png")}),
       _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
       commandBufferTransfer, _state);
 
   _stubCubemapZero = std::make_shared<Cubemap>(
-      loadImageGPU<uint8_t>(
-          std::vector<std::string>{
-              _assetEnginePath + "stubs/Texture1x1Black.png", _assetEnginePath + "stubs/Texture1x1Black.png",
-              _assetEnginePath + "stubs/Texture1x1Black.png", _assetEnginePath + "stubs/Texture1x1Black.png",
-              _assetEnginePath + "stubs/Texture1x1Black.png", _assetEnginePath + "stubs/Texture1x1Black.png"},
-          commandBufferTransfer),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png")}),
       _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, _state);
 
   _stubCubemapOne = std::make_shared<Cubemap>(
-      loadImageGPU<uint8_t>(
-          std::vector<std::string>{_assetEnginePath + "stubs/Texture1x1.png", _assetEnginePath + "stubs/Texture1x1.png",
-                                   _assetEnginePath + "stubs/Texture1x1.png", _assetEnginePath + "stubs/Texture1x1.png",
-                                   _assetEnginePath + "stubs/Texture1x1.png",
-                                   _assetEnginePath + "stubs/Texture1x1.png"},
-          commandBufferTransfer),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png")}),
       _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, _state);
 }

@@ -2,11 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Primitive/Line.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Model.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -210,7 +210,8 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto terrainPhong = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPhong = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
+                                             std::pair{12, 12});
     auto materialTerrainPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
     materialTerrainPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialTerrainPhong(materialTerrainPhong);
@@ -291,7 +292,8 @@ Main::Main() {
     auto tile3AO = _core->createTexture("../../terrain/assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto terrainPBR = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPBR = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
+                                           std::pair{12, 12});
     auto materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
     materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
