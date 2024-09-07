@@ -20,8 +20,8 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
   _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(
-      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+  _pipeline->createGeometry(
+      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),

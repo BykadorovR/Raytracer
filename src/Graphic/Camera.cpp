@@ -147,23 +147,23 @@ void CameraFly::keyNotify(int key, int scancode, int action, int mods) {
   }
 
   if ((action == GLFW_PRESS && key == GLFW_KEY_W) || _keyStatus[GLFW_KEY_W]) {
-    _eye += _sensitivity * _direction;
+    _eye += _moveSpeed * _direction;
   }
 
   if ((action == GLFW_PRESS && key == GLFW_KEY_S) || _keyStatus[GLFW_KEY_S]) {
-    _eye -= _sensitivity * _direction;
+    _eye -= _moveSpeed * _direction;
   }
 
   if ((action == GLFW_PRESS && key == GLFW_KEY_A) || _keyStatus[GLFW_KEY_A]) {
-    _eye -= _sensitivity * glm::normalize(glm::cross(_direction, _up));
+    _eye -= _moveSpeed * glm::normalize(glm::cross(_direction, _up));
   }
 
   if ((action == GLFW_PRESS && key == GLFW_KEY_D) || _keyStatus[GLFW_KEY_D]) {
-    _eye += _sensitivity * glm::normalize(glm::cross(_direction, _up));
+    _eye += _moveSpeed * glm::normalize(glm::cross(_direction, _up));
   }
 
   if ((action == GLFW_PRESS && key == GLFW_KEY_SPACE) || _keyStatus[GLFW_KEY_SPACE]) {
-    _eye += _sensitivity * _up;
+    _eye += _moveSpeed * _up;
   }
 #endif
 }

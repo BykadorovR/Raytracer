@@ -992,6 +992,15 @@ std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> 
                                    _commandBufferApplication, _lightManager, _state);
 }
 
+std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                                   std::pair<int, int> patches) {
+  return std::make_shared<TerrainCPU>(heightmap, patches, _commandBufferApplication, _state);
+}
+
+std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution) {
+  return std::make_shared<TerrainCPU>(heights, resolution, _commandBufferApplication, _state);
+}
+
 std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferApplication, _state); }
 
 std::shared_ptr<IBL> Core::createIBL() {

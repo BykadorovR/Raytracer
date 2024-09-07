@@ -64,16 +64,16 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
   }
   std::optional<glm::vec3> shift = std::nullopt;
   if (action != GLFW_RELEASE && key == GLFW_KEY_UP) {
-    shift = glm::vec3(0.f, 0.f, -1.f);
+    shift = glm::vec3(0.f, 0.f, -2.f);
   }
   if (action != GLFW_RELEASE && key == GLFW_KEY_DOWN) {
-    shift = glm::vec3(0.f, 0.f, 1.f);
+    shift = glm::vec3(0.f, 0.f, 2.f);
   }
   if (action != GLFW_RELEASE && key == GLFW_KEY_LEFT) {
-    shift = glm::vec3(-1.f, 0.f, 0.f);
+    shift = glm::vec3(-2.f, 0.f, 0.f);
   }
   if (action != GLFW_RELEASE && key == GLFW_KEY_RIGHT) {
-    shift = glm::vec3(1.f, 0.f, 0.f);
+    shift = glm::vec3(2.f, 0.f, 0.f);
   }
 
   _callback(shift);
@@ -83,6 +83,30 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
+
+void Main::_createTerrainColor() {
+  _core->removeDrawable(_terrain);
+  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  _terrain->setMaterial(_materialColor);
+
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+  _terrain->patchEdge(_showPatches);
+  _terrain->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrain->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrain->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrain->setDrawType(DrawType::FILL);
+  }
+
+  _core->addDrawable(_terrain);
+}
 
 Main::Main() {
   int mipMapLevels = 8;
@@ -109,6 +133,7 @@ Main::Main() {
   _core->initialize();
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera->setSpeed(0.05f, 0.5f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
@@ -157,6 +182,7 @@ Main::Main() {
 
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(ShapeType::CUBE, _physicsManager);
   _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
   _cubePlayer = _core->createShape3D(ShapeType::CUBE);
@@ -168,7 +194,6 @@ Main::Main() {
   auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
 
-  // Add it to the world
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
@@ -177,13 +202,16 @@ Main::Main() {
                                       mipMapLevels);
     auto tile3 = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
-
-    _terrainColor = _core->createTerrain(heightmapCPU, std::pair{12, 12});
-    auto materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
-    materialColor->setBaseColor({tile0, tile1, tile2, tile3});
-    _terrainColor->setMaterial(materialColor);
-    _core->addDrawable(_terrainColor);
+    _materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
+    _materialColor->setBaseColor({tile0, tile1, tile2, tile3});
   }
+
+  _createTerrainColor();
+
+  //_terrainCPU = _core->createTerrainCPU(heightmapCPU, {_patchX, _patchY});
+  auto heights = _terrainPhysics->getHeights();
+  _terrainCPU = _core->createTerrainCPU(heights, _terrainPhysics->getResolution());
+  _core->addDrawable(_terrainCPU);
 
   _core->endRecording();
 
@@ -239,6 +267,58 @@ void Main::update() {
     _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model[3][0]),
                                std::string("player y: ") + std::format("{:.6f}", model[3][1]),
                                std::string("player z: ") + std::format("{:.6f}", model[3][2])});
+    _core->getGUI()->endTree();
+  }
+  if (_core->getGUI()->drawButton("Reset")) {
+    _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
+  }
+  if (_core->getGUI()->startTree("Toggles")) {
+    std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
+    if (_core->getGUI()->drawInputInt(patchesNumber)) {
+      _core->startRecording();
+      _createTerrainColor();
+      _core->endRecording();
+    }
+
+    std::map<std::string, int*> tesselationLevels{{"Tesselation min", &_minTessellationLevel},
+                                                  {"Tesselation max", &_maxTessellationLevel}};
+    if (_core->getGUI()->drawInputInt(tesselationLevels)) {
+      _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+    }
+
+    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
+      _terrain->patchEdge(_showPatches);
+    }
+    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
+      _terrain->showLoD(_showLoD);
+    }
+    if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
+      _terrain->setDrawType(DrawType::WIREFRAME);
+      _terrainCPU->setDrawType(DrawType::WIREFRAME);
+      _showNormals = false;
+    }
+    if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
+      _terrain->setDrawType(DrawType::NORMAL);
+      _showWireframe = false;
+    }
+    if (_showWireframe == false && _showNormals == false) {
+      _terrain->setDrawType(DrawType::FILL);
+      _terrainCPU->setDrawType(DrawType::FILL);
+    }
+    if (_core->getGUI()->drawCheckbox({{"Show GPU", &_showGPU}})) {
+      if (_showGPU == false) {
+        _core->removeDrawable(_terrain);
+      } else {
+        _core->addDrawable(_terrain);
+      }
+    }
+    if (_core->getGUI()->drawCheckbox({{"Show CPU", &_showCPU}})) {
+      if (_showCPU == false) {
+        _core->removeDrawable(_terrainCPU);
+      } else {
+        _core->addDrawable(_terrainCPU);
+      }
+    }
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

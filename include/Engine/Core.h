@@ -140,6 +140,9 @@ class Core {
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
   std::shared_ptr<Terrain> createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap, std::pair<int, int> patches);
+  std::shared_ptr<TerrainCPU> createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution);
+  std::shared_ptr<TerrainCPU> createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                               std::pair<int, int> patches);
   std::shared_ptr<Line> createLine();
   std::shared_ptr<IBL> createIBL();
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,

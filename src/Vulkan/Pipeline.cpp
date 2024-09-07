@@ -290,14 +290,16 @@ void Pipeline::createGraphic3D(
   }
 }
 
-void Pipeline::createLine(VkCullModeFlags cullMode,
-                          VkPolygonMode polygonMode,
-                          std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
-                          std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-                          std::map<std::string, VkPushConstantRange> pushConstants,
-                          VkVertexInputBindingDescription bindingDescription,
-                          std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-                          std::shared_ptr<RenderPass> renderPass) {
+void Pipeline::createGeometry(
+    VkCullModeFlags cullMode,
+    VkPolygonMode polygonMode,
+    VkPrimitiveTopology topology,
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+    std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+    std::map<std::string, VkPushConstantRange> pushConstants,
+    VkVertexInputBindingDescription bindingDescription,
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
+    std::shared_ptr<RenderPass> renderPass) {
   _descriptorSetLayout = descriptorSetLayout;
   _pushConstants = pushConstants;
 
@@ -332,7 +334,7 @@ void Pipeline::createLine(VkCullModeFlags cullMode,
   vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
   vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-  _inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+  _inputAssembly.topology = topology;
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;

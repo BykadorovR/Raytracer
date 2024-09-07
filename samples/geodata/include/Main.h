@@ -28,12 +28,22 @@ class Main {
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer;
-  std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
+  std::shared_ptr<MaterialColor> _materialColor;
+  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainCPU> _terrainCPU;
   std::optional<glm::vec3> _shift;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
+  bool _showGPU = true, _showCPU = true;
+  int _patchX = 12, _patchY = 12;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  std::array<float, 4> _heightLevels = {16, 128, 192, 256};
+  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
+  float _minDistance = 30, _maxDistance = 100;
+  void _createTerrainColor();
 
  public:
   Main();

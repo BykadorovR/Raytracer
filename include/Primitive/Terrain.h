@@ -15,7 +15,7 @@ class TerrainPhysics {
   std::tuple<int, int> _resolution;
   // destructor is private, can't use smart pointer
   JPH::Body* _terrainBody;
-
+  std::vector<float> _heights;
   glm::vec3 _position;
 
  public:
@@ -24,8 +24,57 @@ class TerrainPhysics {
                  std::shared_ptr<PhysicsManager> physicsManager);
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
-
+  std::tuple<int, int> getResolution();
+  std::vector<float> getHeights();
   ~TerrainPhysics();
+};
+
+class TerrainCPU : public Drawable {
+ private:
+  std::shared_ptr<State> _state;
+  std::shared_ptr<Mesh3D> _mesh;
+
+  std::shared_ptr<UniformBuffer> _cameraBuffer;
+  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSet> _descriptorSetColor;
+  std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
+  std::shared_ptr<RenderPass> _renderPass;
+  std::pair<int, int> _patchNumber;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  bool _enableEdge = false;
+  DrawType _drawType = DrawType::FILL;
+  int _numStrips, _numVertsPerStrip;
+  bool _hasIndexes = false;
+
+  void _updateColorDescriptor();
+  void _loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
+                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                  std::shared_ptr<State> state);
+  void _loadTriangles(std::vector<float> heights,
+                      std::tuple<int, int> resolution,
+                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                      std::shared_ptr<State> state);
+  void _loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+
+ public:
+  TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
+             std::pair<int, int> patchNumber,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
+  TerrainCPU(std::vector<float> heights,
+             std::tuple<int, int> resolution,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
+
+  void setDrawType(DrawType drawType);
+
+  DrawType getDrawType();
+  void patchEdge(bool enable);
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
 
 class Terrain : public Drawable, public Shadowable {
