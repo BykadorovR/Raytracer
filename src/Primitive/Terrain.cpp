@@ -360,26 +360,26 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     for (int x = 0; x < patchNumber.first; x++) {
       // define patch: 4 points (square)
       Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + width * x / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + height * y / (float)patchNumber.second);
+      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)patchNumber.second);
       vertex1.texCoord = glm::vec2(x, y);
       vertices.push_back(vertex1);
 
       Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + width * (x + 1) / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + height * y / (float)patchNumber.second);
+      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)patchNumber.second);
       vertex2.texCoord = glm::vec2(x + 1, y);
       vertices.push_back(vertex2);
 
       Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + width * x / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + height * (y + 1) / (float)patchNumber.second);
+      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)patchNumber.second);
       vertex3.texCoord = glm::vec2(x, y + 1);
       vertices.push_back(vertex3);
 
       Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + width * (x + 1) / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + height * (y + 1) / (float)patchNumber.second);
+      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)patchNumber.second);
       vertex4.texCoord = glm::vec2(x + 1, y + 1);
       vertices.push_back(vertex4);
     }
@@ -511,7 +511,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineDirectional->createGraphicTerrainShadowGPU(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -536,7 +536,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelinePoint->createGraphicTerrainShadowGPU(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
@@ -618,7 +618,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineNormalMesh->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -641,7 +641,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineTangentMesh->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -694,7 +694,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::COLOR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -706,7 +706,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -774,7 +774,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PHONG]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -786,7 +786,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::PHONG]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -889,7 +889,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PBR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -901,7 +901,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::PBR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),

@@ -41,7 +41,7 @@ class Main {
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
-  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
+  int _minTessellationLevel = 4, _maxTessellationLevel = 4;
   float _minDistance = 30, _maxDistance = 100;
   void _createTerrainColor();
 
