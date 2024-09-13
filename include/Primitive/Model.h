@@ -84,6 +84,7 @@ class Model3D : public Drawable, public Shadowable {
 
   MaterialType getMaterialType();
   DrawType getDrawType();
+  std::shared_ptr<AABB> getAABB();
 
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,

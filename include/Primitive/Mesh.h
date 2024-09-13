@@ -26,6 +26,21 @@ struct Vertex3D {
   glm::vec4 tangent;
 };
 
+class AABB {
+ private:
+  std::vector<float> _min;
+  std::vector<float> _max;
+
+ public:
+  AABB();
+  void setMin(std::vector<double> min);
+  void setMax(std::vector<double> max);
+  void extend(std::vector<float> point);
+  void extend(std::shared_ptr<AABB> aabb);
+  std::vector<float> getMin();
+  std::vector<float> getMax();
+};
+
 class Mesh {
  protected:
   std::shared_ptr<State> _state;
@@ -46,6 +61,7 @@ class Mesh3D : public Mesh {
   std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
   std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<MeshPrimitive> _primitives;
+  std::shared_ptr<AABB> _aabb;
 
  public:
   Mesh3D(std::shared_ptr<State> state);
@@ -55,11 +71,13 @@ class Mesh3D : public Mesh {
   void setColor(std::vector<glm::vec3> color, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setNormal(std::vector<glm::vec3> normal, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setPosition(std::vector<glm::vec3> position, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setAABB(std::shared_ptr<AABB> aabb);
   void addPrimitive(MeshPrimitive primitive);
 
   const std::vector<uint32_t>& getIndexData();
   const std::vector<Vertex3D>& getVertexData();
   const std::vector<MeshPrimitive>& getPrimitives();
+  std::shared_ptr<AABB> getAABB();
   std::shared_ptr<VertexBuffer<Vertex3D>> getVertexBuffer();
   std::shared_ptr<VertexBuffer<uint32_t>> getIndexBuffer();
   VkVertexInputBindingDescription getBindingDescription();

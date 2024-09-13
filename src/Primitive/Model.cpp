@@ -738,6 +738,15 @@ MaterialType Model3D::getMaterialType() { return _materialType; }
 
 DrawType Model3D::getDrawType() { return _drawType; }
 
+std::shared_ptr<AABB> Model3D::getAABB() {
+  std::shared_ptr<AABB> aabbTotal;
+  for (auto& mesh : _meshes) {
+    auto aabb = mesh->getAABB();
+    aabbTotal->extend(aabb);
+  }
+  return aabbTotal;
+}
+
 void Model3D::setAnimation(std::shared_ptr<Animation> animation) {
   _animation = animation;
   _updateJointsDescriptor();

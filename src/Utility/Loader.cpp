@@ -470,6 +470,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     auto mesh = meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
+    std::shared_ptr<AABB> aabb = std::make_shared<AABB>();
     bool generateTangent = true;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {
@@ -499,6 +500,8 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
           const tinygltf::Accessor& accessor =
               modelInternal.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+          aabb->setMin(accessor.minValues);
+          aabb->setMax(accessor.maxValues);
           const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(
               &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
@@ -658,6 +661,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
 
     mesh->setIndexes(indexes, commandBufferTransfer);
     mesh->setVertices(vertices, commandBufferTransfer);
+    mesh->setAABB(aabb);
   }
 
   // we store all node's heads in _nodes array
