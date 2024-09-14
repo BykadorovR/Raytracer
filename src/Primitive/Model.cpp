@@ -739,9 +739,10 @@ MaterialType Model3D::getMaterialType() { return _materialType; }
 DrawType Model3D::getDrawType() { return _drawType; }
 
 std::shared_ptr<AABB> Model3D::getAABB() {
-  std::shared_ptr<AABB> aabbTotal;
+  std::shared_ptr<AABB> aabbTotal = nullptr;
   for (auto& mesh : _meshes) {
     auto aabb = mesh->getAABB();
+    if (aabbTotal == nullptr) aabbTotal = std::make_shared<AABB>(aabb->getDimension());
     aabbTotal->extend(aabb);
   }
   return aabbTotal;

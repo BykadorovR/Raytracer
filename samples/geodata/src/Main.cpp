@@ -213,6 +213,31 @@ Main::Main() {
   _terrainCPU = _core->createTerrainCPU(heights, _terrainPhysics->getResolution());
   _core->addDrawable(_terrainCPU);
 
+  {
+    auto gltfModelSimple = _core->createModelGLTF("../../model/assets/CesiumMan/CesiumMan.gltf");
+    auto modelSimple = _core->createModel3D(gltfModelSimple);
+    auto materialModelSimple = gltfModelSimple->getMaterialsColor();
+    modelSimple->setMaterial(materialModelSimple);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
+      modelSimple->setModel(model);
+    }
+    _core->addDrawable(modelSimple);
+
+    auto aabb = modelSimple->getAABB();
+    auto min = aabb->getMin();
+    auto max = aabb->getMax();
+    auto boundingBox = _core->createShape3D(ShapeType::CUBE);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 3.f, -3.f));
+      model = glm::scale(model,
+                         glm::vec3(std::abs(max[0] - min[0]), std::abs(max[1] - min[1]), std::abs(max[2] - min[2])));
+      boundingBox->setModel(model);
+    }
+    _core->addDrawable(boundingBox);
+  }
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));

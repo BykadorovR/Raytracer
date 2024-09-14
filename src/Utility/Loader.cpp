@@ -470,7 +470,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     auto mesh = meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
-    std::shared_ptr<AABB> aabb = std::make_shared<AABB>();
+    std::shared_ptr<AABB> aabb = std::make_shared<AABB>(3);
     bool generateTangent = true;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {

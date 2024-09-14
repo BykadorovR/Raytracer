@@ -32,13 +32,14 @@ class AABB {
   std::vector<float> _max;
 
  public:
-  AABB();
+  AABB(int number);
   void setMin(std::vector<double> min);
   void setMax(std::vector<double> max);
   void extend(std::vector<float> point);
   void extend(std::shared_ptr<AABB> aabb);
   std::vector<float> getMin();
   std::vector<float> getMax();
+  int getDimension();
 };
 
 class Mesh {

@@ -105,7 +105,7 @@ class Terrain : public Drawable, public Shadowable {
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
-  int _minTessellationLevel = 0, _maxTessellationLevel = 8;
+  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
   float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;
   bool _showLoD = false;

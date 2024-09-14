@@ -2,42 +2,49 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-AABB::AABB() {
+AABB::AABB(int number) {
+  _min.resize(number);
   for (auto& min : _min) {
     min = std::numeric_limits<float>::max();
   }
+  _max.resize(number);
   for (auto& max : _max) {
     max = std::numeric_limits<float>::min();
   }
 }
 
 void AABB::setMin(std::vector<double> min) {
-  _min[0] = min[0];
-  _min[1] = min[1];
-  _min[2] = min[2];
+  if (_min.size() != min.size())
+    throw std::invalid_argument("Size of vector in setMin " + std::to_string(min.size()) +
+                                " differs from dimension of AABB " + std::to_string(_min.size()));
+  for (int i = 0; i < _min.size(); i++) _min[i] = min[i];
 }
 
 void AABB::setMax(std::vector<double> max) {
-  _max[0] = max[0];
-  _max[1] = max[1];
-  _max[2] = max[2];
+  if (_max.size() != max.size())
+    throw std::invalid_argument("Size of vector in setMax " + std::to_string(max.size()) +
+                                " differs from dimension of AABB " + std::to_string(_max.size()));
+  for (int i = 0; i < _max.size(); i++) _max[i] = max[i];
 }
 
 void AABB::extend(std::vector<float> point) {
-  _min[0] = std::min(_min[0], point[0]);
-  _min[1] = std::min(_min[1], point[1]);
-  _min[2] = std::min(_min[2], point[2]);
-
-  _max[0] = std::max(_max[0], point[0]);
-  _max[1] = std::max(_max[1], point[1]);
-  _max[2] = std::max(_max[2], point[2]);
+  if (_max.size() != point.size())
+    throw std::invalid_argument("Size of vector in extend " + std::to_string(point.size()) +
+                                " differs from dimension of AABB " + std::to_string(_max.size()));
+  for (int i = 0; i < _min.size(); i++) _min[i] = std::min(_min[i], point[i]);
+  for (int i = 0; i < _max.size(); i++) _max[i] = std::max(_max[i], point[i]);
 }
 
-void AABB::extend(std::shared_ptr<AABB> aabb) { extend(aabb->getMin()); }
+void AABB::extend(std::shared_ptr<AABB> aabb) {
+  extend(aabb->getMin());
+  extend(aabb->getMax());
+}
 
 std::vector<float> AABB::getMin() { return _min; }
 
 std::vector<float> AABB::getMax() { return _max; }
+
+int AABB::getDimension() { return _min.size(); }
 
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 
