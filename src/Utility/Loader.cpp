@@ -470,7 +470,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     auto mesh = meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
-    std::shared_ptr<AABB> aabb = std::make_shared<AABB>(3);
+    std::shared_ptr<AABB> aabb = std::make_shared<AABB>();
     bool generateTangent = true;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {
@@ -500,8 +500,20 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
           const tinygltf::Accessor& accessor =
               modelInternal.accessors[glTFPrimitive.attributes.find("POSITION")->second];
-          aabb->setMin(accessor.minValues);
-          aabb->setMax(accessor.maxValues);
+          // we have to calculate translate-scale-rotate matrices here
+          glm::mat4 nodeMatrix = node->getLocalMatrix();
+          std::shared_ptr<NodeGLTF> currentParent = node->parent;
+          while (currentParent) {
+            nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
+            currentParent = currentParent->parent;
+          }
+          glm::vec4 tempMin = {accessor.minValues[0], accessor.minValues[1], accessor.minValues[2], 1.f};
+          glm::vec4 tempMax = {accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2], 1.f};
+          tempMin = nodeMatrix * tempMin;
+          tempMax = nodeMatrix * tempMax;
+          aabb->setMin(glm::vec3(tempMin.x, tempMin.y, tempMin.z));
+          aabb->setMax(glm::vec3(tempMax.x, tempMax.y, tempMax.z));
+
           const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(
               &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));

@@ -2,37 +2,18 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-AABB::AABB(int number) {
-  _min.resize(number);
-  for (auto& min : _min) {
-    min = std::numeric_limits<float>::max();
-  }
-  _max.resize(number);
-  for (auto& max : _max) {
-    max = std::numeric_limits<float>::min();
-  }
+AABB::AABB() {
+  _min = glm::vec3(std::numeric_limits<float>::max());
+  _max = glm::vec3(std::numeric_limits<float>::min());
 }
 
-void AABB::setMin(std::vector<double> min) {
-  if (_min.size() != min.size())
-    throw std::invalid_argument("Size of vector in setMin " + std::to_string(min.size()) +
-                                " differs from dimension of AABB " + std::to_string(_min.size()));
-  for (int i = 0; i < _min.size(); i++) _min[i] = min[i];
-}
+void AABB::setMin(glm::vec3 min) { _min = min; }
 
-void AABB::setMax(std::vector<double> max) {
-  if (_max.size() != max.size())
-    throw std::invalid_argument("Size of vector in setMax " + std::to_string(max.size()) +
-                                " differs from dimension of AABB " + std::to_string(_max.size()));
-  for (int i = 0; i < _max.size(); i++) _max[i] = max[i];
-}
+void AABB::setMax(glm::vec3 max) { _max = max; }
 
-void AABB::extend(std::vector<float> point) {
-  if (_max.size() != point.size())
-    throw std::invalid_argument("Size of vector in extend " + std::to_string(point.size()) +
-                                " differs from dimension of AABB " + std::to_string(_max.size()));
-  for (int i = 0; i < _min.size(); i++) _min[i] = std::min(_min[i], point[i]);
-  for (int i = 0; i < _max.size(); i++) _max[i] = std::max(_max[i], point[i]);
+void AABB::extend(glm::vec3 point) {
+  for (int i = 0; i < _min.length(); i++) _min[i] = std::min(_min[i], point[i]);
+  for (int i = 0; i < _max.length(); i++) _max[i] = std::max(_max[i], point[i]);
 }
 
 void AABB::extend(std::shared_ptr<AABB> aabb) {
@@ -40,11 +21,9 @@ void AABB::extend(std::shared_ptr<AABB> aabb) {
   extend(aabb->getMax());
 }
 
-std::vector<float> AABB::getMin() { return _min; }
+glm::vec3 AABB::getMin() { return _min; }
 
-std::vector<float> AABB::getMax() { return _max; }
-
-int AABB::getDimension() { return _min.size(); }
+glm::vec3 AABB::getMax() { return _max; }
 
 Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
 

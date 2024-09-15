@@ -220,7 +220,6 @@ Main::Main() {
     modelSimple->setMaterial(materialModelSimple);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
       modelSimple->setModel(model);
     }
     _core->addDrawable(modelSimple);
@@ -229,8 +228,9 @@ Main::Main() {
     auto min = aabb->getMin();
     auto max = aabb->getMax();
     auto boundingBox = _core->createShape3D(ShapeType::CUBE);
+    boundingBox->setDrawType(DrawType::WIREFRAME);
     {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 3.f, -3.f));
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
       model = glm::scale(model,
                          glm::vec3(std::abs(max[0] - min[0]), std::abs(max[1] - min[1]), std::abs(max[2] - min[2])));
       boundingBox->setModel(model);

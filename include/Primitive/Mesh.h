@@ -28,18 +28,17 @@ struct Vertex3D {
 
 class AABB {
  private:
-  std::vector<float> _min;
-  std::vector<float> _max;
+  glm::vec3 _min;
+  glm::vec3 _max;
 
  public:
-  AABB(int number);
-  void setMin(std::vector<double> min);
-  void setMax(std::vector<double> max);
-  void extend(std::vector<float> point);
+  AABB();
+  void setMin(glm::vec3 min);
+  void setMax(glm::vec3 max);
+  void extend(glm::vec3 point);
   void extend(std::shared_ptr<AABB> aabb);
-  std::vector<float> getMin();
-  std::vector<float> getMax();
-  int getDimension();
+  glm::vec3 getMin();
+  glm::vec3 getMax();
 };
 
 class Mesh {
