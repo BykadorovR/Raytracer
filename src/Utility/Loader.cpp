@@ -511,8 +511,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
           glm::vec4 tempMax = {accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2], 1.f};
           tempMin = nodeMatrix * tempMin;
           tempMax = nodeMatrix * tempMax;
-          aabb->setMin(glm::vec3(tempMin.x, tempMin.y, tempMin.z));
-          aabb->setMax(glm::vec3(tempMax.x, tempMax.y, tempMax.z));
+          aabb->extend(glm::vec3(tempMin.x, tempMin.y, tempMin.z));
 
           const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(

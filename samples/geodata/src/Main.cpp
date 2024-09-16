@@ -214,21 +214,29 @@ Main::Main() {
   _core->addDrawable(_terrainCPU);
 
   {
-    auto gltfModelSimple = _core->createModelGLTF("../../model/assets/CesiumMan/CesiumMan.gltf");
+    auto fillMaterialColor = [core = _core](std::shared_ptr<MaterialColor> material) {
+      if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    };
+
+    auto gltfModelSimple = _core->createModelGLTF("../../model/assets/BrainStem/BrainStem.gltf");
     auto modelSimple = _core->createModel3D(gltfModelSimple);
     auto materialModelSimple = gltfModelSimple->getMaterialsColor();
-    modelSimple->setMaterial(materialModelSimple);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      modelSimple->setModel(model);
+    for (auto& material : materialModelSimple) {
+      fillMaterialColor(material);
     }
-    _core->addDrawable(modelSimple);
+    modelSimple->setMaterial(materialModelSimple);
 
     auto aabb = modelSimple->getAABB();
     auto min = aabb->getMin();
     auto max = aabb->getMax();
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f - (max[1] - min[1]) / 2.f, -3.f));
+      modelSimple->setModel(model);
+    }
+    _core->addDrawable(modelSimple);
+
     auto boundingBox = _core->createShape3D(ShapeType::CUBE);
-    boundingBox->setDrawType(DrawType::WIREFRAME);
+    // boundingBox->setDrawType(DrawType::WIREFRAME);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
       model = glm::scale(model,

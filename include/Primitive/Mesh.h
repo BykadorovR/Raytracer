@@ -33,8 +33,6 @@ class AABB {
 
  public:
   AABB();
-  void setMin(glm::vec3 min);
-  void setMax(glm::vec3 max);
   void extend(glm::vec3 point);
   void extend(std::shared_ptr<AABB> aabb);
   glm::vec3 getMin();

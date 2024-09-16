@@ -4,12 +4,8 @@
 
 AABB::AABB() {
   _min = glm::vec3(std::numeric_limits<float>::max());
-  _max = glm::vec3(std::numeric_limits<float>::min());
+  _max = glm::vec3(-std::numeric_limits<float>::max());
 }
-
-void AABB::setMin(glm::vec3 min) { _min = min; }
-
-void AABB::setMax(glm::vec3 max) { _max = max; }
 
 void AABB::extend(glm::vec3 point) {
   for (int i = 0; i < _min.length(); i++) _min[i] = std::min(_min[i], point[i]);
