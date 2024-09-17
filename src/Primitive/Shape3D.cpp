@@ -47,6 +47,7 @@ Shape3DPhysics::~Shape3DPhysics() {
 }
 
 Shape3D::Shape3D(ShapeType shapeType,
+                 std::shared_ptr<Mesh3D> mesh,
                  VkCullModeFlags cullMode,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -57,6 +58,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   _state = state;
   _lightManager = lightManager;
   _cullMode = cullMode;
+  _mesh = mesh;
 
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
@@ -64,7 +66,6 @@ Shape3D::Shape3D(ShapeType shapeType,
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   if (shapeType == ShapeType::CUBE) {
-    _mesh = std::make_shared<MeshCube>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
     _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
                                                            "shaders/shape/cubeColor_fragment.spv"};
@@ -82,7 +83,6 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   if (shapeType == ShapeType::SPHERE) {
-    _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
     _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
                                                              "shaders/shape/sphereColor_fragment.spv"};

@@ -63,6 +63,7 @@ class Shape3D : public Drawable, public Shadowable {
 
  public:
   Shape3D(ShapeType shapeType,
+          std::shared_ptr<Mesh3D> mesh,
           VkCullModeFlags cullMode,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,

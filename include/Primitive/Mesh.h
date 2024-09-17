@@ -82,6 +82,14 @@ class Mesh3D : public Mesh {
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 };
 
+class MeshBoundingBox : public Mesh3D {
+ public:
+  MeshBoundingBox(glm::vec3 minPoint,
+                  glm::vec3 maxPoint,
+                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                  std::shared_ptr<State> state);
+};
+
 class MeshCube : public Mesh3D {
  public:
   MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);

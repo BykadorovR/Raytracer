@@ -971,10 +971,24 @@ std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
   return material;
 }
 
+std::shared_ptr<Shape3D> Core::createBoundingBox(glm::vec3 min, glm::vec3 max, VkCullModeFlagBits cullMode) {
+  std::shared_ptr<Mesh3D> mesh = std::make_shared<MeshBoundingBox>(min, max, _commandBufferApplication, _state);
+  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _lightManager, _commandBufferApplication,
+                                   _resourceManager, _state);
+}
+
 std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {
-  auto shape = std::make_shared<Shape3D>(shapeType, cullMode, _lightManager, _commandBufferApplication,
-                                         _resourceManager, _state);
-  return shape;
+  std::shared_ptr<Mesh3D> mesh;
+  switch (shapeType) {
+    case ShapeType::CUBE:
+      mesh = std::make_shared<MeshCube>(_commandBufferApplication, _state);
+      break;
+    case ShapeType::SPHERE:
+      mesh = std::make_shared<MeshCube>(_commandBufferApplication, _state);
+      break;
+  }
+  return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _lightManager, _commandBufferApplication,
+                                   _resourceManager, _state);
 }
 
 std::shared_ptr<Model3D> Core::createModel3D(std::shared_ptr<ModelGLTF> modelGLTF) {

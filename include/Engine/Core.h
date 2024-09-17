@@ -136,6 +136,9 @@ class Core {
   std::shared_ptr<MaterialColor> createMaterialColor(MaterialTarget target);
   std::shared_ptr<MaterialPhong> createMaterialPhong(MaterialTarget target);
   std::shared_ptr<MaterialPBR> createMaterialPBR(MaterialTarget target);
+  std::shared_ptr<Shape3D> createBoundingBox(glm::vec3 min,
+                                             glm::vec3 max,
+                                             VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();

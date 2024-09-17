@@ -461,6 +461,14 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     }
   }
 
+  // we have to calculate translate-scale-rotate matrices here
+  glm::mat4 nodeMatrix = node->getLocalMatrix();
+  std::shared_ptr<NodeGLTF> currentParent = node->parent;
+  while (currentParent) {
+    nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
+    currentParent = currentParent->parent;
+  }
+
   // If the node contains mesh data, we load vertices and indices from the buffers
   // In glTF this is done via accessors and buffer views
   if (input.mesh > -1) {
@@ -500,18 +508,12 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
           const tinygltf::Accessor& accessor =
               modelInternal.accessors[glTFPrimitive.attributes.find("POSITION")->second];
-          // we have to calculate translate-scale-rotate matrices here
-          glm::mat4 nodeMatrix = node->getLocalMatrix();
-          std::shared_ptr<NodeGLTF> currentParent = node->parent;
-          while (currentParent) {
-            nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
-            currentParent = currentParent->parent;
-          }
           glm::vec4 tempMin = {accessor.minValues[0], accessor.minValues[1], accessor.minValues[2], 1.f};
           glm::vec4 tempMax = {accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2], 1.f};
           tempMin = nodeMatrix * tempMin;
           tempMax = nodeMatrix * tempMax;
           aabb->extend(glm::vec3(tempMin.x, tempMin.y, tempMin.z));
+          aabb->extend(glm::vec3(tempMax.x, tempMax.y, tempMax.z));
 
           const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(
