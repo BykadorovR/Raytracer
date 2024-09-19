@@ -2,15 +2,13 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
 
-Shape3DPhysics::Shape3DPhysics(ShapeType shapeType, std::shared_ptr<PhysicsManager> physicsManager) {
+Shape3DPhysics::Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _position = glm::vec3(0.f);
-  if (shapeType == ShapeType::CUBE) {
-    JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(0.5f, 0.5f, 0.5f)),
-                                          JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
-                                          JPH::EMotionType::Dynamic, Layers::MOVING);
-    _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
-  }
+  _position = position;
+  JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z)),
+                                        JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
+                                        JPH::EMotionType::Dynamic, Layers::MOVING);
+  _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
   _physicsManager->getBodyInterface().AddBody(_shapeBody->GetID(), JPH::EActivation::Activate);
 }
 
@@ -731,7 +729,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     }
 
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = _model * _translateOrigin;
     cameraUBO.view = camera->getView();
     cameraUBO.projection = camera->getProjection();
 
@@ -897,7 +895,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model;
+  cameraMVP.model = _model * _translateOrigin;
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 

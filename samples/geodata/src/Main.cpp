@@ -4,6 +4,7 @@
 #include "Main.h"
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Character/CharacterVirtual.h>
 
 glm::vec3 getPosition(std::shared_ptr<Drawable> drawable) {
   glm::vec3 scale;
@@ -172,7 +173,7 @@ Main::Main() {
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     cubeColoredLightDirectional->setModel(model);
   }
@@ -183,8 +184,8 @@ Main::Main() {
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
 
-  _shape3DPhysics = std::make_shared<Shape3DPhysics>(ShapeType::CUBE, _physicsManager);
-  _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
+  _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
+                                                     _physicsManager);
   _cubePlayer = _core->createShape3D(ShapeType::CUBE);
   _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));
   _cubePlayer->getMesh()->setColor(
@@ -218,30 +219,35 @@ Main::Main() {
       if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
     };
 
-    auto gltfModelSimple = _core->createModelGLTF("../../model/assets/CesiumMan/CesiumMan.gltf");
-    auto modelSimple = _core->createModel3D(gltfModelSimple);
+    auto gltfModelSimple = _core->createModelGLTF("../../model/assets/BrainStem/BrainStem.gltf");
+    _modelSimple = _core->createModel3D(gltfModelSimple);
     auto materialModelSimple = gltfModelSimple->getMaterialsColor();
     for (auto& material : materialModelSimple) {
       fillMaterialColor(material);
     }
-    modelSimple->setMaterial(materialModelSimple);
+    _modelSimple->setMaterial(materialModelSimple);
 
-    auto aabb = modelSimple->getAABB();
+    auto aabb = _modelSimple->getAABB();
     auto min = aabb->getMin();
     auto max = aabb->getMax();
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      modelSimple->setModel(model);
+      _modelSimple->setModel(model);
+      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
+      _modelSimple->setOrigin(model);
     }
-    _core->addDrawable(modelSimple);
+    _core->addDrawable(_modelSimple);
 
-    auto boundingBox = _core->createBoundingBox(min, max);
-    boundingBox->setDrawType(DrawType::WIREFRAME);
+    _boundingBox = _core->createBoundingBox(min, max);
+    _boundingBox->setDrawType(DrawType::WIREFRAME);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      boundingBox->setModel(model);
+      _boundingBox->setModel(model);
+      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
+      _boundingBox->setOrigin(model);
     }
-    _core->addDrawable(boundingBox);
+    _core->addDrawable(_boundingBox);
+    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (max - min) / 2.f, _physicsManager);
   }
 
   _core->endRecording();
@@ -302,6 +308,7 @@ void Main::update() {
   }
   if (_core->getGUI()->drawButton("Reset")) {
     _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
+    _model3DPhysics->setPosition(glm::vec3(-4.f, -1.f, -3.f));
   }
   if (_core->getGUI()->startTree("Toggles")) {
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
@@ -358,6 +365,8 @@ void Main::update() {
     _shape3DPhysics->setLinearVelocity(_shift.value());
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
+  _modelSimple->setModel(_model3DPhysics->getModel());
+  _boundingBox->setModel(_model3DPhysics->getModel());
 
   // Step the world
   _physicsManager->step();

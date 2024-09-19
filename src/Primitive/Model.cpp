@@ -1,6 +1,56 @@
 #include "Primitive/Model.h"
+#include <Jolt/Physics/Character/CharacterVirtual.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <unordered_map>
 #undef far
+
+Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  _position = position;
+
+  JPH::CharacterSettings settings;
+  settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z));
+  settings.mLayer = Layers::MOVING;
+  /*settings.mSupportingVolume = JPH::Plane::sFromPointsCCW(JPH::Vec3(position.x, position.y, position.z),
+                                                          JPH::Vec3(position.x + size.x, position.y, position.z +
+     size.z), JPH::Vec3(position.x + size.x, position.y, position.z + size.z));*/
+  _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
+                                  &_physicsManager->getPhysicsSystem());
+  _character->AddToPhysicsSystem(JPH::EActivation::Activate);
+}
+
+// TODO: position should substract half of the shape size?
+void Model3DPhysics::setPosition(glm::vec3 position) {
+  _position = position;
+  _physicsManager->getBodyInterface().SetPosition(
+      _character->GetBodyID(), JPH::RVec3(position.x, position.y, position.z), JPH::EActivation::Activate);
+}
+
+glm::vec3 Model3DPhysics::getPosition() { return _position; }
+
+void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
+  _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});
+}
+
+glm::mat4 Model3DPhysics::getModel() {
+  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_character->GetBodyID());
+  glm::mat4 converted = glm::mat4(1.f);
+  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
+                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
+  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
+                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
+  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
+                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
+  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
+                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
+  return converted;
+}
+
+Model3DPhysics::~Model3DPhysics() {
+  _character->RemoveFromPhysicsSystem();
+  // destroy body isn't needed because it's called automatically in Character destructor, removeFromPhysicsSystem does
+  // removeBody inside
+}
 
 void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 
@@ -776,7 +826,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     }
     // pass this matrix to uniforms
     BufferMVP cameraMVP{};
-    cameraMVP.model = _model * nodeMatrix;
+    cameraMVP.model = _model * _translateOrigin * nodeMatrix;
     cameraMVP.view = view;
     cameraMVP.projection = projection;
 

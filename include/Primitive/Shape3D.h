@@ -20,7 +20,7 @@ class Shape3DPhysics {
   glm::vec3 _position;
 
  public:
-  Shape3DPhysics(ShapeType shapeType, std::shared_ptr<PhysicsManager> physicsManager);
+  Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
   void setLinearVelocity(glm::vec3 velocity);

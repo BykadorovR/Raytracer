@@ -52,6 +52,8 @@ PhysicsManager::PhysicsManager() {
 
 JPH::BodyInterface& PhysicsManager::getBodyInterface() { return _physicsSystem.GetBodyInterface(); }
 
+JPH::PhysicsSystem& PhysicsManager::getPhysicsSystem() { return _physicsSystem; }
+
 void PhysicsManager::step() {
   _physicsSystem.Update(_deltaTime, _collisionSteps, _tempAllocator.get(), _jobSystem.get());
 }

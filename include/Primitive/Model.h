@@ -13,6 +13,25 @@
 #include "Graphic/LightManager.h"
 #include "Graphic/Material.h"
 #include "Primitive/Drawable.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Character/Character.h>
+
+class Model3DPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  // destructor is private, can't use smart pointer
+  JPH::Ref<JPH::Character> _character;
+  glm::vec3 _position;
+
+ public:
+  Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+  void setLinearVelocity(glm::vec3 velocity);
+  glm::mat4 getModel();
+  ~Model3DPhysics();
+};
 
 class Model3D : public Drawable, public Shadowable {
  private:

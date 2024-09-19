@@ -116,6 +116,7 @@ class PhysicsManager {
  public:
   PhysicsManager();
   JPH::BodyInterface& getBodyInterface();
+  JPH::PhysicsSystem& getPhysicsSystem();
   void step();
   ~PhysicsManager();
 };
