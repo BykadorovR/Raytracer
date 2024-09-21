@@ -1,7 +1,7 @@
 // tessellation evaluation shader
 #version 450 core
 
-layout (quads, fractional_odd_spacing, ccw) in;
+layout (quads, fractional_odd_spacing, cw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];

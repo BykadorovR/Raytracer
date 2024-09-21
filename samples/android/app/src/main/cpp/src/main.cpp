@@ -20,6 +20,7 @@
 #include <random>
 #include <vector>
 #include <android/trace.h>
+#include "Utility/PhysicsManager.h"
 
 // Android log function wrappers
 static const char* kTAG = "AndroidApplication";
@@ -50,6 +51,13 @@ std::shared_ptr<MaterialColor> _materialColor;
 std::shared_ptr<MaterialPhong> _materialPhong;
 std::shared_ptr<MaterialPBR> _materialPBR;
 std::shared_ptr<Terrain> _terrain;
+std::shared_ptr<Model3D> _modelSimple;
+std::shared_ptr<Shape3D> _boundingBox, _cubePlayer;
+std::shared_ptr<Model3DPhysics> _model3DPhysics;
+std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
+std::shared_ptr<PhysicsManager> _physicsManager;
+std::shared_ptr<TerrainPhysics> _terrainPhysics;
+
 int _typeIndex = 0;
 int _patchX = 12, _patchY = 12;
 float _heightScale = 64.f;
@@ -63,8 +71,8 @@ void _createTerrainPhong() {
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
+    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
     _terrain->setModel(translateMatrix);
   }
 
@@ -81,8 +89,8 @@ void _createTerrainPBR() {
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
+    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
     _terrain->setModel(translateMatrix);
   }
 
@@ -99,8 +107,8 @@ void _createTerrainColor() {
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
+    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
     _terrain->setModel(translateMatrix);
   }
 
@@ -127,6 +135,10 @@ void update() {
   if (_core->getGUI()->startTree("Main", false)) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
+    if (_core->getGUI()->drawButton("Reset")) {
+      _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
+      _model3DPhysics->setPosition(glm::vec3(-4.f, -1.f, -3.f));
+    }
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Terrain", false)) {
@@ -156,6 +168,13 @@ void update() {
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();
+
+  _cubePlayer->setModel(_shape3DPhysics->getModel());
+  _modelSimple->setModel(_model3DPhysics->getModel());
+  _boundingBox->setModel(_model3DPhysics->getModel());
+
+  // Step the world
+  _physicsManager->step();
 }
 
 void initialize() {
@@ -595,6 +614,57 @@ void initialize() {
     spriteBRDF->setModel(model);
   }
   _core->addDrawable(spriteBRDF);
+
+  {
+    auto heightmapCPU = _core->loadImageCPU("heightmap.png");
+
+    _physicsManager = std::make_shared<PhysicsManager>();
+    _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+
+    _cubePlayer = _core->createShape3D(ShapeType::CUBE);
+    _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));
+    _cubePlayer->getMesh()->setColor(
+        std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
+        _core->getCommandBufferApplication());
+    _core->addDrawable(_cubePlayer);
+
+    _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
+                                                       _physicsManager);
+
+    auto fillMaterialColor = [core = _core](std::shared_ptr<MaterialColor> material) {
+      if (material->getBaseColor().size() == 0) material->setBaseColor({core->getResourceManager()->getTextureOne()});
+    };
+
+    auto gltfModelSimple = _core->createModelGLTF("BrainStem.gltf");
+    _modelSimple = _core->createModel3D(gltfModelSimple);
+    auto materialModelSimple = gltfModelSimple->getMaterialsColor();
+    for (auto& material : materialModelSimple) {
+      fillMaterialColor(material);
+    }
+    _modelSimple->setMaterial(materialModelSimple);
+
+    auto aabb = _modelSimple->getAABB();
+    auto min = aabb->getMin();
+    auto max = aabb->getMax();
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      _modelSimple->setModel(model);
+      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
+      _modelSimple->setOrigin(model);
+    }
+    _core->addDrawable(_modelSimple);
+
+    _boundingBox = _core->createBoundingBox(min, max);
+    _boundingBox->setDrawType(DrawType::WIREFRAME);
+    {
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      _boundingBox->setModel(model);
+      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
+      _boundingBox->setOrigin(model);
+    }
+    _core->addDrawable(_boundingBox);
+    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (max - min) / 2.f, _physicsManager);
+  }
 
   _core->endRecording();
   _core->registerUpdate(std::bind(&update));

@@ -4,7 +4,6 @@
 #include "Main.h"
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Utility/PhysicsManager.h"
-#include <Jolt/Physics/Character/CharacterVirtual.h>
 
 glm::vec3 getPosition(std::shared_ptr<Drawable> drawable) {
   glm::vec3 scale;

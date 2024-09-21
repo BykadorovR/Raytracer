@@ -984,7 +984,7 @@ std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlag
       mesh = std::make_shared<MeshCube>(_commandBufferApplication, _state);
       break;
     case ShapeType::SPHERE:
-      mesh = std::make_shared<MeshCube>(_commandBufferApplication, _state);
+      mesh = std::make_shared<MeshSphere>(_commandBufferApplication, _state);
       break;
   }
   return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _lightManager, _commandBufferApplication,
