@@ -511,7 +511,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineDirectional->createGraphicTerrainShadowGPU(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
@@ -535,6 +535,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       defaultPushConstants["fragment"] = DepthConstants::getPushConstant(sizeof(LoDConstants) + sizeof(PatchConstants));
 
       _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      // we use different culling here because camera looks upside down for lighting because of some specific cubemap Y
+      // coordinate stuff
       _pipelinePoint->createGraphicTerrainShadowGPU(
           VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -618,7 +620,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineNormalMesh->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -641,7 +643,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineTangentMesh->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -694,7 +696,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainColor_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::COLOR]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -706,7 +708,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -774,7 +776,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PHONG]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -786,7 +788,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::PHONG]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -889,7 +891,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
       shader->add("shaders/terrain/terrainPhong_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipeline[MaterialType::PBR]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -901,7 +903,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
       _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
       _pipelineWireframe[MaterialType::PBR]->createGraphicTerrain(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_LINE,
+          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
