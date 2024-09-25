@@ -6,12 +6,15 @@
 class InputHandler : public InputSubscriber {
  private:
   bool _cursorEnabled = false;
-  std::function<void(std::optional<glm::vec3>)> _callback;
+  std::function<void(std::optional<glm::vec3>)> _callbackMove;
+  std::function<void(glm::vec2)> _callbackClick;
   std::shared_ptr<Core> _core;
+  glm::vec2 _position;
 
  public:
   InputHandler(std::shared_ptr<Core> core);
   void setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback);
+  void setClickCallback(std::function<void(glm::vec2)> callback);
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;
   void keyNotify(int key, int scancode, int action, int mods) override;
@@ -45,6 +48,8 @@ class Main {
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 4;
   float _minDistance = 30, _maxDistance = 100;
+  glm::vec3 _rayOrigin, _rayDirection;
+  bool _rayUpdated = false;
   void _createTerrainColor();
 
  public:

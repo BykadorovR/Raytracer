@@ -43,13 +43,19 @@ float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>
   return sample * 64.f - 16.f;
 }
 
-void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callback = callback; }
+void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callbackMove = callback; }
+
+void InputHandler::setClickCallback(std::function<void(glm::vec2)> callback) { _callbackClick = callback; }
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::cursorNotify(float xPos, float yPos) {}
+void InputHandler::cursorNotify(float xPos, float yPos) { _position = glm::vec2{xPos, yPos}; }
 
-void InputHandler::mouseNotify(int button, int action, int mods) {}
+void InputHandler::mouseNotify(int button, int action, int mods) {
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    _callbackClick(_position);
+  }
+}
 
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
@@ -76,7 +82,7 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
     shift = glm::vec3(2.f, 0.f, 0.f);
   }
 
-  _callback(shift);
+  _callbackMove(shift);
 #endif
 }
 
@@ -193,6 +199,35 @@ Main::Main() {
   _core->addDrawable(_cubePlayer);
   auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
+  auto callbackClick = [&, settings = settings](glm::vec2 click) {
+    std::cout << click.x << ":" << click.y << std::endl;
+    auto projection = _camera->getProjection();
+    // forward transformation
+    // x, y, z, 1 * MVP -> clip?
+    // clip / w -> NDC [-1, 1]
+    //(NDC + 1) / 2 -> normalized screen [0, 1]
+    // normalized screen * screen size -> screen
+
+    // backward transformation
+    // x, y
+    glm::vec2 normalizedScreen = glm::vec2((2.0f * click.x) / std::get<0>(settings->getResolution()) - 1.0f,
+                                           1.0f - (2.0f * click.y) / std::get<1>(settings->getResolution()));
+    glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
+
+    // Convert to camera (view) space
+    glm::vec4 viewSpacePos = glm::inverse(_camera->getProjection()) * clipSpacePos;
+    viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
+
+    // Convert to world space
+    glm::vec4 worldSpaceRay = glm::inverse(_camera->getView()) * viewSpacePos;
+
+    // normalize
+    _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
+    _rayOrigin = glm::vec3(glm::inverse(_camera->getView())[3]);
+
+    _rayUpdated = true;
+  };
+  _inputHandler->setClickCallback(callbackClick);
 
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
@@ -254,6 +289,10 @@ Main::Main() {
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (maxPart - minPart) / 2.f,
                                                        _physicsManager);
   }
+
+  auto ray = _core->createLine();
+  ray->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, _core->getCommandBufferApplication());
+  _core->addDrawable(ray);
 
   _core->endRecording();
 
