@@ -19,7 +19,6 @@ directory = 'Unpacked'
 
 for source_dir in os.listdir(directory):
 	source_path = r'{}'.format(directory + "\\" + source_dir)
-	print('source_path = ' + str(source_path))
 
 	dir_in_lower_case = source_dir.lower()
 	print(dir_in_lower_case)
@@ -27,7 +26,6 @@ for source_dir in os.listdir(directory):
 	main_path = r'{}'.format(Path(source_dir).parent.absolute())
 
 	target_dir = main_path + "\\samples\\" + dir_in_lower_case + "\\assets"
-	print(target_dir)
 
 	if os.path.isdir(target_dir):
 		shutil.rmtree(target_dir)
@@ -35,7 +33,7 @@ for source_dir in os.listdir(directory):
 	os.rename(source_path, target_dir)
 
 # Android uses the same resources as Scene sample
-files_to_copy = ['assets/', 'samples/sprite/assets/', 'samples/IBL/assets/', 'samples/scene/assets/Terrain', 'samples/particles/assets', 'samples/scene/assets/Skybox']
+files_to_copy = ['assets/', 'samples/sprite/assets/', 'samples/IBL/assets/', 'samples/terrain/assets', 'samples/particles/assets', 'samples/scene/assets/Skybox', 'samples/models/BrainStem']
 def copytree(src, dst, symlinks=False, ignore=None):
     for item in os.listdir(src):
         s = os.path.join(src, item)
@@ -51,6 +49,8 @@ if not os.path.exists(assets_folder):
         os.makedirs(assets_folder)
 for item in files_to_copy:
 	copytree(item, assets_folder)
+
+print("Neccessary files have been copied to Android sample folder")
 
 os.remove("resources.zip")
 os.rmdir("Unpacked")

@@ -1,4 +1,4 @@
-#include "Settings.h"
+#include "Utility/Settings.h"
 
 void Settings::setName(std::string name) { _name = name; }
 

@@ -1,7 +1,7 @@
 #pragma once
-#include "Loader.h"
-#include "Logger.h"
-#include "State.h"
+#include "Utility/Loader.h"
+#include "Utility/Logger.h"
+#include "Utility/State.h"
 
 class Animation {
  private:

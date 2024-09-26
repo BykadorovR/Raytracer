@@ -1,6 +1,6 @@
 #pragma once
-#include "Buffer.h"
-#include "State.h"
+#include "Vulkan/Buffer.h"
+#include "Utility/State.h"
 
 struct MeshPrimitive {
   int firstIndex;
@@ -26,6 +26,19 @@ struct Vertex3D {
   glm::vec4 tangent;
 };
 
+class AABB {
+ private:
+  glm::vec3 _min;
+  glm::vec3 _max;
+
+ public:
+  AABB();
+  void extend(glm::vec3 point);
+  void extend(std::shared_ptr<AABB> aabb);
+  glm::vec3 getMin();
+  glm::vec3 getMax();
+};
+
 class Mesh {
  protected:
   std::shared_ptr<State> _state;
@@ -46,6 +59,7 @@ class Mesh3D : public Mesh {
   std::shared_ptr<VertexBuffer<Vertex3D>> _vertexBuffer;
   std::shared_ptr<VertexBuffer<uint32_t>> _indexBuffer;
   std::vector<MeshPrimitive> _primitives;
+  std::shared_ptr<AABB> _aabb;
 
  public:
   Mesh3D(std::shared_ptr<State> state);
@@ -55,15 +69,25 @@ class Mesh3D : public Mesh {
   void setColor(std::vector<glm::vec3> color, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setNormal(std::vector<glm::vec3> normal, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setPosition(std::vector<glm::vec3> position, std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  void setAABB(std::shared_ptr<AABB> aabb);
   void addPrimitive(MeshPrimitive primitive);
 
   const std::vector<uint32_t>& getIndexData();
   const std::vector<Vertex3D>& getVertexData();
   const std::vector<MeshPrimitive>& getPrimitives();
+  std::shared_ptr<AABB> getAABB();
   std::shared_ptr<VertexBuffer<Vertex3D>> getVertexBuffer();
   std::shared_ptr<VertexBuffer<uint32_t>> getIndexBuffer();
   VkVertexInputBindingDescription getBindingDescription();
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
+};
+
+class MeshBoundingBox : public Mesh3D {
+ public:
+  MeshBoundingBox(glm::vec3 minPoint,
+                  glm::vec3 maxPoint,
+                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                  std::shared_ptr<State> state);
 };
 
 class MeshCube : public Mesh3D {

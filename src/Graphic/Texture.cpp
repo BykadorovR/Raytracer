@@ -1,6 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
-#include "Texture.h"
-#include "Buffer.h"
+#include "Graphic/Texture.h"
+#include "Vulkan/Buffer.h"
 
 Texture::Texture(std::shared_ptr<BufferImage> data,
                  VkFormat format,

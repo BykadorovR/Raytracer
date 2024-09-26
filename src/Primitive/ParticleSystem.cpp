@@ -1,4 +1,4 @@
-#include "ParticleSystem.h"
+#include "Primitive/ParticleSystem.h"
 
 struct VertexConstants {
   float pointScale;  // nominator of gl_PointSize

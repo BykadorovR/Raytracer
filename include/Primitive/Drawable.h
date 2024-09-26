@@ -1,8 +1,8 @@
 #pragma once
-#include "Settings.h"
-#include "Command.h"
-#include "LightManager.h"
-#include "Camera.h"
+#include "Utility/Settings.h"
+#include "Vulkan/Command.h"
+#include "Graphic/LightManager.h"
+#include "Graphic/Camera.h"
 #undef OPAQUE
 #undef TRANSPARENT
 
@@ -20,13 +20,16 @@ class Named {
 class Drawable : virtual public Named {
  protected:
   glm::mat4 _model = glm::mat4(1.f);
+  glm::mat4 _translateOrigin = glm::mat4(1.f);
 
  public:
   virtual void draw(std::tuple<int, int> resolution,
                     std::shared_ptr<Camera> camera,
                     std::shared_ptr<CommandBuffer> commandBuffer) = 0;
   void setModel(glm::mat4 model);
+  void setOrigin(glm::mat4 translateOrigin);
   glm::mat4 getModel();
+  glm::mat4 getOrigin();
 };
 
 // Such objects can be influenced by shadow (shadows can appear on them and they can generate shadows)

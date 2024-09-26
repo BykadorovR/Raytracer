@@ -1,4 +1,4 @@
-#include "Descriptor.h"
+#include "Vulkan/Descriptor.h"
 
 CommandPool::CommandPool(QueueType type, std::shared_ptr<Device> device) {
   _device = device;
@@ -37,7 +37,7 @@ DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
   poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
   poolInfo.pPoolSizes = poolSizes.data();
   poolInfo.maxSets = static_cast<uint32_t>(number);
-
+  poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
   if (vkCreateDescriptorPool(device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create descriptor pool!");
   }

@@ -1,10 +1,81 @@
 #pragma once
-#include "Drawable.h"
-#include "State.h"
-#include "Camera.h"
-#include "LightManager.h"
-#include "Mesh.h"
-#include "Material.h"
+#include "Utility/State.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Graphic/LightManager.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Mesh.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+
+class TerrainPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  std::vector<float> _terrainPhysic;
+  std::tuple<int, int> _resolution;
+  // destructor is private, can't use smart pointer
+  JPH::Body* _terrainBody;
+  std::vector<float> _heights;
+  glm::vec3 _position;
+
+ public:
+  TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                 std::tuple<int, int> heightScaleOffset,
+                 std::shared_ptr<PhysicsManager> physicsManager);
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+  std::tuple<int, int> getResolution();
+  std::vector<float> getHeights();
+  ~TerrainPhysics();
+};
+
+class TerrainCPU : public Drawable {
+ private:
+  std::shared_ptr<State> _state;
+  std::shared_ptr<Mesh3D> _mesh;
+
+  std::shared_ptr<UniformBuffer> _cameraBuffer;
+  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
+  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
+  std::shared_ptr<DescriptorSet> _descriptorSetColor;
+  std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
+  std::shared_ptr<RenderPass> _renderPass;
+  std::pair<int, int> _patchNumber;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  bool _enableEdge = false;
+  DrawType _drawType = DrawType::FILL;
+  int _numStrips, _numVertsPerStrip;
+  bool _hasIndexes = false;
+
+  void _updateColorDescriptor();
+  void _loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
+                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                  std::shared_ptr<State> state);
+  void _loadTriangles(std::vector<float> heights,
+                      std::tuple<int, int> resolution,
+                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                      std::shared_ptr<State> state);
+  void _loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+
+ public:
+  TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
+             std::pair<int, int> patchNumber,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
+  TerrainCPU(std::vector<float> heights,
+             std::tuple<int, int> resolution,
+             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<State> state);
+
+  void setDrawType(DrawType drawType);
+
+  DrawType getDrawType();
+  void patchEdge(bool enable);
+  void draw(std::tuple<int, int> resolution,
+            std::shared_ptr<Camera> camera,
+            std::shared_ptr<CommandBuffer> commandBuffer) override;
+};
 
 class Terrain : public Drawable, public Shadowable {
  private:
@@ -34,7 +105,7 @@ class Terrain : public Drawable, public Shadowable {
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
-  int _minTessellationLevel = 0, _maxTessellationLevel = 8;
+  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
   float _minDistance = 30, _maxDistance = 100;
   bool _enableEdge = false;
   bool _showLoD = false;

@@ -1,5 +1,5 @@
 #pragma once
-#include "Core.h"
+#include "Engine/Core.h"
 #include "DebugVisualization.h"
 
 class InputHandler : public InputSubscriber {
@@ -24,6 +24,9 @@ class Main {
   std::shared_ptr<DebugVisualization> _debugVisualization;
   std::shared_ptr<PointLight> _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
+  std::shared_ptr<Cubemap> _cubemapSkybox;
+  std::shared_ptr<IBL> _ibl;
+  std::shared_ptr<Equirectangular> _equirectangular;
 
  public:
   Main();

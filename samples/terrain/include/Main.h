@@ -1,7 +1,7 @@
 #pragma once
-#include "Core.h"
-#include "Shape3D.h"
-#include "Terrain.h"
+#include "Engine/Core.h"
+#include "Primitive/Shape3D.h"
+#include "Primitive/Terrain.h"
 
 class InputHandler : public InputSubscriber {
  private:
@@ -22,12 +22,28 @@ class Main {
   std::shared_ptr<Core> _core;
   std::shared_ptr<CameraFly> _camera;
   std::shared_ptr<InputHandler> _inputHandler;
+  std::shared_ptr<MaterialColor> _materialColor;
+  std::shared_ptr<MaterialPhong> _materialPhong;
+  std::shared_ptr<MaterialPBR> _materialPBR;
 
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
-  std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
+  std::shared_ptr<Terrain> _terrain;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
+  enum class Type { COLOR = 1, PHONG = 2, PBR = 3 };
+  int _typeIndex = 0;
+
+  int _patchX = 12, _patchY = 12;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  std::array<float, 4> _heightLevels = {16, 128, 192, 256};
+  int _minTessellationLevel = 4, _maxTessellationLevel = 32;
+  float _minDistance = 30, _maxDistance = 100;
+
+  void _createTerrainColor();
+  void _createTerrainPhong();
+  void _createTerrainPBR();
 
  public:
   Main();

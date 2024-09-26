@@ -1,6 +1,6 @@
 #pragma once
-#include "State.h"
-#include "Texture.h"
+#include "Utility/State.h"
+#include "Graphic/Texture.h"
 
 class Cubemap {
  private:
@@ -18,6 +18,7 @@ class Cubemap {
           int mipMapLevels,
           VkImageAspectFlagBits colorBits,
           VkImageUsageFlags usage,
+          VkFilter filter,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   Cubemap(std::tuple<int, int> resolution,
@@ -26,6 +27,7 @@ class Cubemap {
           VkImageLayout layout,
           VkImageAspectFlagBits colorBits,
           VkImageUsageFlags usage,
+          VkFilter filter,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<State> state);
   std::shared_ptr<Texture> getTexture();

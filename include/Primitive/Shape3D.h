@@ -1,15 +1,32 @@
 #pragma once
-
-#include "State.h"
-#include "Camera.h"
-#include "Mesh.h"
-#include "Descriptor.h"
-#include "Pipeline.h"
-#include "Drawable.h"
-#include "Material.h"
-#include "ResourceManager.h"
+#include "Utility/State.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Pipeline.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Mesh.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
 
 enum class ShapeType { CUBE = 0, SPHERE = 1 };
+
+class Shape3DPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  // destructor is private, can't use smart pointer
+  JPH::Body* _shapeBody;
+  glm::vec3 _position;
+
+ public:
+  Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void setPosition(glm::vec3 position);
+  glm::vec3 getPosition();
+  void setLinearVelocity(glm::vec3 velocity);
+  glm::mat4 getModel();
+  ~Shape3DPhysics();
+};
 
 class Shape3D : public Drawable, public Shadowable {
  private:
@@ -46,6 +63,7 @@ class Shape3D : public Drawable, public Shadowable {
 
  public:
   Shape3D(ShapeType shapeType,
+          std::shared_ptr<Mesh3D> mesh,
           VkCullModeFlags cullMode,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,

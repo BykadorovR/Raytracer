@@ -1,16 +1,13 @@
-#include "Equirectangular.h"
+#include "Primitive/Equirectangular.h"
 
-Equirectangular::Equirectangular(std::string path,
+Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                 std::shared_ptr<ResourceManager> resourceManager,
                                  std::shared_ptr<State> state) {
   _commandBufferTransfer = commandBufferTransfer;
   _state = state;
 
-  auto image = resourceManager->loadImageCPU<float>({path});
-
-  auto pixels = std::get<0>(image).get();
-  auto [texWidth, texHeight, _] = std::get<1>(image);
+  auto pixels = imageCPU->getData().get();
+  auto [texWidth, texHeight] = imageCPU->getResolution();
 
   int imageSize = texWidth * texHeight * STBI_rgb_alpha;
   int bufferSize = imageSize * sizeof(float);
@@ -146,10 +143,11 @@ Equirectangular::Equirectangular(std::string path,
 }
 
 void Equirectangular::_convertToCubemap() {
-  _cubemap = std::make_shared<Cubemap>(
-      _state->getSettings()->getDepthResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, _commandBufferTransfer, _state);
+  _cubemap = std::make_shared<Cubemap>(_state->getSettings()->getDepthResolution(),
+                                       _state->getSettings()->getGraphicColorFormat(), 1,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                       VK_FILTER_LINEAR, _commandBufferTransfer, _state);
 
   _frameBuffer.resize(6);
   for (int i = 0; i < 6; i++) {

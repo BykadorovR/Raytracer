@@ -1,7 +1,7 @@
 #pragma once
+#include "Utility/Logger.h"
 #include <chrono>
 #include <thread>
-#include "Logger.h"
 
 class TimerFPS {
  private:

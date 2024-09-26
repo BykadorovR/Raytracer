@@ -1,17 +1,14 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_IMPLEMENTATION
-#include "Loader.h"
+#include "Utility/Loader.h"
 #include "glm/gtc/type_ptr.hpp"
 #include <filesystem>
 #include "mikktspace.h"
 
-LoaderImage::LoaderImage(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _commandBufferTransfer = commandBufferTransfer;
-  _state = state;
-}
+LoaderImage::LoaderImage(std::shared_ptr<State> state) { _state = state; }
 
 template <>
-std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<uint8_t>(std::string path) {
+std::shared_ptr<ImageCPU<uint8_t>> LoaderImage::loadCPU<uint8_t>(std::string path) {
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
@@ -25,11 +22,15 @@ std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> LoaderImage::l
   if (!pixels) {
     throw std::runtime_error("failed to load texture image " + path);
   }
-  return {pixels, {texWidth, texHeight, 4}};
+  std::shared_ptr<ImageCPU<uint8_t>> imageCPU = std::make_shared<ImageCPU<uint8_t>>();
+  imageCPU->setData(pixels);
+  imageCPU->setResolution({texWidth, texHeight});
+  imageCPU->setChannels(STBI_rgb_alpha);
+  return imageCPU;
 }
 
 template <>
-std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loadCPU<float>(std::string path) {
+std::shared_ptr<ImageCPU<float>> LoaderImage::loadCPU<float>(std::string path) {
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _state->getFilesystem()->readFile<stbi_uc>(path);
@@ -43,7 +44,12 @@ std::tuple<std::shared_ptr<float[]>, std::tuple<int, int, int>> LoaderImage::loa
   if (!pixels) {
     throw std::runtime_error("failed to load texture image " + path);
   }
-  return {pixels, {texWidth, texHeight, 4}};
+
+  std::shared_ptr<ImageCPU<float>> imageCPU = std::make_shared<ImageCPU<float>>();
+  imageCPU->setData(pixels);
+  imageCPU->setResolution({texWidth, texHeight});
+  imageCPU->setChannels(STBI_rgb_alpha);
+  return imageCPU;
 }
 
 void ModelGLTF::setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor) {
@@ -80,10 +86,7 @@ const std::vector<std::shared_ptr<NodeGLTF>>& ModelGLTF::getNodes() { return _no
 
 const std::vector<std::shared_ptr<Mesh3D>>& ModelGLTF::getMeshes() { return _meshes; }
 
-LoaderGLTF::LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                       std::shared_ptr<LoaderImage> loaderImage,
-                       std::shared_ptr<State> state) {
-  _commandBufferTransfer = commandBufferTransfer;
+LoaderGLTF::LoaderGLTF(std::shared_ptr<LoaderImage> loaderImage, std::shared_ptr<State> state) {
   _state = state;
   _loaderImage = loaderImage;
 }
@@ -92,7 +95,7 @@ LoaderGLTF::LoaderGLTF(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 void LoaderGLTF::setAssetManager(AAssetManager* assetManager) { tinygltf::asset_manager = assetManager; }
 #endif
 
-std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
+std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   if (_models.contains(path) == false) {
     std::shared_ptr<ModelGLTF> modelExternal = std::make_shared<ModelGLTF>();
     std::vector<std::shared_ptr<NodeGLTF>> nodes;
@@ -116,12 +119,12 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path) {
       meshes.push_back(mesh);
     }
     // load material
-    _loadMaterials(modelInternal, materials, modelExternal);
+    _loadMaterials(modelInternal, materials, modelExternal, commandBufferTransfer);
     // load nodes
     const tinygltf::Scene& scene = modelInternal.scenes[0];
     for (size_t i = 0; i < scene.nodes.size(); i++) {
       tinygltf::Node& node = modelInternal.nodes[scene.nodes[i]];
-      _loadNode(modelInternal, node, nullptr, scene.nodes[i], materials, meshes, nodes);
+      _loadNode(modelInternal, node, nullptr, scene.nodes[i], materials, meshes, nodes, commandBufferTransfer);
     }
     // load bones/joints
     _loadSkins(modelInternal, nodes, skins);
@@ -232,14 +235,16 @@ void LoaderGLTF::_generateTangent(std::vector<uint32_t>& indexes, std::vector<Ve
 std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
                                                   VkFormat format,
                                                   const tinygltf::Model& modelInternal,
-                                                  std::vector<std::shared_ptr<Texture>>& textures) {
+                                                  std::vector<std::shared_ptr<Texture>>& textures,
+                                                  std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::shared_ptr<Texture> texture = textures[imageIndex];
   if (texture == nullptr) {
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
     auto filePath = _path.remove_filename().string() + glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
-      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({filePath}), format,
-                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _commandBufferTransfer,
+      auto imageCPU = _loaderImage->loadCPU<uint8_t>(filePath);
+      texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({imageCPU}), format,
+                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
                                           _state);
     } else {
       // Get the image data from the glTF loader
@@ -276,10 +281,10 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
           VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
 
       image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
-                          1, _commandBufferTransfer);
-      image->copyFrom(stagingBuffer, {0}, _commandBufferTransfer);
+                          1, commandBufferTransfer);
+      image->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
       image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
-                          1, _commandBufferTransfer);
+                          1, commandBufferTransfer);
 
       auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                    _state);
@@ -296,7 +301,8 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
 // TODO: we can store baseColorFactor only in GLTF material, rest will go to PBR/Phong
 void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
                                 std::vector<std::shared_ptr<MaterialGLTF>>& materialGLTF,
-                                std::shared_ptr<ModelGLTF> modelExternal) {
+                                std::shared_ptr<ModelGLTF> modelExternal,
+                                std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::vector<std::shared_ptr<MaterialPBR>> materialsPBR;
   std::vector<std::shared_ptr<MaterialPhong>> materialsPhong;
   std::vector<std::shared_ptr<MaterialColor>> materialsColor;
@@ -304,11 +310,11 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
   for (size_t i = 0; i < modelInternal.materials.size(); i++) {
     tinygltf::Material glTFMaterial = modelInternal.materials[i];
     std::shared_ptr<MaterialPhong> materialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE,
-                                                                                   _commandBufferTransfer, _state);
+                                                                                   commandBufferTransfer, _state);
     std::shared_ptr<MaterialPBR> materialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE,
-                                                                             _commandBufferTransfer, _state);
+                                                                             commandBufferTransfer, _state);
     std::shared_ptr<MaterialColor> materialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE,
-                                                                                   _commandBufferTransfer, _state);
+                                                                                   commandBufferTransfer, _state);
     std::shared_ptr<MaterialGLTF> material = std::make_shared<MaterialGLTF>();
     float metallicFactor = 0;
     float roughnessFactor = 0;
@@ -340,13 +346,15 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // glTF image index
         auto baseColorImageIndex = modelInternal.textures[baseColorTextureIndex].source;
         // set texture to phong material
-        materialPhong->setBaseColor({_loadTexture(
-            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
+        materialPhong->setBaseColor(
+            {_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal,
+                          textures, commandBufferTransfer)});
         // set texture to PBR material
         materialPBR->setBaseColor({_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                                modelInternal, textures)});
-        materialColor->setBaseColor({_loadTexture(
-            baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal, textures)});
+                                                modelInternal, textures, commandBufferTransfer)});
+        materialColor->setBaseColor(
+            {_loadTexture(baseColorImageIndex, _state->getSettings()->getLoadTextureColorFormat(), modelInternal,
+                          textures, commandBufferTransfer)});
       }
     }
     // Get normal texture
@@ -357,10 +365,10 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         auto normalImageIndex = modelInternal.textures[normalTextureIndex].source;
         // set normal texture to phong material
         materialPhong->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                               modelInternal, textures)});
+                                               modelInternal, textures, commandBufferTransfer)});
         // set normal texture to PBR material
         materialPBR->setNormal({_loadTexture(normalImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                                             modelInternal, textures)});
+                                             modelInternal, textures, commandBufferTransfer)});
       }
     }
     // Get metallic-roughness texture
@@ -372,15 +380,15 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
         // set specular texture to Phong material
         materialPhong->setSpecular(
             {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                          modelInternal, textures)});
+                          modelInternal, textures, commandBufferTransfer)});
         // set metallic texture to PBR material
         materialPBR->setMetallic(
             {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                          modelInternal, textures)});
+                          modelInternal, textures, commandBufferTransfer)});
         // set roughness texture to PBR material
         materialPBR->setRoughness(
             {_loadTexture(metallicRoughnessImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(),
-                          modelInternal, textures)});
+                          modelInternal, textures, commandBufferTransfer)});
       }
     }
     // Get occlusion texture
@@ -388,8 +396,9 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       auto occlusionTextureIndex = glTFMaterial.occlusionTexture.index;
       if (occlusionTextureIndex >= 0) {
         auto occlusionImageIndex = modelInternal.textures[occlusionTextureIndex].source;
-        materialPBR->setOccluded({_loadTexture(
-            occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal, textures)});
+        materialPBR->setOccluded(
+            {_loadTexture(occlusionImageIndex, _state->getSettings()->getLoadTextureAuxilaryFormat(), modelInternal,
+                          textures, commandBufferTransfer)});
       }
     }
     // Get emissive texture
@@ -398,7 +407,7 @@ void LoaderGLTF::_loadMaterials(const tinygltf::Model& modelInternal,
       if (emissiveTextureIndex >= 0) {
         auto emissiveImageIndex = modelInternal.textures[emissiveTextureIndex].source;
         materialPBR->setEmissive({_loadTexture(emissiveImageIndex, _state->getSettings()->getLoadTextureColorFormat(),
-                                               modelInternal, textures)});
+                                               modelInternal, textures, commandBufferTransfer)});
       }
     }
 
@@ -418,7 +427,8 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
                            uint32_t nodeIndex,
                            const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
                            const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-                           std::vector<std::shared_ptr<NodeGLTF>>& nodes) {
+                           std::vector<std::shared_ptr<NodeGLTF>>& nodes,
+                           std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::shared_ptr<NodeGLTF> node = std::make_shared<NodeGLTF>();
   node->parent = parent;
   node->matrix = glm::mat4(1.f);
@@ -447,8 +457,16 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
   if (input.children.size() > 0) {
     for (size_t i = 0; i < input.children.size(); i++) {
       _loadNode(modelInternal, modelInternal.nodes[input.children[i]], node, input.children[i], materials, meshes,
-                nodes);
+                nodes, commandBufferTransfer);
     }
+  }
+
+  // we have to calculate translate-scale-rotate matrices here
+  glm::mat4 nodeMatrix = node->getLocalMatrix();
+  std::shared_ptr<NodeGLTF> currentParent = node->parent;
+  while (currentParent) {
+    nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
+    currentParent = currentParent->parent;
   }
 
   // If the node contains mesh data, we load vertices and indices from the buffers
@@ -460,6 +478,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     auto mesh = meshes[input.mesh];
     std::vector<uint32_t> indexes;
     std::vector<Vertex3D> vertices;
+    std::shared_ptr<AABB> aabb = std::make_shared<AABB>();
     bool generateTangent = true;
     // Iterate through all primitives of this node's mesh
     for (size_t i = 0; i < meshGLTF.primitives.size(); i++) {
@@ -489,6 +508,13 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
         if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
           const tinygltf::Accessor& accessor =
               modelInternal.accessors[glTFPrimitive.attributes.find("POSITION")->second];
+          glm::vec4 tempMin = {accessor.minValues[0], accessor.minValues[1], accessor.minValues[2], 1.f};
+          glm::vec4 tempMax = {accessor.maxValues[0], accessor.maxValues[1], accessor.maxValues[2], 1.f};
+          tempMin = nodeMatrix * tempMin;
+          tempMax = nodeMatrix * tempMax;
+          aabb->extend(glm::vec3(tempMin.x, tempMin.y, tempMin.z));
+          aabb->extend(glm::vec3(tempMax.x, tempMax.y, tempMax.z));
+
           const tinygltf::BufferView& view = modelInternal.bufferViews[accessor.bufferView];
           positionBuffer = reinterpret_cast<const float*>(
               &(modelInternal.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
@@ -646,8 +672,9 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
       _generateTangent(indexes, vertices);
     }
 
-    mesh->setIndexes(indexes, _commandBufferTransfer);
-    mesh->setVertices(vertices, _commandBufferTransfer);
+    mesh->setIndexes(indexes, commandBufferTransfer);
+    mesh->setVertices(vertices, commandBufferTransfer);
+    mesh->setAABB(aabb);
   }
 
   // we store all node's heads in _nodes array

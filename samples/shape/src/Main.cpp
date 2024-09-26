@@ -2,7 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
+#include "Primitive/Line.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -76,19 +76,19 @@ Main::Main() {
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -99,23 +99,23 @@ Main::Main() {
   // lines
   auto lineVertical = _core->createLine();
   lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                    _core->getCommandBufferTransfer());
+                                    _core->getCommandBufferApplication());
   lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)},
-                                       _core->getCommandBufferTransfer());
+                                       _core->getCommandBufferApplication());
   _core->addDrawable(lineVertical);
 
   auto lineHorizontal = _core->createLine();
   lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)},
-                                      _core->getCommandBufferTransfer());
+                                      _core->getCommandBufferApplication());
   lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)},
-                                         _core->getCommandBufferTransfer());
+                                         _core->getCommandBufferApplication());
   _core->addDrawable(lineHorizontal);
 
   // cube colored
   auto cubeColored = _core->createShape3D(ShapeType::CUBE);
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
     cubeColored->setModel(model);
@@ -166,7 +166,7 @@ Main::Main() {
   cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
   cubeColoredWireframe->getMesh()->setColor(
       std::vector{cubeColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, -3.f));
     cubeColoredWireframe->setModel(model);
@@ -299,7 +299,7 @@ Main::Main() {
   auto sphereColored = _core->createShape3D(ShapeType::SPHERE);
   sphereColored->getMesh()->setColor(
       std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 3.f));
     sphereColored->setModel(model);
@@ -341,7 +341,7 @@ Main::Main() {
   sphereColoredWireframe->setDrawType(DrawType::WIREFRAME);
   sphereColoredWireframe->getMesh()->setColor(
       std::vector{sphereColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
     sphereColoredWireframe->setModel(model);

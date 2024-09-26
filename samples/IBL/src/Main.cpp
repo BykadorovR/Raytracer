@@ -2,13 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
-#include "Equirectangular.h"
-#include "IBL.h"
+#include "Primitive/Model.h"
+#include "Primitive/Equirectangular.h"
+#include "Graphic/IBL.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -81,19 +79,19 @@ Main::Main() {
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -101,27 +99,27 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
-  auto cubemapConverted = equirectangular->getCubemap();
+  _equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
+  auto cubemapConverted = _equirectangular->getCubemap();
   auto materialSkybox = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
   auto skybox = _core->createSkybox();
   skybox->setMaterial(materialSkybox);
   _core->addSkybox(skybox);
 
-  auto ibl = _core->createIBL();
-  ibl->setMaterial(materialSkybox);
-  ibl->drawDiffuse();
-  ibl->drawSpecular();
-  ibl->drawSpecularBRDF();
+  _ibl = _core->createIBL();
+  _ibl->setMaterial(materialSkybox);
+  _ibl->drawDiffuse();
+  _ibl->drawSpecular();
+  _ibl->drawSpecularBRDF();
 
   {
     auto modelGLTF = _core->createModelGLTF("../assets/DamagedHelmet/DamagedHelmet.gltf");
     auto modelPBR = _core->createModel3D(modelGLTF);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
     for (auto& material : materialDamagedHelmet) {
-      material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
-      material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+      material->setSpecularIBL(_ibl->getCubemapSpecular()->getTexture(), _ibl->getTextureSpecularBRDF());
+      material->setDiffuseIBL(_ibl->getCubemapDiffuse()->getTexture());
     }
     modelPBR->setMaterial(materialDamagedHelmet);
     {

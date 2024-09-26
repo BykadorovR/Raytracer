@@ -10,8 +10,8 @@
 #include <mutex>
 #include <memory>
 
-#include "Instance.h"
-#include "Surface.h"
+#include "Vulkan/Instance.h"
+#include "Vulkan/Surface.h"
 
 enum class QueueType { PRESENT = 0, GRAPHIC, COMPUTE, TRANSFER };
 

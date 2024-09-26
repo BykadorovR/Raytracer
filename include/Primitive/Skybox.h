@@ -1,13 +1,13 @@
 #pragma once
-#include "State.h"
-#include "Cubemap.h"
-#include "Camera.h"
-#include "Material.h"
-#include "Mesh.h"
-#include "Pipeline.h"
-#include "ResourceManager.h"
-#include "Drawable.h"
-#include "Render.h"
+#include "Utility/State.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Pipeline.h"
+#include "Vulkan/Render.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Primitive/Cubemap.h"
+#include "Primitive/Mesh.h"
+#include "Primitive/Drawable.h"
 
 class Skybox {
  private:

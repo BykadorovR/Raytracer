@@ -1,7 +1,7 @@
 #pragma once
-#include "Device.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Command.h"
 #include <array>
-#include "Command.h"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 #undef far
@@ -86,9 +86,9 @@ class Buffer {
                 VkDeviceSize dstOffset,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
   template <class T>
-  void setData(T* data, VkDeviceSize size) {
+  void setData(T* data, VkDeviceSize size, int offset = 0) {
     map();
-    memcpy(_mapped, data, size);
+    memcpy((char*)_mapped + offset, data, size);
     unmap();
   }
 

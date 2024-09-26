@@ -1,9 +1,9 @@
 #pragma once
-#include "Settings.h"
-#include "Shader.h"
-#include "Buffer.h"
-#include "Descriptor.h"
-#include "Render.h"
+#include "Utility/Settings.h"
+#include "Vulkan/Shader.h"
+#include "Vulkan/Buffer.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Render.h"
 
 class Pipeline {
  private:
@@ -51,14 +51,15 @@ class Pipeline {
                        VkVertexInputBindingDescription bindingDescription,
                        std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
                        std::shared_ptr<RenderPass> renderPass);
-  void createLine(VkCullModeFlags cullMode,
-                  VkPolygonMode polygonMode,
-                  std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
-                  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
-                  std::map<std::string, VkPushConstantRange> pushConstants,
-                  VkVertexInputBindingDescription bindingDescription,
-                  std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
-                  std::shared_ptr<RenderPass> renderPass);
+  void createGeometry(VkCullModeFlags cullMode,
+                      VkPolygonMode polygonMode,
+                      VkPrimitiveTopology topology,
+                      std::vector<VkPipelineShaderStageCreateInfo> shaderStages,
+                      std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> descriptorSetLayout,
+                      std::map<std::string, VkPushConstantRange> pushConstants,
+                      VkVertexInputBindingDescription bindingDescription,
+                      std::vector<VkVertexInputAttributeDescription> attributeDescriptions,
+                      std::shared_ptr<RenderPass> renderPass);
   void createSkybox(VkCullModeFlags cullMode,
                     VkPolygonMode polygonMode,
                     std::vector<VkPipelineShaderStageCreateInfo> shaderStages,

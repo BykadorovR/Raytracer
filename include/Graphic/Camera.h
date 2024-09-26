@@ -3,12 +3,12 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "State.h"
-#include "Window.h"
-#include "Input.h"
 #include <memory>
 #include <map>
 #include <array>
+#include "Utility/State.h"
+#include "Utility/Input.h"
+#include "Vulkan/Window.h"
 #undef near
 #undef far
 
@@ -55,7 +55,7 @@ class CameraFly : public Camera, public InputSubscriber {
   std::shared_ptr<State> _state;
   bool _once;
   float _sensitivity = 0.1f;
-  float _moveSpeed = 0.01f;
+  float _moveSpeed = 0.1f;
   float _aspect;
 
  public:

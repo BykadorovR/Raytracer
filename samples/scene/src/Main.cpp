@@ -1,8 +1,8 @@
 #include "Main.h"
-#include "IBL.h"
-#include "Equirectangular.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Graphic/IBL.h"
+#include "Primitive/Equirectangular.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -52,7 +52,7 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   // start transfer command buffer
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
+  auto commandBufferTransfer = _core->getCommandBufferApplication();
   commandBufferTransfer->beginCommands();
   auto state = _core->getState();
   _camera = std::make_shared<CameraFly>(_core->getState());
@@ -191,7 +191,7 @@ Main::Main() {
   auto tile2 = _core->createTexture("../assets/Terrain/rock_gray.png", settings->getLoadTextureColorFormat(), 6);
   auto tile3 = _core->createTexture("../assets/Terrain/snow.png", settings->getLoadTextureColorFormat(), 6);
 
-  auto terrain = _core->createTerrain("../assets/Terrain/heightmap.png", std::pair{12, 12});
+  auto terrain = _core->createTerrain(_core->loadImageCPU("../assets/Terrain/heightmap.png"), std::pair{12, 12});
   auto materialTerrain = _core->createMaterialPhong(MaterialTarget::TERRAIN);
   materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
   auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -297,22 +297,20 @@ Main::Main() {
   }
 
   auto [width, height] = settings->getResolution();
-  auto cubemap = _core->createCubemap(
+  _cubemapSkybox = _core->createCubemap(
       {"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
        "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"},
       settings->getLoadTextureColorFormat(), 1);
 
   auto cube = _core->createShape3D(ShapeType::CUBE);
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
-  materialColor->setBaseColor({cubemap->getTexture()});
+  materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
   {
     auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
     cube->setModel(model);
   }
   _core->addDrawable(cube);
-
-  auto ibl = _core->createIBL();
 
   auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
   {
@@ -335,41 +333,42 @@ Main::Main() {
   }
   _core->addDrawable(specularCube);
 
-  auto equirectangular = _core->createEquirectangular("../../IBL/assets/newport_loft.hdr");
-  auto cubemapConverted = equirectangular->getCubemap();
+  _ibl = _core->createIBL();
+  _equirectangular = _core->createEquirectangular("../../IBL/assets/newport_loft.hdr");
+  auto cubemapConverted = _equirectangular->getCubemap();
   auto materialColorEq = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorEq->setBaseColor({cubemapConverted->getTexture()});
-  ibl->setMaterial(materialColorEq);
+  _ibl->setMaterial(materialColorEq);
   auto materialColorCM = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorDiffuse = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorSpecular = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorCM->setBaseColor({cubemapConverted->getTexture()});
   equiCube->setMaterial(materialColorCM);
 
-  ibl->drawDiffuse();
-  ibl->drawSpecular();
-  ibl->drawSpecularBRDF();
+  _ibl->drawDiffuse();
+  _ibl->drawSpecular();
+  _ibl->drawSpecularBRDF();
 
   // display specular as texture
-  materialColorSpecular->setBaseColor({ibl->getCubemapSpecular()->getTexture()});
+  materialColorSpecular->setBaseColor({_ibl->getCubemapSpecular()->getTexture()});
   specularCube->setMaterial(materialColorSpecular);
 
   // display diffuse as texture
-  materialColorDiffuse->setBaseColor({ibl->getCubemapDiffuse()->getTexture()});
+  materialColorDiffuse->setBaseColor({_ibl->getCubemapDiffuse()->getTexture()});
   diffuseCube->setMaterial(materialColorDiffuse);
 
   // set diffuse to material
   for (auto& material : pbrMaterial) {
-    material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+    material->setDiffuseIBL(_ibl->getCubemapDiffuse()->getTexture());
   }
 
   // set specular to material
   for (auto& material : pbrMaterial) {
-    material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
+    material->setSpecularIBL(_ibl->getCubemapSpecular()->getTexture(), _ibl->getTextureSpecularBRDF());
   }
 
   auto materialBRDF = _core->createMaterialPhong(MaterialTarget::SIMPLE);
-  materialBRDF->setBaseColor({ibl->getTextureSpecularBRDF()});
+  materialBRDF->setBaseColor({_ibl->getTextureSpecularBRDF()});
   materialBRDF->setNormal({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setSpecular({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
@@ -410,8 +409,10 @@ void Main::update() {
     _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
     _core->getGUI()->endTree();
   }
-  if (_core->getGUI()->startTree("Debug")) {
-    _debugVisualization->update();
+
+  _debugVisualization->update();
+  if (_core->getGUI()->startTree("Debug", false)) {
+    _debugVisualization->draw();
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

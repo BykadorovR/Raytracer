@@ -1,4 +1,4 @@
-#include "Descriptor.h"
+#include "Vulkan/Descriptor.h"
 
 DescriptorSetLayout::DescriptorSetLayout(std::shared_ptr<Device> device) { _device = device; }
 
@@ -159,6 +159,7 @@ DescriptorSet::DescriptorSet(int number,
   _descriptorSets.resize(number);
   _device = device;
   _layout = layout;
+  _pool = pool;
 
   std::vector<VkDescriptorSetLayout> layouts(_descriptorSets.size(), layout->getDescriptorSetLayout());
   VkDescriptorSetAllocateInfo allocInfo{};
@@ -419,3 +420,8 @@ void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<
 }
 
 std::vector<VkDescriptorSet>& DescriptorSet::getDescriptorSets() { return _descriptorSets; }
+
+DescriptorSet::~DescriptorSet() {
+  vkFreeDescriptorSets(_device->getLogicalDevice(), _pool->getDescriptorPool(), _descriptorSets.size(),
+                       _descriptorSets.data());
+}

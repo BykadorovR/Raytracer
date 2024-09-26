@@ -1,7 +1,51 @@
-#include "Shape3D.h"
+#include "Primitive/Shape3D.h"
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
 
+Shape3DPhysics::Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  _position = position;
+  JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z)),
+                                        JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
+                                        JPH::EMotionType::Dynamic, Layers::MOVING);
+  _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
+  _physicsManager->getBodyInterface().AddBody(_shapeBody->GetID(), JPH::EActivation::Activate);
+}
+
+// TODO: position should substract half of the shape size?
+void Shape3DPhysics::setPosition(glm::vec3 position) {
+  _position = position;
+  _physicsManager->getBodyInterface().SetPosition(_shapeBody->GetID(), JPH::RVec3(position.x, position.y, position.z),
+                                                  JPH::EActivation::Activate);
+}
+
+glm::vec3 Shape3DPhysics::getPosition() { return _position; }
+
+void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
+  _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
+}
+
+glm::mat4 Shape3DPhysics::getModel() {
+  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_shapeBody->GetID());
+  glm::mat4 converted = glm::mat4(1.f);
+  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
+                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
+  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
+                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
+  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
+                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
+  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
+                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
+  return converted;
+}
+
+Shape3DPhysics::~Shape3DPhysics() {
+  _physicsManager->getBodyInterface().RemoveBody(_shapeBody->GetID());
+  _physicsManager->getBodyInterface().DestroyBody(_shapeBody->GetID());
+}
+
 Shape3D::Shape3D(ShapeType shapeType,
+                 std::shared_ptr<Mesh3D> mesh,
                  VkCullModeFlags cullMode,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -12,6 +56,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   _state = state;
   _lightManager = lightManager;
   _cullMode = cullMode;
+  _mesh = mesh;
 
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
@@ -19,7 +64,6 @@ Shape3D::Shape3D(ShapeType shapeType,
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   if (shapeType == ShapeType::CUBE) {
-    _mesh = std::make_shared<MeshCube>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
     _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
                                                            "shaders/shape/cubeColor_fragment.spv"};
@@ -37,7 +81,6 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   if (shapeType == ShapeType::SPHERE) {
-    _mesh = std::make_shared<MeshSphere>(commandBufferTransfer, state);
     _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
     _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
                                                              "shaders/shape/sphereColor_fragment.spv"};
@@ -686,7 +729,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     }
 
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = _model * _translateOrigin;
     cameraUBO.view = camera->getView();
     cameraUBO.projection = camera->getProjection();
 
@@ -852,7 +895,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model;
+  cameraMVP.model = _model * _translateOrigin;
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 

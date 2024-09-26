@@ -1,11 +1,11 @@
 #pragma once
-#include "State.h"
-#include "Camera.h"
-#include "Texture.h"
-#include "Descriptor.h"
-#include "Pipeline.h"
-#include "Drawable.h"
-#include "Render.h"
+#include "Utility/State.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Texture.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Pipeline.h"
+#include "Vulkan/Render.h"
+#include "Primitive/Drawable.h"
 
 struct Particle {
   glm::vec3 position;

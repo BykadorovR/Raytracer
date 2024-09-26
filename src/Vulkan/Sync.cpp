@@ -1,4 +1,4 @@
-#include "Sync.h"
+#include "Vulkan/Sync.h"
 
 Semaphore::Semaphore(std::shared_ptr<Device> device) {
   _device = device;

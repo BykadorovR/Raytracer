@@ -1,6 +1,6 @@
 #pragma once
-#include "State.h"
-#include "Buffer.h"
+#include "Utility/State.h"
+#include "Vulkan/Buffer.h"
 #include <tuple>
 
 class Image {

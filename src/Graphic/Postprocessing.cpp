@@ -1,4 +1,4 @@
-#include "Postprocessing.h"
+#include "Graphic/Postprocessing.h"
 
 struct ComputeConstants {
   float gamma;

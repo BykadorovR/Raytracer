@@ -1,9 +1,9 @@
 #pragma once
 #include <memory>
 #include <vector>
-#include "Texture.h"
-#include "Cubemap.h"
-#include "Settings.h"
+#include "Graphic/Texture.h"
+#include "Primitive/Cubemap.h"
+#include "Utility/Settings.h"
 
 class PointLight {
  private:

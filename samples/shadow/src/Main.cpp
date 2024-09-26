@@ -2,11 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Primitive/Line.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Model.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -39,7 +39,7 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1280, 720});
+  settings->setResolution(std::tuple{1920, 1080});
   // settings->setDepthResolution(std::tuple{1024, 1024});
   //  for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   //  https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
@@ -56,7 +56,7 @@ Main::Main() {
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
+  auto commandBufferTransfer = _core->getCommandBufferApplication();
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
@@ -210,7 +210,8 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto terrainPhong = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPhong = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
+                                             std::pair{12, 12});
     auto materialTerrainPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
     materialTerrainPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialTerrainPhong(materialTerrainPhong);
@@ -291,7 +292,8 @@ Main::Main() {
     auto tile3AO = _core->createTexture("../../terrain/assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto terrainPBR = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPBR = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
+                                           std::pair{12, 12});
     auto materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
     materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});

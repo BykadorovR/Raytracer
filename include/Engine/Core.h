@@ -1,28 +1,28 @@
 #pragma once
-#include "State.h"
-#include "Swapchain.h"
-#include "Settings.h"
-#include "Logger.h"
-#include "Debug.h"
-#include "GUI.h"
-#include "Postprocessing.h"
-#include "Camera.h"
-#include "LightManager.h"
-#include "Timer.h"
-#include "ParticleSystem.h"
-#include "Terrain.h"
-#include "Blur.h"
-#include "Skybox.h"
+#include "Utility/State.h"
+#include "Utility/Settings.h"
+#include "Utility/Logger.h"
+#include "Utility/GUI.h"
+#include "Utility/Timer.h"
+#include "Utility/ResourceManager.h"
+#include "Utility/Animation.h"
+#include "Vulkan/Render.h"
+#include "Vulkan/Swapchain.h"
+#include "Vulkan/Debug.h"
+#include "Graphic/Postprocessing.h"
+#include "Graphic/Camera.h"
+#include "Graphic/LightManager.h"
+#include "Graphic/IBL.h"
+#include "Graphic/Blur.h"
+#include "Primitive/ParticleSystem.h"
+#include "Primitive/Terrain.h"
+#include "Primitive/Skybox.h"
+#include "Primitive/Shape3D.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Line.h"
+#include "Primitive/Model.h"
+#include "Primitive/Equirectangular.h"
 #include "BS_thread_pool.hpp"
-#include "ResourceManager.h"
-#include "Animation.h"
-#include "Render.h"
-#include "Shape3D.h"
-#include "Sprite.h"
-#include "Line.h"
-#include "Model.h"
-#include "Equirectangular.h"
-#include "IBL.h"
 
 class Core {
  private:
@@ -41,10 +41,10 @@ class Core {
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
   std::shared_ptr<ResourceManager> _resourceManager;
-  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolTransfer, _commandPoolParticleSystem,
-      _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
-  std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferTransfer, _commandBufferEquirectangular,
-      _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
+  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
+      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
+  std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
+      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
 
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
@@ -55,6 +55,9 @@ class Core {
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
+  std::vector<std::shared_ptr<Semaphore>> _semaphoreResourcesReady, _semaphoreApplicationReady;
+  std::map<int, bool> _waitSemaphoreResourcesReady, _waitSemaphoreApplicationReady;
+
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
@@ -69,6 +72,7 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
   std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
+  std::map<int, std::vector<std::shared_ptr<Drawable>>> _unused;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
@@ -98,6 +102,7 @@ class Core {
   VkResult _getImageIndex(uint32_t* imageIndex);
   void _displayFrame(uint32_t* imageIndex);
   void _drawFrame(int imageIndex);
+  void _clearUnusedData();
   void _reset();
 
  public:
@@ -121,9 +126,9 @@ class Core {
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   void removeDrawable(std::shared_ptr<Drawable> drawable);
 
-  std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> loadImageCPU(std::string path);
-  std::shared_ptr<BufferImage> loadImageGPU(std::string path);
-  std::shared_ptr<Texture> createTexture(std::string name, VkFormat format, int mipMapLevels);
+  std::shared_ptr<ImageCPU<uint8_t>> loadImageCPU(std::string path);
+  std::shared_ptr<BufferImage> loadImageGPU(std::shared_ptr<ImageCPU<uint8_t>> imageCPU);
+  std::shared_ptr<Texture> createTexture(std::string path, VkFormat format, int mipMapLevels);
   std::shared_ptr<Cubemap> createCubemap(std::vector<std::string> paths, VkFormat format, int mipMapLevels);
   std::shared_ptr<ModelGLTF> createModelGLTF(std::string path);
   std::shared_ptr<Animation> createAnimation(std::shared_ptr<ModelGLTF> modelGLTF);
@@ -131,10 +136,16 @@ class Core {
   std::shared_ptr<MaterialColor> createMaterialColor(MaterialTarget target);
   std::shared_ptr<MaterialPhong> createMaterialPhong(MaterialTarget target);
   std::shared_ptr<MaterialPBR> createMaterialPBR(MaterialTarget target);
+  std::shared_ptr<Shape3D> createBoundingBox(glm::vec3 min,
+                                             glm::vec3 max,
+                                             VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
-  std::shared_ptr<Terrain> createTerrain(std::string heightmap, std::pair<int, int> patches);
+  std::shared_ptr<Terrain> createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap, std::pair<int, int> patches);
+  std::shared_ptr<TerrainCPU> createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution);
+  std::shared_ptr<TerrainCPU> createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                               std::pair<int, int> patches);
   std::shared_ptr<Line> createLine();
   std::shared_ptr<IBL> createIBL();
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,
@@ -144,7 +155,7 @@ class Core {
   std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
   std::shared_ptr<AmbientLight> createAmbientLight();
 
-  std::shared_ptr<CommandBuffer> getCommandBufferTransfer();
+  std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();
   const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
   std::vector<std::shared_ptr<PointLight>> getPointLights();

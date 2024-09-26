@@ -1,5 +1,5 @@
 #pragma once
-#include "Device.h"
+#include "Vulkan/Device.h"
 
 class CommandPool {
  private:

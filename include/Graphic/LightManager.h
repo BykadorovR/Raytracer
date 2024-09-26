@@ -1,16 +1,16 @@
 #pragma once
-#include "Light.h"
-#include "Command.h"
-#include "Pipeline.h"
-#include "Descriptor.h"
-#include "Settings.h"
+#include "Graphic/Light.h"
+#include "Graphic/Material.h"
+#include "Utility/State.h"
+#include "Utility/Logger.h"
+#include "Utility/Settings.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Command.h"
+#include "Vulkan/Pipeline.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Debug.h"
 #include <vector>
 #include <memory>
-#include "State.h"
-#include "Logger.h"
-#include "Debug.h"
-#include "Material.h"
-#include "ResourceManager.h"
 
 enum class LightType { DIRECTIONAL = 0, POINT = 1, AMBIENT = 2 };
 
@@ -24,7 +24,6 @@ class LightManager {
 
   std::shared_ptr<State> _state;
   std::shared_ptr<DebuggerUtils> _debuggerUtils;
-  std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;
   std::shared_ptr<Buffer> _lightDirectionalSSBOStub, _lightPointSSBOStub, _lightAmbientSSBOStub;
@@ -64,13 +63,15 @@ class LightManager {
   // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<AmbientLight> createAmbientLight();
   std::vector<std::shared_ptr<AmbientLight>> getAmbientLights();
-  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
+  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution,
+                                               std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<PointLight>>& getPointLights();
   void removePointLights(std::shared_ptr<PointLight> pointLight);
   const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& getPointLightCommandBuffers();
   const std::vector<std::vector<std::shared_ptr<Logger>>>& getPointLightLoggers();
 
-  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
+  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution,
+                                                           std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
   void removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight);
   const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();

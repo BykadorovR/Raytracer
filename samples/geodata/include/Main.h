@@ -1,17 +1,17 @@
 #pragma once
-#include "Core.h"
-#include "Shape3D.h"
-#include "Terrain.h"
+#include "Engine/Core.h"
+#include "Primitive/Shape3D.h"
+#include "Primitive/Terrain.h"
 
 class InputHandler : public InputSubscriber {
  private:
   bool _cursorEnabled = false;
-  std::function<void(glm::vec3)> _callback;
+  std::function<void(std::optional<glm::vec3>)> _callback;
   std::shared_ptr<Core> _core;
 
  public:
   InputHandler(std::shared_ptr<Core> core);
-  void setMoveCallback(std::function<void(glm::vec3)> callback);
+  void setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback);
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;
   void keyNotify(int key, int scancode, int action, int mods) override;
@@ -27,9 +27,25 @@ class Main {
 
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
-  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer;
-  std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
+  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer, _boundingBox;
+  std::shared_ptr<Model3D> _modelSimple;
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  std::shared_ptr<TerrainPhysics> _terrainPhysics;
+  std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
+  std::shared_ptr<Model3DPhysics> _model3DPhysics;
+  std::shared_ptr<MaterialColor> _materialColor;
+  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainCPU> _terrainCPU;
+  std::optional<glm::vec3> _shift;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
+  bool _showGPU = true, _showCPU = true;
+  int _patchX = 12, _patchY = 12;
+  float _heightScale = 64.f;
+  float _heightShift = 16.f;
+  std::array<float, 4> _heightLevels = {16, 128, 192, 256};
+  int _minTessellationLevel = 4, _maxTessellationLevel = 4;
+  float _minDistance = 30, _maxDistance = 100;
+  void _createTerrainColor();
 
  public:
   Main();
