@@ -290,9 +290,9 @@ Main::Main() {
                                                        _physicsManager);
   }
 
-  auto ray = _core->createLine();
-  ray->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)}, _core->getCommandBufferApplication());
-  _core->addDrawable(ray);
+  _ray = _core->createLine();
+  _ray->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
+  _core->addDrawable(_ray);
 
   _core->endRecording();
 
@@ -323,6 +323,11 @@ void Main::update() {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightHorizontal->setModel(model);
+  }
+
+  if (_rayUpdated) {
+    _ray->getMesh()->setPosition({_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection});
+    _rayUpdated = false;
   }
 
   i += 0.1f;
