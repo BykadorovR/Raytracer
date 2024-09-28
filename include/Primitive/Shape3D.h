@@ -34,7 +34,7 @@ class Shape3D : public Drawable, public Shadowable {
   std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
   ShapeType _shapeType;
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
@@ -63,7 +63,7 @@ class Shape3D : public Drawable, public Shadowable {
 
  public:
   Shape3D(ShapeType shapeType,
-          std::shared_ptr<Mesh3D> mesh,
+          std::shared_ptr<MeshStatic3D> mesh,
           VkCullModeFlags cullMode,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -77,7 +77,7 @@ class Shape3D : public Drawable, public Shadowable {
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setDrawType(DrawType drawType);
 
-  std::shared_ptr<Mesh3D> getMesh();
+  std::shared_ptr<MeshStatic3D> getMesh();
 
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,

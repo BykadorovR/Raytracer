@@ -32,7 +32,7 @@ class TerrainPhysics {
 class TerrainCPU : public Drawable {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
 
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
@@ -80,7 +80,7 @@ class TerrainCPU : public Drawable {
 class Terrain : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<Material> _material;
   MaterialType _materialType = MaterialType::COLOR;
 

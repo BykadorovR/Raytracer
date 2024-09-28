@@ -92,7 +92,7 @@ void TerrainCPU::_loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
   // vertex generation
   std::vector<Vertex3D> vertices;
   std::vector<uint32_t> indices;
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(state);
   auto [width, height] = heightMap->getResolution();
   auto channels = heightMap->getChannels();
   auto data = heightMap->getData();
@@ -135,7 +135,7 @@ void TerrainCPU::_loadTriangles(std::vector<float> heights,
                                 std::shared_ptr<State> state) {
   auto [width, height] = resolution;
   std::vector<Vertex3D> vertices;
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(state);
   for (int y = 0; y < height - 1; y++) {
     for (int x = 0; x < width - 1; x++) {
       // define patch: 4 points (square)
@@ -355,7 +355,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                                          state);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   std::vector<Vertex3D> vertices;
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(state);
   for (int y = 0; y < patchNumber.second; y++) {
     for (int x = 0; x < patchNumber.first; x++) {
       // define patch: 4 points (square)

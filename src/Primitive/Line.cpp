@@ -3,9 +3,9 @@
 Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
   setName("Line");
   _state = state;
-  _mesh = std::make_shared<Mesh3D>(state);
-  _mesh->setIndexes({0, 1}, commandBufferTransfer);
-  _mesh->setVertices({Vertex3D{}, Vertex3D{}}, commandBufferTransfer);
+  _mesh = std::make_shared<MeshDynamic3D>(state);
+  _mesh->setIndexes({0, 1});
+  _mesh->setVertices({Vertex3D{}, Vertex3D{}});
   _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
                                                    state);
   auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
@@ -30,7 +30,7 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr
       _renderPass);
 }
 
-std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }
+std::shared_ptr<MeshDynamic3D> Line::getMesh() { return _mesh; }
 
 void Line::setModel(glm::mat4 model) { _model = model; }
 

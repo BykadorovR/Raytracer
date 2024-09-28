@@ -6,8 +6,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
          std::shared_ptr<State> state) {
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
-  _mesh3D = std::make_shared<Mesh3D>(state);
-  _mesh2D = std::make_shared<Mesh2D>(state);
+  _mesh3D = std::make_shared<MeshStatic3D>(state);
+  _mesh2D = std::make_shared<MeshStatic2D>(state);
   _lightManager = lightManager;
 
   std::vector<Vertex3D> vertices(8);

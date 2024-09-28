@@ -126,8 +126,8 @@ class BufferImage : public Buffer {
 
 template <class T>
 class VertexBuffer {
- private:
-  std::shared_ptr<Buffer> _buffer, _stagingBuffer;
+ protected:
+  std::shared_ptr<Buffer> _buffer;
   std::shared_ptr<State> _state;
   std::vector<T> _vertices;
   VkBufferUsageFlagBits _type;
@@ -137,37 +137,61 @@ class VertexBuffer {
     _state = state;
     _type = type;
   }
-
   std::vector<T> getData() { return _vertices; }
+  std::shared_ptr<Buffer> getBuffer() { return _buffer; }
+};
 
+template <class T>
+class VertexBufferDynamic : public VertexBuffer<T> {
+ public:
+  VertexBufferDynamic(VkBufferUsageFlagBits type, std::shared_ptr<State> state) : VertexBuffer<T>(type, state) {}
+  void setData(std::vector<T> vertices) {
+    this->_vertices = vertices;
+
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    if (this->_buffer == nullptr || bufferSize != this->_buffer->getSize()) {
+      this->_buffer = std::make_shared<Buffer>(
+          bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | this->_type,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, this->_state);
+    }
+
+    this->_buffer->setData(vertices.data());
+  }
+};
+
+template <class T>
+class VertexBufferStatic : public VertexBuffer<T> {
+ private:
+  std::shared_ptr<Buffer> _stagingBuffer;
+
+ public:
+  VertexBufferStatic(VkBufferUsageFlagBits type, std::shared_ptr<State> state) : VertexBuffer<T>(type, state) {}
   void setData(std::vector<T> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-    _vertices = vertices;
+    this->_vertices = vertices;
 
     VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
     if (_stagingBuffer == nullptr || bufferSize != _stagingBuffer->getSize()) {
       _stagingBuffer = std::make_shared<Buffer>(
           bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, this->_state);
     }
     _stagingBuffer->setData(vertices.data());
-    if (_buffer == nullptr || bufferSize != _buffer->getSize()) {
-      _buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | _type,
-                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+    if (this->_buffer == nullptr || bufferSize != this->_buffer->getSize()) {
+      this->_buffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | this->_type,
+                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, this->_state);
     }
 
-    _buffer->copyFrom(_stagingBuffer, 0, 0, commandBufferTransfer);
+    this->_buffer->copyFrom(_stagingBuffer, 0, 0, commandBufferTransfer);
     // need to insert memory barrier so read in vertex shader waits for copy
     VkMemoryBarrier memoryBarrier = {};
     memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     memoryBarrier.pNext = nullptr;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
+    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[this->_state->getFrameInFlight()],
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0,
                          nullptr, 0, nullptr);
   }
-
-  std::shared_ptr<Buffer> getBuffer() { return _buffer; }
 };
 
 class UniformBuffer {

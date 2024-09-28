@@ -57,7 +57,7 @@ void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-                 const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+                 const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<ResourceManager> resourceManager,
@@ -76,7 +76,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(state);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
                                                   std::vector<std::shared_ptr<AnimationGLTF>>{}, state);

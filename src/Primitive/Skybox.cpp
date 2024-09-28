@@ -4,7 +4,7 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<ResourceManager> resourceManager,
                std::shared_ptr<State> state) {
   _state = state;
-  _mesh = std::make_shared<Mesh3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(state);
   std::vector<Vertex3D> vertices(8);
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
   vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
@@ -105,7 +105,7 @@ void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
 
 void Skybox::setModel(glm::mat4 model) { _model = model; }
 
-std::shared_ptr<Mesh3D> Skybox::getMesh() { return _mesh; }
+std::shared_ptr<MeshStatic3D> Skybox::getMesh() { return _mesh; }
 
 void Skybox::draw(std::tuple<int, int> resolution,
                   std::shared_ptr<Camera> camera,

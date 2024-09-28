@@ -56,7 +56,7 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<Animation> _defaultAnimation;
   bool _enableDepth = true;
   bool _enableShadow = true;
@@ -64,7 +64,7 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
-  std::vector<std::shared_ptr<Mesh3D>> _meshes;
+  std::vector<std::shared_ptr<MeshStatic3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
 
@@ -84,7 +84,7 @@ class Model3D : public Drawable, public Shadowable {
 
  public:
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-          const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+          const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
           std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<ResourceManager> resourceManager,

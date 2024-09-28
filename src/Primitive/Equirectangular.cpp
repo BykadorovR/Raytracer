@@ -36,7 +36,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR, _imageView, state);
 #endif
   // convert to cubemap
-  _mesh3D = std::make_shared<Mesh3D>(state);
+  _mesh3D = std::make_shared<MeshStatic3D>(state);
 
   std::vector<Vertex3D> vertices(8);
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0

@@ -42,7 +42,7 @@ class Sprite : public Drawable, public Shadowable {
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  std::shared_ptr<Mesh2D> _mesh;
+  std::shared_ptr<MeshStatic2D> _mesh;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
 

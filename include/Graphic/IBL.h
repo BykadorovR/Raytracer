@@ -12,8 +12,8 @@
 class IBL {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh3D;
-  std::shared_ptr<Mesh2D> _mesh2D;
+  std::shared_ptr<MeshStatic3D> _mesh3D;
+  std::shared_ptr<MeshStatic2D> _mesh2D;
   std::vector<std::shared_ptr<UniformBuffer>> _cameraBufferCubemap;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<UniformBuffer> _cameraBuffer;

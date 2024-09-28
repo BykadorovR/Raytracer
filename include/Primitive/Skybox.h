@@ -12,7 +12,7 @@
 class Skybox {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSet;
@@ -31,7 +31,7 @@ class Skybox {
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);
-  std::shared_ptr<Mesh3D> getMesh();
+  std::shared_ptr<MeshStatic3D> getMesh();
 
   void draw(std::tuple<int, int> resolution,
             std::shared_ptr<Camera> camera,

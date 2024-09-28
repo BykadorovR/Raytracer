@@ -19,7 +19,7 @@ class Equirectangular {
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCubemap;
   std::shared_ptr<Pipeline> _pipelineEquirectangular;
   std::shared_ptr<MaterialColor> _material;
-  std::shared_ptr<Mesh3D> _mesh3D;
+  std::shared_ptr<MeshStatic3D> _mesh3D;
   std::shared_ptr<Logger> _logger;
   std::shared_ptr<CameraFly> _camera;
   std::shared_ptr<RenderPass> _renderPass;

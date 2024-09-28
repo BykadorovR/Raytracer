@@ -70,7 +70,7 @@ void ModelGLTF::setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& anima
 
 void ModelGLTF::setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes) { _nodes = nodes; }
 
-void ModelGLTF::setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes) { _meshes = meshes; }
+void ModelGLTF::setMeshes(std::vector<std::shared_ptr<MeshStatic3D>>& meshes) { _meshes = meshes; }
 
 const std::vector<std::shared_ptr<MaterialColor>>& ModelGLTF::getMaterialsColor() { return _materialsColor; }
 
@@ -84,7 +84,7 @@ const std::vector<std::shared_ptr<AnimationGLTF>>& ModelGLTF::getAnimations() { 
 // one mesh - one node
 const std::vector<std::shared_ptr<NodeGLTF>>& ModelGLTF::getNodes() { return _nodes; }
 
-const std::vector<std::shared_ptr<Mesh3D>>& ModelGLTF::getMeshes() { return _meshes; }
+const std::vector<std::shared_ptr<MeshStatic3D>>& ModelGLTF::getMeshes() { return _meshes; }
 
 LoaderGLTF::LoaderGLTF(std::shared_ptr<LoaderImage> loaderImage, std::shared_ptr<State> state) {
   _state = state;
@@ -102,7 +102,7 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path, std::shared_ptr<Co
     std::vector<std::shared_ptr<MaterialGLTF>> materials;
     std::vector<std::shared_ptr<SkinGLTF>> skins;
     std::vector<std::shared_ptr<AnimationGLTF>> animations;
-    std::vector<std::shared_ptr<Mesh3D>> meshes;
+    std::vector<std::shared_ptr<MeshStatic3D>> meshes;
     tinygltf::Model modelInternal;
     std::string err, warn;
     bool loaded = false;
@@ -115,7 +115,7 @@ std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path, std::shared_ptr<Co
 
     // allocate meshes
     for (int i = 0; i < modelInternal.meshes.size(); i++) {
-      auto mesh = std::make_shared<Mesh3D>(_state);
+      auto mesh = std::make_shared<MeshStatic3D>(_state);
       meshes.push_back(mesh);
     }
     // load material
@@ -426,7 +426,7 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
                            std::shared_ptr<NodeGLTF> parent,
                            uint32_t nodeIndex,
                            const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
-                           const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+                           const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
                            std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                            std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::shared_ptr<NodeGLTF> node = std::make_shared<NodeGLTF>();

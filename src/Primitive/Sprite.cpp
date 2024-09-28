@@ -19,7 +19,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _material = _defaultMaterialPhong;
 
-  _mesh = std::make_shared<Mesh2D>(state);
+  _mesh = std::make_shared<MeshStatic2D>(state);
   // 3   0
   // 2   1
   _mesh->setVertices({Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 0.f}, {1.f, 0.f, 0.f, 1.f}},

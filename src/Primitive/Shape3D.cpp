@@ -45,7 +45,7 @@ Shape3DPhysics::~Shape3DPhysics() {
 }
 
 Shape3D::Shape3D(ShapeType shapeType,
-                 std::shared_ptr<Mesh3D> mesh,
+                 std::shared_ptr<MeshStatic3D> mesh,
                  VkCullModeFlags cullMode,
                  std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -694,7 +694,7 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
 
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
-std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
+std::shared_ptr<MeshStatic3D> Shape3D::getMesh() { return _mesh; }
 
 void Shape3D::draw(std::tuple<int, int> resolution,
                    std::shared_ptr<Camera> camera,
