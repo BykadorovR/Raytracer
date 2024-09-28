@@ -294,6 +294,14 @@ Main::Main() {
   _ray->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
   _core->addDrawable(_ray);
 
+  _hitBox = _core->createShape3D(ShapeType::CUBE);
+  {
+    // TODO: refactor addDrawable or add setVisible
+    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-100.f, -1.f, -3.f));
+    _hitBox->setModel(model);
+  }
+  _core->addDrawable(_hitBox);
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -327,6 +335,11 @@ void Main::update() {
 
   if (_rayUpdated) {
     _ray->getMesh()->setPosition({_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection});
+    auto hit = _terrainPhysics->hit(_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection);
+    if (hit) {
+      auto model = glm::translate(glm::mat4(1.f), hit.value());
+      _hitBox->setModel(model);
+    }
     _rayUpdated = false;
   }
 

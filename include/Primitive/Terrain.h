@@ -6,6 +6,7 @@
 #include "Primitive/Drawable.h"
 #include "Primitive/Mesh.h"
 #include "Utility/PhysicsManager.h"
+#include <optional>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
 class TerrainPhysics {
@@ -26,6 +27,7 @@ class TerrainPhysics {
   glm::vec3 getPosition();
   std::tuple<int, int> getResolution();
   std::vector<float> getHeights();
+  std::optional<glm::vec3> hit(glm::vec3 origin, glm::vec3 direction);
   ~TerrainPhysics();
 };
 

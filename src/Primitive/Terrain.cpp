@@ -2,6 +2,8 @@
 #undef far
 #undef near
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
 
 TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                std::tuple<int, int> heightScaleOffset,
@@ -38,6 +40,17 @@ void TerrainPhysics::setPosition(glm::vec3 position) {
   _position = glm::vec3(-w / 2.f + position.x, position.y, -w / 2.f + position.z);
   _physicsManager->getBodyInterface().SetPosition(
       _terrainBody->GetID(), JPH::Vec3(_position.x, _position.y, _position.z), JPH::EActivation::DontActivate);
+}
+
+std::optional<glm::vec3> TerrainPhysics::hit(glm::vec3 origin, glm::vec3 direction) {
+  JPH::RRayCast rray{JPH::RVec3(origin.x, origin.y, origin.z), JPH::Vec3(direction.x, direction.y, direction.z)};
+  JPH::RayCastResult hit;
+  if (_physicsManager->getPhysicsSystem().GetNarrowPhaseQuery().CastRay(rray, hit)) {
+    auto outPosition = rray.GetPointOnRay(hit.mFraction);
+    return glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+  }
+
+  return std::nullopt;
 }
 
 std::tuple<int, int> TerrainPhysics::getResolution() { return _resolution; }

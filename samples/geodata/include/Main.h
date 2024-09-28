@@ -38,6 +38,7 @@ class Main {
   std::shared_ptr<Model3DPhysics> _model3DPhysics;
   std::shared_ptr<MaterialColor> _materialColor;
   std::shared_ptr<Line> _ray;
+  std::shared_ptr<Shape3D> _hitBox;
   std::shared_ptr<Terrain> _terrain;
   std::shared_ptr<TerrainCPU> _terrainCPU;
   std::optional<glm::vec3> _shift;
