@@ -200,7 +200,6 @@ Main::Main() {
   auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
   auto callbackClick = [&, settings = settings](glm::vec2 click) {
-    std::cout << click.x << ":" << click.y << std::endl;
     auto projection = _camera->getProjection();
     // forward transformation
     // x, y, z, 1 * MVP -> clip?
@@ -224,7 +223,6 @@ Main::Main() {
     // normalize
     _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
     _rayOrigin = glm::vec3(glm::inverse(_camera->getView())[3]);
-
     _rayUpdated = true;
   };
   _inputHandler->setClickCallback(callbackClick);
@@ -335,7 +333,7 @@ void Main::update() {
 
   if (_rayUpdated) {
     _ray->getMesh()->setPosition({_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection});
-    auto hit = _terrainPhysics->hit(_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection);
+    auto hit = _terrainPhysics->hit(_rayOrigin, +_camera->getFar() * _rayDirection);
     if (hit) {
       auto model = glm::translate(glm::mat4(1.f), hit.value());
       _hitBox->setModel(model);

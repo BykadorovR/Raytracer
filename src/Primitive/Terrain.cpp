@@ -4,6 +4,7 @@
 #include <Jolt/Physics/Collision/Shape/HeightFieldShape.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 
 TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                std::tuple<int, int> heightScaleOffset,
@@ -44,10 +45,15 @@ void TerrainPhysics::setPosition(glm::vec3 position) {
 
 std::optional<glm::vec3> TerrainPhysics::hit(glm::vec3 origin, glm::vec3 direction) {
   JPH::RRayCast rray{JPH::RVec3(origin.x, origin.y, origin.z), JPH::Vec3(direction.x, direction.y, direction.z)};
-  JPH::RayCastResult hit;
-  if (_physicsManager->getPhysicsSystem().GetNarrowPhaseQuery().CastRay(rray, hit)) {
-    auto outPosition = rray.GetPointOnRay(hit.mFraction);
-    return glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+  JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
+  _physicsManager->getPhysicsSystem().GetNarrowPhaseQuery().CastRay(rray, JPH::RayCastSettings(), collector);
+  if (collector.HadHit()) {
+    for (auto& hit : collector.mHits) {
+      if (hit.mBodyID == _terrainBody->GetID()) {
+        auto outPosition = rray.GetPointOnRay(hit.mFraction);
+        return glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+      }
+    }
   }
 
   return std::nullopt;
