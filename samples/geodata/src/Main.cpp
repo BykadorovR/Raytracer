@@ -45,17 +45,11 @@ float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>
 
 void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callbackMove = callback; }
 
-void InputHandler::setClickCallback(std::function<void(glm::vec2)> callback) { _callbackClick = callback; }
-
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
 void InputHandler::cursorNotify(float xPos, float yPos) { _position = glm::vec2{xPos, yPos}; }
 
-void InputHandler::mouseNotify(int button, int action, int mods) {
-  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    _callbackClick(_position);
-  }
-}
+void InputHandler::mouseNotify(int button, int action, int mods) {}
 
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
@@ -110,7 +104,11 @@ void Main::_createTerrainColor() {
   if (_showWireframe == false && _showNormals == false) {
     _terrain->setDrawType(DrawType::FILL);
   }
-
+  {
+    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
+    model = glm::scale(model, _terrainScale);
+    _terrain->setModel(model);
+  }
   _core->addDrawable(_terrain);
 }
 
@@ -187,7 +185,8 @@ Main::Main() {
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
-  _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+  _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
+                                                     _physicsManager);
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
@@ -199,34 +198,6 @@ Main::Main() {
   _core->addDrawable(_cubePlayer);
   auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
-  auto callbackClick = [&, settings = settings](glm::vec2 click) {
-    auto projection = _camera->getProjection();
-    // forward transformation
-    // x, y, z, 1 * MVP -> clip?
-    // clip / w -> NDC [-1, 1]
-    //(NDC + 1) / 2 -> normalized screen [0, 1]
-    // normalized screen * screen size -> screen
-
-    // backward transformation
-    // x, y
-    glm::vec2 normalizedScreen = glm::vec2((2.0f * click.x) / std::get<0>(settings->getResolution()) - 1.0f,
-                                           1.0f - (2.0f * click.y) / std::get<1>(settings->getResolution()));
-    glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
-
-    // Convert to camera (view) space
-    glm::vec4 viewSpacePos = glm::inverse(_camera->getProjection()) * clipSpacePos;
-    viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
-
-    // Convert to world space
-    glm::vec4 worldSpaceRay = glm::inverse(_camera->getView()) * viewSpacePos;
-
-    // normalize
-    _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
-    _rayOrigin = glm::vec3(glm::inverse(_camera->getView())[3]);
-    _rayUpdated = true;
-  };
-  _inputHandler->setClickCallback(callbackClick);
-
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
@@ -244,6 +215,12 @@ Main::Main() {
   //_terrainCPU = _core->createTerrainCPU(heightmapCPU, {_patchX, _patchY});
   auto heights = _terrainPhysics->getHeights();
   _terrainCPU = _core->createTerrainCPU(heights, _terrainPhysics->getResolution());
+  {
+    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
+    model = glm::scale(model, _terrainScale);
+    _terrainCPU->setModel(model);
+  }
+
   _core->addDrawable(_terrainCPU);
 
   {
@@ -287,19 +264,6 @@ Main::Main() {
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (maxPart - minPart) / 2.f,
                                                        _physicsManager);
   }
-
-  _ray = _core->createLine();
-  _ray->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
-  _core->addDrawable(_ray);
-
-  _hitBox = _core->createShape3D(ShapeType::CUBE);
-  {
-    // TODO: refactor addDrawable or add setVisible
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-100.f, -1.f, -3.f));
-    _hitBox->setModel(model);
-  }
-  _core->addDrawable(_hitBox);
-
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -329,16 +293,6 @@ void Main::update() {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightHorizontal->setModel(model);
-  }
-
-  if (_rayUpdated) {
-    _ray->getMesh()->setPosition({_rayOrigin, _rayOrigin + _camera->getFar() * _rayDirection});
-    auto hit = _terrainPhysics->hit(_rayOrigin, +_camera->getFar() * _rayDirection);
-    if (hit) {
-      auto model = glm::translate(glm::mat4(1.f), hit.value());
-      _hitBox->setModel(model);
-    }
-    _rayUpdated = false;
   }
 
   i += 0.1f;

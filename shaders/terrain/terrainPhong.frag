@@ -18,11 +18,9 @@ layout(set = 0, binding = 5) uniform sampler2D specularSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];
-    layout(offset = 48) int patchEdge;
-    layout(offset = 64) int tessColorFlag;
-    layout(offset = 80) int enableShadow;
-    layout(offset = 96) int enableLighting;
-    layout(offset = 112) vec3 cameraPosition;
+    layout(offset = 48) int enableShadow;
+    layout(offset = 64) int enableLighting;
+    layout(offset = 80) vec3 cameraPosition;
 } push;
 
 struct LightDirectional {
@@ -107,62 +105,53 @@ float calculateSpecular(float max1, float max2, int id1, int id2, float height) 
 #include "../phong.glsl"
 
 void main() {
-    if (push.tessColorFlag > 0) {
-        outColor = vec4(tessColor, 1);
+    float height = fragHeight;
+    float specularTexture;
+    vec3 normal;
+    if (height < push.heightLevels[0]) {
+        outColor = texture(texSampler[0], fragTexCoord);
+        specularTexture = texture(specularSampler[0], fragTexCoord).b;
+        normal = texture(normalSampler[0], fragTexCoord).rgb;
+    } else if (height < push.heightLevels[1]) {
+        outColor = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        specularTexture = calculateSpecular(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        normal = calculateNormal(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+    } else if (height < push.heightLevels[2]) {
+        outColor = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        specularTexture = calculateSpecular(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        normal = calculateNormal(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+    } else if (height < push.heightLevels[3]) {
+        outColor = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        specularTexture = calculateSpecular(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        normal = calculateNormal(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
     } else {
-        float height = fragHeight;
-        float specularTexture;
-        vec3 normal;
-        if (height < push.heightLevels[0]) {
-            outColor = texture(texSampler[0], fragTexCoord);
-            specularTexture = texture(specularSampler[0], fragTexCoord).b;
-            normal = texture(normalSampler[0], fragTexCoord).rgb;
-        } else if (height < push.heightLevels[1]) {
-            outColor = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            specularTexture = calculateSpecular(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            normal = calculateNormal(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        } else if (height < push.heightLevels[2]) {
-            outColor = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            specularTexture = calculateSpecular(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            normal = calculateNormal(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        } else if (height < push.heightLevels[3]) {
-            outColor = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            specularTexture = calculateSpecular(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            normal = calculateNormal(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        outColor = texture(texSampler[3], fragTexCoord);
+        specularTexture = texture(specularSampler[3], fragTexCoord).b;
+        normal = texture(normalSampler[3], fragTexCoord).rgb;
+    }        
+
+    if (push.enableLighting > 0) {            
+        if (length(normal) > epsilon) {
+            normal = normal * 2.0 - 1.0;
+            normal = normalize(fragTBN * normal);
         } else {
-            outColor = texture(texSampler[3], fragTexCoord);
-            specularTexture = texture(specularSampler[3], fragTexCoord).b;
-            normal = texture(normalSampler[3], fragTexCoord).rgb;
-        }        
-
-        if (push.enableLighting > 0) {            
-            if (length(normal) > epsilon) {
-                normal = normal * 2.0 - 1.0;
-                normal = normalize(fragTBN * normal);
-            } else {
-                normal = fragNormal;
+            normal = fragNormal;
+        }
+        if (length(normal) > epsilon) {
+            vec3 lightFactor = vec3(0.0, 0.0, 0.0);
+            //calculate directional light
+            lightFactor += directionalLight(lightDirectionalNumber, fragPosition, normal, specularTexture, push.cameraPosition, 
+                                            push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
+            //calculate point light
+            lightFactor += pointLight(lightPointNumber, fragPosition, normal, specularTexture,
+                                      push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
+            //calculate ambient light
+            for (int i = 0;i < lightAmbientNumber; i++) {
+                lightFactor += lightAmbient[i].color;
             }
-            if (length(normal) > epsilon) {
-                vec3 lightFactor = vec3(0.0, 0.0, 0.0);
-                //calculate directional light
-                lightFactor += directionalLight(lightDirectionalNumber, fragPosition, normal, specularTexture, push.cameraPosition, 
-                                                push.enableShadow, fragLightDirectionalCoord, shadowDirectionalSampler, 0.005);
-                //calculate point light
-                lightFactor += pointLight(lightPointNumber, fragPosition, normal, specularTexture,
-                                          push.cameraPosition, push.enableShadow, shadowPointSampler, 0.05);
-                //calculate ambient light
-                for (int i = 0;i < lightAmbientNumber; i++) {
-                    lightFactor += lightAmbient[i].color;
-                }
 
-                outColor *= vec4(lightFactor, 1.0);
-            }
-        } 
-    }
-
-    vec2 line = fract(fragTexCoord);
-    if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {
-        outColor = vec4(1, 1, 0, 1);
+            outColor *= vec4(lightFactor, 1.0);
+        }
     }
 
     // check whether fragment output is higher than threshold, if so output as brightness color

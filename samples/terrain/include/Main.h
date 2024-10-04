@@ -30,6 +30,9 @@ class Main {
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
   std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainDebug> _terrainDebug;
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
   enum class Type { COLOR = 1, PHONG = 2, PBR = 3 };
   int _typeIndex = 0;
@@ -40,6 +43,9 @@ class Main {
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
   float _minDistance = 30, _maxDistance = 100;
+  glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
+  glm::vec3 _terrainPositionDebug = glm::vec3(0.f, 0.f, 0.f);
+  glm::vec3 _terrainScale = glm::vec3(0.1f, 0.1f, 0.1f);
 
   void _createTerrainColor();
   void _createTerrainPhong();

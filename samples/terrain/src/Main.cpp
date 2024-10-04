@@ -32,8 +32,8 @@ void Main::_createTerrainPhong() {
   _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
-    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
+    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
     _terrain->setModel(scaleMatrix);
   }
 
@@ -41,17 +41,6 @@ void Main::_createTerrainPhong() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  _terrain->patchEdge(_showPatches);
-  _terrain->showLoD(_showLoD);
-  if (_showWireframe) {
-    _terrain->setDrawType(DrawType::WIREFRAME);
-  }
-  if (_showNormals) {
-    _terrain->setDrawType(DrawType::NORMAL);
-  }
-  if (_showWireframe == false && _showNormals == false) {
-    _terrain->setDrawType(DrawType::FILL);
-  }
 
   _core->addDrawable(_terrain);
 }
@@ -61,8 +50,8 @@ void Main::_createTerrainPBR() {
   _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
-    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
+    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
     _terrain->setModel(scaleMatrix);
   }
 
@@ -70,17 +59,6 @@ void Main::_createTerrainPBR() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  _terrain->patchEdge(_showPatches);
-  _terrain->showLoD(_showLoD);
-  if (_showWireframe) {
-    _terrain->setDrawType(DrawType::WIREFRAME);
-  }
-  if (_showNormals) {
-    _terrain->setDrawType(DrawType::NORMAL);
-  }
-  if (_showWireframe == false && _showNormals == false) {
-    _terrain->setDrawType(DrawType::FILL);
-  }
 
   _core->addDrawable(_terrain);
 }
@@ -90,8 +68,8 @@ void Main::_createTerrainColor() {
   _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
-    auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
+    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
     _terrain->setModel(scaleMatrix);
   }
 
@@ -99,17 +77,6 @@ void Main::_createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  _terrain->patchEdge(_showPatches);
-  _terrain->showLoD(_showLoD);
-  if (_showWireframe) {
-    _terrain->setDrawType(DrawType::WIREFRAME);
-  }
-  if (_showNormals) {
-    _terrain->setDrawType(DrawType::NORMAL);
-  }
-  if (_showWireframe == false && _showNormals == false) {
-    _terrain->setDrawType(DrawType::FILL);
-  }
 
   _core->addDrawable(_terrain);
 }
@@ -285,6 +252,45 @@ Main::Main() {
 
   _createTerrainColor();
 
+  auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
+  auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
+  _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x + 256 * _terrainScale.x, _terrainPositionDebug.y,
+                                    _terrainPositionDebug.z);
+
+  _physicsManager = std::make_shared<PhysicsManager>();
+  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
+                                                     _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
+                                                     _physicsManager);
+  _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageGPU(_core->loadImageCPU("../assets/heightmap.png")),
+                                                 std::pair{_patchX, _patchY}, _core->getCommandBufferApplication(),
+                                                 _core->getGUI(), _core->getState());
+  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));
+  _terrainDebug->setCamera(_camera);
+  _terrainDebug->setTerrainPhysics(_terrainPhysics);
+  _terrainDebug->setMaterial(_materialColor);
+
+  _terrainDebug->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrainDebug->setDisplayDistance(_minDistance, _maxDistance);
+  _terrainDebug->setColorHeightLevels(_heightLevels);
+  _terrainDebug->setHeight(_heightScale, _heightShift);
+  _terrainDebug->patchEdge(_showPatches);
+  _terrainDebug->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrainDebug->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrainDebug->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrainDebug->setDrawType(DrawType::FILL);
+  }
+  {
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
+    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
+    _terrainDebug->setModel(scaleMatrix);
+  }
+  _core->addDrawable(_terrainDebug);
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -371,25 +377,12 @@ void Main::update() {
       _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
 
-    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
-      _terrain->patchEdge(_showPatches);
-    }
-    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
-      _terrain->showLoD(_showLoD);
-    }
-    if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrain->setDrawType(DrawType::WIREFRAME);
-      _showNormals = false;
-    }
-    if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrain->setDrawType(DrawType::NORMAL);
-      _showWireframe = false;
-    }
-    if (_showWireframe == false && _showNormals == false) {
-      _terrain->setDrawType(DrawType::FILL);
-    }
     _core->getGUI()->endTree();
   }
+  _core->getGUI()->endWindow();
+
+  _core->getGUI()->startWindow("Editor", {widthScreen - widthScreen / 7, 20}, {widthScreen / 10, heightScreen / 10});
+  _terrainDebug->drawDebug();
   _core->getGUI()->endWindow();
 }
 

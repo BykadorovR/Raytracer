@@ -67,11 +67,9 @@ layout(set = 0, binding = 13) uniform AlphaMask {
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];
-    layout(offset = 48) int patchEdge;
-    layout(offset = 64) int tessColorFlag;
-    layout(offset = 80) int enableShadow;
-    layout(offset = 96) int enableLighting;
-    layout(offset = 112) vec3 cameraPosition;
+    layout(offset = 48) int enableShadow;
+    layout(offset = 64) int enableLighting;
+    layout(offset = 80) vec3 cameraPosition;
 } push;
 
 //It is important to get the gradients before going into non-uniform flow code.
@@ -135,119 +133,110 @@ vec3 calculateEmissive(float max1, float max2, int id1, int id2, float height) {
 #include "../pbr.glsl"
 
 void main() {
-    if (push.tessColorFlag > 0) {
-        outColor = vec4(tessColor, 1);
+    float height = fragHeight;
+    vec4 albedoTexture;
+    vec3 normalTexture;
+    float metallicTexture;
+    float roughnessTexture;
+    float occlusionTexture;
+    vec3 emissiveTexture;
+    if (height < push.heightLevels[0]) {
+        albedoTexture = texture(texSampler[0], fragTexCoord);
+        normalTexture = texture(normalSampler[0], fragTexCoord).rgb;
+        metallicTexture = texture(metallicSampler[0], fragTexCoord).b;
+        roughnessTexture = texture(roughnessSampler[0], fragTexCoord).g;
+        occlusionTexture = texture(occlusionSampler[0], fragTexCoord).r;
+        emissiveTexture = texture(emissiveSampler[0], fragTexCoord).rgb;
+    } else if (height < push.heightLevels[1]) {
+        albedoTexture = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        normalTexture = calculateNormal(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        metallicTexture = calculateMetallic(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        roughnessTexture = calculateRoughness(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        occlusionTexture = calculateOcclusion(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+        emissiveTexture = calculateEmissive(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+    } else if (height < push.heightLevels[2]) {
+        albedoTexture = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        normalTexture = calculateNormal(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        metallicTexture = calculateMetallic(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        roughnessTexture = calculateRoughness(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        occlusionTexture = calculateOcclusion(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+        emissiveTexture = calculateEmissive(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+    } else if (height < push.heightLevels[3]) {
+        albedoTexture = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        normalTexture = calculateNormal(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        metallicTexture = calculateMetallic(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        roughnessTexture = calculateRoughness(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        occlusionTexture = calculateOcclusion(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        emissiveTexture = calculateEmissive(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
     } else {
-        float height = fragHeight;
-        vec4 albedoTexture;
-        vec3 normalTexture;
-        float metallicTexture;
-        float roughnessTexture;
-        float occlusionTexture;
-        vec3 emissiveTexture;
-        if (height < push.heightLevels[0]) {
-            albedoTexture = texture(texSampler[0], fragTexCoord);
-            normalTexture = texture(normalSampler[0], fragTexCoord).rgb;
-            metallicTexture = texture(metallicSampler[0], fragTexCoord).b;
-            roughnessTexture = texture(roughnessSampler[0], fragTexCoord).g;
-            occlusionTexture = texture(occlusionSampler[0], fragTexCoord).r;
-            emissiveTexture = texture(emissiveSampler[0], fragTexCoord).rgb;
-        } else if (height < push.heightLevels[1]) {
-            albedoTexture = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            normalTexture = calculateNormal(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            metallicTexture = calculateMetallic(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            roughnessTexture = calculateRoughness(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            occlusionTexture = calculateOcclusion(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            emissiveTexture = calculateEmissive(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        } else if (height < push.heightLevels[2]) {
-            albedoTexture = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            normalTexture = calculateNormal(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            metallicTexture = calculateMetallic(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            roughnessTexture = calculateRoughness(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            occlusionTexture = calculateOcclusion(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            emissiveTexture = calculateEmissive(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        } else if (height < push.heightLevels[3]) {
-            albedoTexture = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            normalTexture = calculateNormal(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            metallicTexture = calculateMetallic(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            roughnessTexture = calculateRoughness(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            occlusionTexture = calculateOcclusion(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            emissiveTexture = calculateEmissive(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        albedoTexture = texture(texSampler[3], fragTexCoord);
+        normalTexture = texture(normalSampler[3], fragTexCoord).rgb;
+        metallicTexture = texture(metallicSampler[3], fragTexCoord).b;
+        roughnessTexture = texture(roughnessSampler[3], fragTexCoord).g;
+        occlusionTexture = texture(occlusionSampler[3], fragTexCoord).r;
+        emissiveTexture = texture(emissiveSampler[3], fragTexCoord).rgb;
+    }
+    outColor = albedoTexture;
+
+    float metallicValue = metallicTexture * material.metallicFactor;
+    float roughnessValue = roughnessTexture * material.roughnessFactor;
+
+    if (alphaMask.alphaMask) {
+        if (outColor.a < alphaMask.alphaMaskCutoff) {
+            discard;
+        }
+    }
+
+    if (push.enableLighting > 0) {
+        vec3 normal = normalTexture;
+        if (length(normal) > epsilon) {
+            normal = normal * 2.0 - 1.0;
+            normal = normalize(fragTBN * normal);
         } else {
-            albedoTexture = texture(texSampler[3], fragTexCoord);
-            normalTexture = texture(normalSampler[3], fragTexCoord).rgb;
-            metallicTexture = texture(metallicSampler[3], fragTexCoord).b;
-            roughnessTexture = texture(roughnessSampler[3], fragTexCoord).g;
-            occlusionTexture = texture(occlusionSampler[3], fragTexCoord).r;
-            emissiveTexture = texture(emissiveSampler[3], fragTexCoord).rgb;
-        }
-        outColor = albedoTexture;
-
-        float metallicValue = metallicTexture * material.metallicFactor;
-        float roughnessValue = roughnessTexture * material.roughnessFactor;
-
-        if (alphaMask.alphaMask) {
-            if (outColor.a < alphaMask.alphaMaskCutoff) {
-                discard;
-            }
+            normal = fragNormal;
         }
 
-        if (push.enableLighting > 0) {
-            vec3 normal = normalTexture;
-            if (length(normal) > epsilon) {
-                normal = normal * 2.0 - 1.0;
-                normal = normalize(fragTBN * normal);
-            } else {
-                normal = fragNormal;
+        if (length(normal) > epsilon) {
+            //calculate reflected part for every light source separately and them sum them            
+            vec3 viewDir = normalize(push.cameraPosition - fragPosition);
+
+            // reflectance equation
+            vec3 Lr = vec3(0.0);
+            for (int i = 0; i < lightDirectionalNumber; i++) {
+                vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
+                vec3 inRadiance = getLightDir(i).color;
+                vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                float shadow = 0.0;
+                if (push.enableShadow > 0)
+                    shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
+                Lr += directional * (1 - shadow);
             }
 
-            if (length(normal) > epsilon) {
-                //calculate reflected part for every light source separately and them sum them            
-                vec3 viewDir = normalize(push.cameraPosition - fragPosition);
-
-                // reflectance equation
-                vec3 Lr = vec3(0.0);
-                for (int i = 0; i < lightDirectionalNumber; i++) {
-                    vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
-                    vec3 inRadiance = getLightDir(i).color;
-                    vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
-                    float shadow = 0.0;
-                    if (push.enableShadow > 0)
-                        shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
-                    Lr += directional * (1 - shadow);
-                }
-
-                for (int i = 0; i < lightPointNumber; i++) {
-                    vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
-                    float distance = length(getLightPoint(i).position - fragPosition);
-                    if (distance > getLightPoint(i).distance) break;
-                    float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
-                    vec3 inRadiance = getLightPoint(i).color * attenuation;
-                    vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
-                    float shadow = 0.0;
-                    if (push.enableShadow > 0)
-                        shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
-                    Lr += point * (1 - shadow);
-                }
-
-                outColor.rgb = Lr;
-                //add occlusion to resulting color (it doesn't depend on light sources at all), occlusion is stored inside metallic roughness as .r channel or as separate texture .r channel
-                //so it doesn't matter, any texture -> .r channel
-
-                //IBL
-                outColor.rgb += calculateIBL(occlusionTexture.r, normal, viewDir, metallicValue, roughnessValue, albedoTexture.rgb);
-
-                //add emissive to resulting reflected radiance from all light sources
-                outColor.rgb += emissiveTexture * material.emissiveFactor;
+            for (int i = 0; i < lightPointNumber; i++) {
+                vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
+                float distance = length(getLightPoint(i).position - fragPosition);
+                if (distance > getLightPoint(i).distance) break;
+                float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
+                vec3 inRadiance = getLightPoint(i).color * attenuation;
+                vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                float shadow = 0.0;
+                if (push.enableShadow > 0)
+                    shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
+                Lr += point * (1 - shadow);
             }
+
+            outColor.rgb = Lr;
+            //add occlusion to resulting color (it doesn't depend on light sources at all), occlusion is stored inside metallic roughness as .r channel or as separate texture .r channel
+            //so it doesn't matter, any texture -> .r channel
+
+            //IBL
+            outColor.rgb += calculateIBL(occlusionTexture.r, normal, viewDir, metallicValue, roughnessValue, albedoTexture.rgb);
+
+            //add emissive to resulting reflected radiance from all light sources
+            outColor.rgb += emissiveTexture * material.emissiveFactor;
         }
     }
-
-    vec2 line = fract(fragTexCoord);
-    if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {
-        outColor = vec4(1, 1, 0, 1);
-    }
-
+   
     // check whether fragment output is higher than threshold, if so output as brightness color
     float brightness = dot(outColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     if(brightness > 1.0)
