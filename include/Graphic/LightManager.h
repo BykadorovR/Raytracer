@@ -56,9 +56,7 @@ class LightManager {
   void _setLightDescriptors(int currentFrame);
 
  public:
-  LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-               std::shared_ptr<ResourceManager> resourceManager,
-               std::shared_ptr<State> state);
+  LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<State> state);
 
   // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<AmbientLight> createAmbientLight();

@@ -6,6 +6,7 @@
 #include "Utility/Timer.h"
 #include "Utility/ResourceManager.h"
 #include "Utility/Animation.h"
+#include "Utility/GameState.h"
 #include "Vulkan/Render.h"
 #include "Vulkan/Swapchain.h"
 #include "Vulkan/Debug.h"
@@ -40,7 +41,6 @@ class Core {
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth;
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
-  std::shared_ptr<ResourceManager> _resourceManager;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
       _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
@@ -63,13 +63,12 @@ class Core {
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
   std::set<std::shared_ptr<Material>> _materials;
   std::shared_ptr<GUI> _gui;
-  std::shared_ptr<Camera> _camera;
 
   std::shared_ptr<DebuggerUtils> _debuggerUtils;
-  std::shared_ptr<CameraOrtho> _cameraOrtho;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;
+  std::shared_ptr<GameState> _gameState;
 
   std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
   std::map<int, std::vector<std::shared_ptr<Drawable>>> _unused;
@@ -79,7 +78,6 @@ class Core {
 
   std::vector<std::shared_ptr<ParticleSystem>> _particleSystem;
   std::shared_ptr<Postprocessing> _postprocessing;
-  std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<Blur> _blur;
   std::shared_ptr<BS::thread_pool> _pool;

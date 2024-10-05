@@ -28,6 +28,7 @@ class State {
 #ifdef __ANDROID__
   void setNativeWindow(ANativeWindow* window);
   void setAssetManager(AAssetManager* assetManager);
+  AAssetManager* getAssetManager();
 #endif
   void initialize();
   std::shared_ptr<Settings> getSettings();

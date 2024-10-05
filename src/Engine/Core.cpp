@@ -147,12 +147,6 @@ void Core::initialize() {
   _loggerGUI = std::make_shared<Logger>(_state);
   _loggerDebug = std::make_shared<Logger>(_state);
 
-  _resourceManager = std::make_shared<ResourceManager>(_state);
-#ifdef __ANDROID__
-  _resourceManager->setAssetManager(_assetManager);
-#endif
-  _resourceManager->initialize(_commandBufferInitialize);
-
   for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
     // graphic-presentation
     _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(_state->getDevice()));
@@ -194,7 +188,7 @@ void Core::initialize() {
 
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
-  _lightManager = std::make_shared<LightManager>(_commandBufferInitialize, _resourceManager, _state);
+  _gameState = std::make_shared<GameState>(_commandBufferInitialize, _state);
 
   _commandBufferInitialize->endCommands();
 
@@ -218,14 +212,14 @@ void Core::initialize() {
 void Core::_directionalLightCalculator(int index) {
   auto frameInFlight = _state->getFrameInFlight();
 
-  auto commandBuffer = _lightManager->getDirectionalLightCommandBuffers()[index];
-  auto loggerGPU = _lightManager->getDirectionalLightLoggers()[index];
+  auto commandBuffer = _gameState->getLightManager()->getDirectionalLightCommandBuffers()[index];
+  auto loggerGPU = _gameState->getLightManager()->getDirectionalLightLoggers()[index];
 
   // record command buffer
   commandBuffer->beginCommands();
   _logger->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   //
-  auto directionalLights = _lightManager->getDirectionalLights();
+  auto directionalLights = _gameState->getLightManager()->getDirectionalLights();
 
   auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
       _frameBufferDirectionalLightDepth[index][frameInFlight]);
@@ -259,8 +253,8 @@ void Core::_directionalLightCalculator(int index) {
 void Core::_pointLightCalculator(int index, int face) {
   auto frameInFlight = _state->getFrameInFlight();
 
-  auto commandBuffer = _lightManager->getPointLightCommandBuffers()[index][face];
-  auto loggerGPU = _lightManager->getPointLightLoggers()[index][face];
+  auto commandBuffer = _gameState->getLightManager()->getPointLightCommandBuffers()[index][face];
+  auto loggerGPU = _gameState->getLightManager()->getPointLightLoggers()[index][face];
   // record command buffer
   commandBuffer->beginCommands();
   _logger->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
@@ -445,15 +439,16 @@ void Core::_renderGraphic() {
   // depth to screne barrier
   /////////////////////////////////////////////////////////////////////////////////////////
   // Image memory barrier to make sure that writes are finished before sampling from the texture
-  int directionalNum = _lightManager->getDirectionalLights().size();
-  int pointNum = _lightManager->getPointLights().size();
+  int directionalNum = _gameState->getLightManager()->getDirectionalLights().size();
+  int pointNum = _gameState->getLightManager()->getPointLights().size();
   std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum);
   for (int i = 0; i < directionalNum; i++) {
     imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
     imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].image = _lightManager->getDirectionalLights()[i]
+    imageMemoryBarrier[i].image = _gameState->getLightManager()
+                                      ->getDirectionalLights()[i]
                                       ->getDepthTexture()[frameInFlight]
                                       ->getImageView()
                                       ->getImage()
@@ -471,7 +466,8 @@ void Core::_renderGraphic() {
     // We won't be changing the layout of the image
     imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[id].image = _lightManager->getPointLights()[i]
+    imageMemoryBarrier[id].image = _gameState->getLightManager()
+                                       ->getPointLights()[i]
                                        ->getDepthCubemap()[frameInFlight]
                                        ->getTexture()
                                        ->getImageView()
@@ -506,7 +502,7 @@ void Core::_renderGraphic() {
                        VK_SUBPASS_CONTENTS_INLINE);
 
   _logger->begin("Render light " + std::to_string(globalFrame), _commandBufferRender);
-  _lightManager->draw(frameInFlight);
+  _gameState->getLightManager()->draw(frameInFlight);
   _logger->end(_commandBufferRender);
 
   // draw scene here
@@ -522,7 +518,8 @@ void Core::_renderGraphic() {
   // should be draw first
   if (_skybox) {
     _logger->begin("Render skybox " + std::to_string(globalFrame), _commandBufferRender);
-    _skybox->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
+    _skybox->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
+                  _commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
@@ -530,18 +527,21 @@ void Core::_renderGraphic() {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
-    drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
+    drawable->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
+                   _commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
   std::sort(_drawables[AlphaType::TRANSPARENT].begin(), _drawables[AlphaType::TRANSPARENT].end(),
-            [camera = _camera](std::shared_ptr<Drawable> left, std::shared_ptr<Drawable> right) {
+            [camera = _gameState->getCameraManager()->getCurrentCamera()](std::shared_ptr<Drawable> left,
+                                                                          std::shared_ptr<Drawable> right) {
               return glm::distance(glm::vec3(left->getModel()[3]), camera->getEye()) >
                      glm::distance(glm::vec3(right->getModel()[3]), camera->getEye());
             });
   for (auto& drawable : _drawables[AlphaType::TRANSPARENT]) {
     _logger->begin("Render " + drawable->getName() + " " + std::to_string(globalFrame), _commandBufferRender);
-    drawable->draw(_state->getSettings()->getResolution(), _camera, _commandBufferRender);
+    drawable->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
+                   _commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
@@ -653,11 +653,11 @@ void Core::_drawFrame(int imageIndex) {
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
   std::vector<std::future<void>> shadowFutures;
-  for (int i = 0; i < _lightManager->getDirectionalLights().size(); i++) {
+  for (int i = 0; i < _gameState->getLightManager()->getDirectionalLights().size(); i++) {
     shadowFutures.push_back(_pool->submit(std::bind(&Core::_directionalLightCalculator, this, i)));
   }
 
-  for (int i = 0; i < _lightManager->getPointLights().size(); i++) {
+  for (int i = 0; i < _gameState->getLightManager()->getPointLights().size(); i++) {
     for (int j = 0; j < 6; j++) {
       shadowFutures.push_back(_pool->submit(std::bind(&Core::_pointLightCalculator, this, i, j)));
     }
@@ -718,14 +718,14 @@ void Core::_drawFrame(int imageIndex) {
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore();
     submitInfo.pWaitDstStageMask = waitStages;
-    for (int i = 0; i < _lightManager->getDirectionalLightCommandBuffers().size(); i++) {
+    for (int i = 0; i < _gameState->getLightManager()->getDirectionalLightCommandBuffers().size(); i++) {
       shadowAndGraphicBuffers.push_back(
-          _lightManager->getDirectionalLightCommandBuffers()[i]->getCommandBuffer()[frameInFlight]);
+          _gameState->getLightManager()->getDirectionalLightCommandBuffers()[i]->getCommandBuffer()[frameInFlight]);
     }
-    for (int i = 0; i < _lightManager->getPointLightCommandBuffers().size(); i++) {
-      for (int j = 0; j < _lightManager->getPointLightCommandBuffers()[i].size(); j++) {
+    for (int i = 0; i < _gameState->getLightManager()->getPointLightCommandBuffers().size(); i++) {
+      for (int j = 0; j < _gameState->getLightManager()->getPointLightCommandBuffers()[i].size(); j++) {
         shadowAndGraphicBuffers.push_back(
-            _lightManager->getPointLightCommandBuffers()[i][j]->getCommandBuffer()[frameInFlight]);
+            _gameState->getLightManager()->getPointLightCommandBuffers()[i][j]->getCommandBuffer()[frameInFlight]);
       }
     }
     shadowAndGraphicBuffers.push_back(_commandBufferRender->getCommandBuffer()[frameInFlight]);
@@ -880,7 +880,7 @@ void Core::endRecording() {
   }
 }
 
-void Core::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
+void Core::setCamera(std::shared_ptr<Camera> camera) { _gameState->getCameraManager()->setCurrentCamera(camera); }
 
 void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
 
@@ -908,11 +908,11 @@ void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
 }
 
 std::shared_ptr<ImageCPU<uint8_t>> Core::loadImageCPU(std::string path) {
-  return _resourceManager->loadImageCPU<uint8_t>(path);
+  return _gameState->getResourceManager()->loadImageCPU<uint8_t>(path);
 }
 
 std::shared_ptr<BufferImage> Core::loadImageGPU(std::shared_ptr<ImageCPU<uint8_t>> imageCPU) {
-  return _resourceManager->loadImageGPU<uint8_t>({imageCPU});
+  return _gameState->getResourceManager()->loadImageGPU<uint8_t>({imageCPU});
 }
 
 std::shared_ptr<Texture> Core::createTexture(std::string path, VkFormat format, int mipMapLevels) {
@@ -928,13 +928,13 @@ std::shared_ptr<Cubemap> Core::createCubemap(std::vector<std::string> paths, VkF
     images.push_back(loadImageCPU(path));
   }
   return std::make_shared<Cubemap>(
-      _resourceManager->loadImageGPU<uint8_t>(images), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
+      _gameState->getResourceManager()->loadImageGPU<uint8_t>(images), format, mipMapLevels, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR,
       _commandBufferApplication, _state);
 }
 
 std::shared_ptr<ModelGLTF> Core::createModelGLTF(std::string path) {
-  auto model = _resourceManager->loadModel(path, _commandBufferApplication);
+  auto model = _gameState->getResourceManager()->loadModel(path, _commandBufferApplication);
   _materials.insert(model->getMaterialsColor().begin(), model->getMaterialsColor().end());
   _materials.insert(model->getMaterialsPhong().begin(), model->getMaterialsPhong().end());
   _materials.insert(model->getMaterialsPBR().begin(), model->getMaterialsPBR().end());
@@ -949,8 +949,8 @@ std::shared_ptr<Animation> Core::createAnimation(std::shared_ptr<ModelGLTF> mode
 }
 
 std::shared_ptr<Equirectangular> Core::createEquirectangular(std::string path) {
-  return std::make_shared<Equirectangular>(_resourceManager->loadImageCPU<float>(path), _commandBufferApplication,
-                                           _state);
+  return std::make_shared<Equirectangular>(_gameState->getResourceManager()->loadImageCPU<float>(path),
+                                           _commandBufferApplication, _state);
 }
 
 std::shared_ptr<MaterialColor> Core::createMaterialColor(MaterialTarget target) {
@@ -973,8 +973,8 @@ std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
 
 std::shared_ptr<Shape3D> Core::createBoundingBox(glm::vec3 min, glm::vec3 max, VkCullModeFlagBits cullMode) {
   std::shared_ptr<MeshStatic3D> mesh = std::make_shared<MeshBoundingBox>(min, max, _commandBufferApplication, _state);
-  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _lightManager, _commandBufferApplication,
-                                   _resourceManager, _state);
+  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _gameState->getLightManager(),
+                                   _commandBufferApplication, _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {
@@ -987,23 +987,24 @@ std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlag
       mesh = std::make_shared<MeshSphere>(_commandBufferApplication, _state);
       break;
   }
-  return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _lightManager, _commandBufferApplication,
-                                   _resourceManager, _state);
+  return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _gameState->getLightManager(), _commandBufferApplication,
+                                   _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<Model3D> Core::createModel3D(std::shared_ptr<ModelGLTF> modelGLTF) {
-  return std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), _lightManager,
-                                   _commandBufferApplication, _resourceManager, _state);
+  return std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), _gameState->getLightManager(),
+                                   _commandBufferApplication, _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<Sprite> Core::createSprite() {
-  return std::make_shared<Sprite>(_lightManager, _commandBufferApplication, _resourceManager, _state);
+  return std::make_shared<Sprite>(_gameState->getLightManager(), _commandBufferApplication,
+                                  _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                              std::pair<int, int> patches) {
-  return std::make_shared<Terrain>(_resourceManager->loadImageGPU<uint8_t>({heightmap}), patches,
-                                   _commandBufferApplication, _lightManager, _state);
+  return std::make_shared<Terrain>(_gameState->getResourceManager()->loadImageGPU<uint8_t>({heightmap}), patches,
+                                   _commandBufferApplication, _gameState->getLightManager(), _state);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
@@ -1018,7 +1019,8 @@ std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::vector<float> heights, s
 std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferApplication, _state); }
 
 std::shared_ptr<IBL> Core::createIBL() {
-  return std::make_shared<IBL>(_lightManager, _commandBufferApplication, _resourceManager, _state);
+  return std::make_shared<IBL>(_gameState->getLightManager(), _commandBufferApplication,
+                               _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle> particles,
@@ -1027,11 +1029,11 @@ std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle>
 }
 
 std::shared_ptr<Skybox> Core::createSkybox() {
-  return std::make_shared<Skybox>(_commandBufferApplication, _resourceManager, _state);
+  return std::make_shared<Skybox>(_commandBufferApplication, _gameState->getResourceManager(), _state);
 }
 
 std::shared_ptr<PointLight> Core::createPointLight(std::tuple<int, int> resolution) {
-  auto light = _lightManager->createPointLight(resolution, _commandBufferApplication);
+  auto light = _gameState->getLightManager()->createPointLight(resolution, _commandBufferApplication);
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> pointLightDepth(_state->getSettings()->getMaxFramesInFlight());
   auto cubemap = light->getDepthCubemap();
   for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
@@ -1048,7 +1050,7 @@ std::shared_ptr<PointLight> Core::createPointLight(std::tuple<int, int> resoluti
 }
 
 std::shared_ptr<DirectionalLight> Core::createDirectionalLight(std::tuple<int, int> resolution) {
-  auto light = _lightManager->createDirectionalLight(resolution, _commandBufferApplication);
+  auto light = _gameState->getLightManager()->createDirectionalLight(resolution, _commandBufferApplication);
   std::vector<std::shared_ptr<Framebuffer>> directionalLightDepth(_state->getSettings()->getMaxFramesInFlight());
   auto textures = light->getDepthTexture();
   for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
@@ -1060,18 +1062,20 @@ std::shared_ptr<DirectionalLight> Core::createDirectionalLight(std::tuple<int, i
   return light;
 }
 
-std::shared_ptr<AmbientLight> Core::createAmbientLight() { return _lightManager->createAmbientLight(); }
+std::shared_ptr<AmbientLight> Core::createAmbientLight() { return _gameState->getLightManager()->createAmbientLight(); }
 
 std::shared_ptr<CommandBuffer> Core::getCommandBufferApplication() { return _commandBufferApplication; }
 
-std::shared_ptr<ResourceManager> Core::getResourceManager() { return _resourceManager; }
+std::shared_ptr<ResourceManager> Core::getResourceManager() { return _gameState->getResourceManager(); }
 
 const std::vector<std::shared_ptr<Drawable>>& Core::getDrawables(AlphaType type) { return _drawables[type]; }
 
-std::vector<std::shared_ptr<PointLight>> Core::getPointLights() { return _lightManager->getPointLights(); }
+std::vector<std::shared_ptr<PointLight>> Core::getPointLights() {
+  return _gameState->getLightManager()->getPointLights();
+}
 
 std::vector<std::shared_ptr<DirectionalLight>> Core::getDirectionalLights() {
-  return _lightManager->getDirectionalLights();
+  return _gameState->getLightManager()->getDirectionalLights();
 }
 
 std::shared_ptr<Postprocessing> Core::getPostprocessing() { return _postprocessing; }

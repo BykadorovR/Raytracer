@@ -5,6 +5,7 @@ State::State(std::shared_ptr<Settings> settings) { _settings = settings; }
 #ifdef __ANDROID__
 void State::setNativeWindow(ANativeWindow* window) { _nativeWindow = window; }
 void State::setAssetManager(AAssetManager* assetManager) { _assetManager = assetManager; }
+AAssetManager* State::getAssetManager() { return _assetManager; }
 #endif
 
 void State::initialize() {

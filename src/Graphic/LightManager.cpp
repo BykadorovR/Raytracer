@@ -1,9 +1,7 @@
 #include "Graphic/LightManager.h"
 #include "Vulkan/Buffer.h"
 
-LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                           std::shared_ptr<ResourceManager> resourceManager,
-                           std::shared_ptr<State> state) {
+LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<State> state) {
   _state = state;
   _debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
 
@@ -218,16 +216,8 @@ LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                           _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>(
-      resourceManager->loadImageGPU<uint8_t>(
-          {resourceManager->loadImageCPU<uint8_t>(resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png")}),
-      _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
-      commandBufferTransfer, _state);
-  _stubCubemap = std::make_shared<Cubemap>(
-      resourceManager->loadImageGPU<uint8_t>(std::vector<std::shared_ptr<ImageCPU<uint8_t>>>(
-          6, resourceManager->loadImageCPU<uint8_t>(resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"))),
-      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer, _state);
+  _stubTexture = resourceManager->getTextureOne();
+  _stubCubemap = resourceManager->getCubemapOne();
 
   _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
   _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
