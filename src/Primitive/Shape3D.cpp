@@ -47,14 +47,13 @@ Shape3DPhysics::~Shape3DPhysics() {
 Shape3D::Shape3D(ShapeType shapeType,
                  std::shared_ptr<MeshStatic3D> mesh,
                  VkCullModeFlags cullMode,
-                 std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<ResourceManager> resourceManager,
+                 std::shared_ptr<GameState> gameState,
                  std::shared_ptr<State> state) {
   setName("Shape3D");
   _shapeType = shapeType;
   _state = state;
-  _lightManager = lightManager;
+  _gameState = gameState;
   _cullMode = cullMode;
   _mesh = mesh;
 
@@ -64,7 +63,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
 
   if (shapeType == ShapeType::CUBE) {
-    _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
+    _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getCubemapOne()->getTexture()});
     _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
                                                            "shaders/shape/cubeColor_fragment.spv"};
     _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/shape/cubePhong_vertex.spv",
@@ -81,7 +80,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   if (shapeType == ShapeType::SPHERE) {
-    _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
+    _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
     _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
                                                              "shaders/shape/sphereColor_fragment.spv"};
     _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
@@ -270,7 +269,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPhong);
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PHONG].push_back({"globalPhong", lightManager->getDSLGlobalPhong()});
+    _descriptorSetLayout[MaterialType::PHONG].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()});
 
     _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
@@ -385,7 +385,7 @@ Shape3D::Shape3D(ShapeType shapeType,
     layoutPBR[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", lightManager->getDSLGlobalPBR()});
+    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()});
 
     _descriptorSetPBR = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                         descriptorSetLayout, state->getDescriptorPool(),
@@ -696,13 +696,13 @@ void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 std::shared_ptr<MeshStatic3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(std::tuple<int, int> resolution,
-                   std::shared_ptr<Camera> camera,
-                   std::shared_ptr<CommandBuffer> commandBuffer) {
+void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
+
+    auto resolution = _state->getSettings()->getResolution();
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = std::get<1>(resolution);
@@ -722,7 +722,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
       LightPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = camera->getEye();
+      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
 
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -730,8 +730,8 @@ void Shape3D::draw(std::tuple<int, int> resolution,
 
     BufferMVP cameraUBO{};
     cameraUBO.model = _model * _translateOrigin;
-    cameraUBO.view = camera->getView();
-    cameraUBO.projection = camera->getProjection();
+    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
     _uniformBufferCamera->getBuffer()[currentFrame]->setData(&cameraUBO);
 

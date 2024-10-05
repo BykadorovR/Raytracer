@@ -1,5 +1,6 @@
 #pragma once
 #include "Utility/State.h"
+#include "Utility/GameState.h"
 #include "Utility/ResourceManager.h"
 #include "Vulkan/Descriptor.h"
 #include "Vulkan/Pipeline.h"
@@ -30,10 +31,12 @@ class Shape3DPhysics {
 
 class Shape3D : public Drawable, public Shadowable {
  private:
+  std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
   std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
   ShapeType _shapeType;
-  std::shared_ptr<State> _state;
   std::shared_ptr<MeshStatic3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
@@ -65,9 +68,8 @@ class Shape3D : public Drawable, public Shadowable {
   Shape3D(ShapeType shapeType,
           std::shared_ptr<MeshStatic3D> mesh,
           VkCullModeFlags cullMode,
-          std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<ResourceManager> resourceManager,
+          std::shared_ptr<GameState> gameState,
           std::shared_ptr<State> state);
 
   void enableShadow(bool enable);
@@ -79,8 +81,6 @@ class Shape3D : public Drawable, public Shadowable {
 
   std::shared_ptr<MeshStatic3D> getMesh();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

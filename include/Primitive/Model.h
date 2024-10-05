@@ -5,6 +5,7 @@
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Command.h"
 #include "Utility/Settings.h"
+#include "Utility/GameState.h"
 #include "Utility/ResourceManager.h"
 #include "Utility/Logger.h"
 #include "Utility/Loader.h"
@@ -36,6 +37,7 @@ class Model3DPhysics {
 class Model3D : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
 
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
@@ -85,9 +87,8 @@ class Model3D : public Drawable, public Shadowable {
  public:
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
-          std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<ResourceManager> resourceManager,
+          std::shared_ptr<GameState> gameState,
           std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
@@ -105,8 +106,6 @@ class Model3D : public Drawable, public Shadowable {
   DrawType getDrawType();
   std::shared_ptr<AABB> getAABB();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

@@ -1,14 +1,11 @@
 #pragma once
-#include "Vulkan/Device.h"
 #include "Vulkan/Buffer.h"
-#include "Vulkan/Shader.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Command.h"
 #include "Utility/Settings.h"
-#include "Utility/ResourceManager.h"
+#include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Graphic/LightManager.h"
-#include "Graphic/Light.h"
 #include "Graphic/Material.h"
 #include "Primitive/Mesh.h"
 #include "Primitive/Drawable.h"
@@ -16,6 +13,8 @@
 class Sprite : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
   std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
   std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh, _descriptorSetLayoutDepth;
@@ -30,7 +29,6 @@ class Sprite : public Drawable, public Shadowable {
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
   std::shared_ptr<Pipeline> _pipelineNormal, _pipelineTangent;
   std::map<MaterialType, std::shared_ptr<Pipeline>> _pipelineDirectional, _pipelinePoint;
-  std::shared_ptr<LightManager> _lightManager;
 
   bool _enableShadow = true;
   bool _enableLighting = true;
@@ -52,9 +50,8 @@ class Sprite : public Drawable, public Shadowable {
   void _updateShadowDescriptor(std::shared_ptr<MaterialColor> baseColor);
 
  public:
-  Sprite(std::shared_ptr<LightManager> lightManager,
-         std::shared_ptr<CommandBuffer> commandBufferTransfer,
-         std::shared_ptr<ResourceManager> resourceManager,
+  Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<GameState> gameState,
          std::shared_ptr<State> state);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
@@ -69,8 +66,6 @@ class Sprite : public Drawable, public Shadowable {
   void setDrawType(DrawType drawType);
   DrawType getDrawType();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

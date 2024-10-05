@@ -1,8 +1,11 @@
 #include "Primitive/Line.h"
 
-Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
+Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+           std::shared_ptr<GameState> gameState,
+           std::shared_ptr<State> state) {
   setName("Line");
   _state = state;
+  _gameState = gameState;
   _mesh = std::make_shared<MeshDynamic3D>(state);
   _mesh->setIndexes({0, 1});
   _mesh->setVertices({Vertex3D{}, Vertex3D{}});
@@ -34,12 +37,11 @@ std::shared_ptr<MeshDynamic3D> Line::getMesh() { return _mesh; }
 
 void Line::setModel(glm::mat4 model) { _model = model; }
 
-void Line::draw(std::tuple<int, int> resolution,
-                std::shared_ptr<Camera> camera,
-                std::shared_ptr<CommandBuffer> commandBuffer) {
+void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
+  auto resolution = _state->getSettings()->getResolution();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -56,8 +58,8 @@ void Line::draw(std::tuple<int, int> resolution,
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = camera->getView();
-  cameraUBO.projection = camera->getProjection();
+  cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+  cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
   _uniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 

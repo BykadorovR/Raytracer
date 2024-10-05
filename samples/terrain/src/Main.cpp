@@ -263,9 +263,8 @@ Main::Main() {
                                                      _physicsManager);
   _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageGPU(_core->loadImageCPU("../assets/heightmap.png")),
                                                  std::pair{_patchX, _patchY}, _core->getCommandBufferApplication(),
-                                                 _core->getGUI(), _core->getState());
+                                                 _core->getGUI(), _core->getGameState(), _core->getState());
   _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));
-  _terrainDebug->setCamera(_camera);
   _terrainDebug->setTerrainPhysics(_terrainPhysics);
   _terrainDebug->setMaterial(_materialColor);
 

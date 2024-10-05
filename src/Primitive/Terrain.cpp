@@ -79,9 +79,11 @@ TerrainPhysics::~TerrainPhysics() {
 TerrainCPU::TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
                        std::pair<int, int> patchNumber,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<GameState> gameState,
                        std::shared_ptr<State> state) {
   setName("TerrainCPU");
   _state = state;
+  _gameState = gameState;
   _patchNumber = patchNumber;
 
   _loadStrip(heightMap, commandBufferTransfer, state);
@@ -91,9 +93,11 @@ TerrainCPU::TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
 TerrainCPU::TerrainCPU(std::vector<float> heights,
                        std::tuple<int, int> resolution,
                        std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                       std::shared_ptr<GameState> gameState,
                        std::shared_ptr<State> state) {
   setName("TerrainCPU");
   _state = state;
+  _gameState = gameState;
 
   _loadTriangles(heights, resolution, commandBufferTransfer, state);
   _loadTerrain(commandBufferTransfer, state);
@@ -246,13 +250,13 @@ DrawType TerrainCPU::getDrawType() { return _drawType; }
 
 void TerrainCPU::patchEdge(bool enable) { _enableEdge = enable; }
 
-void TerrainCPU::draw(std::tuple<int, int> resolution,
-                      std::shared_ptr<Camera> camera,
-                      std::shared_ptr<CommandBuffer> commandBuffer) {
+void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
+
+    auto resolution = _state->getSettings()->getResolution();
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = std::get<1>(resolution);
@@ -270,8 +274,8 @@ void TerrainCPU::draw(std::tuple<int, int> resolution,
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = camera->getView();
-    cameraUBO.projection = camera->getProjection();
+    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
     _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
@@ -385,9 +389,11 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
                            std::pair<int, int> patchNumber,
                            std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<GUI> gui,
+                           std::shared_ptr<GameState> gameState,
                            std::shared_ptr<State> state) {
   setName("Terrain");
   _state = state;
+  _gameState = gameState;
   _patchNumber = patchNumber;
   _gui = gui;
 
@@ -687,8 +693,6 @@ void TerrainDebug::_updateColorDescriptor(std::shared_ptr<MaterialColor> materia
   material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
 }
 
-void TerrainDebug::setCamera(std::shared_ptr<Camera> camera) { _camera = camera; }
-
 void TerrainDebug::setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics) {
   _terrainPhysics = terrainPhysics;
 }
@@ -723,13 +727,13 @@ void TerrainDebug::showLoD(bool enable) { _showLoD = enable; }
 
 void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
 
-void TerrainDebug::draw(std::tuple<int, int> resolution,
-                        std::shared_ptr<Camera> camera,
-                        std::shared_ptr<CommandBuffer> commandBuffer) {
+void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
+
+    auto resolution = _state->getSettings()->getResolution();
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = std::get<1>(resolution);
@@ -770,7 +774,7 @@ void TerrainDebug::draw(std::tuple<int, int> resolution,
       std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.patchEdge = _enableEdge;
       pushConstants.showLOD = _showLoD;
-      pushConstants.cameraPosition = camera->getEye();
+      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
       pushConstants.tile = _pickedTile;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
@@ -780,8 +784,8 @@ void TerrainDebug::draw(std::tuple<int, int> resolution,
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = camera->getView();
-    cameraUBO.projection = camera->getProjection();
+    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
     _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
@@ -829,7 +833,8 @@ void TerrainDebug::draw(std::tuple<int, int> resolution,
 
 void TerrainDebug::drawDebug() {
   if (_rayUpdated) {
-    auto hit = _terrainPhysics->hit(_rayOrigin, _camera->getFar() * _rayDirection);
+    auto hit = _terrainPhysics->hit(_rayOrigin,
+                                    _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
     if (hit) {
       // find the corresponding patch number
       _pickedTile = _calculateTileByPosition(hit.value());
@@ -877,7 +882,7 @@ void TerrainDebug::cursorNotify(float xPos, float yPos) { _cursorPosition = glm:
 
 void TerrainDebug::mouseNotify(int button, int action, int mods) {
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-    auto projection = _camera->getProjection();
+    auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
     // forward transformation
     // x, y, z, 1 * MVP -> clip?
     // clip / w -> NDC [-1, 1]
@@ -892,15 +897,17 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
     glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
 
     // Convert to camera (view) space
-    glm::vec4 viewSpacePos = glm::inverse(_camera->getProjection()) * clipSpacePos;
+    glm::vec4 viewSpacePos = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getProjection()) *
+                             clipSpacePos;
     viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
 
     // Convert to world space
-    glm::vec4 worldSpaceRay = glm::inverse(_camera->getView()) * viewSpacePos;
+    glm::vec4 worldSpaceRay = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView()) *
+                              viewSpacePos;
 
     // normalize
     _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
-    _rayOrigin = glm::vec3(glm::inverse(_camera->getView())[3]);
+    _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
     _rayUpdated = true;
   }
 }
@@ -914,12 +921,12 @@ void TerrainDebug::scrollNotify(double xOffset, double yOffset) {}
 Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::pair<int, int> patchNumber,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<LightManager> lightManager,
+                 std::shared_ptr<GameState> gameState,
                  std::shared_ptr<State> state) {
   setName("Terrain");
   _state = state;
+  _gameState = gameState;
   _patchNumber = patchNumber;
-  _lightManager = lightManager;
 
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, state);
@@ -1218,7 +1225,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     descriptorSetLayout->createCustom(layoutPhong);
 
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PHONG].push_back({"globalPhong", lightManager->getDSLGlobalTerrainPhong()});
+    _descriptorSetLayout[MaterialType::PHONG].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
     _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
                                                           state->getDevice());
@@ -1320,7 +1328,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPBR[13].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", lightManager->getDSLGlobalTerrainPBR()});
+    _descriptorSetLayout[MaterialType::PBR].push_back(
+        {"globalPBR", _gameState->getLightManager()->getDSLGlobalTerrainPBR()});
 
     _descriptorSetPBR = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                         descriptorSetLayout, state->getDescriptorPool(),
@@ -1603,13 +1612,13 @@ void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
   _updatePBRDescriptor(material);
 }
 
-void Terrain::draw(std::tuple<int, int> resolution,
-                   std::shared_ptr<Camera> camera,
-                   std::shared_ptr<CommandBuffer> commandBuffer) {
+void Terrain::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
+
+    auto resolution = _state->getSettings()->getResolution();
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = std::get<1>(resolution);
@@ -1650,7 +1659,7 @@ void Terrain::draw(std::tuple<int, int> resolution,
       std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = camera->getEye();
+      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevels), &pushConstants);
@@ -1659,8 +1668,8 @@ void Terrain::draw(std::tuple<int, int> resolution,
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
     cameraUBO.model = _model;
-    cameraUBO.view = camera->getView();
-    cameraUBO.projection = camera->getProjection();
+    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
     _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
@@ -1697,9 +1706,10 @@ void Terrain::draw(std::tuple<int, int> resolution,
                                             return info.first == std::string("globalPhong");
                                           });
     if (globalLayoutPhong != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalTerrainPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          pipeline->getPipelineLayout(), 1, 1,
+          &_gameState->getLightManager()->getDSGlobalTerrainPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     // PBR
@@ -1719,9 +1729,10 @@ void Terrain::draw(std::tuple<int, int> resolution,
                                           return info.first == std::string("globalPBR");
                                         });
     if (globalLayoutPBR != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalTerrainPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          pipeline->getPipelineLayout(), 1, 1,
+          &_gameState->getLightManager()->getDSGlobalTerrainPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
@@ -1741,14 +1752,16 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -1802,7 +1815,7 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     DepthConstants pushConstants;
-    pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+    pushConstants.lightPosition = _gameState->getLightManager()->getPointLights()[lightIndex]->getPosition();
     // light camera
     pushConstants.far = 100.f;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1814,13 +1827,13 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getViewMatrix();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getProjectionMatrix();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getViewMatrix(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getProjectionMatrix();
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages

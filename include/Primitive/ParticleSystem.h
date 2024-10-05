@@ -1,5 +1,6 @@
 #pragma once
 #include "Utility/State.h"
+#include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Graphic/Texture.h"
 #include "Vulkan/Descriptor.h"
@@ -65,8 +66,10 @@ struct Particle {
 
 class ParticleSystem : public Drawable {
  private:
-  std::vector<Particle> _particles;
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
+  std::vector<Particle> _particles;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<Texture> _texture;
   std::shared_ptr<UniformBuffer> _deltaUniformBuffer, _cameraUniformBuffer;
@@ -85,12 +88,11 @@ class ParticleSystem : public Drawable {
   ParticleSystem(std::vector<Particle> particles,
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                 std::shared_ptr<GameState> gameState,
                  std::shared_ptr<State> state);
   void setPointScale(float pointScale);
   void updateTimer(float frameTimer);
 
   void drawCompute(std::shared_ptr<CommandBuffer> commandBuffer);
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

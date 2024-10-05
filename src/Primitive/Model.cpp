@@ -58,22 +58,21 @@ bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
-                 std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<ResourceManager> resourceManager,
+                 std::shared_ptr<GameState> gameState,
                  std::shared_ptr<State> state) {
   setName("Model3D");
   _state = state;
   _nodes = nodes;
   _meshes = meshes;
-  _lightManager = lightManager;
+  _gameState = gameState;
   auto settings = _state->getSettings();
 
   // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPhong->setBaseColor({resourceManager->getTextureOne()});
-  _defaultMaterialPhong->setNormal({resourceManager->getTextureZero()});
-  _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
+  _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
+  _defaultMaterialPhong->setNormal({_gameState->getResourceManager()->getTextureZero()});
+  _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _mesh = std::make_shared<MeshStatic3D>(state);
@@ -316,34 +315,34 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = LightPush::getPushConstant();
 
-    _pipeline[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                    {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                     shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                    {{"phong", _descriptorSetLayoutPhong},
-                                                     {"joints", _descriptorSetLayoutJoints},
-                                                     {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                    defaultPushConstants, _mesh->getBindingDescription(),
-                                                    _mesh->getAttributeDescriptions(), _renderPass);
+    _pipeline[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
     _pipelineCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineCullOff[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                           {{"phong", _descriptorSetLayoutPhong},
-                                                            {"joints", _descriptorSetLayoutJoints},
-                                                            {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                           defaultPushConstants, _mesh->getBindingDescription(),
-                                                           _mesh->getAttributeDescriptions(), _renderPass);
+    _pipelineCullOff[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
     _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                             {{"phong", _descriptorSetLayoutPhong},
-                                                              {"joints", _descriptorSetLayoutJoints},
-                                                              {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                             defaultPushConstants, _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions(), _renderPass);
+    _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // setup PBR
@@ -431,29 +430,29 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                      shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                     {{"pbr", _descriptorSetLayoutPBR},
                                                      {"joints", _descriptorSetLayoutJoints},
-                                                     {"globalPBR", lightManager->getDSLGlobalPBR()}},
+                                                     {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
                                                     defaultPushConstants, _mesh->getBindingDescription(),
                                                     _mesh->getAttributeDescriptions(), _renderPass);
 
       _pipelineCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-      _pipelineCullOff[MaterialType::PBR]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                           {{"pbr", _descriptorSetLayoutPBR},
-                                                            {"joints", _descriptorSetLayoutJoints},
-                                                            {"globalPBR", lightManager->getDSLGlobalPBR()}},
-                                                           defaultPushConstants, _mesh->getBindingDescription(),
-                                                           _mesh->getAttributeDescriptions(), _renderPass);
+      _pipelineCullOff[MaterialType::PBR]->createGraphic3D(
+          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          {{"pbr", _descriptorSetLayoutPBR},
+           {"joints", _descriptorSetLayoutJoints},
+           {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
+          defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
       _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-      _pipelineWireframe[MaterialType::PBR]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
-                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                             {{"pbr", _descriptorSetLayoutPBR},
-                                                              {"joints", _descriptorSetLayoutJoints},
-                                                              {"globalPBR", lightManager->getDSLGlobalPBR()}},
-                                                             defaultPushConstants, _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions(), _renderPass);
+      _pipelineWireframe[MaterialType::PBR]->createGraphic3D(
+          VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          {{"pbr", _descriptorSetLayoutPBR},
+           {"joints", _descriptorSetLayoutJoints},
+           {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
+          defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
 
@@ -936,9 +935,7 @@ void Model3D::enableShadow(bool enable) { _enableShadow = enable; }
 
 void Model3D::enableLighting(bool enable) { _enableLighting = enable; }
 
-void Model3D::draw(std::tuple<int, int> resolution,
-                   std::shared_ptr<Camera> camera,
-                   std::shared_ptr<CommandBuffer> commandBuffer) {
+void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto pipeline = _pipeline[_materialType];
   auto pipelineCullOff = _pipelineCullOff[_materialType];
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
@@ -951,6 +948,7 @@ void Model3D::draw(std::tuple<int, int> resolution,
     pipelineCullOff = _pipelineTangentMeshCullOff;
   }
 
+  auto resolution = _state->getSettings()->getResolution();
   int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -970,7 +968,7 @@ void Model3D::draw(std::tuple<int, int> resolution,
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = camera->getEye();
+    pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[_state->getFrameInFlight()], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
   }
@@ -1001,8 +999,9 @@ void Model3D::draw(std::tuple<int, int> resolution,
 
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull, camera->getView(),
-              camera->getProjection(), node);
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull,
+              _gameState->getCameraManager()->getCurrentCamera()->getView(),
+              _gameState->getCameraManager()->getCurrentCamera()->getProjection(), node);
   }
 }
 

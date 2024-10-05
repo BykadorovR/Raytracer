@@ -14,10 +14,12 @@ struct VertexConstants {
 ParticleSystem::ParticleSystem(std::vector<Particle> particles,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                               std::shared_ptr<GameState> gameState,
                                std::shared_ptr<State> state) {
   setName("Particle system");
   _particles = particles;
   _state = state;
+  _gameState = gameState;
   _commandBufferTransfer = commandBufferTransfer;
   _texture = texture;
 
@@ -144,12 +146,11 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
                 1, 1);
 }
 
-void ParticleSystem::draw(std::tuple<int, int> resolution,
-                          std::shared_ptr<Camera> camera,
-                          std::shared_ptr<CommandBuffer> commandBuffer) {
+void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
+  auto resolution = _state->getSettings()->getResolution();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -173,8 +174,8 @@ void ParticleSystem::draw(std::tuple<int, int> resolution,
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = camera->getView();
-  cameraUBO.projection = camera->getProjection();
+  cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+  cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
   _cameraUniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 

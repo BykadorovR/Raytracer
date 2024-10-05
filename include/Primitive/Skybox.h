@@ -1,5 +1,6 @@
 #pragma once
 #include "Utility/State.h"
+#include "Utility/GameState.h"
 #include "Utility/ResourceManager.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Render.h"
@@ -12,6 +13,8 @@
 class Skybox {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
   std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<UniformBuffer> _uniformBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
@@ -27,13 +30,11 @@ class Skybox {
 
  public:
   Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-         std::shared_ptr<ResourceManager> resourceManager,
+         std::shared_ptr<GameState> gameState,
          std::shared_ptr<State> state);
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setModel(glm::mat4 model);
   std::shared_ptr<MeshStatic3D> getMesh();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer);
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer);
 };

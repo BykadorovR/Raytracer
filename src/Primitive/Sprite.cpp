@@ -1,20 +1,19 @@
 #include "Primitive/Sprite.h"
 #undef far
 
-Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
-               std::shared_ptr<CommandBuffer> commandBufferTransfer,
-               std::shared_ptr<ResourceManager> resourceManager,
+Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+               std::shared_ptr<GameState> gameState,
                std::shared_ptr<State> state) {
   setName("Sprite");
   _state = state;
+  _gameState = gameState;
   auto debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
-  _lightManager = lightManager;
   auto settings = state->getSettings();
   // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPhong->setBaseColor({resourceManager->getTextureOne()});
-  _defaultMaterialPhong->setNormal({resourceManager->getTextureZero()});
-  _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
+  _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
+  _defaultMaterialPhong->setNormal({_gameState->getResourceManager()->getTextureZero()});
+  _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
   _material = _defaultMaterialPhong;
@@ -209,7 +208,8 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
     layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPhong);
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PHONG].push_back({"globalPhong", lightManager->getDSLGlobalPhong()});
+    _descriptorSetLayout[MaterialType::PHONG].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()});
 
     _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, state->getDescriptorPool(),
@@ -306,7 +306,7 @@ Sprite::Sprite(std::shared_ptr<LightManager> lightManager,
     layoutPBR[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", lightManager->getDSLGlobalPBR()});
+    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()});
 
     _descriptorSetPBR = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
                                                         descriptorSetLayout, state->getDescriptorPool(),
@@ -730,14 +730,13 @@ void Sprite::setDrawType(DrawType drawType) { _drawType = drawType; }
 
 DrawType Sprite::getDrawType() { return _drawType; }
 
-void Sprite::draw(std::tuple<int, int> resolution,
-                  std::shared_ptr<Camera> camera,
-                  std::shared_ptr<CommandBuffer> commandBuffer) {
+void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto pipeline = _pipeline[_materialType];
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
   if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormal;
   if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangent;
 
+  auto resolution = _state->getSettings()->getResolution();
   int currentFrame = _state->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
@@ -757,7 +756,7 @@ void Sprite::draw(std::tuple<int, int> resolution,
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = camera->getEye();
+    pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
 
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -768,8 +767,8 @@ void Sprite::draw(std::tuple<int, int> resolution,
   cameraMVP.view = glm::mat4(1.f);
   cameraMVP.projection = glm::mat4(1.f);
   if (_enableHUD == false) {
-    cameraMVP.view = camera->getView();
-    cameraMVP.projection = camera->getProjection();
+    cameraMVP.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraMVP.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
   }
 
   _cameraUBOFull->getBuffer()[currentFrame]->setData(&cameraMVP);
@@ -813,9 +812,9 @@ void Sprite::draw(std::tuple<int, int> resolution,
                                           return info.first == std::string("globalPhong");
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 1, 1,
-                            &_lightManager->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        1, 1, &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // PBR
@@ -835,9 +834,9 @@ void Sprite::draw(std::tuple<int, int> resolution,
                                         return info.first == std::string("globalPBR");
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 1, 1,
-                            &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        1, 1, &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // normals and tangents
@@ -866,14 +865,16 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
                     pipeline->getPipeline());
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -910,9 +911,9 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition = _gameState->getLightManager()->getPointLights()[lightIndex]->getPosition();
       // light camera
-      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -922,13 +923,13 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getViewMatrix();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getProjectionMatrix();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getViewMatrix(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getProjectionMatrix();
   }
 
   BufferMVP cameraMVP{};

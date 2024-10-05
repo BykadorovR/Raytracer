@@ -1,3 +1,4 @@
+#pragma once
 #include <Utility/State.h>
 #include <Vulkan/Command.h>
 #include "Utility/ResourceManager.h"

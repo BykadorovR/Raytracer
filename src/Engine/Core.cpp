@@ -518,8 +518,7 @@ void Core::_renderGraphic() {
   // should be draw first
   if (_skybox) {
     _logger->begin("Render skybox " + std::to_string(globalFrame), _commandBufferRender);
-    _skybox->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
-                  _commandBufferRender);
+    _skybox->draw(_commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
@@ -527,8 +526,7 @@ void Core::_renderGraphic() {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
     _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
-    drawable->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
-                   _commandBufferRender);
+    drawable->draw(_commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
@@ -540,8 +538,7 @@ void Core::_renderGraphic() {
             });
   for (auto& drawable : _drawables[AlphaType::TRANSPARENT]) {
     _logger->begin("Render " + drawable->getName() + " " + std::to_string(globalFrame), _commandBufferRender);
-    drawable->draw(_state->getSettings()->getResolution(), _gameState->getCameraManager()->getCurrentCamera(),
-                   _commandBufferRender);
+    drawable->draw(_commandBufferRender);
     _logger->end(_commandBufferRender);
   }
 
@@ -973,8 +970,7 @@ std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
 
 std::shared_ptr<Shape3D> Core::createBoundingBox(glm::vec3 min, glm::vec3 max, VkCullModeFlagBits cullMode) {
   std::shared_ptr<MeshStatic3D> mesh = std::make_shared<MeshBoundingBox>(min, max, _commandBufferApplication, _state);
-  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _gameState->getLightManager(),
-                                   _commandBufferApplication, _gameState->getResourceManager(), _state);
+  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {
@@ -987,49 +983,46 @@ std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlag
       mesh = std::make_shared<MeshSphere>(_commandBufferApplication, _state);
       break;
   }
-  return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _gameState->getLightManager(), _commandBufferApplication,
-                                   _gameState->getResourceManager(), _state);
+  return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<Model3D> Core::createModel3D(std::shared_ptr<ModelGLTF> modelGLTF) {
-  return std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), _gameState->getLightManager(),
-                                   _commandBufferApplication, _gameState->getResourceManager(), _state);
+  return std::make_shared<Model3D>(modelGLTF->getNodes(), modelGLTF->getMeshes(), _commandBufferApplication, _gameState,
+                                   _state);
 }
 
 std::shared_ptr<Sprite> Core::createSprite() {
-  return std::make_shared<Sprite>(_gameState->getLightManager(), _commandBufferApplication,
-                                  _gameState->getResourceManager(), _state);
+  return std::make_shared<Sprite>(_commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                              std::pair<int, int> patches) {
   return std::make_shared<Terrain>(_gameState->getResourceManager()->loadImageGPU<uint8_t>({heightmap}), patches,
-                                   _commandBufferApplication, _gameState->getLightManager(), _state);
+                                   _commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                                    std::pair<int, int> patches) {
-  return std::make_shared<TerrainCPU>(heightmap, patches, _commandBufferApplication, _state);
+  return std::make_shared<TerrainCPU>(heightmap, patches, _commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution) {
-  return std::make_shared<TerrainCPU>(heights, resolution, _commandBufferApplication, _state);
+  return std::make_shared<TerrainCPU>(heights, resolution, _commandBufferApplication, _gameState, _state);
 }
 
-std::shared_ptr<Line> Core::createLine() { return std::make_shared<Line>(_commandBufferApplication, _state); }
-
-std::shared_ptr<IBL> Core::createIBL() {
-  return std::make_shared<IBL>(_gameState->getLightManager(), _commandBufferApplication,
-                               _gameState->getResourceManager(), _state);
+std::shared_ptr<Line> Core::createLine() {
+  return std::make_shared<Line>(_commandBufferApplication, _gameState, _state);
 }
+
+std::shared_ptr<IBL> Core::createIBL() { return std::make_shared<IBL>(_commandBufferApplication, _gameState, _state); }
 
 std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle> particles,
                                                            std::shared_ptr<Texture> particleTexture) {
-  return std::make_shared<ParticleSystem>(particles, particleTexture, _commandBufferApplication, _state);
+  return std::make_shared<ParticleSystem>(particles, particleTexture, _commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<Skybox> Core::createSkybox() {
-  return std::make_shared<Skybox>(_commandBufferApplication, _gameState->getResourceManager(), _state);
+  return std::make_shared<Skybox>(_commandBufferApplication, _gameState, _state);
 }
 
 std::shared_ptr<PointLight> Core::createPointLight(std::tuple<int, int> resolution) {
@@ -1083,6 +1076,8 @@ std::shared_ptr<Postprocessing> Core::getPostprocessing() { return _postprocessi
 std::shared_ptr<Blur> Core::getBlur() { return _blur; }
 
 std::shared_ptr<State> Core::getState() { return _state; }
+
+std::shared_ptr<GameState> Core::getGameState() { return _gameState; }
 
 std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 

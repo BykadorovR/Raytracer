@@ -1,5 +1,6 @@
 #pragma once
 #include "Utility/State.h"
+#include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Graphic/Material.h"
 #include "Graphic/LightManager.h"
@@ -42,8 +43,9 @@ class TerrainPhysics {
 class TerrainCPU : public Drawable {
  private:
   std::shared_ptr<State> _state;
-  std::shared_ptr<MeshStatic3D> _mesh;
+  std::shared_ptr<GameState> _gameState;
 
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
@@ -72,24 +74,26 @@ class TerrainCPU : public Drawable {
   TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
              std::pair<int, int> patchNumber,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<GameState> gameState,
              std::shared_ptr<State> state);
   TerrainCPU(std::vector<float> heights,
              std::tuple<int, int> resolution,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+             std::shared_ptr<GameState> gameState,
              std::shared_ptr<State> state);
 
   void setDrawType(DrawType drawType);
 
   DrawType getDrawType();
   void patchEdge(bool enable);
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
 
 class TerrainDebug : public Drawable, public InputSubscriber {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
   std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
@@ -120,7 +124,6 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
   glm::vec2 _cursorPosition;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
-  std::shared_ptr<Camera> _camera;
   std::vector<bool> _changeMesh;
   void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   int _calculateTileByPosition(glm::vec3 position);
@@ -131,9 +134,9 @@ class TerrainDebug : public Drawable, public InputSubscriber {
                std::pair<int, int> patchNumber,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GUI> gui,
+               std::shared_ptr<GameState> gameState,
                std::shared_ptr<State> state);
 
-  void setCamera(std::shared_ptr<Camera> camera);
   void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);
@@ -146,9 +149,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawDebug();
 
   void cursorNotify(float xPos, float yPos) override;
@@ -161,6 +162,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
 class Terrain : public Drawable, public Shadowable {
  private:
   std::shared_ptr<State> _state;
+  std::shared_ptr<GameState> _gameState;
+
   std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<Material> _material;
   MaterialType _materialType = MaterialType::COLOR;
@@ -181,7 +184,6 @@ class Terrain : public Drawable, public Shadowable {
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<Texture> _heightMap;
   std::pair<int, int> _patchNumber;
-  std::shared_ptr<LightManager> _lightManager;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
@@ -198,7 +200,7 @@ class Terrain : public Drawable, public Shadowable {
   Terrain(std::shared_ptr<BufferImage> heightMap,
           std::pair<int, int> patchNumber,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<LightManager> lightManager,
+          std::shared_ptr<GameState> gameState,
           std::shared_ptr<State> state);
 
   void setTessellationLevel(int min, int max);
@@ -212,8 +214,6 @@ class Terrain : public Drawable, public Shadowable {
   void setMaterial(std::shared_ptr<MaterialPhong> material);
   void setMaterial(std::shared_ptr<MaterialPBR> material);
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

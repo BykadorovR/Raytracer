@@ -1,9 +1,10 @@
 #include "Primitive/Skybox.h"
 
 Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-               std::shared_ptr<ResourceManager> resourceManager,
+               std::shared_ptr<GameState> gameState,
                std::shared_ptr<State> state) {
   _state = state;
+  _gameState = gameState;
   _mesh = std::make_shared<MeshStatic3D>(state);
   std::vector<Vertex3D> vertices(8);
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
@@ -30,7 +31,7 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
+  _defaultMaterialColor->setBaseColor({gameState->getResourceManager()->getTextureOne()});
   _material = _defaultMaterialColor;
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeGraphic();
@@ -107,9 +108,7 @@ void Skybox::setModel(glm::mat4 model) { _model = model; }
 
 std::shared_ptr<MeshStatic3D> Skybox::getMesh() { return _mesh; }
 
-void Skybox::draw(std::tuple<int, int> resolution,
-                  std::shared_ptr<Camera> camera,
-                  std::shared_ptr<CommandBuffer> commandBuffer) {
+void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _state->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
@@ -130,8 +129,8 @@ void Skybox::draw(std::tuple<int, int> resolution,
 
   BufferMVP cameraUBO{};
   cameraUBO.model = _model;
-  cameraUBO.view = glm::mat4(glm::mat3(camera->getView()));
-  cameraUBO.projection = camera->getProjection();
+  cameraUBO.view = glm::mat4(glm::mat3(_gameState->getCameraManager()->getCurrentCamera()->getView()));
+  cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
   _uniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 

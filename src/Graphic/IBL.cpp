@@ -1,14 +1,13 @@
 #include "Graphic/IBL.h"
 
-IBL::IBL(std::shared_ptr<LightManager> lightManager,
-         std::shared_ptr<CommandBuffer> commandBufferTransfer,
-         std::shared_ptr<ResourceManager> resourceManager,
+IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+         std::shared_ptr<GameState> gameState,
          std::shared_ptr<State> state) {
   _state = state;
   _commandBufferTransfer = commandBufferTransfer;
   _mesh3D = std::make_shared<MeshStatic3D>(state);
   _mesh2D = std::make_shared<MeshStatic2D>(state);
-  _lightManager = lightManager;
+  _gameState = gameState;
 
   std::vector<Vertex3D> vertices(8);
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
@@ -47,7 +46,8 @@ IBL::IBL(std::shared_ptr<LightManager> lightManager,
 
   // TODO: should be texture zero??
   _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  std::dynamic_pointer_cast<MaterialColor>(_material)->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
+  std::dynamic_pointer_cast<MaterialColor>(_material)->setBaseColor(
+      {_gameState->getResourceManager()->getCubemapOne()->getTexture()});
   _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
   _renderPass->initializeIBL();
   _cameraBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
