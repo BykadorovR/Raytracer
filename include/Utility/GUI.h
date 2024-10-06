@@ -46,7 +46,7 @@ struct VertexGUI {
 class GUI : public InputSubscriber {
  private:
   std::tuple<int, int> _resolution;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<Image> _fontImage;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<RenderPass> _renderPass;
@@ -65,7 +65,7 @@ class GUI : public InputSubscriber {
   int _calls = 0;
 
  public:
-  GUI(std::shared_ptr<State> state);
+  GUI(std::shared_ptr<EngineState> engineState);
   void reset();
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale = 1.f);

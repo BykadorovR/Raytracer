@@ -2,10 +2,10 @@
 
 Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GameState> gameState,
-               std::shared_ptr<State> state) {
-  _state = state;
+               std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   _gameState = gameState;
-  _mesh = std::make_shared<MeshStatic3D>(state);
+  _mesh = std::make_shared<MeshStatic3D>(engineState);
   std::vector<Vertex3D> vertices(8);
   vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
   vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
@@ -30,18 +30,18 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                 5, 4, 6, 6, 7, 5};  // ccw if look to this face from back
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialColor->setBaseColor({gameState->getResourceManager()->getTextureOne()});
   _material = _defaultMaterialColor;
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state);
+  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(BufferMVP), engineState);
 
   // setup color
   {
-    _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
@@ -55,18 +55,19 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayout->createCustom(layoutColor);
 
-    _descriptorSet = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
-                                                     state->getDescriptorPool(), state->getDevice());
+    _descriptorSet = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                     _descriptorSetLayout, engineState->getDescriptorPool(),
+                                                     engineState->getDevice());
 
     _updateColorDescriptor({_defaultMaterialColor});
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(state);
+      auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/skybox/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/skybox/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipeline->createSkybox(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -78,7 +79,7 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 }
 
 void Skybox::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -109,22 +110,22 @@ void Skybox::setModel(glm::mat4 model) { _model = model; }
 std::shared_ptr<MeshStatic3D> Skybox::getMesh() { return _mesh; }
 
 void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto currentFrame = _state->getFrameInFlight();
+  auto currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};
   viewport.x = 0.0f;
-  viewport.y = std::get<1>(_state->getSettings()->getResolution());
-  viewport.width = std::get<0>(_state->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_state->getSettings()->getResolution());
+  viewport.y = std::get<1>(_engineState->getSettings()->getResolution());
+  viewport.width = std::get<0>(_engineState->getSettings()->getResolution());
+  viewport.height = -std::get<1>(_engineState->getSettings()->getResolution());
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
   VkRect2D scissor{};
   scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_state->getSettings()->getResolution()),
-                              std::get<1>(_state->getSettings()->getResolution()));
+  scissor.extent = VkExtent2D(std::get<0>(_engineState->getSettings()->getResolution()),
+                              std::get<1>(_engineState->getSettings()->getResolution()));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   BufferMVP cameraUBO{};

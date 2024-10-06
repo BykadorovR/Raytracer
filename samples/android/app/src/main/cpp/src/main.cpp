@@ -139,7 +139,7 @@ void update() {
   angleHorizontal += 0.05f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
   _core->getGUI()->startWindow("Help", {20, 120}, {widthScreen / 5, 0}, 3.f);
   if (_core->getGUI()->startTree("Main", false)) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
@@ -219,10 +219,10 @@ void initialize() {
   auto commandBufferTransfer = _core->getCommandBufferApplication();
 
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _camera->setSpeed(0.1f, 0.05f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _core->setCamera(_camera);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -687,7 +687,7 @@ bool _move = false;
 void handle_input(android_app* app) {
   if (_move) {
     LOGI("Movement process");
-    _core->getState()->getInput()->keyHandler(87, 0, 1, 0);
+    _core->getEngineState()->getInput()->keyHandler(87, 0, 1, 0);
   }
 
   auto* inputBuffer = android_app_swap_input_buffers(app);
@@ -722,8 +722,8 @@ void handle_input(android_app* app) {
         }
         if (pointer.id == 0) {
           // 0 - left button, 1 - press, 0 = mod, doesn't matter
-          _core->getState()->getInput()->cursorHandler(x, y);
-          _core->getState()->getInput()->mouseHandler(0, 1, 0);
+          _core->getEngineState()->getInput()->cursorHandler(x, y);
+          _core->getEngineState()->getInput()->mouseHandler(0, 1, 0);
         }
         break;
 
@@ -737,12 +737,12 @@ void handle_input(android_app* app) {
         if (pointer.id == 1) {
           _move = false;
           LOGI("End movement");
-          _core->getState()->getInput()->keyHandler(87, 0, 0, 0);
+          _core->getEngineState()->getInput()->keyHandler(87, 0, 0, 0);
         }
         if (pointer.id == 0) {
           // 0 - left button, 0 - release, 0 = mod, doesn't matter
-          _core->getState()->getInput()->cursorHandler(x, y);
-          _core->getState()->getInput()->mouseHandler(0, 0, 0);
+          _core->getEngineState()->getInput()->cursorHandler(x, y);
+          _core->getEngineState()->getInput()->mouseHandler(0, 0, 0);
         }
         break;
 
@@ -755,7 +755,7 @@ void handle_input(android_app* app) {
           x = GameActivityPointerAxes_getX(&pointer);
           y = GameActivityPointerAxes_getY(&pointer);
           if (pointer.id == 0) {
-            _core->getState()->getInput()->cursorHandler(x, y);
+            _core->getEngineState()->getInput()->cursorHandler(x, y);
           }
         }
         break;

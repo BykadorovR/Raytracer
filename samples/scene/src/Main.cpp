@@ -14,10 +14,10 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
+      _core->getEngineState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      _core->getState()->getInput()->showCursor(true);
+      _core->getEngineState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
@@ -113,12 +113,11 @@ Main::Main() {
   // start transfer command buffer
   auto commandBufferTransfer = _core->getCommandBufferApplication();
   commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -553,7 +552,7 @@ void Main::update() {
   angleHorizontal += 0.05f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
   _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
   if (_core->getGUI()->startTree("Main")) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});

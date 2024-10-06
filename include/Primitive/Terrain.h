@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Graphic/Material.h"
@@ -42,7 +42,7 @@ class TerrainPhysics {
 
 class TerrainCPU : public Drawable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::shared_ptr<MeshStatic3D> _mesh;
@@ -63,24 +63,24 @@ class TerrainCPU : public Drawable {
   void _updateColorDescriptor();
   void _loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<State> state);
+                  std::shared_ptr<EngineState> engineState);
   void _loadTriangles(std::vector<float> heights,
                       std::tuple<int, int> resolution,
                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                      std::shared_ptr<State> state);
-  void _loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+                      std::shared_ptr<EngineState> engineState);
+  void _loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
 
  public:
   TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
              std::pair<int, int> patchNumber,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<GameState> gameState,
-             std::shared_ptr<State> state);
+             std::shared_ptr<EngineState> engineState);
   TerrainCPU(std::vector<float> heights,
              std::tuple<int, int> resolution,
              std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<GameState> gameState,
-             std::shared_ptr<State> state);
+             std::shared_ptr<EngineState> engineState);
 
   void setDrawType(DrawType drawType);
 
@@ -91,7 +91,7 @@ class TerrainCPU : public Drawable {
 
 class TerrainDebug : public Drawable, public InputSubscriber {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
@@ -135,7 +135,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GUI> gui,
                std::shared_ptr<GameState> gameState,
-               std::shared_ptr<State> state);
+               std::shared_ptr<EngineState> engineState);
 
   void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
   void setTessellationLevel(int min, int max);
@@ -161,7 +161,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
 
 class Terrain : public Drawable, public Shadowable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::shared_ptr<MeshStatic3D> _mesh;
@@ -201,7 +201,7 @@ class Terrain : public Drawable, public Shadowable {
           std::pair<int, int> patchNumber,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<GameState> gameState,
-          std::shared_ptr<State> state);
+          std::shared_ptr<EngineState> engineState);
 
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);

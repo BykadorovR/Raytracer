@@ -8,12 +8,12 @@ Texture::Texture(std::shared_ptr<BufferImage> data,
                  int mipMapLevels,
                  VkFilter filter,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<State> state) {
+                 std::shared_ptr<EngineState> engineState) {
   // image
   auto image = std::make_shared<Image>(
       data->getResolution(), 1, mipMapLevels, format, VK_IMAGE_TILING_OPTIMAL,
       VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
   image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                       mipMapLevels, commandBufferTransfer);
   image->copyFrom(data, {0}, commandBufferTransfer);
@@ -23,19 +23,19 @@ Texture::Texture(std::shared_ptr<BufferImage> data,
 
   // image view
   _imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, mipMapLevels,
-                                           VK_IMAGE_ASPECT_COLOR_BIT, state);
-  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, state->getSettings()->getAnisotropicSamples(), filter,
-                                       state);
+                                           VK_IMAGE_ASPECT_COLOR_BIT, engineState);
+  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, engineState->getSettings()->getAnisotropicSamples(), filter,
+                                       engineState);
 }
 
 Texture::Texture(VkSamplerAddressMode mode,
                  int mipMapLevels,
                  VkFilter filter,
                  std::shared_ptr<ImageView> imageView,
-                 std::shared_ptr<State> state) {
+                 std::shared_ptr<EngineState> engineState) {
   _imageView = imageView;
-  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, state->getSettings()->getAnisotropicSamples(), filter,
-                                       state);
+  _sampler = std::make_shared<Sampler>(mode, mipMapLevels, engineState->getSettings()->getAnisotropicSamples(), filter,
+                                       engineState);
 }
 
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }

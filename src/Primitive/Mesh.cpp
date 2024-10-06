@@ -21,7 +21,7 @@ glm::vec3 AABB::getMin() { return _min; }
 
 glm::vec3 AABB::getMax() { return _max; }
 
-Mesh::Mesh(std::shared_ptr<State> state) { _state = state; }
+Mesh::Mesh(std::shared_ptr<EngineState> engineState) { _engineState = engineState; }
 
 std::vector<VkVertexInputAttributeDescription> Mesh::getAttributeDescriptions(
     std::vector<std::tuple<VkFormat, uint32_t>> fields) {
@@ -35,9 +35,9 @@ std::vector<VkVertexInputAttributeDescription> Mesh::getAttributeDescriptions(
   return attributeDescriptions;
 }
 
-MeshStatic3D::MeshStatic3D(std::shared_ptr<State> state) : Mesh(state) {
-  _vertexBuffer = std::make_shared<VertexBufferStatic<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
-  _indexBuffer = std::make_shared<VertexBufferStatic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
+MeshStatic3D::MeshStatic3D(std::shared_ptr<EngineState> engineState) : Mesh(engineState) {
+  _vertexBuffer = std::make_shared<VertexBufferStatic<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _engineState);
+  _indexBuffer = std::make_shared<VertexBufferStatic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _engineState);
 }
 
 void MeshStatic3D::setVertices(std::vector<Vertex3D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
@@ -171,9 +171,9 @@ std::vector<VkVertexInputAttributeDescription> MeshStatic3D::getAttributeDescrip
   return attributeDescriptions;
 }
 
-MeshDynamic3D::MeshDynamic3D(std::shared_ptr<State> state) : Mesh(state) {
-  _vertexBuffer = std::make_shared<VertexBufferDynamic<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
-  _indexBuffer = std::make_shared<VertexBufferDynamic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
+MeshDynamic3D::MeshDynamic3D(std::shared_ptr<EngineState> engineState) : Mesh(engineState) {
+  _vertexBuffer = std::make_shared<VertexBufferDynamic<Vertex3D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _engineState);
+  _indexBuffer = std::make_shared<VertexBufferDynamic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _engineState);
 }
 
 void MeshDynamic3D::setVertices(std::vector<Vertex3D> vertices) {
@@ -294,8 +294,8 @@ std::vector<VkVertexInputAttributeDescription> MeshDynamic3D::getAttributeDescri
 MeshBoundingBox::MeshBoundingBox(glm::vec3 minPoint,
                                  glm::vec3 maxPoint,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                 std::shared_ptr<State> state)
-    : MeshStatic3D(state) {
+                                 std::shared_ptr<EngineState> engineState)
+    : MeshStatic3D(engineState) {
   std::vector<Vertex3D> vertices(24);
   // normal - z, tangent - y, bitangent - x
   // 0
@@ -396,8 +396,8 @@ MeshBoundingBox::MeshBoundingBox(glm::vec3 minPoint,
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 
-MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
-    : MeshStatic3D(state) {
+MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState)
+    : MeshStatic3D(engineState) {
   std::vector<Vertex3D> vertices(24);
   // normal - z, tangent - y, bitangent - x
   // 0
@@ -498,8 +498,8 @@ MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 
-MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state)
-    : MeshStatic3D(state) {
+MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState)
+    : MeshStatic3D(engineState) {
   int radius = 1;
   int sectorCount = 20;
   int stackCount = 20;
@@ -575,9 +575,9 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 
-MeshStatic2D::MeshStatic2D(std::shared_ptr<State> state) : Mesh(state) {
-  _vertexBuffer = std::make_shared<VertexBufferStatic<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _state);
-  _indexBuffer = std::make_shared<VertexBufferStatic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _state);
+MeshStatic2D::MeshStatic2D(std::shared_ptr<EngineState> engineState) : Mesh(engineState) {
+  _vertexBuffer = std::make_shared<VertexBufferStatic<Vertex2D>>(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, _engineState);
+  _indexBuffer = std::make_shared<VertexBufferStatic<uint32_t>>(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, _engineState);
 }
 
 void MeshStatic2D::setVertices(std::vector<Vertex2D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer) {

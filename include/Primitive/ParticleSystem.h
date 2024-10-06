@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Graphic/Texture.h"
@@ -66,7 +66,7 @@ struct Particle {
 
 class ParticleSystem : public Drawable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::vector<Particle> _particles;
@@ -89,7 +89,7 @@ class ParticleSystem : public Drawable {
                  std::shared_ptr<Texture> texture,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<GameState> gameState,
-                 std::shared_ptr<State> state);
+                 std::shared_ptr<EngineState> engineState);
   void setPointScale(float pointScale);
   void updateTimer(float frameTimer);
 

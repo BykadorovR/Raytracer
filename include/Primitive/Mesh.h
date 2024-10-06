@@ -1,6 +1,6 @@
 #pragma once
 #include "Vulkan/Buffer.h"
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 
 struct MeshPrimitive {
   int firstIndex;
@@ -42,10 +42,10 @@ class AABB {
 
 class Mesh {
  protected:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
 
  public:
-  Mesh(std::shared_ptr<State> state);
+  Mesh(std::shared_ptr<EngineState> engineState);
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions(
       std::vector<std::tuple<VkFormat, uint32_t>> fields);
   virtual VkVertexInputBindingDescription getBindingDescription() = 0;
@@ -63,7 +63,7 @@ class MeshDynamic3D : public Mesh {
   std::shared_ptr<AABB> _aabb;
 
  public:
-  MeshDynamic3D(std::shared_ptr<State> state);
+  MeshDynamic3D(std::shared_ptr<EngineState> engineState);
 
   void setVertices(std::vector<Vertex3D> vertices);
   void setIndexes(std::vector<uint32_t> indexes);
@@ -94,7 +94,7 @@ class MeshStatic3D : public Mesh {
   std::shared_ptr<AABB> _aabb;
 
  public:
-  MeshStatic3D(std::shared_ptr<State> state);
+  MeshStatic3D(std::shared_ptr<EngineState> engineState);
 
   void setVertices(std::vector<Vertex3D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer);
@@ -119,17 +119,17 @@ class MeshBoundingBox : public MeshStatic3D {
   MeshBoundingBox(glm::vec3 minPoint,
                   glm::vec3 maxPoint,
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<State> state);
+                  std::shared_ptr<EngineState> engineState);
 };
 
 class MeshCube : public MeshStatic3D {
  public:
-  MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
 };
 
 class MeshSphere : public MeshStatic3D {
  public:
-  MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
 };
 
 class MeshStatic2D : public Mesh {
@@ -143,7 +143,7 @@ class MeshStatic2D : public Mesh {
   bool _changedVertex = false;
 
  public:
-  MeshStatic2D(std::shared_ptr<State> state);
+  MeshStatic2D(std::shared_ptr<EngineState> engineState);
 
   void setVertices(std::vector<Vertex2D> vertices, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setIndexes(std::vector<uint32_t> indexes, std::shared_ptr<CommandBuffer> commandBufferTransfer);

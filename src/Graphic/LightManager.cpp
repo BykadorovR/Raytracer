@@ -1,15 +1,15 @@
 #include "Graphic/LightManager.h"
 #include "Vulkan/Buffer.h"
 
-LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<State> state) {
-  _state = state;
-  _debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
+LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
+  _debuggerUtils = std::make_shared<DebuggerUtils>(engineState->getInstance(), engineState->getDevice());
 
-  _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
+  _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _engineState->getDevice());
 
   // update global descriptor for Phong and PBR (2 separate)
   {
-    _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -44,7 +44,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
   }
   {
-    _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -74,7 +74,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
   {
-    _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -109,7 +109,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _descriptorSetLayoutGlobalTerrainPhong->createCustom(layoutPhong);
   }
   {
-    _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -139,27 +139,27 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _descriptorSetLayoutGlobalTerrainPBR->createCustom(layoutPBR);
   }
 
-  _lightDirectionalSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightPointSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightDirectionalSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightPointSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightAmbientSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
+  _lightDirectionalSSBOViewProjection.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightPointSSBOViewProjection.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightDirectionalSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightPointSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightAmbientSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
   {
     auto lightTmp = std::make_shared<DirectionalLight>();
     _lightDirectionalSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     // fill only number of lights because it's stub
     int number = 0;
     _lightDirectionalSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
-    auto lightTmp = std::make_shared<PointLight>(_state->getSettings());
+    auto lightTmp = std::make_shared<PointLight>(_engineState->getSettings());
     _lightPointSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     // fill only number of lights because it's stub
     int number = 0;
@@ -169,7 +169,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     auto lightTmp = std::make_shared<AmbientLight>();
     _lightAmbientSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     // fill only number of lights because it's stub
     int number = 0;
@@ -178,7 +178,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   {
     _lightDirectionalSSBOViewProjectionStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     // fill only number of lights because it's stub
     int number = 0;
@@ -187,31 +187,31 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   {
     _lightPointSSBOViewProjectionStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     // fill only number of lights because it's stub
     int number = 0;
     _lightPointSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
 
-  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _descriptorPool,
-                                                              _state->getDevice());
+                                                              _engineState->getDevice());
   _debuggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                           _descriptorSetGlobalPhong->getDescriptorSets());
-  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                             _descriptorSetLayoutGlobalPBR, _descriptorPool,
-                                                            _state->getDevice());
+                                                            _engineState->getDevice());
   _debuggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                           _descriptorSetGlobalPBR->getDescriptorSets());
-  _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                     _descriptorSetLayoutGlobalTerrainPhong,
-                                                                     _descriptorPool, _state->getDevice());
+  _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
+      _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _descriptorPool,
+      _engineState->getDevice());
   _debuggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                           _descriptorSetGlobalTerrainPhong->getDescriptorSets());
-  _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
+  _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                                    _descriptorSetLayoutGlobalTerrainPBR,
-                                                                   _descriptorPool, _state->getDevice());
+                                                                   _descriptorPool, _engineState->getDevice());
   _debuggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                           _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
@@ -219,14 +219,14 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   _stubTexture = resourceManager->getTextureOne();
   _stubCubemap = resourceManager->getCubemapOne();
 
-  _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
-  _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
+  _directionalTextures.resize(engineState->getSettings()->getMaxDirectionalLights(), _stubTexture);
+  _pointTextures.resize(engineState->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
 
-  _changed[LightType::DIRECTIONAL].resize(state->getSettings()->getMaxFramesInFlight(), false);
-  _changed[LightType::POINT].resize(state->getSettings()->getMaxFramesInFlight(), false);
-  _changed[LightType::AMBIENT].resize(state->getSettings()->getMaxFramesInFlight(), false);
+  _changed[LightType::DIRECTIONAL].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changed[LightType::POINT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changed[LightType::AMBIENT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _reallocateDirectionalBuffers(i);
     _reallocatePointBuffers(i);
     _reallocateAmbientBuffers(i);
@@ -243,7 +243,7 @@ std::shared_ptr<AmbientLight> LightManager::createAmbientLight() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _ambientLights.push_back(light);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::AMBIENT][i] = true;
   }
 
@@ -531,7 +531,7 @@ void LightManager::_reallocateAmbientBuffers(int currentFrame) {
   if (_ambientLights.size() > 0) {
     _lightAmbientSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
@@ -564,7 +564,7 @@ void LightManager::_reallocateDirectionalBuffers(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 
   size = 0;
@@ -576,7 +576,7 @@ void LightManager::_reallocateDirectionalBuffers(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
@@ -630,7 +630,7 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 
   size = 0;
@@ -642,7 +642,7 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
@@ -665,8 +665,8 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> pointVP;
-    float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
-                   (float)std::get<1>(_state->getSettings()->getResolution());
+    float aspect = (float)std::get<0>(_engineState->getSettings()->getResolution()) /
+                   (float)std::get<1>(_engineState->getSettings()->getResolution());
     for (int i = 0; i < _pointLights.size(); i++) {
       glm::mat4 viewProjection = _pointLights[i]->getCamera()->getProjection() *
                                  _pointLights[i]->getCamera()->getView(0);
@@ -690,27 +690,27 @@ void LightManager::_updatePointTexture(int currentFrame) {
 std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution,
                                                            std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
 #ifdef __ANDROID__
     depthCubemap.push_back(std::make_shared<Cubemap>(
-        resolution, _state->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        resolution, _engineState->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_FILTER_NEAREST, commandBufferTransfer, _state));
+        VK_FILTER_NEAREST, commandBufferTransfer, _engineState));
 #else
     depthCubemap.push_back(std::make_shared<Cubemap>(
-        resolution, _state->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        resolution, _engineState->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_FILTER_LINEAR, commandBufferTransfer, _state));
+        VK_FILTER_LINEAR, commandBufferTransfer, _engineState));
 #endif
   }
 
-  auto light = std::make_shared<PointLight>(_state->getSettings());
+  auto light = std::make_shared<PointLight>(_engineState->getSettings());
   light->setDepthCubemap(depthCubemap);
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _pointLights.push_back(light);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::POINT][i] = true;
   }
 
@@ -719,12 +719,12 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
   std::vector<std::shared_ptr<Logger>> logger(6);
   for (int j = 0; j < commandBuffer.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-    commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _state);
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    commandBuffer[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
+                                                       _engineState);
     _debuggerUtils->setName("Command buffer point " + std::to_string(_pointLights.size() - 1) + "x" + std::to_string(j),
                             VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer[j]->getCommandBuffer());
-    logger[j] = std::make_shared<Logger>(_state);
+    logger[j] = std::make_shared<Logger>(_engineState);
   }
   _commandBufferPoint.push_back(commandBuffer);
   _loggerPoint.push_back(logger);
@@ -742,7 +742,7 @@ void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
     _pointLights.erase(_pointLights.begin() + index);
     _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
     _loggerPoint.erase(_loggerPoint.begin() + index);
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
   }
@@ -758,7 +758,7 @@ void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> dire
     _directionalLights.erase(_directionalLights.begin() + index);
     _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
     _loggerDirectional.erase(_loggerDirectional.begin() + index);
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
   }
@@ -779,22 +779,22 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
     std::tuple<int, int> resolution,
     std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::vector<std::shared_ptr<Texture>> depthTexture;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, 1, _state->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
+        resolution, 1, 1, _engineState->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        _state);
+        _engineState);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
                         VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, commandBufferTransfer);
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                 _state);
+                                                 _engineState);
 // android doesn't support linear + d32 texture
 #ifdef __ANDROID__
-    depthTexture.push_back(
-        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST, imageView, _state));
+    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
+                                                     imageView, _engineState));
 #else
-    depthTexture.push_back(
-        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR, imageView, _state));
+    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                                     imageView, _engineState));
 #endif
   }
 
@@ -804,17 +804,17 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _directionalLights.push_back(light);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::DIRECTIONAL][i] = true;
   }
 
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  auto commandBuffer = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _state);
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+  auto commandBuffer = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
+                                                       _engineState);
   _debuggerUtils->setName("Command buffer directional " + std::to_string(_directionalLights.size() - 1),
                           VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer->getCommandBuffer());
   _commandBufferDirectional.push_back(commandBuffer);
-  _loggerDirectional.push_back(std::make_shared<Logger>(_state));
+  _loggerDirectional.push_back(std::make_shared<Logger>(_engineState));
 
   return light;
 }

@@ -7,7 +7,7 @@
 
 class Equirectangular {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<Image> _image;
   std::shared_ptr<ImageView> _imageView;
   std::shared_ptr<Texture> _texture;
@@ -30,7 +30,7 @@ class Equirectangular {
  public:
   Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<State> state);
+                  std::shared_ptr<EngineState> engineState);
 
   std::shared_ptr<Texture> getTexture();
   std::shared_ptr<Cubemap> getCubemap();

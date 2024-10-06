@@ -3,9 +3,9 @@
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core) {
   _camera = camera;
   _core = core;
-  auto state = core->getState();
+  auto state = core->getEngineState();
 
-  for (auto elem : _core->getState()->getSettings()->getAttenuations()) {
+  for (auto elem : _core->getEngineState()->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
   }
 
@@ -107,7 +107,7 @@ void DebugVisualization::_drawFrustumLines(glm::vec3 nearPart, glm::vec3 farPart
 }
 
 void DebugVisualization::_drawShadowMaps() {
-  auto currentFrame = _core->getState()->getFrameInFlight();
+  auto currentFrame = _core->getEngineState()->getFrameInFlight();
   auto gui = _core->getGUI();
   if (_showDepth) {
     if (_initializedDepth == false) {
@@ -201,7 +201,7 @@ void DebugVisualization::update() {
 void DebugVisualization::draw() {
   auto gui = _core->getGUI();
 
-  auto [resX, resY] = _core->getState()->getSettings()->getResolution();
+  auto [resX, resY] = _core->getEngineState()->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
   if (gui->startTree("Coordinates")) {
@@ -262,7 +262,7 @@ void DebugVisualization::draw() {
       } else {
         _frustumDraw = true;
         auto camera = std::dynamic_pointer_cast<CameraFly>(_camera);
-        auto [resX, resY] = _core->getState()->getSettings()->getResolution();
+        auto [resX, resY] = _core->getEngineState()->getSettings()->getResolution();
         float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
         float width1 = height1 * ((float)resX / (float)resY);
         float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
@@ -290,9 +290,9 @@ void DebugVisualization::draw() {
     if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}})) _core->getBlur()->setKernelSize(blurKernelSize);
     int blurSigma = _core->getBlur()->getSigma();
     if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) _core->getBlur()->setSigma(blurSigma);
-    int bloomPasses = _core->getState()->getSettings()->getBloomPasses();
+    int bloomPasses = _core->getEngineState()->getSettings()->getBloomPasses();
     if (_core->getGUI()->drawInputInt({{"Passes", &bloomPasses}}))
-      _core->getState()->getSettings()->setBloomPasses(bloomPasses);
+      _core->getEngineState()->getSettings()->setBloomPasses(bloomPasses);
 
     gui->drawInputFloat({{"R", &_R}});
     _R = std::min(_R, 1.f);
@@ -303,7 +303,7 @@ void DebugVisualization::draw() {
     gui->drawInputFloat({{"B", &_B}});
     _B = std::min(_B, 1.f);
     _B = std::max(_B, 0.f);
-    _core->getState()->getSettings()->setClearColor({_R, _G, _B, 1.f});
+    _core->getEngineState()->getSettings()->setClearColor({_R, _G, _B, 1.f});
     gui->endTree();
   }
 

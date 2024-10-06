@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Vulkan/Descriptor.h"
 #include "Primitive/Cubemap.h"
 
@@ -32,7 +32,7 @@ class Material {
   std::shared_ptr<UniformBuffer> _uniformBufferCoefficients;
   std::shared_ptr<UniformBuffer> _uniformBufferAlphaCutoff;
   std::map<std::shared_ptr<DescriptorSet>, std::vector<std::tuple<MaterialTexture, int>>> _descriptorsUpdate;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::map<MaterialTexture, std::vector<bool>> _changedTextures;
   std::vector<bool> _changedCoefficients;
   std::vector<bool> _changedAlpha;
@@ -44,7 +44,7 @@ class Material {
   virtual void _updateCoefficientBuffer(int currentFrame) = 0;
 
  public:
-  Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
   void registerUpdate(std::shared_ptr<DescriptorSet> descriptor, std::vector<std::tuple<MaterialTexture, int>> type);
   void unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor);
 
@@ -67,7 +67,7 @@ class MaterialColor : public Material {
   // number of textures color
   MaterialColor(MaterialTarget target,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                std::shared_ptr<State> state);
+                std::shared_ptr<EngineState> engineState);
   const std::vector<std::shared_ptr<Texture>> getBaseColor();
 
   void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
@@ -91,7 +91,7 @@ class MaterialPBR : public MaterialColor {
   // number of textures color, normal, metallic, roughness, occluded, emissive
   MaterialPBR(MaterialTarget target,
               std::shared_ptr<CommandBuffer> commandBufferTransfer,
-              std::shared_ptr<State> state);
+              std::shared_ptr<EngineState> engineState);
   const std::vector<std::shared_ptr<Texture>> getNormal();
   const std::vector<std::shared_ptr<Texture>> getMetallic();
   const std::vector<std::shared_ptr<Texture>> getRoughness();
@@ -128,7 +128,7 @@ class MaterialPhong : public MaterialColor {
   // number of textures color, normal and specular
   MaterialPhong(MaterialTarget target,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                std::shared_ptr<State> state);
+                std::shared_ptr<EngineState> engineState);
   const std::vector<std::shared_ptr<Texture>> getNormal();
   const std::vector<std::shared_ptr<Texture>> getSpecular();
 

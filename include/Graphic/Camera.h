@@ -6,7 +6,7 @@
 #include <memory>
 #include <map>
 #include <array>
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/Input.h"
 #include "Vulkan/Window.h"
 #undef near
@@ -92,14 +92,14 @@ class CameraFly : public Camera, public InputSubscriber {
   float _xLast;
   float _yLast;
   std::map<int, bool> _keyStatus;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   bool _once;
   float _sensitivity = 0.1f;
   float _moveSpeed = 0.1f;
   float _aspect;
 
  public:
-  CameraFly(std::shared_ptr<State> state);
+  CameraFly(std::shared_ptr<EngineState> engineState);
   void setProjectionParameters(float fov, float near, float far);
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   void setSpeed(float rotate, float translate);

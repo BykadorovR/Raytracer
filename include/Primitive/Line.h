@@ -1,7 +1,7 @@
 #pragma once
 #include "Vulkan/Descriptor.h"
 #include "Vulkan/Pipeline.h"
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/GameState.h"
 #include "Graphic/Camera.h"
 #include "Primitive/Mesh.h"
@@ -9,7 +9,7 @@
 
 class Line : public Drawable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<Buffer> _stagingBuffer;
   std::shared_ptr<MeshDynamic3D> _mesh;
@@ -23,7 +23,7 @@ class Line : public Drawable {
  public:
   Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
        std::shared_ptr<GameState> gameState,
-       std::shared_ptr<State> state);
+       std::shared_ptr<EngineState> engineState);
   std::shared_ptr<MeshDynamic3D> getMesh();
   void setModel(glm::mat4 model);
 

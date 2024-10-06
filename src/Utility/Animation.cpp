@@ -3,37 +3,37 @@
 Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                      const std::vector<std::shared_ptr<SkinGLTF>>& skins,
                      const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
-                     std::shared_ptr<State> state) {
+                     std::shared_ptr<EngineState> engineState) {
   _nodes = nodes;
   _skins = skins;
   _animations = animations;
-  _state = state;
+  _engineState = engineState;
 
   _logger = std::make_shared<Logger>();
 
   _ssboJoints.resize(_skins.size());
   for (int i = 0; i < _skins.size(); i++) {
-    _ssboJoints[i].resize(_state->getSettings()->getMaxFramesInFlight());
-    for (int j = 0; j < _state->getSettings()->getMaxFramesInFlight(); j++) {
+    _ssboJoints[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++) {
       _ssboJoints[i][j] = std::make_shared<Buffer>(
           sizeof(glm::vec4) + _skins[i]->inverseBindMatrices.size() * sizeof(glm::mat4),
           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
     }
   }
 
   // store default descriptor set in 0 index and 0 SSBO
   if (_skins.size() == 0) {
     std::vector<std::shared_ptr<Buffer>> bufferStubs;
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      bufferStubs.push_back(
-          std::make_shared<Buffer>(sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state));
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      bufferStubs.push_back(std::make_shared<Buffer>(
+          sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState));
     }
     _ssboJoints.push_back(bufferStubs);
     auto identityMat = glm::mat4(1.f);
     int jointNumber = 0;
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _ssboJoints[0][i]->map();
       memcpy(_ssboJoints[0][i]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
       memcpy((uint8_t*)(_ssboJoints[0][i]->getMappedMemory()) + sizeof(glm::vec4), &identityMat, sizeof(glm::mat4));
@@ -56,7 +56,7 @@ void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) 
       jointMatrices[i] = _matricesJoint[skin->joints[i]->index] * skin->inverseBindMatrices[i];
       jointMatrices[i] = inverseTransform * jointMatrices[i];
     }
-    auto frameInFlight = currentImage % _state->getSettings()->getMaxFramesInFlight();
+    auto frameInFlight = currentImage % _engineState->getSettings()->getMaxFramesInFlight();
     int jointNumber = jointMatrices.size();
     _ssboJoints[node->skin][frameInFlight]->map();
     memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));

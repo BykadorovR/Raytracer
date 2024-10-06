@@ -60,38 +60,38 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<GameState> gameState,
-                 std::shared_ptr<State> state) {
+                 std::shared_ptr<EngineState> engineState) {
   setName("Model3D");
-  _state = state;
+  _engineState = engineState;
   _nodes = nodes;
   _meshes = meshes;
   _gameState = gameState;
-  auto settings = _state->getSettings();
+  auto settings = _engineState->getSettings();
 
   // default material if model doesn't have material at all, we still have to send data to shader
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
   _defaultMaterialPhong->setNormal({_gameState->getResourceManager()->getTextureZero()});
   _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _mesh = std::make_shared<MeshStatic3D>(state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _mesh = std::make_shared<MeshStatic3D>(engineState);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
-                                                  std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
+                                                  std::vector<std::shared_ptr<AnimationGLTF>>{}, engineState);
   _animation = _defaultAnimation;
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassDepth->initializeLightDepth();
 
   // initialize UBO
-  _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   _state);
+  _cameraUBOFull = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(BufferMVP), _engineState);
 
   // setup joints
   {
-    _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutJoints(1);
     layoutJoints[0].binding = 0;
     layoutJoints[0].descriptorCount = 1;
@@ -105,7 +105,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup Normal
   {
-    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh(2);
     layoutNormalsMesh[0].binding = 0;
     layoutNormalsMesh[0].descriptorCount = 1;
@@ -121,10 +121,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // TODO: we can just have one buffer and put it twice to descriptor
 
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                                _descriptorSetLayoutNormalsMesh,
-                                                                state->getDescriptorPool(), state->getDevice());
-    for (int i = 0; i < state->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
+        engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
+        engineState->getDescriptorPool(), engineState->getDevice());
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
@@ -142,12 +142,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     }
 
     // initialize Normal (per vertex)
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/shape/cubeNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineNormalMesh->createGraphic3D(
         VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -161,7 +161,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
         _renderPass);
 
     // it's kind of pointless, but if material is set, double sided property can be handled
-    _pipelineNormalMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMeshCullOff = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineNormalMeshCullOff->createGraphic3D(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -176,12 +176,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize Tangent (per vertex)
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/shape/cubeTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangentMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangentMesh->createGraphic3D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -195,7 +195,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           _renderPass);
 
       // it's kind of pointless, but if material is set, double sided property can be handled
-      _pipelineTangentMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangentMeshCullOff = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangentMeshCullOff->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -212,7 +212,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup color
   {
-    _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
@@ -231,11 +231,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/model/modelColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
       std::vector<std::tuple<VkFormat, uint32_t>> attributes = {
           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -250,7 +250,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
-      _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
       _pipelineCullOff[MaterialType::COLOR]->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -258,7 +259,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
-      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                           engineState->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -270,7 +272,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup Phong
   {
-    _descriptorSetLayoutPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -307,11 +309,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     _updatePhongDescriptor({_defaultMaterialPhong});
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelPhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = LightPush::getPushConstant();
 
@@ -324,7 +326,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
         defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-    _pipelineCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                       engineState->getDevice());
     _pipelineCullOff[MaterialType::PHONG]->createGraphic3D(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -334,7 +337,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
         defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-    _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
     _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
         VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -347,7 +351,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup PBR
   {
-    _descriptorSetLayoutPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(12);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -417,11 +421,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize PBR
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/model/modelPBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/model/modelPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
       std::map<std::string, VkPushConstantRange> defaultPushConstants;
       defaultPushConstants["constants"] = LightPush::getPushConstant();
 
@@ -434,7 +438,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                     defaultPushConstants, _mesh->getBindingDescription(),
                                                     _mesh->getAttributeDescriptions(), _renderPass);
 
-      _pipelineCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                       engineState->getDevice());
       _pipelineCullOff[MaterialType::PBR]->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -444,7 +449,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
           defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
       _pipelineWireframe[MaterialType::PBR]->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -456,39 +462,42 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     }
   }
 
-  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   layoutCamera->createUniformBuffer();
 
-  int lightNumber = _state->getSettings()->getMaxDirectionalLights() + _state->getSettings()->getMaxPointLights();
-  for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back(
-        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
+  int lightNumber = _engineState->getSettings()->getMaxDirectionalLights() +
+                    _engineState->getSettings()->getMaxPointLights();
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(BufferMVP), _engineState)});
   }
 
-  for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       sizeof(BufferMVP), _engineState);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
   // initialize descriptor sets
   {
-    for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                       _state->getDescriptorPool(), _state->getDevice());
+    for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+      auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       layoutCamera, _engineState->getDescriptorPool(),
+                                                       _engineState->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
 
-    for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                      _state->getDescriptorPool(), _state->getDevice());
-        facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
+        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                      _engineState->getDescriptorPool(), _engineState->getDevice());
+        facesSet[j]->createUniformBuffer(
+            _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -496,9 +505,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth directional
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
@@ -510,10 +519,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth point
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
     _pipelinePoint->createGraphic3DShadow(
@@ -532,10 +541,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 void Model3D::_updateJointsDescriptor() {
   _descriptorSetJoints.resize(_animation->getJointMatricesBuffer().size());
   for (int skin = 0; skin < _animation->getJointMatricesBuffer().size(); skin++) {
-    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayoutJoints,
-                                                                 _state->getDescriptorPool(), _state->getDevice());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(
+        _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutJoints,
+        _engineState->getDescriptorPool(), _engineState->getDevice());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       // write for binding = 0 for joint matrices
       std::vector<VkDescriptorBufferInfo> bufferInfoJointMatrices(1);
@@ -551,10 +560,10 @@ void Model3D::_updateJointsDescriptor() {
 void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials) {
   for (int material = 0; material < materials.size(); material++) {
     if (_descriptorSetPBR.size() <= material)
-      _descriptorSetPBR.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                  _descriptorSetLayoutPBR, _state->getDescriptorPool(),
-                                                                  _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetPBR.push_back(
+          std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPBR,
+                                          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -607,7 +616,7 @@ void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> mat
       bufferInfoEmissive[0].sampler = materials[material]->getEmissive()[0]->getSampler()->getSampler();
       textureInfoColor[6] = bufferInfoEmissive;
 
-      // TODO: this textures are part of global state for PBR
+      // TODO: this textures are part of global engineState for PBR
       std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
       bufferInfoIrradiance[0].imageLayout =
           materials[material]->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
@@ -661,10 +670,10 @@ void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> mat
 void Model3D::_updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials) {
   for (int material = 0; material < materials.size(); material++) {
     if (_descriptorSetPhong.size() <= material)
-      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutPhong,
-                                                                    _state->getDescriptorPool(), _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPhong,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -723,10 +732,10 @@ void Model3D::_updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>>
 void Model3D::_updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials) {
   for (int material = 0; material < materials.size(); material++) {
     if (_descriptorSetColor.size() <= material)
-      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutColor,
-                                                                    _state->getDescriptorPool(), _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -809,7 +818,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         glm::mat4 view,
                         glm::mat4 projection,
                         std::shared_ptr<NodeGLTF> node) {
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   if (node->mesh >= 0 && _meshes[node->mesh]->getPrimitives().size() > 0) {
     VkBuffer vertexBuffers[] = {_meshes[node->mesh]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -948,8 +957,8 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     pipelineCullOff = _pipelineTangentMeshCullOff;
   }
 
-  auto resolution = _state->getSettings()->getResolution();
-  int currentFrame = _state->getFrameInFlight();
+  auto resolution = _engineState->getSettings()->getResolution();
+  int currentFrame = _engineState->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -969,8 +978,9 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_state->getFrameInFlight()], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_engineState->getFrameInFlight()],
+                       pipeline->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush),
+                       &pushConstants);
   }
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -1008,7 +1018,7 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_enableDepth == false) return;
 
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
@@ -1078,7 +1088,7 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
     projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
-    lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
     view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
     projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }

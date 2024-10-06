@@ -1,8 +1,8 @@
 #include "Vulkan/Command.h"
 
-CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<State> state) {
+CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std::shared_ptr<EngineState> engineState) {
   _pool = pool;
-  _state = state;
+  _engineState = engineState;
 
   _buffer.resize(number);
 
@@ -12,13 +12,14 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
   allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   allocInfo.commandBufferCount = number;
 
-  if (vkAllocateCommandBuffers(_state->getDevice()->getLogicalDevice(), &allocInfo, _buffer.data()) != VK_SUCCESS) {
+  if (vkAllocateCommandBuffers(_engineState->getDevice()->getLogicalDevice(), &allocInfo, _buffer.data()) !=
+      VK_SUCCESS) {
     throw std::runtime_error("failed to allocate command buffers!");
   }
 }
 
 void CommandBuffer::beginCommands() {
-  int frameInFlight = _state->getFrameInFlight();
+  int frameInFlight = _engineState->getFrameInFlight();
 
   VkCommandBufferBeginInfo beginInfo{};
   beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -29,7 +30,7 @@ void CommandBuffer::beginCommands() {
 }
 
 void CommandBuffer::endCommands() {
-  int frameInFlight = _state->getFrameInFlight();
+  int frameInFlight = _engineState->getFrameInFlight();
   vkEndCommandBuffer(_buffer[frameInFlight]);
   _active = false;
 }
@@ -41,5 +42,5 @@ std::vector<VkCommandBuffer>& CommandBuffer::getCommandBuffer() { return _buffer
 CommandBuffer::~CommandBuffer() {
   _active = false;
   for (auto& buffer : _buffer)
-    vkFreeCommandBuffers(_state->getDevice()->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
+    vkFreeCommandBuffers(_engineState->getDevice()->getLogicalDevice(), _pool->getCommandPool(), 1, &buffer);
 }

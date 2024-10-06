@@ -98,8 +98,8 @@ glm::mat4 CameraOrtho::getProjection() {
   return projection;
 }
 
-CameraFly::CameraFly(std::shared_ptr<State> state) : Camera() {
-  _state = state;
+CameraFly::CameraFly(std::shared_ptr<EngineState> engineState) : Camera() {
+  _engineState = engineState;
   _once = false;
   _xLast = 0.f;
   _yLast = 0.f;
@@ -111,8 +111,8 @@ CameraFly::CameraFly(std::shared_ptr<State> state) : Camera() {
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
-  _aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
-            (float)std::get<1>(_state->getSettings()->getResolution());
+  _aspect = (float)std::get<0>(_engineState->getSettings()->getResolution()) /
+            (float)std::get<1>(_engineState->getSettings()->getResolution());
 }
 
 void CameraFly::setAspect(float aspect) { _aspect = aspect; }
@@ -149,7 +149,7 @@ float CameraFly::getFOV() { return _fov; }
 
 void CameraFly::cursorNotify(float xPos, float yPos) {
 #ifndef __ANDROID__
-  if (glfwGetInputMode((GLFWwindow*)(_state->getWindow()->getWindow()), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
+  if (glfwGetInputMode((GLFWwindow*)(_engineState->getWindow()->getWindow()), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;
     return;
   }

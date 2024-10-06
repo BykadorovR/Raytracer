@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/GameState.h"
 #include "Utility/ResourceManager.h"
 #include "Vulkan/Descriptor.h"
@@ -31,7 +31,7 @@ class Shape3DPhysics {
 
 class Shape3D : public Drawable, public Shadowable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
@@ -69,7 +69,7 @@ class Shape3D : public Drawable, public Shadowable {
           VkCullModeFlags cullMode,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<GameState> gameState,
-          std::shared_ptr<State> state);
+          std::shared_ptr<EngineState> engineState);
 
   void enableShadow(bool enable);
   void enableLighting(bool enable);

@@ -36,7 +36,7 @@ class Model3DPhysics {
 
 class Model3D : public Drawable, public Shadowable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
@@ -88,7 +88,7 @@ class Model3D : public Drawable, public Shadowable {
           const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<GameState> gameState,
-          std::shared_ptr<State> state);
+          std::shared_ptr<EngineState> engineState);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
 

@@ -15,10 +15,10 @@ ParticleSystem::ParticleSystem(std::vector<Particle> particles,
                                std::shared_ptr<Texture> texture,
                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                std::shared_ptr<GameState> gameState,
-                               std::shared_ptr<State> state) {
+                               std::shared_ptr<EngineState> engineState) {
   setName("Particle system");
   _particles = particles;
-  _state = state;
+  _engineState = engineState;
   _gameState = gameState;
   _commandBufferTransfer = commandBufferTransfer;
   _texture = texture;
@@ -28,16 +28,16 @@ ParticleSystem::ParticleSystem(std::vector<Particle> particles,
 }
 
 void ParticleSystem::_initializeGraphic() {
-  auto shader = std::make_shared<Shader>(_state);
+  auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/particles/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/particles/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
 
-  _cameraUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(BufferMVP), _state);
+  _cameraUniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                         sizeof(BufferMVP), _engineState);
 
-  auto descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  auto descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   std::vector<VkDescriptorSetLayoutBinding> layoutGraphic(2);
   layoutGraphic[0].binding = 0;
   layoutGraphic[0].descriptorCount = 1;
@@ -51,11 +51,11 @@ void ParticleSystem::_initializeGraphic() {
   layoutGraphic[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   descriptorSetLayoutGraphic->createCustom(layoutGraphic);
 
-  _descriptorSetGraphic = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayoutGraphic, _state->getDescriptorPool(),
-                                                          _state->getDevice());
+  _descriptorSetGraphic = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayoutGraphic, _engineState->getDescriptorPool(),
+                                                          _engineState->getDevice());
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
@@ -75,7 +75,7 @@ void ParticleSystem::_initializeGraphic() {
     _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
   }
 
-  _graphicPipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _graphicPipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _graphicPipeline->createParticleSystemGraphic(
       VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -87,34 +87,34 @@ void ParticleSystem::_initializeGraphic() {
 
 void ParticleSystem::_initializeCompute() {
   // TODO: change to VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-  _particlesBuffer.resize(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  _particlesBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _particlesBuffer[i] = std::make_shared<Buffer>(
         _particles.size() * sizeof(Particle), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
     _particlesBuffer[i]->setData(_particles.data());
   }
 
-  _deltaUniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(float),
-                                                        _state);
+  _deltaUniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                        sizeof(float), _engineState);
 
-  auto setLayoutSSBOCompute = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  auto setLayoutSSBOCompute = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   setLayoutSSBOCompute->createParticleComputeBuffer();
 
-  _descriptorSetCompute.resize(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  _descriptorSetCompute.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     // for 0 frame we have ssbo in + ssbo out, for 1 frame we have ssbo out + ssbo in
-    _descriptorSetCompute[i] = std::make_shared<DescriptorSet>(1, setLayoutSSBOCompute, _state->getDescriptorPool(),
-                                                               _state->getDevice());
+    _descriptorSetCompute[i] = std::make_shared<DescriptorSet>(
+        1, setLayoutSSBOCompute, _engineState->getDescriptorPool(), _engineState->getDevice());
     _descriptorSetCompute[i]->createParticleComputeBuffer(
-        _deltaUniformBuffer, _particlesBuffer[abs(i - 1) % _state->getSettings()->getMaxFramesInFlight()],
+        _deltaUniformBuffer, _particlesBuffer[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()],
         _particlesBuffer[i]);
   }
 
-  auto shader = std::make_shared<Shader>(_state);
+  auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/particles/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
-  _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _computePipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
                                                 {{"computeSSBO", setLayoutSSBOCompute}}, {});
 }
@@ -124,7 +124,7 @@ void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale;
 void ParticleSystem::updateTimer(float frameTimer) { _frameTimer = frameTimer; }
 
 void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   float timeDelta = _frameTimer * 2.f;
   _deltaUniformBuffer->getBuffer()[currentFrame]->setData(&timeDelta);
 
@@ -147,10 +147,10 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
 }
 
 void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
-  auto resolution = _state->getSettings()->getResolution();
+  auto resolution = _engineState->getSettings()->getResolution();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);

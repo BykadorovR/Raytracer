@@ -1,7 +1,7 @@
 #pragma once
 #include "Vulkan/Image.h"
 #include "Vulkan/Sampler.h"
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include <string>
 #include "stb_image.h"
 
@@ -17,12 +17,12 @@ class Texture {
           int mipMapLevels,
           VkFilter filter,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<State> state);
+          std::shared_ptr<EngineState> engineState);
   Texture(VkSamplerAddressMode mode,
           int mipMapLevels,
           VkFilter filter,
           std::shared_ptr<ImageView> imageView,
-          std::shared_ptr<State> state);
+          std::shared_ptr<EngineState> engineState);
   std::shared_ptr<ImageView> getImageView();
   std::shared_ptr<Sampler> getSampler();
 };

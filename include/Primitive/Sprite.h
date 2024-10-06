@@ -12,7 +12,7 @@
 
 class Sprite : public Drawable, public Shadowable {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
 
   std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
@@ -52,7 +52,7 @@ class Sprite : public Drawable, public Shadowable {
  public:
   Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<GameState> gameState,
-         std::shared_ptr<State> state);
+         std::shared_ptr<EngineState> engineState);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
   void enableDepth(bool enable);

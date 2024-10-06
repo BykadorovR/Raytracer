@@ -1,7 +1,7 @@
 #pragma once
 #include "Graphic/Light.h"
 #include "Graphic/Material.h"
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/Logger.h"
 #include "Utility/Settings.h"
 #include "Utility/ResourceManager.h"
@@ -22,7 +22,7 @@ class LightManager {
   std::vector<std::shared_ptr<DirectionalLight>> _directionalLights;
   std::vector<std::shared_ptr<AmbientLight>> _ambientLights;
 
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<DebuggerUtils> _debuggerUtils;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;
@@ -56,7 +56,7 @@ class LightManager {
   void _setLightDescriptors(int currentFrame);
 
  public:
-  LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<State> state);
+  LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState);
 
   // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<AmbientLight> createAmbientLight();

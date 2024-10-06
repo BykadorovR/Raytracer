@@ -1,12 +1,12 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Graphic/Texture.h"
 #include "Vulkan/Descriptor.h"
 #include "Vulkan/Pipeline.h"
 
 class Blur {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<Pipeline> _computePipelineVertical, _computePipelineHorizontal;
   std::shared_ptr<DescriptorSet> _descriptorSetVertical, _descriptorSetHorizontal, _descriptorSetWeights;
   std::vector<std::shared_ptr<Buffer>> _blurWeightsSSBO;
@@ -22,7 +22,7 @@ class Blur {
  public:
   Blur(std::vector<std::shared_ptr<Texture>> src,
        std::vector<std::shared_ptr<Texture>> dst,
-       std::shared_ptr<State> state);
+       std::shared_ptr<EngineState> engineState);
   void reset(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
   int getKernelSize();
   int getSigma();

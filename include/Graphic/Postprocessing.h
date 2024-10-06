@@ -1,11 +1,11 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Graphic/Texture.h"
 #include "Vulkan/Pipeline.h"
 
 class Postprocessing {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<Pipeline> _computePipeline;
   std::shared_ptr<DescriptorSetLayout> _textureLayout;
   std::map<std::pair<int, int>, std::shared_ptr<DescriptorSet>> _descriptorSet;
@@ -20,7 +20,7 @@ class Postprocessing {
   Postprocessing(std::vector<std::shared_ptr<Texture>> src,
                  std::vector<std::shared_ptr<Texture>> blur,
                  std::vector<std::shared_ptr<ImageView>> dst,
-                 std::shared_ptr<State> state);
+                 std::shared_ptr<EngineState> engineState);
   void setExposure(float exposure);
   void setGamma(float gamma);
   float getGamma();

@@ -2,27 +2,27 @@
 
 Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
            std::shared_ptr<GameState> gameState,
-           std::shared_ptr<State> state) {
+           std::shared_ptr<EngineState> engineState) {
   setName("Line");
-  _state = state;
+  _engineState = engineState;
   _gameState = gameState;
-  _mesh = std::make_shared<MeshDynamic3D>(state);
+  _mesh = std::make_shared<MeshDynamic3D>(engineState);
   _mesh->setIndexes({0, 1});
   _mesh->setVertices({Vertex3D{}, Vertex3D{}});
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state);
-  auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(BufferMVP), engineState);
+  auto setLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   setLayout->createUniformBuffer();
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
-                                                         state->getDescriptorPool(), state->getDevice());
+  _descriptorSetCamera = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(), setLayout,
+                                                         engineState->getDescriptorPool(), engineState->getDevice());
   _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(state);
+  auto shader = std::make_shared<Shader>(engineState);
   shader->add("shaders/line/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/line/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _pipeline->createGeometry(
       VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -38,10 +38,10 @@ std::shared_ptr<MeshDynamic3D> Line::getMesh() { return _mesh; }
 void Line::setModel(glm::mat4 model) { _model = model; }
 
 void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto currentFrame = _state->getFrameInFlight();
+  auto currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
-  auto resolution = _state->getSettings()->getResolution();
+  auto resolution = _engineState->getSettings()->getResolution();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);

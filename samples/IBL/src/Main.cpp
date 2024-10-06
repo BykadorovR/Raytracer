@@ -18,10 +18,10 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
+      _core->getEngineState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      _core->getState()->getInput()->showCursor(true);
+      _core->getEngineState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
@@ -56,11 +56,11 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
@@ -159,7 +159,7 @@ void Main::update() {
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
   _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});

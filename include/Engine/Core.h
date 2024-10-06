@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/GameState.h"
 #include "Utility/Settings.h"
 #include "Utility/Logger.h"
@@ -32,7 +32,7 @@ class Core {
   AAssetManager* _assetManager;
   ANativeWindow* _nativeWindow;
 #endif
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
@@ -163,7 +163,7 @@ class Core {
   std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
   std::shared_ptr<Postprocessing> getPostprocessing();
   std::shared_ptr<Blur> getBlur();
-  std::shared_ptr<State> getState();
+  std::shared_ptr<EngineState> getEngineState();
   std::shared_ptr<GameState> getGameState();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();

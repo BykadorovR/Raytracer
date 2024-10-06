@@ -3,22 +3,22 @@
 
 Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GameState> gameState,
-               std::shared_ptr<State> state) {
+               std::shared_ptr<EngineState> engineState) {
   setName("Sprite");
-  _state = state;
+  _engineState = engineState;
   _gameState = gameState;
-  auto debuggerUtils = std::make_shared<DebuggerUtils>(state->getInstance(), state->getDevice());
-  auto settings = state->getSettings();
+  auto debuggerUtils = std::make_shared<DebuggerUtils>(engineState->getInstance(), engineState->getDevice());
+  auto settings = engineState->getSettings();
   // default material if model doesn't have material at all, we still have to send data to shader
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
   _defaultMaterialPhong->setNormal({_gameState->getResourceManager()->getTextureZero()});
   _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _material = _defaultMaterialPhong;
 
-  _mesh = std::make_shared<MeshStatic2D>(state);
+  _mesh = std::make_shared<MeshStatic2D>(engineState);
   // 3   0
   // 2   1
   _mesh->setVertices({Vertex2D{{0.5f, 0.5f, 0.f}, {0.f, 0.f, 1.f}, {1.f, 1.f, 1.f}, {1.f, 0.f}, {1.f, 0.f, 0.f, 1.f}},
@@ -28,18 +28,18 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      commandBufferTransfer);
   _mesh->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
 
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassDepth->initializeLightDepth();
 
   // initialize UBO
-  _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   _state);
+  _cameraUBOFull = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(BufferMVP), _engineState);
 
   // setup Normal
   {
-    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh(2);
     layoutNormalsMesh[0].binding = 0;
     layoutNormalsMesh[0].descriptorCount = 1;
@@ -55,12 +55,12 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // TODO: we can just have one buffer and put it twice to descriptor
 
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                                _descriptorSetLayoutNormalsMesh,
-                                                                state->getDescriptorPool(), state->getDevice());
+    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
+        engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
+        engineState->getDescriptorPool(), engineState->getDevice());
     debuggerUtils->setName("Descriptor set sprite normals mesh", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                            _descriptorSetNormalsMesh->getDescriptorSets());
-    for (int i = 0; i < state->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
@@ -79,12 +79,12 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // initialize Normal (per vertex)
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/sprite/spriteNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineNormal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineNormal = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineNormal->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -99,12 +99,12 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // initialize Tangent (per vertex)
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/sprite/spriteTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineTangent = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangent = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangent->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -120,7 +120,7 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // setup color
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
@@ -137,9 +137,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     // depth has the same layout
     _descriptorSetLayoutDepth = descriptorSetLayout;
 
-    _descriptorSetColor = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, state->getDescriptorPool(),
-                                                          state->getDevice());
+    _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, engineState->getDescriptorPool(),
+                                                          engineState->getDevice());
     debuggerUtils->setName("Descriptor set sprite color", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                            _descriptorSetColor->getDescriptorSets());
 
@@ -148,11 +148,12 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/sprite/spriteColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/sprite/spriteColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                  _engineState->getDevice());
       _pipeline[MaterialType::COLOR]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -164,7 +165,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
           _renderPass);
       // wireframe one
-      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                           _engineState->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -179,7 +181,7 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // setup Phong
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(5);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -211,9 +213,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetLayout[MaterialType::PHONG].push_back(
         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()});
 
-    _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, state->getDescriptorPool(),
-                                                          state->getDevice());
+    _descriptorSetPhong = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, engineState->getDescriptorPool(),
+                                                          engineState->getDevice());
     debuggerUtils->setName("Descriptor set sprite Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                            _descriptorSetPhong->getDescriptorSets());
 
@@ -221,11 +223,12 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // initialize Phong
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/sprite/spritePhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/sprite/spritePhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                  _engineState->getDevice());
       _pipeline[MaterialType::PHONG]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -234,7 +237,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
-      _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                           _engineState->getDevice());
       _pipelineWireframe[MaterialType::PHONG]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -247,7 +251,7 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // setup PBR
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(11);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -308,9 +312,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()});
 
-    _descriptorSetPBR = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                        descriptorSetLayout, state->getDescriptorPool(),
-                                                        state->getDevice());
+    _descriptorSetPBR = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                        descriptorSetLayout, engineState->getDescriptorPool(),
+                                                        engineState->getDevice());
     debuggerUtils->setName("Descriptor set sprite PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                            _descriptorSetPBR->getDescriptorSets());
     // phong is default, will form default descriptor only for it here
@@ -318,11 +322,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     // initialize PBR
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/sprite/spritePBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/sprite/spritePBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipeline[MaterialType::PBR]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL, true,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -331,7 +335,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
-      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                         _engineState->getDevice());
       _pipelineWireframe[MaterialType::PBR]->createGraphic2D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE, false,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -344,26 +349,26 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
-  for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back(
-        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
-    auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                     _descriptorSetLayoutDepth, _state->getDescriptorPool(),
-                                                     _state->getDevice());
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(BufferMVP), _engineState)});
+    auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                     _descriptorSetLayoutDepth, _engineState->getDescriptorPool(),
+                                                     _engineState->getDevice());
     debuggerUtils->setName("Descriptor set sprite directional camera " + std::to_string(i),
                            VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, cameraSet->getDescriptorSets());
     _descriptorSetCameraDepth.push_back({cameraSet});
   }
 
-  for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state);
-      facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                    _descriptorSetLayoutDepth, _state->getDescriptorPool(),
-                                                    _state->getDevice());
+      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       sizeof(BufferMVP), _engineState);
+      facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                    _descriptorSetLayoutDepth, _engineState->getDescriptorPool(),
+                                                    _engineState->getDevice());
       debuggerUtils->setName("Descriptor set sprite point camera " + std::to_string(i) + "x" + std::to_string(j),
                              VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, facesSet[j]->getDescriptorSets());
     }
@@ -373,10 +378,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // initialize depth directional color
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelineDirectional[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                           _engineState->getDevice());
     _pipelineDirectional[MaterialType::COLOR]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -390,10 +396,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // initialize depth directional Phong
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelineDirectional[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                           _engineState->getDevice());
     _pipelineDirectional[MaterialType::PHONG]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -407,10 +414,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // initialize depth directional PBR
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthDirectionalPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelineDirectional[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                         _engineState->getDevice());
     _pipelineDirectional[MaterialType::PBR]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -427,10 +435,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint[MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                     _engineState->getDevice());
     _pipelinePoint[MaterialType::COLOR]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -447,10 +456,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint[MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                     _engineState->getDevice());
     _pipelinePoint[MaterialType::PHONG]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -466,10 +476,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/sprite/spriteDepthPointPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint[MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                   _engineState->getDevice());
     _pipelinePoint[MaterialType::PBR]->createGraphic2DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -483,8 +494,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 }
 
 void Sprite::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -507,8 +518,8 @@ void Sprite::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
 }
 
 void Sprite::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -551,8 +562,8 @@ void Sprite::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
 }
 
 void Sprite::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -599,7 +610,7 @@ void Sprite::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
     bufferInfoEmissive[0].sampler = material->getEmissive()[0]->getSampler()->getSampler();
     textureInfoColor[6] = bufferInfoEmissive;
 
-    // TODO: this textures are part of global state for PBR
+    // TODO: this textures are part of global engineState for PBR
     std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
     bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
     bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
@@ -640,8 +651,8 @@ void Sprite::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
 }
 
 void Sprite::_updateShadowDescriptor(std::shared_ptr<MaterialColor> material) {
-  for (int d = 0; d < _state->getSettings()->getMaxDirectionalLights(); d++) {
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -663,16 +674,16 @@ void Sprite::_updateShadowDescriptor(std::shared_ptr<MaterialColor> material) {
     material->registerUpdate(_descriptorSetCameraDepth[d][0], {{MaterialTexture::COLOR, 1}});
   }
 
-  for (int p = 0; p < _state->getSettings()->getMaxPointLights(); p++) {
+  for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
     std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
     for (int f = 0; f < 6; f++) {
-      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
         std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
         // write to binding = 0 for vertex shader
         bufferInfoCamera[0].buffer =
-            _cameraUBODepth[_state->getSettings()->getMaxDirectionalLights() + p][f]->getBuffer()[i]->getData();
+            _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->getBuffer()[i]->getData();
         bufferInfoCamera[0].offset = 0;
         bufferInfoCamera[0].range = sizeof(BufferMVP);
         bufferInfoColor[0] = bufferInfoCamera;
@@ -683,11 +694,12 @@ void Sprite::_updateShadowDescriptor(std::shared_ptr<MaterialColor> material) {
         bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
         bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
         textureInfoColor[1] = bufferInfoTexture;
-        _descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
+        _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
             i, bufferInfoColor, textureInfoColor);
       }
-      _material->unregisterUpdate(_descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f]);
-      material->registerUpdate(_descriptorSetCameraDepth[_state->getSettings()->getMaxDirectionalLights() + p][f],
+      _material->unregisterUpdate(
+          _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]);
+      material->registerUpdate(_descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f],
                                {{MaterialTexture::COLOR, 1}});
     }
   }
@@ -736,8 +748,8 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormal;
   if (_drawType == DrawType::TANGENT) pipeline = _pipelineTangent;
 
-  auto resolution = _state->getSettings()->getResolution();
-  int currentFrame = _state->getFrameInFlight();
+  auto resolution = _engineState->getSettings()->getResolution();
+  int currentFrame = _engineState->getFrameInFlight();
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -857,7 +869,7 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_enableDepth == false) return;
 
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   auto pipeline = _pipelineDirectional[_materialType];
   if (lightType == LightType::POINT) pipeline = _pipelinePoint[_materialType];
 
@@ -928,7 +940,7 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
     projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
-    lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
     view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
     projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }

@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/Loader.h"
 #include "Graphic/Texture.h"
 #include "Primitive/Cubemap.h"
@@ -10,7 +10,7 @@ class ResourceManager {
   std::shared_ptr<LoaderImage> _loaderImage;
   std::shared_ptr<Texture> _stubTextureZero, _stubTextureOne;
   std::shared_ptr<Cubemap> _stubCubemapZero, _stubCubemapOne;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
 #ifdef __ANDROID__
   AAssetManager* _assetManager;
   std::string _assetEnginePath = "";
@@ -18,7 +18,7 @@ class ResourceManager {
   std::string _assetEnginePath = "assets/";
 #endif
  public:
-  ResourceManager(std::shared_ptr<State> state);
+  ResourceManager(std::shared_ptr<EngineState> engineState);
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
 #ifdef __ANDROID__
   void setAssetManager(AAssetManager* assetManager);
