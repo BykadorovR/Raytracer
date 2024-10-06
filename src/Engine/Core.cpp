@@ -633,7 +633,8 @@ void Core::_reset() {
 
 void Core::_clearUnusedData() {
   int currentFrame = _state->getFrameInFlight();
-  _unused[currentFrame].clear();
+  _unusedShadowable[currentFrame].clear();
+  _unusedDrawable[currentFrame].clear();
 }
 
 void Core::_drawFrame(int imageIndex) {
@@ -897,10 +898,23 @@ void Core::removeDrawable(std::shared_ptr<Drawable> drawable) {
     auto position = std::find(drawableVector.begin(), drawableVector.end(), drawable);
     // we can remove this object only after current frame on GPU ends processing
     if (position != drawableVector.end()) {
-      _unused[(_state->getFrameInFlight() + 1) % _state->getSettings()->getMaxFramesInFlight()].push_back(*position);
+      _unusedDrawable[(_state->getFrameInFlight() + 1) % _state->getSettings()->getMaxFramesInFlight()].push_back(
+          *position);
       drawableVector.erase(position);
       break;
     }
+  }
+}
+
+void Core::removeShadowable(std::shared_ptr<Shadowable> shadowable) {
+  if (shadowable == nullptr) return;
+
+  auto position = std::find(_shadowables.begin(), _shadowables.end(), shadowable);
+  // we can remove this object only after current frame on GPU ends processing
+  if (position != _shadowables.end()) {
+    _unusedShadowable[(_state->getFrameInFlight() + 1) % _state->getSettings()->getMaxFramesInFlight()].push_back(
+        *position);
+    _shadowables.erase(position);
   }
 }
 

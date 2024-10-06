@@ -2,6 +2,65 @@
 #include "Graphic/Camera.h"
 #include "glm/gtc/matrix_transform.hpp"
 
+CameraDirectionalLight::CameraDirectionalLight() {
+  _eye = glm::vec3(0.f, 15.f, 0.f);
+  _direction = glm::vec3(0.f, -1.f, 0.f);
+  _up = glm::vec3(0.f, 0.f, -1.f);
+
+  _rect = {-20.f, 20.f, -20.f, 20.f};
+  _near = 0.1f;
+  _far = 40.f;
+}
+
+void CameraDirectionalLight::setPosition(glm::vec3 position) { _eye = position; }
+
+void CameraDirectionalLight::setArea(std::array<float, 4> rect, float near, float far) {
+  _rect = rect;
+  _near = near;
+  _far = far;
+}
+
+glm::vec3 CameraDirectionalLight::getPosition() { return _eye; }
+
+glm::mat4 CameraDirectionalLight::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
+
+glm::mat4 CameraDirectionalLight::getProjection() {
+  return glm::ortho(_rect[0], _rect[1], _rect[2], _rect[3], _near, _far);
+}
+
+CameraPointLight::CameraPointLight() {
+  _eye = glm::vec3(0.f, 15.f, 0.f);
+  // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
+  _direction = {glm::vec3(1.0, 0.0, 0.0),  glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0),
+                glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, 1.0),  glm::vec3(0.0, 0.0, -1.0)};
+  _up = {glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, 1.0),
+         glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, -1.0, 0.0)};
+
+  _near = 0.1f;
+  _far = 100.f;
+}
+
+void CameraPointLight::setPosition(glm::vec3 position) { _eye = position; }
+
+void CameraPointLight::setArea(float near, float far) {
+  _near = near;
+  _far = far;
+}
+
+float CameraPointLight::getFar() { return _far; }
+
+glm::vec3 CameraPointLight::getPosition() { return _eye; }
+
+glm::mat4 CameraPointLight::getView(int face) {
+  auto viewMatrix = glm::lookAt(_eye, _eye + _direction[face], _up[face]);
+  return viewMatrix;
+}
+
+glm::mat4 CameraPointLight::getProjection() {
+  float aspect = 1.f;
+  return glm::perspective(glm::radians(90.f), aspect, 0.1f, _far);
+}
+
 Camera::Camera() {
   _eye = glm::vec3(0.f, 0.f, 3.f);
   _direction = glm::vec3(0.f, 0.f, -1.f);

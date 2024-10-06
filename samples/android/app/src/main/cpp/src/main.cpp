@@ -65,14 +65,17 @@ float _heightShift = 16.f;
 std::array<float, 4> _heightLevels = {16, 128, 192, 256};
 int _minTessellationLevel = 4, _maxTessellationLevel = 32;
 float _minDistance = 30, _maxDistance = 100;
+glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
+glm::vec3 _terrainScale = glm::vec3(1.f);
 
 void _createTerrainPhong() {
   _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -81,16 +84,19 @@ void _createTerrainPhong() {
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 
-  _core->addDrawable(_terrain);
+  _core->addDrawable(_terrain, AlphaType::OPAQUE);
+  _core->addShadowable(_terrain);
 }
 
 void _createTerrainPBR() {
   _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
+
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -99,16 +105,19 @@ void _createTerrainPBR() {
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 
-  _core->addDrawable(_terrain);
+  _core->addDrawable(_terrain, AlphaType::OPAQUE);
+  _core->addShadowable(_terrain);
 }
 
 void _createTerrainColor() {
   _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
+
   _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -117,7 +126,7 @@ void _createTerrainColor() {
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 
-  _core->addDrawable(_terrain);
+  _core->addDrawable(_terrain, AlphaType::OPAQUE);
 }
 
 void update() {
@@ -125,7 +134,7 @@ void update() {
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
                                                 radius * sin(glm::radians(angleHorizontal)));
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
 
   angleHorizontal += 0.05f;
 
@@ -238,7 +247,7 @@ void initialize() {
 
   _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
   auto ambientLight = _core->createAmbientLight();
   // calculate ambient color with default gamma
@@ -247,9 +256,8 @@ void initialize() {
 
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
-  _directionalLight->setPosition({0.f, 35.f, 0.f});
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setArea({-20.f, 20.f, -20.f, 20.f}, 0.1f, 60.f);
+  _directionalLight->getCamera()->setPosition({0.f, 35.f, 0.f});
 
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
@@ -619,7 +627,8 @@ void initialize() {
     auto heightmapCPU = _core->loadImageCPU("heightmap.png");
 
     _physicsManager = std::make_shared<PhysicsManager>();
-    _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+    _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale,
+                                                       std::tuple{64, 16}, _physicsManager);
 
     _cubePlayer = _core->createShape3D(ShapeType::CUBE);
     _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));

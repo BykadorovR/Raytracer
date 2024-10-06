@@ -38,7 +38,6 @@ class Main {
   std::shared_ptr<Terrain> _terrain;
   std::shared_ptr<TerrainCPU> _terrainCPU;
   std::optional<glm::vec3> _shift;
-  bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
   bool _showGPU = true, _showCPU = true;
   int _patchX = 12, _patchY = 12;
   float _heightScale = 64.f;

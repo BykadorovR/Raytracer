@@ -911,9 +911,10 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _gameState->getLightManager()->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition =
+          _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
-      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -923,13 +924,13 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
 
   BufferMVP cameraMVP{};

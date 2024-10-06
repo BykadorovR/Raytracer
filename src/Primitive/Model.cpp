@@ -981,9 +981,9 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                           return info.first == std::string("globalPhong");
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 2, 1,
-                            &_lightManager->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        2, 1, &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // global PBR
@@ -992,9 +992,9 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                         return info.first == std::string("globalPBR");
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 2, 1,
-                            &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        2, 1, &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // Render all nodes at top-level
@@ -1017,14 +1017,16 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -1059,9 +1061,10 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   if (lightType == LightType::POINT) {
     if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition =
+          _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
-      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -1071,13 +1074,13 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
   // Render all nodes at top-level
   for (auto& node : _nodes) {

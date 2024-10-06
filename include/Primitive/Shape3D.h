@@ -53,7 +53,6 @@ class Shape3D : public Drawable, public Shadowable {
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
-  std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
   DrawType _drawType = DrawType::FILL;
   VkCullModeFlags _cullMode;

@@ -601,7 +601,8 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
     _lightDirectionalSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> directionalVP;
     for (int i = 0; i < _directionalLights.size(); i++) {
-      glm::mat4 viewProjection = _directionalLights[i]->getProjectionMatrix() * _directionalLights[i]->getViewMatrix();
+      glm::mat4 viewProjection = _directionalLights[i]->getCamera()->getProjection() *
+                                 _directionalLights[i]->getCamera()->getView();
       directionalVP.push_back(viewProjection);
     }
     int offset = 0;
@@ -667,7 +668,8 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
     float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
                    (float)std::get<1>(_state->getSettings()->getResolution());
     for (int i = 0; i < _pointLights.size(); i++) {
-      glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix() * _pointLights[i]->getViewMatrix(0);
+      glm::mat4 viewProjection = _pointLights[i]->getCamera()->getProjection() *
+                                 _pointLights[i]->getCamera()->getView(0);
       pointVP.push_back(viewProjection);
     }
     int offset = 0;

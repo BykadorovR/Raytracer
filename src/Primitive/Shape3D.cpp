@@ -773,7 +773,8 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (globalLayoutPhong != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
     }
 
     // PBR
@@ -795,7 +796,8 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (globalLayoutPBR != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
     }
 
     // normals and tangents
@@ -829,14 +831,16 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
                     pipeline->getPipeline());
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -873,9 +877,10 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition =
+          _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
-      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -885,13 +890,13 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
 
   BufferMVP cameraMVP{};

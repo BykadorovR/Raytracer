@@ -93,17 +93,6 @@ void Main::_createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  _terrain->patchEdge(_showPatches);
-  _terrain->showLoD(_showLoD);
-  if (_showWireframe) {
-    _terrain->setDrawType(DrawType::WIREFRAME);
-  }
-  if (_showNormals) {
-    _terrain->setDrawType(DrawType::NORMAL);
-  }
-  if (_showWireframe == false && _showNormals == false) {
-    _terrain->setDrawType(DrawType::FILL);
-  }
   {
     auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
     model = glm::scale(model, _terrainScale);
@@ -150,11 +139,8 @@ Main::Main() {
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
+
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
 
@@ -282,13 +268,13 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightVertical->setModel(model);
   }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -338,25 +324,6 @@ void Main::update() {
       _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
 
-    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
-      _terrain->patchEdge(_showPatches);
-    }
-    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
-      _terrain->showLoD(_showLoD);
-    }
-    if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrain->setDrawType(DrawType::WIREFRAME);
-      _terrainCPU->setDrawType(DrawType::WIREFRAME);
-      _showNormals = false;
-    }
-    if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrain->setDrawType(DrawType::NORMAL);
-      _showWireframe = false;
-    }
-    if (_showWireframe == false && _showNormals == false) {
-      _terrain->setDrawType(DrawType::FILL);
-      _terrainCPU->setDrawType(DrawType::FILL);
-    }
     if (_core->getGUI()->drawCheckbox({{"Show GPU", &_showGPU}})) {
       if (_showGPU == false) {
         _core->removeDrawable(_terrain);

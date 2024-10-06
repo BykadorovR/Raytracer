@@ -1,5 +1,4 @@
 #include "DebugVisualization.h"
-#include <format>
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core) {
   _camera = camera;
@@ -114,12 +113,12 @@ void DebugVisualization::_drawShadowMaps() {
   if (_showDepth) {
     if (_initializedDepth == false) {
       for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
-        glm::vec3 pos = _core->getDirectionalLights()[i]->getPosition();
+        glm::vec3 pos = _core->getDirectionalLights()[i]->getCamera()->getPosition();
         _shadowKeys.push_back("Dir " + std::to_string(i) + ": " + std::to_string(pos.x) + "x" + std::to_string(pos.y));
       }
       for (int i = 0; i < _core->getPointLights().size(); i++) {
         for (int j = 0; j < 6; j++) {
-          glm::vec3 pos = _core->getPointLights()[i]->getPosition();
+          glm::vec3 pos = _core->getPointLights()[i]->getCamera()->getPosition();
           _shadowKeys.push_back("Point " + std::to_string(i) + ": " + std::to_string(pos.x) + "x" +
                                 std::to_string(pos.y) + "_" + std::to_string(j));
         }
@@ -185,15 +184,14 @@ void DebugVisualization::update() {
   if (_registerLights == false) {
     for (int i = 0; i < _core->getPointLights().size(); i++) {
       {
-        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
+        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _pointLightModels[i]->setModel(model);
       }
     }
 
     for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
-      auto model = glm::translate(glm::mat4(1.f), _core->getDirectionalLights()[i]->getPosition());
-      model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
+      auto model = glm::scale(_core->getDirectionalLights()[i]->getCamera()->getView(), glm::vec3(0.2f, 0.2f, 0.2f));
       _directionalLightModels[i]->setModel(model);
     }
   }
@@ -333,7 +331,7 @@ void DebugVisualization::draw() {
       for (int i = 0; i < _core->getPointLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_pointLightModels[i]);
         {
-          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
+          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
           if (_enableSpheres) {
             if (_lightSpheresIndex < 0) _lightSpheresIndex = _core->getPointLights()[i]->getAttenuationIndex();
             _core->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);

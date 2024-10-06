@@ -72,7 +72,8 @@ class Core {
   std::shared_ptr<TimerFPS> _timerFPSLimited;
 
   std::map<AlphaType, std::vector<std::shared_ptr<Drawable>>> _drawables;
-  std::map<int, std::vector<std::shared_ptr<Drawable>>> _unused;
+  std::map<int, std::vector<std::shared_ptr<Drawable>>> _unusedDrawable;
+  std::map<int, std::vector<std::shared_ptr<Shadowable>>> _unusedShadowable;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
@@ -124,6 +125,7 @@ class Core {
   void addSkybox(std::shared_ptr<Skybox> skybox);
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   void removeDrawable(std::shared_ptr<Drawable> drawable);
+  void removeShadowable(std::shared_ptr<Shadowable> shadowable);
 
   std::shared_ptr<ImageCPU<uint8_t>> loadImageCPU(std::string path);
   std::shared_ptr<BufferImage> loadImageGPU(std::shared_ptr<ImageCPU<uint8_t>> imageCPU);

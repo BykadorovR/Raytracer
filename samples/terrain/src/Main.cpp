@@ -308,13 +308,13 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightVertical->setModel(model);
   }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));

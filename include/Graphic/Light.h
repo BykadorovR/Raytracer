@@ -4,6 +4,7 @@
 #include "Graphic/Texture.h"
 #include "Primitive/Cubemap.h"
 #include "Utility/Settings.h"
+#include "Graphic/Camera.h"
 
 class PointLight {
  private:
@@ -21,6 +22,7 @@ class PointLight {
   std::shared_ptr<LightFields> _light = nullptr;
   std::vector<std::shared_ptr<Cubemap>> _depthCubemap;
   int _attenuationIndex = 4;
+  std::shared_ptr<CameraPointLight> _camera;
 
  public:
   PointLight(std::shared_ptr<Settings> settings);
@@ -28,15 +30,11 @@ class PointLight {
   glm::vec3 getColor();
   void setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap);
   std::vector<std::shared_ptr<Cubemap>> getDepthCubemap();
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
-  glm::mat4 getViewMatrix(int face);
-  glm::mat4 getProjectionMatrix();
+  std::shared_ptr<CameraPointLight> getCamera();
   void setAttenuationIndex(int index);
   int getAttenuationIndex();
   int getDistance();
   int getSize();
-  float getFar();
   void* getData();
 };
 
@@ -47,8 +45,8 @@ class DirectionalLight {
     alignas(16) glm::vec3 position;
   };
   std::shared_ptr<LightFields> _light = nullptr;
-  glm::vec3 _center, _up;
   std::vector<std::shared_ptr<Texture>> _depthTexture;
+  std::shared_ptr<CameraDirectionalLight> _camera;
 
  public:
   DirectionalLight();
@@ -56,12 +54,7 @@ class DirectionalLight {
   glm::vec3 getColor();
   void setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture);
   std::vector<std::shared_ptr<Texture>> getDepthTexture();
-  void setPosition(glm::vec3 position);
-  void setCenter(glm::vec3 center);
-  void setUp(glm::vec3 up);
-  glm::vec3 getPosition();
-  glm::mat4 getViewMatrix();
-  glm::mat4 getProjectionMatrix();
+  std::shared_ptr<CameraDirectionalLight> getCamera();
   int getSize();
   void* getData();
 };

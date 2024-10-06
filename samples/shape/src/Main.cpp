@@ -66,11 +66,7 @@ Main::Main() {
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
@@ -468,13 +464,13 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightVertical->setModel(model);
   }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));

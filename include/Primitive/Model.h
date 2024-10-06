@@ -63,7 +63,6 @@ class Model3D : public Drawable, public Shadowable {
   bool _enableDepth = true;
   bool _enableShadow = true;
   bool _enableLighting = true;
-  std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
   std::vector<std::shared_ptr<MeshStatic3D>> _meshes;

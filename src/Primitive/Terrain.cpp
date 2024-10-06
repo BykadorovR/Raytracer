@@ -881,7 +881,11 @@ void TerrainDebug::drawDebug() {
 void TerrainDebug::cursorNotify(float xPos, float yPos) { _cursorPosition = glm::vec2{xPos, yPos}; }
 
 void TerrainDebug::mouseNotify(int button, int action, int mods) {
+#ifdef __ANDROID__
+  if (button == 0 && action == 1) {
+#else
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+#endif
     auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
     // forward transformation
     // x, y, z, 1 * MVP -> clip?
@@ -1815,7 +1819,8 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
     DepthConstants pushConstants;
-    pushConstants.lightPosition = _gameState->getLightManager()->getPointLights()[lightIndex]->getPosition();
+    pushConstants.lightPosition =
+        _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
     // light camera
     pushConstants.far = 100.f;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1827,13 +1832,13 @@ void Terrain::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
     lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
