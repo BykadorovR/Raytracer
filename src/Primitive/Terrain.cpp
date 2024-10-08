@@ -400,6 +400,8 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
 
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
+  _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
+  _material = _defaultMaterialColor;
   _heightMap = std::make_shared<Texture>(heightMap, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
                                          engineState);
@@ -499,8 +501,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
-                                                    {VK_FORMAT_R32_SINT, offsetof(Vertex3D, id)}}),
+                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
 
@@ -523,16 +524,20 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
-                                                    {VK_FORMAT_R32_SINT, offsetof(Vertex3D, id)}}),
+                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }
 
+  _reallocatePatch.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _patchDescriptionSSBO.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _reallocatePatchDescription(i);
+  }
   // layout for Color
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(4);
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor(5);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
     layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -553,12 +558,17 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
     layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutColor[3].pImmutableSamplers = nullptr;
     layoutColor[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutColor[4].binding = 4;
+    layoutColor[4].descriptorCount = 1;
+    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutColor[4].pImmutableSamplers = nullptr;
+    layoutColor[4].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState->getDescriptorPool(),
                                                           engineState->getDevice());
-    // update descriptor set in setMaterial
+    _updateColorDescriptor({_defaultMaterialColor});
 
     // initialize Color
     {
@@ -576,8 +586,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
-                                                    {VK_FORMAT_R32_SINT, offsetof(Vertex3D, id)}}),
+                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
 
       _pipelineWireframe = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
@@ -589,10 +598,14 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)},
-                                                    {VK_FORMAT_R32_SINT, offsetof(Vertex3D, id)}}),
+                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
+  }
+
+  _changePatch.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _updatePatchDescription(i);
   }
 }
 
@@ -607,28 +620,24 @@ void TerrainDebug::_calculateMesh(int index) {
       vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
       vertex1.texCoord = glm::vec2(x, y);
-      vertex1.id = x + y * _patchNumber.first;
       vertices.push_back(vertex1);
 
       Vertex3D vertex2{};
       vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
       vertex2.texCoord = glm::vec2(x + 1, y);
-      vertex2.id = x + y * _patchNumber.first;
       vertices.push_back(vertex2);
 
       Vertex3D vertex3{};
       vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
       vertex3.texCoord = glm::vec2(x, y + 1);
-      vertex3.id = x + y * _patchNumber.first;
       vertices.push_back(vertex3);
 
       Vertex3D vertex4{};
       vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
       vertex4.texCoord = glm::vec2(x + 1, y + 1);
-      vertex4.id = x + y * _patchNumber.first;
       vertices.push_back(vertex4);
     }
   }
@@ -688,10 +697,29 @@ void TerrainDebug::_updateColorDescriptor(std::shared_ptr<MaterialColor> materia
     }
     textureInfoColor[3] = textureBaseColor;
 
+    std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+    bufferPatchInfo[0].buffer = _patchDescriptionSSBO[i]->getData();
+    bufferPatchInfo[0].offset = 0;
+    bufferPatchInfo[0].range = _patchDescriptionSSBO[i]->getSize();
+    bufferInfoColor[4] = bufferPatchInfo;
+
     _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
   }
   _material->unregisterUpdate(_descriptorSetColor);
   material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
+}
+
+void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
+  _patchRotations = std::vector<glm::mat4>(_patchNumber.first * _patchNumber.second, glm::mat4(1.f));
+
+  _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
+      _patchNumber.first * _patchNumber.second * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+}
+
+void TerrainDebug::_updatePatchDescription(int currentFrame) {
+  // fill only number of lights because it's stub
+  _patchDescriptionSSBO[currentFrame]->setData(_patchRotations.data(), _patchRotations.size() * sizeof(glm::mat4));
 }
 
 void TerrainDebug::setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics) {
@@ -716,8 +744,8 @@ void TerrainDebug::setHeight(float scale, float shift) {
 void TerrainDebug::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }
 
 void TerrainDebug::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _material = material;
   _updateColorDescriptor(material);
+  _material = material;
 }
 
 void TerrainDebug::setDrawType(DrawType drawType) { _drawType = drawType; }
@@ -727,6 +755,8 @@ DrawType TerrainDebug::getDrawType() { return _drawType; }
 void TerrainDebug::showLoD(bool enable) { _showLoD = enable; }
 
 void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
+
+void TerrainDebug::setTileRotation(int tileID, glm::mat4 rotation) { _patchRotations[tileID] = rotation; }
 
 void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
@@ -825,6 +855,16 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     _changeMesh[_engineState->getFrameInFlight()] = false;
   }
 
+  if (_reallocatePatch[_engineState->getFrameInFlight()]) {
+    _reallocatePatchDescription(_engineState->getFrameInFlight());
+    _reallocatePatch[_engineState->getFrameInFlight()] = false;
+  }
+
+  if (_changePatch[_engineState->getFrameInFlight()]) {
+    _updatePatchDescription(_engineState->getFrameInFlight());
+    _changePatch[_engineState->getFrameInFlight()] = false;
+  }
+
   auto pipeline = _pipeline;
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
   if (_drawType == DrawType::NORMAL) pipeline = _pipelineNormalMesh;
@@ -847,8 +887,22 @@ void TerrainDebug::drawDebug() {
     _gui->drawText({"Tile: " + std::to_string(_pickedTile)});
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchNumber.first}, {"Patch y", &_patchNumber.second}};
     if (_gui->drawInputInt(patchesNumber)) {
+      // we can't change mesh here because we have to change it for all frames in flight eventually
       for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
         _changeMesh[i] = true;
+        _reallocatePatch[i] = true;
+      }
+    }
+
+    std::map<std::string, int*> angleList;
+    angleList["##Angle"] = &_angleIndex;
+    if (_gui->drawListBox({"0", "90", "180", "270"}, angleList, 4)) {
+      auto rotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f * _angleIndex), glm::vec3(0.f, 0.f, 1.f));
+      if (_pickedTile > 0 && _pickedTile < _patchRotations.size()) {
+        _patchRotations[_pickedTile] = rotation;
+        for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+          _changePatch[i] = true;
+        }
       }
     }
 
@@ -935,8 +989,9 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
 
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
+  _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
+  _material = _defaultMaterialColor;
+
   _heightMap = std::make_shared<Texture>(heightMap, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
                                          engineState);
@@ -1170,7 +1225,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState->getDescriptorPool(),
                                                           engineState->getDevice());
-    // update descriptor set in setMaterial
+    _updateColorDescriptor({_defaultMaterialColor});
 
     // initialize Color
     {
@@ -1402,7 +1457,9 @@ void Terrain::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
 
     _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
   }
-  _material->unregisterUpdate(_descriptorSetColor);
+  if (_material) {
+    _material->unregisterUpdate(_descriptorSetColor);
+  }
   material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
 }
 
@@ -1606,21 +1663,21 @@ void Terrain::enableShadow(bool enable) { _enableShadow = enable; }
 void Terrain::enableLighting(bool enable) { _enableLighting = enable; }
 
 void Terrain::setMaterial(std::shared_ptr<MaterialColor> material) {
+  _updateColorDescriptor(material);
   _material = material;
   _materialType = MaterialType::COLOR;
-  _updateColorDescriptor(material);
 }
 
 void Terrain::setMaterial(std::shared_ptr<MaterialPhong> material) {
+  _updatePhongDescriptor(material);
   _material = material;
   _materialType = MaterialType::PHONG;
-  _updatePhongDescriptor(material);
 }
 
 void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
+  _updatePBRDescriptor(material);
   _material = material;
   _materialType = MaterialType::PBR;
-  _updatePBRDescriptor(material);
 }
 
 void Terrain::draw(std::shared_ptr<CommandBuffer> commandBuffer) {

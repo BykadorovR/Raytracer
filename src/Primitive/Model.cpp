@@ -75,6 +75,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
   _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _materials = {_defaultMaterialPhong};
+
   _mesh = std::make_shared<MeshStatic3D>(engineState);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},

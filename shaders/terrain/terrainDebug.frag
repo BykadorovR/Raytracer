@@ -3,7 +3,6 @@
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 tessColor;
-layout(location = 3) flat in int inTile;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -16,7 +15,7 @@ layout(push_constant) uniform constants {
     layout(offset = 80) int enableShadow;
     layout(offset = 96) int enableLighting;
     layout(offset = 112) vec3 cameraPosition;
-    layout(offset = 128) int pickedTile;
+    layout(offset = 128) int pickedPatch;
 } push;
 
 //It is important to get the gradients before going into non-uniform flow code.
@@ -49,9 +48,10 @@ void main() {
     }
 
     vec2 line = fract(fragTexCoord);
-    if (push.patchEdge > 0 && (line.x < 0.001 || line.y < 0.001 || line.x > 0.999 || line.y > 0.999)) {        
+    if (push.patchEdge > 0 && (line.x < 0.01 || line.y < 0.01 || line.x > 0.99 || line.y > 0.99)) {
         outColor = vec4(1, 1, 0, 1);
-        if (push.pickedTile == inTile) {
+        // in fragment shader gl_PrimitiveID behaves the same way as in tesselation shaders IF there is no geometry shader
+        if (push.pickedPatch == gl_PrimitiveID) {
             outColor = vec4(1, 0, 0, 1);
         }
     }

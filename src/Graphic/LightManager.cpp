@@ -538,6 +538,7 @@ void LightManager::_reallocateAmbientBuffers(int currentFrame) {
 void LightManager::_updateAmbientBuffers(int currentFrame) {
   if (_ambientLights.size() > 0) {
     int offset = 0;
+    // we don't want to do multiple map/unmap that's why we don't use corresponding Buffer method setData
     _lightAmbientSSBO[currentFrame]->map();
     int ambientNumber = _ambientLights.size();
     memcpy((uint8_t*)(_lightAmbientSSBO[currentFrame]->getMappedMemory()) + offset, &ambientNumber, sizeof(glm::vec4));

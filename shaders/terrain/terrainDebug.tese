@@ -6,7 +6,6 @@ layout (quads, fractional_odd_spacing, ccw) in;
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
 layout (location = 1) in vec3 tessColor[];
-layout (location = 2) flat in int inTile[];
 
 layout(set = 0, binding = 1) uniform UniformCamera {
     mat4 model;
@@ -20,7 +19,14 @@ layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
-layout (location = 3) flat out int outTile;
+
+struct PatchDescription {
+    mat4 rotation;
+};
+
+layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
+    PatchDescription patchDescription[];
+};
 
 layout( push_constant ) uniform constants {
     layout(offset = 16) int patchDimX;
@@ -55,9 +61,6 @@ float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
 }
 
 void main() {
-    // all 4 values should be equal
-    outTile = inTile[0];
-
     // get patch coordinate (2D)
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
@@ -82,7 +85,8 @@ void main() {
     // bilinearly interpolate texture coordinate across patch
     vec2 t0 = (t01 - t00) * u + t00;
     vec2 t1 = (t11 - t10) * u + t10;
-    TexCoord = (t1 - t0) * v + t0;
+    TexCoord = (t1 - t0) * v + t0;    
+
     // IMPORTANT: need to divide, otherwise we will have the whole heightmap for every tile
     // lookup texel at patch coordinate for height and scale + shift as desired
 
@@ -108,6 +112,10 @@ void main() {
     // calculate the same way as in C++, but result is the same as in the line above
     //float heightValue = calculateHeightPosition(p.xz, texCoord);
 
+    mat4 rotationMatTmp = patchDescription[gl_PrimitiveID].rotation;
+    mat2 rotationMat = mat2(rotationMatTmp[0][0], rotationMatTmp[0][1],
+                            rotationMatTmp[1][0], rotationMatTmp[1][1]);
+    TexCoord = rotationMat * TexCoord;
     // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
     // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
     Height = heightValue * 256.0;

@@ -17,7 +17,6 @@ struct Vertex2D {
 };
 
 struct Vertex3D {
-  int id;
   glm::vec3 pos;
   glm::vec3 normal;
   glm::vec3 color;

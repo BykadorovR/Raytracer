@@ -102,7 +102,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetNormal;
+  std::shared_ptr<DescriptorSet> _descriptorSetNormal;
+  std::shared_ptr<DescriptorSet> _descriptorSetColor;
   std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
   std::shared_ptr<Pipeline> _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<RenderPass> _renderPass;
@@ -124,10 +125,17 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
   glm::vec2 _cursorPosition;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
-  std::vector<bool> _changeMesh;
+  std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
+  std::vector<glm::mat4> _patchRotations;
+  int _angleIndex;
+  std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
+  bool _updateDescriptor = false;
+
   void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   int _calculateTileByPosition(glm::vec3 position);
   void _calculateMesh(int index);
+  void _reallocatePatchDescription(int currentFrame);
+  void _updatePatchDescription(int currentFrame);
 
  public:
   TerrainDebug(std::shared_ptr<BufferImage> heightMap,
@@ -145,6 +153,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
 
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setDrawType(DrawType drawType);
+  void setTileRotation(int tileID, glm::mat4 rotation);
 
   DrawType getDrawType();
   void patchEdge(bool enable);
@@ -169,8 +178,6 @@ class Terrain : public Drawable, public Shadowable {
   MaterialType _materialType = MaterialType::COLOR;
 
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
-  std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
 
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;

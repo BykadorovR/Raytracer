@@ -7,7 +7,6 @@ layout (vertices = 4) out;
 
 // varying input from vertex shader
 layout (location = 0) in vec2 TexCoord[];
-layout (location = 1) flat in int inTile[];
 
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
@@ -25,7 +24,6 @@ layout( push_constant ) uniform constants {
 // varying output to evaluation shader
 layout (location = 0) out vec2 TextureCoord[];
 layout (location = 1) out vec3 tessColor[];
-layout (location = 2) flat out int outTile[];
 
 // All components are in the range [0…1], including hue.
 vec3 hsv2rgb(vec3 c) {
@@ -40,7 +38,6 @@ void main() {
     // pass attributes through
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;    
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
-    outTile[gl_InvocationID] = inTile[gl_InvocationID];
 
     //set default level for tessColor
     gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
