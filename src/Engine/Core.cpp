@@ -186,7 +186,7 @@ void Core::initialize() {
                                                      _engineState);
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
   _swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferInitialize);
-  _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_gui));
+  _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriberExclusive>(_gui));
 
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 

@@ -151,7 +151,6 @@ void CameraFly::cursorNotify(float xPos, float yPos) {
 #ifndef __ANDROID__
   if (glfwGetInputMode((GLFWwindow*)(_engineState->getWindow()->getWindow()), GLFW_CURSOR) != GLFW_CURSOR_DISABLED) {
     _once = false;
-    return;
   }
 #endif
 

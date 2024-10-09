@@ -43,7 +43,7 @@ struct VertexGUI {
   }
 };
 
-class GUI : public InputSubscriber {
+class GUI : public InputSubscriberExclusive {
  private:
   std::tuple<int, int> _resolution;
   std::shared_ptr<EngineState> _engineState;
@@ -81,10 +81,10 @@ class GUI : public InputSubscriber {
   bool drawInputInt(std::map<std::string, int*> variable);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
-  void cursorNotify(float xPos, float yPos) override;
-  void mouseNotify(int button, int action, int mods) override;
-  void keyNotify(int key, int scancode, int action, int mods) override;
-  void charNotify(unsigned int code) override;
-  void scrollNotify(double xOffset, double yOffset) override;
+  bool cursorNotify(float xPos, float yPos) override;
+  bool mouseNotify(int button, int action, int mods) override;
+  bool keyNotify(int key, int scancode, int action, int mods) override;
+  bool charNotify(unsigned int code) override;
+  bool scrollNotify(double xOffset, double yOffset) override;
   ~GUI();
 };

@@ -302,12 +302,18 @@ void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(float xPos, float yPos) {
+bool GUI::cursorNotify(float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::mouseNotify(int button, int action, int mods) {
+bool GUI::mouseNotify(int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
 #ifdef __ANDROID__
   if (action == 1) io.MouseDown[0] = true;
@@ -326,20 +332,37 @@ void GUI::mouseNotify(int button, int action, int mods) {
     io.MouseDown[1] = false;
   }
 #endif
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::charNotify(unsigned int code) {
+bool GUI::charNotify(unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::scrollNotify(double xOffset, double yOffset) {
+bool GUI::scrollNotify(double xOffset, double yOffset) {
   ImGuiIO& io = ImGui::GetIO();
   io.MouseWheelH += (float)xOffset;
   io.MouseWheel += (float)yOffset;
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::keyNotify(int key, int scancode, int action, int mods) {
+bool GUI::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
@@ -371,4 +394,10 @@ void GUI::keyNotify(int key, int scancode, int action, int mods) {
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
 #endif
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
+
+  return false;
 }
