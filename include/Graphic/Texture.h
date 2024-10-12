@@ -9,6 +9,7 @@ class Texture {
  private:
   std::shared_ptr<ImageView> _imageView;
   std::shared_ptr<Sampler> _sampler;
+  int _mipMapLevels;
 
  public:
   Texture(std::shared_ptr<BufferImage> data,
@@ -23,6 +24,8 @@ class Texture {
           VkFilter filter,
           std::shared_ptr<ImageView> imageView,
           std::shared_ptr<EngineState> engineState);
+
+  void copyFrom(std::shared_ptr<BufferImage> data, std::shared_ptr<CommandBuffer> commandBuffer);
   std::shared_ptr<ImageView> getImageView();
   std::shared_ptr<Sampler> getSampler();
 };

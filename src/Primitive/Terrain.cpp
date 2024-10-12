@@ -386,7 +386,7 @@ struct HeightLevels {
   }
 };
 
-TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
+TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
                            std::pair<int, int> patchNumber,
                            std::shared_ptr<CommandBuffer> commandBufferTransfer,
                            std::shared_ptr<GUI> gui,
@@ -402,7 +402,10 @@ TerrainDebug::TerrainDebug(std::shared_ptr<BufferImage> heightMap,
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
   _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
   _material = _defaultMaterialColor;
-  _heightMap = std::make_shared<Texture>(heightMap, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
+  _heightMapCPU = heightMapCPU;
+  _heightMapGPU = _gameState->getResourceManager()->loadImageGPU<uint8_t>({heightMapCPU});
+  _changedHeightmap.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _heightMap = std::make_shared<Texture>(_heightMapGPU, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
                                          engineState);
 
@@ -644,6 +647,31 @@ void TerrainDebug::_calculateMesh(int index) {
   _mesh[index]->setVertices(vertices);
 }
 
+void TerrainDebug::_changeHeightmap(glm::ivec2 position, int value) {
+  auto [width, height] = _heightMapCPU->getResolution();
+  auto data = _heightMapCPU->getData();
+  data[(position.x + position.y * width) * _heightMapCPU->getChannels()] += value;
+  data[(position.x + position.y * width) * _heightMapCPU->getChannels() + 1] += value;
+  data[(position.x + position.y * width) * _heightMapCPU->getChannels() + 2] += value;
+  data[(position.x + position.y * width) * _heightMapCPU->getChannels() + 3] += value;
+  _heightMapCPU->setData(data);
+  _heightMapGPU->setData(_heightMapCPU->getData().get());
+}
+
+glm::ivec2 TerrainDebug::_calculatePixelByPosition(glm::vec3 position) {
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+
+  auto leftTop = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
+  auto rightTop = _model * glm::vec4(-width / 2.0f + (width - 1), 0.f, -height / 2.0f, 1.f);
+  auto leftBot = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height - 1, 1.f);
+  auto rightBot = _model * glm::vec4(-width / 2.0f + (width - 1), 0.f, -height / 2.0f + height - 1, 1.f);
+  glm::vec3 terrainSize = rightBot - leftTop;
+  glm::vec2 ratio = glm::vec2((glm::vec4(position, 1.f) - leftTop).x / terrainSize.x,
+                              (glm::vec4(position, 1.f) - leftTop).z / terrainSize.z);
+  auto textureCoords = glm::vec2(ratio.x * width, ratio.y * height);
+  return textureCoords;
+}
+
 int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   for (int y = 0; y < _patchNumber.second; y++)
@@ -758,8 +786,37 @@ void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
 
 void TerrainDebug::setTileRotation(int tileID, glm::mat4 rotation) { _patchRotations[tileID] = rotation; }
 
+bool TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
+  bool change = false;
+  for (auto changed : _changedHeightmap) {
+    if (changed) {
+      change = true;
+      break;
+    }
+  }
+
+  if (change) {
+    _heightMap->copyFrom(_heightMapGPU, commandBuffer);
+    return true;
+  }
+
+  return false;
+}
+
 void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
+
+  if (_changedHeightmap[currentFrame]) {
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorImageInfo> textureHeightmap(1);
+    textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
+    textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
+    textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
+    textureInfoColor[2] = textureHeightmap;
+    _descriptorSetColor->updateImages(currentFrame, textureInfoColor);
+    _changedHeightmap[currentFrame] = false;
+  }
+
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
@@ -873,18 +930,9 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 }
 
 void TerrainDebug::drawDebug() {
-  if (_rayUpdated) {
-    auto hit = _terrainPhysics->hit(_rayOrigin,
-                                    _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
-    if (hit) {
-      // find the corresponding patch number
-      _pickedTile = _calculateTileByPosition(hit.value());
-    }
-    _rayUpdated = false;
-  }
-
   if (_gui->startTree("Terrain")) {
     _gui->drawText({"Tile: " + std::to_string(_pickedTile)});
+    _gui->drawText({"Texture: " + std::to_string(_pickedPixel.x) + "x" + std::to_string(_pickedPixel.y)});
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchNumber.first}, {"Patch y", &_patchNumber.second}};
     if (_gui->drawInputInt(patchesNumber)) {
       // we can't change mesh here because we have to change it for all frames in flight eventually
@@ -967,7 +1015,14 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
     // normalize
     _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
     _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
-    _rayUpdated = true;
+
+    auto hit = _terrainPhysics->hit(_rayOrigin,
+                                    _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
+    if (hit) {
+      // find the corresponding patch number
+      _pickedTile = _calculateTileByPosition(hit.value());
+      _pickedPixel = _calculatePixelByPosition(hit.value());
+    }
   }
 }
 
@@ -975,7 +1030,10 @@ void TerrainDebug::keyNotify(int key, int scancode, int action, int mods) {}
 
 void TerrainDebug::charNotify(unsigned int code) {}
 
-void TerrainDebug::scrollNotify(double xOffset, double yOffset) {}
+void TerrainDebug::scrollNotify(double xOffset, double yOffset) {
+  _changeHeightmap(_pickedPixel, yOffset);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
+}
 
 Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::pair<int, int> patchNumber,

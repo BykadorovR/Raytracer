@@ -9,6 +9,7 @@ Texture::Texture(std::shared_ptr<BufferImage> data,
                  VkFilter filter,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<EngineState> engineState) {
+  _mipMapLevels = mipMapLevels;
   // image
   auto image = std::make_shared<Image>(
       data->getResolution(), 1, mipMapLevels, format, VK_IMAGE_TILING_OPTIMAL,
@@ -33,9 +34,18 @@ Texture::Texture(VkSamplerAddressMode mode,
                  VkFilter filter,
                  std::shared_ptr<ImageView> imageView,
                  std::shared_ptr<EngineState> engineState) {
+  _mipMapLevels = mipMapLevels;
   _imageView = imageView;
   _sampler = std::make_shared<Sampler>(mode, mipMapLevels, engineState->getSettings()->getAnisotropicSamples(), filter,
                                        engineState);
+}
+
+void Texture::copyFrom(std::shared_ptr<BufferImage> data, std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto image = getImageView()->getImage();
+  image->changeLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                      VK_IMAGE_ASPECT_COLOR_BIT, 1, _mipMapLevels, commandBuffer);
+  image->copyFrom(data, {0}, commandBuffer);
+  image->generateMipmaps(_mipMapLevels, 1, commandBuffer);
 }
 
 std::shared_ptr<ImageView> Texture::getImageView() { return _imageView; }

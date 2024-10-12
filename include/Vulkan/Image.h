@@ -26,6 +26,7 @@ class Image {
         VkMemoryPropertyFlags properties,
         std::shared_ptr<EngineState> engineState);
 
+  void setData(std::shared_ptr<Buffer> buffer);
   // bufferOffsets contains offsets for part of buffer that should be copied to corresponding layers of image
   void copyFrom(std::shared_ptr<Buffer> buffer,
                 std::vector<int> bufferOffsets,

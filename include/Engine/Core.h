@@ -44,9 +44,11 @@ class Core {
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
-      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
+      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI,
+      _commandPoolTransfer;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
-      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
+      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI,
+      _commandBufferTransfer;
 
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
@@ -57,8 +59,9 @@ class Core {
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
-  std::vector<std::shared_ptr<Semaphore>> _semaphoreResourcesReady, _semaphoreApplicationReady;
-  std::map<int, bool> _waitSemaphoreResourcesReady, _waitSemaphoreApplicationReady;
+  std::vector<std::shared_ptr<Semaphore>> _semaphoreResourcesReady, _semaphoreApplicationReady,
+      _semaphoreTransferCompleted;
+  std::map<int, bool> _waitSemaphoreResourcesReady, _waitSemaphoreApplicationReady, _waitSemaphoreTransferCompleted;
 
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
@@ -76,6 +79,7 @@ class Core {
   std::map<int, std::vector<std::shared_ptr<Shadowable>>> _unusedShadowable;
   std::vector<std::shared_ptr<Shadowable>> _shadowables;
   std::vector<std::shared_ptr<Animation>> _animations;
+  std::vector<std::shared_ptr<Transferable>> _transferables;
   std::map<std::shared_ptr<Animation>, std::future<void>> _futureAnimationUpdate;
 
   std::vector<std::shared_ptr<ParticleSystem>> _particleSystem;
@@ -101,6 +105,7 @@ class Core {
 
   VkResult _getImageIndex(uint32_t* imageIndex);
   void _displayFrame(uint32_t* imageIndex);
+  void _transferFrame();
   void _drawFrame(int imageIndex);
   void _clearUnusedData();
   void _reset();
@@ -121,6 +126,7 @@ class Core {
   void setCamera(std::shared_ptr<Camera> camera);
   void addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type = AlphaType::TRANSPARENT);
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
+  void addTransferable(std::shared_ptr<Transferable> transferable);
   // TODO: everything should be drawable
   void addSkybox(std::shared_ptr<Skybox> skybox);
   void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);

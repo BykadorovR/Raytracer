@@ -17,6 +17,11 @@ class Named {
   std::string getName();
 };
 
+class Transferable : virtual public Named {
+ public:
+  virtual bool transfer(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+};
+
 class Drawable : virtual public Named {
  protected:
   glm::mat4 _model = glm::mat4(1.f);

@@ -108,6 +108,13 @@ void Core::initialize() {
                                                              _engineState);
   _debuggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                           _commandBufferInitialize->getCommandBuffer());
+
+  _commandPoolTransfer = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+  _commandBufferTransfer = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolTransfer,
+                                                           _engineState);
+  _debuggerUtils->setName("Command buffer for transfer", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                          _commandBufferTransfer->getCommandBuffer());
+
   _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
   _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                   _commandPoolEquirectangular, _engineState);
@@ -164,6 +171,10 @@ void Core::initialize() {
     // resources submit semaphore
     _semaphoreResourcesReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
     _waitSemaphoreResourcesReady[i] = false;
+
+    // per frame data transfer semaphore
+    _semaphoreTransferCompleted.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+    _waitSemaphoreTransferCompleted[i] = false;
 
     // application submit semaphore
     _semaphoreApplicationReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
@@ -641,6 +652,30 @@ void Core::_clearUnusedData() {
   _unusedDrawable[currentFrame].clear();
 }
 
+void Core::_transferFrame() {
+  bool processed = false;
+
+  _commandBufferTransfer->beginCommands();
+  for (auto& transferable : _transferables) {
+    processed = processed || transferable->transfer(_commandBufferTransfer);
+  }
+  _commandBufferTransfer->endCommands();
+
+  if (processed) {
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    std::vector<VkSemaphore> signalSemaphoresTransfer = {
+        _semaphoreTransferCompleted[_engineState->getFrameInFlight()]->getSemaphore()};
+    submitInfo.signalSemaphoreCount = signalSemaphoresTransfer.size();
+    submitInfo.pSignalSemaphores = signalSemaphoresTransfer.data();
+    _waitSemaphoreTransferCompleted[_engineState->getFrameInFlight()] = true;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &_commandBufferTransfer->getCommandBuffer()[_engineState->getFrameInFlight()];
+    auto queue = _engineState->getDevice()->getQueue(QueueType::GRAPHIC);
+    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+  }
+}
+
 void Core::_drawFrame(int imageIndex) {
   auto frameInFlight = _engineState->getFrameInFlight();
   // submit compute particles
@@ -691,6 +726,11 @@ void Core::_drawFrame(int imageIndex) {
     waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
     semaphoresWaitParticles.push_back(_semaphoreResourcesReady[frameInFlight]->getSemaphore());
     _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = false;
+  }
+  if (_waitSemaphoreTransferCompleted[frameInFlight]) {
+    waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+    semaphoresWaitParticles.push_back(_semaphoreTransferCompleted[frameInFlight]->getSemaphore());
+    _waitSemaphoreTransferCompleted[_engineState->getFrameInFlight()] = false;
   }
   if (_waitSemaphoreApplicationReady[frameInFlight]) {
     waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
@@ -845,8 +885,13 @@ void Core::draw() {
     uint32_t imageIndex;
     while (_getImageIndex(&imageIndex) != VK_SUCCESS)
       ;
+    // clear removed entities: drawables and shadowables
     _clearUnusedData();
+    // application update, can be anything
     _callbackUpdate();
+    // per frame trasfer data for Transferable objects like TerrainDebug
+    _transferFrame();
+    // render scene
     _drawFrame(imageIndex);
     _timerFPSReal->tock();
     // if GPU frames are limited by driver it will happen during display
@@ -889,6 +934,8 @@ void Core::setCamera(std::shared_ptr<Camera> camera) { _gameState->getCameraMana
 void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
 
 void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
+
+void Core::addTransferable(std::shared_ptr<Transferable> transferable) { _transferables.push_back(transferable); }
 
 void Core::addSkybox(std::shared_ptr<Skybox> skybox) { _skybox = skybox; }
 

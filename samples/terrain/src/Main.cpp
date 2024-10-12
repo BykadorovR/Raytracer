@@ -260,7 +260,7 @@ Main::Main() {
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager);
-  _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageGPU(_core->loadImageCPU("../assets/heightmap.png")),
+  _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageCPU("../assets/heightmap.png"),
                                                  std::pair{_patchX, _patchY}, _core->getCommandBufferApplication(),
                                                  _core->getGUI(), _core->getGameState(), _core->getEngineState());
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));
@@ -288,6 +288,7 @@ Main::Main() {
     _terrainDebug->setModel(scaleMatrix);
   }
   _core->addDrawable(_terrainDebug);
+  _core->addTransferable(_terrainDebug);
 
   _core->endRecording();
 
@@ -340,13 +341,13 @@ void Main::update() {
       _core->startRecording();
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor();
+          _terrain->setMaterial(_materialColor);
           break;
         case 1:
-          _createTerrainPhong();
+          _terrain->setMaterial(_materialPhong);
           break;
         case 2:
-          _createTerrainPBR();
+          _terrain->setMaterial(_materialPBR);
           break;
       }
       _core->endRecording();

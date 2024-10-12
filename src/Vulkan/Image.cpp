@@ -272,6 +272,8 @@ void Image::changeLayout(VkImageLayout oldLayout,
                        nullptr, 1, &barrier);
 }
 
+void Image::setData(std::shared_ptr<Buffer> buffer) {}
+
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
                      std::vector<int> bufferOffsets,
                      std::shared_ptr<CommandBuffer> commandBufferTransfer) {

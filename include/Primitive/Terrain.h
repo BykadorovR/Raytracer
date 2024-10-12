@@ -89,7 +89,7 @@ class TerrainCPU : public Drawable {
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
 
-class TerrainDebug : public Drawable, public InputSubscriber {
+class TerrainDebug : public Drawable, public InputSubscriber, public Transferable {
  private:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
@@ -107,6 +107,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
   std::shared_ptr<Pipeline> _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<RenderPass> _renderPass;
+  std::shared_ptr<ImageCPU<uint8_t>> _heightMapCPU;
+  std::shared_ptr<BufferImage> _heightMapGPU;
   std::shared_ptr<Texture> _heightMap;
   std::pair<int, int> _patchNumber;
   float _heightScale = 64.f;
@@ -120,8 +122,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   bool _enableShadow = true;
   DrawType _drawType = DrawType::FILL;
   int _pickedTile = -1;
+  glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
   glm::vec3 _rayOrigin, _rayDirection;
-  bool _rayUpdated = false;
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
   glm::vec2 _cursorPosition;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
@@ -129,16 +131,18 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<glm::mat4> _patchRotations;
   int _angleIndex;
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
-  bool _updateDescriptor = false;
+  std::vector<bool> _changedHeightmap;
 
   void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   int _calculateTileByPosition(glm::vec3 position);
+  glm::ivec2 _calculatePixelByPosition(glm::vec3 position);
+  void _changeHeightmap(glm::ivec2 position, int value);
   void _calculateMesh(int index);
   void _reallocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);
 
  public:
-  TerrainDebug(std::shared_ptr<BufferImage> heightMap,
+  TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
                std::pair<int, int> patchNumber,
                std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GUI> gui,
@@ -158,6 +162,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
+  bool transfer(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawDebug();
 
