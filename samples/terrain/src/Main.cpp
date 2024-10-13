@@ -288,7 +288,6 @@ Main::Main() {
     _terrainDebug->setModel(scaleMatrix);
   }
   _core->addDrawable(_terrainDebug);
-  _core->addTransferable(_terrainDebug);
 
   _core->endRecording();
 
@@ -298,6 +297,12 @@ Main::Main() {
 }
 
 void Main::update() {
+  if (_terrainDebug->heightmapChanged()) {
+    _core->startRecording();
+    _terrainDebug->transfer(_core->getCommandBufferApplication());
+    _core->endRecording();
+  }
+
   static float i = 0;
   // update light position
   float radius = 15.f;
@@ -324,7 +329,6 @@ void Main::update() {
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
-
   auto [FPSLimited, FPSReal] = _core->getFPS();
   auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
   _core->getGUI()->startWindow("Terrain", {20, 20}, {widthScreen / 10, heightScreen / 10});

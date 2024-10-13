@@ -89,7 +89,7 @@ class TerrainCPU : public Drawable {
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
 
-class TerrainDebug : public Drawable, public InputSubscriber, public Transferable {
+class TerrainDebug : public Drawable, public InputSubscriber {
  private:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
@@ -162,7 +162,8 @@ class TerrainDebug : public Drawable, public InputSubscriber, public Transferabl
   DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  bool transfer(std::shared_ptr<CommandBuffer> commandBuffer) override;
+  bool heightmapChanged();
+  void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawDebug();
 
@@ -184,6 +185,8 @@ class Terrain : public Drawable, public Shadowable {
 
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
 
+  std::vector<bool> _changedMaterial;
+
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
@@ -204,9 +207,9 @@ class Terrain : public Drawable, public Shadowable {
   bool _enableLighting = true;
   bool _enableShadow = true;
 
-  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
-  void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
-  void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
+  void _updateColorDescriptor();
+  void _updatePhongDescriptor();
+  void _updatePBRDescriptor();
 
  public:
   Terrain(std::shared_ptr<BufferImage> heightMap,
