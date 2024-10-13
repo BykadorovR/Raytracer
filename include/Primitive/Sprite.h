@@ -47,7 +47,62 @@ class Sprite : public Drawable, public Shadowable {
   void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
   void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
   void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
-  void _updateShadowDescriptor(std::shared_ptr<MaterialColor> baseColor);
+  template <class T>
+  void _updateShadowDescriptor(std::shared_ptr<T> material) {
+    for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
+      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+        std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+        // write to binding = 0 for vertex shader
+        bufferInfoCamera[0].buffer = _cameraUBODepth[d][0]->getBuffer()[i]->getData();
+        bufferInfoCamera[0].offset = 0;
+        bufferInfoCamera[0].range = sizeof(BufferMVP);
+        bufferInfoColor[0] = bufferInfoCamera;
+
+        // write for binding = 1 for textures
+        std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+        bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+        bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+        bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+        textureInfoColor[1] = bufferInfoTexture;
+        _descriptorSetCameraDepth[d][0]->createCustom(i, bufferInfoColor, textureInfoColor);
+      }
+      _material->unregisterUpdate(_descriptorSetCameraDepth[d][0]);
+      material->registerUpdate(_descriptorSetCameraDepth[d][0], {{MaterialTexture::COLOR, 1}});
+    }
+
+    for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
+      std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
+      for (int f = 0; f < 6; f++) {
+        for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+          std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+          std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+          std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+          // write to binding = 0 for vertex shader
+          bufferInfoCamera[0].buffer =
+              _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->getBuffer()[i]->getData();
+          bufferInfoCamera[0].offset = 0;
+          bufferInfoCamera[0].range = sizeof(BufferMVP);
+          bufferInfoColor[0] = bufferInfoCamera;
+
+          // write for binding = 1 for textures
+          std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+          bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+          bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+          bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+          textureInfoColor[1] = bufferInfoTexture;
+          _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
+              i, bufferInfoColor, textureInfoColor);
+        }
+        _material->unregisterUpdate(
+            _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]);
+        material->registerUpdate(
+            _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f],
+            {{MaterialTexture::COLOR, 1}});
+      }
+    }
+  }
 
  public:
   Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,

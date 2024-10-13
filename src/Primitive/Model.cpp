@@ -67,7 +67,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _meshes = meshes;
   _gameState = gameState;
   auto settings = _engineState->getSettings();
-
+  _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
@@ -309,7 +309,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     _descriptorSetLayoutPhong->createCustom(layoutPhong);
 
-    _updatePhongDescriptor({_defaultMaterialPhong});
+    setMaterial({_defaultMaterialPhong});
 
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelPhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -559,104 +559,227 @@ void Model3D::_updateJointsDescriptor() {
   }
 }
 
-void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+void Model3D::_updatePBRDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialPBR> material = std::dynamic_pointer_cast<MaterialPBR>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for textures
+    std::vector<VkDescriptorImageInfo> bufferInfoBaseColor(1);
+    bufferInfoBaseColor[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoBaseColor[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+    bufferInfoBaseColor[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoBaseColor;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
+    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
+    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
+    textureInfoColor[2] = bufferInfoNormal;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoMetallic(1);
+    bufferInfoMetallic[0].imageLayout = material->getMetallic()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoMetallic[0].imageView = material->getMetallic()[0]->getImageView()->getImageView();
+    bufferInfoMetallic[0].sampler = material->getMetallic()[0]->getSampler()->getSampler();
+    textureInfoColor[3] = bufferInfoMetallic;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoRoughness(1);
+    bufferInfoRoughness[0].imageLayout = material->getRoughness()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoRoughness[0].imageView = material->getRoughness()[0]->getImageView()->getImageView();
+    bufferInfoRoughness[0].sampler = material->getRoughness()[0]->getSampler()->getSampler();
+    textureInfoColor[4] = bufferInfoRoughness;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoOcclusion(1);
+    bufferInfoOcclusion[0].imageLayout = material->getOccluded()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoOcclusion[0].imageView = material->getOccluded()[0]->getImageView()->getImageView();
+    bufferInfoOcclusion[0].sampler = material->getOccluded()[0]->getSampler()->getSampler();
+    textureInfoColor[5] = bufferInfoOcclusion;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoEmissive(1);
+    bufferInfoEmissive[0].imageLayout = material->getEmissive()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoEmissive[0].imageView = material->getEmissive()[0]->getImageView()->getImageView();
+    bufferInfoEmissive[0].sampler = material->getEmissive()[0]->getSampler()->getSampler();
+    textureInfoColor[6] = bufferInfoEmissive;
+
+    // TODO: this textures are part of global engineState for PBR
+    std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
+    bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
+    bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
+    bufferInfoIrradiance[0].sampler = material->getDiffuseIBL()->getSampler()->getSampler();
+    textureInfoColor[7] = bufferInfoIrradiance;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
+    bufferInfoSpecularIBL[0].imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecularIBL[0].imageView = material->getSpecularIBL()->getImageView()->getImageView();
+    bufferInfoSpecularIBL[0].sampler = material->getSpecularIBL()->getSampler()->getSampler();
+    textureInfoColor[8] = bufferInfoSpecularIBL;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
+    bufferInfoSpecularBRDF[0].imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecularBRDF[0].imageView = material->getSpecularBRDF()->getImageView()->getImageView();
+    bufferInfoSpecularBRDF[0].sampler = material->getSpecularBRDF()->getSampler()->getSampler();
+    textureInfoColor[9] = bufferInfoSpecularBRDF;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].offset = 0;
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[10] = bufferInfoAlphaCutoff;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].offset = 0;
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[11] = bufferInfoCoefficients;
+
+    _descriptorSetPBR[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::_updatePhongDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialPhong> material = std::dynamic_pointer_cast<MaterialPhong>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for base color
+    std::vector<VkDescriptorImageInfo> bufferInfoBase(1);
+    bufferInfoBase[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoBase[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+    bufferInfoBase[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoBase;
+
+    // write for binding = 2 for normal color
+    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
+    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
+    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
+    textureInfoColor[2] = bufferInfoNormal;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecular(1);
+    bufferInfoSpecular[0].imageLayout = material->getSpecular()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecular[0].imageView = material->getSpecular()[0]->getImageView()->getImageView();
+    bufferInfoSpecular[0].sampler = material->getSpecular()[0]->getSampler()->getSampler();
+    textureInfoColor[3] = bufferInfoSpecular;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].offset = 0;
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[4] = bufferInfoAlphaCutoff;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].offset = 0;
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[5] = bufferInfoCoefficients;
+
+    _descriptorSetPhong[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::_updateColorDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialColor> material = std::dynamic_pointer_cast<MaterialColor>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for textures
+    auto texture = _defaultMaterialColor->getBaseColor();
+    if (material->getBaseColor().size() > 0) texture = material->getBaseColor();
+    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+    bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
+    bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoTexture;
+    _descriptorSetColor[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
   for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetColor.size())
+      _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
+
+    if (_descriptorSetColor.size() <= material)
+      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
+  }
+  _materialType = MaterialType::COLOR;
+
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
+  for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetPhong.size())
+      _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
+
+    if (_descriptorSetPhong.size() <= material)
+      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPhong,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    materials[material]->registerUpdate(
+        _descriptorSetPhong[material],
+        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
+  }
+  _materialType = MaterialType::PHONG;
+
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+  for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetPBR.size())
+      _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
+
     if (_descriptorSetPBR.size() <= material)
       _descriptorSetPBR.push_back(
           std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPBR,
                                           _engineState->getDescriptorPool(), _engineState->getDevice()));
-    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for textures
-      std::vector<VkDescriptorImageInfo> bufferInfoBaseColor(1);
-      bufferInfoBaseColor[0].imageLayout =
-          materials[material]->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoBaseColor[0].imageView = materials[material]->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoBaseColor[0].sampler = materials[material]->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoBaseColor;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-      bufferInfoNormal[0].imageLayout =
-          materials[material]->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoNormal[0].imageView = materials[material]->getNormal()[0]->getImageView()->getImageView();
-      bufferInfoNormal[0].sampler = materials[material]->getNormal()[0]->getSampler()->getSampler();
-      textureInfoColor[2] = bufferInfoNormal;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoMetallic(1);
-      bufferInfoMetallic[0].imageLayout =
-          materials[material]->getMetallic()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoMetallic[0].imageView = materials[material]->getMetallic()[0]->getImageView()->getImageView();
-      bufferInfoMetallic[0].sampler = materials[material]->getMetallic()[0]->getSampler()->getSampler();
-      textureInfoColor[3] = bufferInfoMetallic;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoRoughness(1);
-      bufferInfoRoughness[0].imageLayout =
-          materials[material]->getRoughness()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoRoughness[0].imageView = materials[material]->getRoughness()[0]->getImageView()->getImageView();
-      bufferInfoRoughness[0].sampler = materials[material]->getRoughness()[0]->getSampler()->getSampler();
-      textureInfoColor[4] = bufferInfoRoughness;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoOcclusion(1);
-      bufferInfoOcclusion[0].imageLayout =
-          materials[material]->getOccluded()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoOcclusion[0].imageView = materials[material]->getOccluded()[0]->getImageView()->getImageView();
-      bufferInfoOcclusion[0].sampler = materials[material]->getOccluded()[0]->getSampler()->getSampler();
-      textureInfoColor[5] = bufferInfoOcclusion;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoEmissive(1);
-      bufferInfoEmissive[0].imageLayout =
-          materials[material]->getEmissive()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoEmissive[0].imageView = materials[material]->getEmissive()[0]->getImageView()->getImageView();
-      bufferInfoEmissive[0].sampler = materials[material]->getEmissive()[0]->getSampler()->getSampler();
-      textureInfoColor[6] = bufferInfoEmissive;
-
-      // TODO: this textures are part of global engineState for PBR
-      std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
-      bufferInfoIrradiance[0].imageLayout =
-          materials[material]->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
-      bufferInfoIrradiance[0].imageView = materials[material]->getDiffuseIBL()->getImageView()->getImageView();
-      bufferInfoIrradiance[0].sampler = materials[material]->getDiffuseIBL()->getSampler()->getSampler();
-      textureInfoColor[7] = bufferInfoIrradiance;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
-      bufferInfoSpecularIBL[0].imageLayout =
-          materials[material]->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecularIBL[0].imageView = materials[material]->getSpecularIBL()->getImageView()->getImageView();
-      bufferInfoSpecularIBL[0].sampler = materials[material]->getSpecularIBL()->getSampler()->getSampler();
-      textureInfoColor[8] = bufferInfoSpecularIBL;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
-      bufferInfoSpecularBRDF[0].imageLayout =
-          materials[material]->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecularBRDF[0].imageView = materials[material]->getSpecularBRDF()->getImageView()->getImageView();
-      bufferInfoSpecularBRDF[0].sampler = materials[material]->getSpecularBRDF()->getSampler()->getSampler();
-      textureInfoColor[9] = bufferInfoSpecularBRDF;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoAlphaCutoff[0].buffer = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getData();
-      bufferInfoAlphaCutoff[0].offset = 0;
-      bufferInfoAlphaCutoff[0].range = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getSize();
-      bufferInfoColor[10] = bufferInfoAlphaCutoff;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCoefficients[0].buffer = materials[material]->getBufferCoefficients()->getBuffer()[i]->getData();
-      bufferInfoCoefficients[0].offset = 0;
-      bufferInfoCoefficients[0].range = materials[material]->getBufferCoefficients()->getBuffer()[i]->getSize();
-      bufferInfoColor[11] = bufferInfoCoefficients;
-
-      _descriptorSetPBR[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
     materials[material]->registerUpdate(_descriptorSetPBR[material], {{MaterialTexture::COLOR, 1},
                                                                       {MaterialTexture::NORMAL, 2},
                                                                       {MaterialTexture::METALLIC, 3},
@@ -667,128 +790,13 @@ void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> mat
                                                                       {MaterialTexture::IBL_SPECULAR, 8},
                                                                       {MaterialTexture::BRDF_SPECULAR, 9}});
   }
-}
-
-void Model3D::_updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (_descriptorSetPhong.size() <= material)
-      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(
-          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPhong,
-          _engineState->getDescriptorPool(), _engineState->getDevice()));
-    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for base color
-      std::vector<VkDescriptorImageInfo> bufferInfoBase(1);
-      bufferInfoBase[0].imageLayout =
-          materials[material]->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoBase[0].imageView = materials[material]->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoBase[0].sampler = materials[material]->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoBase;
-
-      // write for binding = 2 for normal color
-      std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-      bufferInfoNormal[0].imageLayout =
-          materials[material]->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoNormal[0].imageView = materials[material]->getNormal()[0]->getImageView()->getImageView();
-      bufferInfoNormal[0].sampler = materials[material]->getNormal()[0]->getSampler()->getSampler();
-      textureInfoColor[2] = bufferInfoNormal;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecular(1);
-      bufferInfoSpecular[0].imageLayout =
-          materials[material]->getSpecular()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecular[0].imageView = materials[material]->getSpecular()[0]->getImageView()->getImageView();
-      bufferInfoSpecular[0].sampler = materials[material]->getSpecular()[0]->getSampler()->getSampler();
-      textureInfoColor[3] = bufferInfoSpecular;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoAlphaCutoff[0].buffer = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getData();
-      bufferInfoAlphaCutoff[0].offset = 0;
-      bufferInfoAlphaCutoff[0].range = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getSize();
-      bufferInfoColor[4] = bufferInfoAlphaCutoff;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCoefficients[0].buffer = materials[material]->getBufferCoefficients()->getBuffer()[i]->getData();
-      bufferInfoCoefficients[0].offset = 0;
-      bufferInfoCoefficients[0].range = materials[material]->getBufferCoefficients()->getBuffer()[i]->getSize();
-      bufferInfoColor[5] = bufferInfoCoefficients;
-
-      _descriptorSetPhong[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
-    materials[material]->registerUpdate(
-        _descriptorSetPhong[material],
-        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
-  }
-}
-
-void Model3D::_updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (_descriptorSetColor.size() <= material)
-      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(
-          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
-          _engineState->getDescriptorPool(), _engineState->getDevice()));
-    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for textures
-      auto texture = _defaultMaterialColor->getBaseColor();
-      if (materials[material]->getBaseColor().size() > 0) texture = materials[material]->getBaseColor();
-      std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoTexture;
-      _descriptorSetColor[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
-    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
-  _materialType = MaterialType::COLOR;
-  _updateColorDescriptor(materials);
-
-  _materials.clear();
-  for (auto& material : materials) {
-    _materials.push_back(material);
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
-  _materialType = MaterialType::PHONG;
-  _updatePhongDescriptor(materials);
-
-  _materials.clear();
-  for (auto& material : materials) {
-    _materials.push_back(material);
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
   _materialType = MaterialType::PBR;
-  _updatePBRDescriptor(materials);
-
   _materials.clear();
   for (auto& material : materials) {
     _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
   }
 }
 
@@ -961,6 +969,22 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   auto resolution = _engineState->getSettings()->getResolution();
   int currentFrame = _engineState->getFrameInFlight();
+
+  if (_changedMaterial[currentFrame]) {
+    switch (_materialType) {
+      case MaterialType::COLOR:
+        _updateColorDescriptor();
+        break;
+      case MaterialType::PHONG:
+        _updatePhongDescriptor();
+        break;
+      case MaterialType::PBR:
+        _updatePBRDescriptor();
+        break;
+    }
+    _changedMaterial[currentFrame] = false;
+  }
+
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);

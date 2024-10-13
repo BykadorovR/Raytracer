@@ -38,7 +38,7 @@ class Model3D : public Drawable, public Shadowable {
  private:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
-
+  std::vector<bool> _changedMaterial;
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
@@ -70,9 +70,9 @@ class Model3D : public Drawable, public Shadowable {
   DrawType _drawType = DrawType::FILL;
 
   void _updateJointsDescriptor();
-  void _updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials);
-  void _updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials);
-  void _updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials);
+  void _updateColorDescriptor();
+  void _updatePhongDescriptor();
+  void _updatePBRDescriptor();
 
   void _drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,

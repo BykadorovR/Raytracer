@@ -161,28 +161,28 @@ Main::Main() {
   // draw advanced textured model Phong
   auto gltfModelBottle = _core->createModelGLTF("../assets/WaterBottle/WaterBottle.gltf");
   {
-    auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
-    for (auto& material : materialModelBottle) {
+    _modelBottle = _core->createModel3D(gltfModelBottle);
+    _materialModelBottlePhong = gltfModelBottle->getMaterialsPhong();
+    for (auto& material : _materialModelBottlePhong) {
       fillMaterialPhong(material);
     }
-    modelBottle->setMaterial(materialModelBottle);
+    _modelBottle->setMaterial(_materialModelBottlePhong);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 0.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
+      _modelBottle->setModel(model);
     }
-    _core->addDrawable(modelBottle);
+    _core->addDrawable(_modelBottle);
   }
 
   // draw advanced textured model PBR
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
-    for (auto& material : materialModelBottle) {
+    _materialModelBottlePBR = gltfModelBottle->getMaterialsPBR();
+    for (auto& material : _materialModelBottlePBR) {
       fillMaterialPBR(material);
     }
-    modelBottle->setMaterial(materialModelBottle);
+    modelBottle->setMaterial(_materialModelBottlePBR);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -193,8 +193,8 @@ Main::Main() {
   // draw textured model without lighting model
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsColor();
-    modelBottle->setMaterial(materialModelBottle);
+    _materialModelBottleColor = gltfModelBottle->getMaterialsColor();
+    modelBottle->setMaterial(_materialModelBottleColor);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -347,6 +347,25 @@ void Main::update() {
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+
+  std::map<std::string, int*> materialType;
+  materialType["##Type"] = &_typeIndex;
+  if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, materialType, 3)) {
+    _core->startRecording();
+    switch (_typeIndex) {
+      case 0:
+        _modelBottle->setMaterial(_materialModelBottleColor);
+        break;
+      case 1:
+        _modelBottle->setMaterial(_materialModelBottlePhong);
+        break;
+      case 2:
+        _modelBottle->setMaterial(_materialModelBottlePBR);
+        break;
+    }
+    _core->endRecording();
+  }
+
   _core->getGUI()->endWindow();
 }
 
