@@ -397,7 +397,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
   _gameState = gameState;
   _patchNumber = patchNumber;
   _gui = gui;
-
+  _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   // needed for layout
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
   _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
@@ -571,7 +571,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState->getDescriptorPool(),
                                                           engineState->getDevice());
-    _updateColorDescriptor({_defaultMaterialColor});
+    setMaterial(_defaultMaterialColor);
 
     // initialize Color
     {
@@ -694,47 +694,44 @@ int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
   return -1;
 }
 
-void TerrainDebug::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-    bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
-    bufferInfoCameraControl[0].offset = 0;
-    bufferInfoCameraControl[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCameraControl;
+void TerrainDebug::_updateColorDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  auto material = std::dynamic_pointer_cast<MaterialColor>(_material);
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+  std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
+  bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraControl[0].offset = 0;
+  bufferInfoCameraControl[0].range = sizeof(BufferMVP);
+  bufferInfoColor[0] = bufferInfoCameraControl;
 
-    std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-    bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
-    bufferInfoCameraEval[0].offset = 0;
-    bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-    bufferInfoColor[1] = bufferInfoCameraEval;
+  std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
+  bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraEval[0].offset = 0;
+  bufferInfoCameraEval[0].range = sizeof(BufferMVP);
+  bufferInfoColor[1] = bufferInfoCameraEval;
 
-    std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-    textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-    textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-    textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-    textureInfoColor[2] = textureHeightmap;
+  std::vector<VkDescriptorImageInfo> textureHeightmap(1);
+  textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
+  textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
+  textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
+  textureInfoColor[2] = textureHeightmap;
 
-    std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
-    for (int j = 0; j < material->getBaseColor().size(); j++) {
-      textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
-      textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
-      textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
-    }
-    textureInfoColor[3] = textureBaseColor;
-
-    std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-    bufferPatchInfo[0].buffer = _patchDescriptionSSBO[i]->getData();
-    bufferPatchInfo[0].offset = 0;
-    bufferPatchInfo[0].range = _patchDescriptionSSBO[i]->getSize();
-    bufferInfoColor[4] = bufferPatchInfo;
-
-    _descriptorSetColor->createCustom(i, bufferInfoColor, textureInfoColor);
+  std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
+  for (int j = 0; j < material->getBaseColor().size(); j++) {
+    textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
+    textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
+    textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
   }
-  _material->unregisterUpdate(_descriptorSetColor);
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
+  textureInfoColor[3] = textureBaseColor;
+
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[4] = bufferPatchInfo;
+
+  _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
 void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
@@ -772,8 +769,14 @@ void TerrainDebug::setHeight(float scale, float shift) {
 void TerrainDebug::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }
 
 void TerrainDebug::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _updateColorDescriptor(material);
+  if (_material) {
+    _material->unregisterUpdate(_descriptorSetColor);
+  }
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
   _material = material;
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
 }
 
 void TerrainDebug::setDrawType(DrawType drawType) { _drawType = drawType; }
@@ -803,7 +806,10 @@ void TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
 
 void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
-
+  if (_changedMaterial[currentFrame]) {
+    _updateColorDescriptor();
+    _changedMaterial[currentFrame] = false;
+  }
   if (_changedHeightmap[currentFrame]) {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorImageInfo> textureHeightmap(1);
@@ -1700,16 +1706,10 @@ void Terrain::enableShadow(bool enable) { _enableShadow = enable; }
 void Terrain::enableLighting(bool enable) { _enableLighting = enable; }
 
 void Terrain::setMaterial(std::shared_ptr<MaterialColor> material) {
-  if (_material) _material->unregisterUpdate(_descriptorSetPBR);
-  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 3},
-                                               {MaterialTexture::NORMAL, 4},
-                                               {MaterialTexture::METALLIC, 5},
-                                               {MaterialTexture::ROUGHNESS, 6},
-                                               {MaterialTexture::OCCLUSION, 7},
-                                               {MaterialTexture::EMISSIVE, 8},
-                                               {MaterialTexture::IBL_DIFFUSE, 9},
-                                               {MaterialTexture::IBL_SPECULAR, 10},
-                                               {MaterialTexture::BRDF_SPECULAR, 11}});
+  if (_material) {
+    _material->unregisterUpdate(_descriptorSetColor);
+  }
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
   _material = material;
   _materialType = MaterialType::COLOR;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -1729,10 +1729,16 @@ void Terrain::setMaterial(std::shared_ptr<MaterialPhong> material) {
 }
 
 void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
-  if (_material) {
-    _material->unregisterUpdate(_descriptorSetColor);
-  }
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
+  if (_material) _material->unregisterUpdate(_descriptorSetPBR);
+  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 3},
+                                               {MaterialTexture::NORMAL, 4},
+                                               {MaterialTexture::METALLIC, 5},
+                                               {MaterialTexture::ROUGHNESS, 6},
+                                               {MaterialTexture::OCCLUSION, 7},
+                                               {MaterialTexture::EMISSIVE, 8},
+                                               {MaterialTexture::IBL_DIFFUSE, 9},
+                                               {MaterialTexture::IBL_SPECULAR, 10},
+                                               {MaterialTexture::BRDF_SPECULAR, 11}});
   _material = material;
   _materialType = MaterialType::PBR;
   for (int i = 0; i < _changedMaterial.size(); i++) {

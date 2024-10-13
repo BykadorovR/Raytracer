@@ -97,6 +97,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
+  std::vector<bool> _changedMaterial;
 
   std::shared_ptr<GUI> _gui;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
@@ -133,7 +134,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   std::vector<bool> _changedHeightmap;
 
-  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
+  void _updateColorDescriptor();
   int _calculateTileByPosition(glm::vec3 position);
   glm::ivec2 _calculatePixelByPosition(glm::vec3 position);
   void _changeHeightmap(glm::ivec2 position, int value);
