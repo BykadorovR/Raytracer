@@ -31,10 +31,11 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _mesh->setVertices(vertices, commandBufferTransfer);
   _mesh->setIndexes(indices, commandBufferTransfer);
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
-  _defaultMaterialColor->setBaseColor({gameState->getResourceManager()->getTextureOne()});
+  _defaultMaterialColor->setBaseColor({gameState->getResourceManager()->getCubemapOne()->getTexture()});
   _material = _defaultMaterialColor;
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
+  _changedMaterial.resize(engineState->getSettings()->getMaxFramesInFlight());
 
   _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                    sizeof(BufferMVP), engineState);
@@ -59,7 +60,7 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                                      _descriptorSetLayout, engineState->getDescriptorPool(),
                                                      engineState->getDevice());
 
-    _updateColorDescriptor({_defaultMaterialColor});
+    setMaterial(_defaultMaterialColor);
 
     // initialize Color
     {
@@ -78,31 +79,35 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
 }
 
-void Skybox::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _uniformBuffer->getBuffer()[i]->getData();
-    bufferInfoCamera[0].offset = 0;
-    bufferInfoCamera[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCamera;
+void Skybox::_updateColorDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  auto material = std::dynamic_pointer_cast<MaterialColor>(_material);
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+  std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+  // write to binding = 0 for vertex shader
+  bufferInfoCamera[0].buffer = _uniformBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCamera[0].offset = 0;
+  bufferInfoCamera[0].range = sizeof(BufferMVP);
+  bufferInfoColor[0] = bufferInfoCamera;
 
-    // write for binding = 1 for textures
-    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-    bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-    bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-    textureInfoColor[1] = bufferInfoTexture;
-    _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
-  }
+  // write for binding = 1 for textures
+  std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+  bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+  bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+  bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+  textureInfoColor[1] = bufferInfoTexture;
+  _descriptorSet->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
 void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
-  _material = material;
+  if (_material) _material->unregisterUpdate(_descriptorSet);
+  material->registerUpdate(_descriptorSet, {{MaterialTexture::COLOR, 1}});
   _materialType = MaterialType::COLOR;
-  _updateColorDescriptor(material);
+  _material = material;
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
 }
 
 void Skybox::setModel(glm::mat4 model) { _model = model; }
@@ -111,6 +116,15 @@ std::shared_ptr<MeshStatic3D> Skybox::getMesh() { return _mesh; }
 
 void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _engineState->getFrameInFlight();
+  if (_changedMaterial[currentFrame]) {
+    switch (_materialType) {
+      case MaterialType::COLOR:
+        _updateColorDescriptor();
+        break;
+    }
+    _changedMaterial[currentFrame] = false;
+  }
+
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
   VkViewport viewport{};

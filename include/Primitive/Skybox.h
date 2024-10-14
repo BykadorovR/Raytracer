@@ -25,8 +25,9 @@ class Skybox {
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   MaterialType _materialType = MaterialType::COLOR;
   glm::mat4 _model = glm::mat4(1.f);
+  std::vector<bool> _changedMaterial;
 
-  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
+  void _updateColorDescriptor();
 
  public:
   Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,

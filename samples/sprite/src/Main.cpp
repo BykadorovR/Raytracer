@@ -128,27 +128,27 @@ Main::Main() {
   {
     auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto spriteTree = _core->createSprite();
-    auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
-    materialColor->setBaseColor({textureTree});
-    spriteTree->setMaterial(materialColor);
+    _spriteTree = _core->createSprite();
+    _materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
+    _materialColor->setBaseColor({textureTree});
+    _spriteTree->setMaterial(_materialColor);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      spriteTree->setModel(model);
+      _spriteTree->setModel(model);
     }
 
-    _core->addDrawable(spriteTree);
+    _core->addDrawable(_spriteTree);
   }
 
   // draw textured Sprite with Phong
   {
     auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureColorFormat(), mipMapLevels);
     auto spriteTree = _core->createSprite();
-    auto materialPhong = _core->createMaterialPhong(MaterialTarget::SIMPLE);
-    materialPhong->setBaseColor({textureTree});
-    fillMaterialPhong(materialPhong);
-    spriteTree->setMaterial(materialPhong);
+    _materialPhong = _core->createMaterialPhong(MaterialTarget::SIMPLE);
+    _materialPhong->setBaseColor({textureTree});
+    fillMaterialPhong(_materialPhong);
+    spriteTree->setMaterial(_materialPhong);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -2.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -161,10 +161,10 @@ Main::Main() {
   {
     auto textureTree = _core->createTexture("../assets/tree.png", settings->getLoadTextureColorFormat(), mipMapLevels);
     auto spriteTree = _core->createSprite();
-    auto materialPBR = _core->createMaterialPBR(MaterialTarget::SIMPLE);
-    materialPBR->setBaseColor({textureTree});
-    fillMaterialPBR(materialPBR);
-    spriteTree->setMaterial(materialPBR);
+    _materialPBR = _core->createMaterialPBR(MaterialTarget::SIMPLE);
+    _materialPBR->setBaseColor({textureTree});
+    fillMaterialPBR(_materialPBR);
+    spriteTree->setMaterial(_materialPBR);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(6.f, -2.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -335,6 +335,24 @@ void Main::update() {
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+
+  std::map<std::string, int*> materialType;
+  materialType["##Type"] = &_typeIndex;
+  if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, materialType, 3)) {
+    _core->startRecording();
+    switch (_typeIndex) {
+      case 0:
+        _spriteTree->setMaterial(_materialColor);
+        break;
+      case 1:
+        _spriteTree->setMaterial(_materialPhong);
+        break;
+      case 2:
+        _spriteTree->setMaterial(_materialPBR);
+        break;
+    }
+    _core->endRecording();
+  }
   _core->getGUI()->endWindow();
 }
 
