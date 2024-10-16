@@ -113,7 +113,7 @@ void main() {
 
     // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
     // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
-    Height = heightValue * 256.0;
+    Height = heightValue * 255.0;
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
     // ----------------------------------------------------------------------

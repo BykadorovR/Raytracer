@@ -19,12 +19,14 @@ class TerrainPhysics {
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::vector<float> _terrainPhysic;
   std::tuple<int, int> _resolution;
-  // destructor is private, can't use smart pointer
   std::vector<float> _heights;
   glm::vec3 _position;
   glm::vec3 _scale;
   JPH::BodyID _terrainID;
   JPH::Ref<JPH::ScaledShape> _terrainShape;
+  std::tuple<int, int> _heightScaleOffset;
+  std::shared_ptr<ImageCPU<uint8_t>> _heightmap;
+  void _initialize();
 
  public:
   TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
@@ -32,6 +34,7 @@ class TerrainPhysics {
                  glm::vec3 scale,
                  std::tuple<int, int> heightScaleOffset,
                  std::shared_ptr<PhysicsManager> physicsManager);
+  void reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
   std::tuple<int, int> getResolution();
@@ -130,9 +133,11 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
   std::vector<glm::mat4> _patchRotations;
-  int _angleIndex;
+  std::vector<int> _patchRotationsIndex;
+  int _angleIndex = -1;
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   std::vector<bool> _changedHeightmap;
+  char _terrainPath[256] = "";
 
   void _updateColorDescriptor();
   int _calculateTileByPosition(glm::vec3 position);
@@ -141,6 +146,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void _calculateMesh(int index);
   void _reallocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);
+  int _saveHeightmap(std::string path);
+  void _loadHeightmap(std::string path);
 
  public:
   TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,

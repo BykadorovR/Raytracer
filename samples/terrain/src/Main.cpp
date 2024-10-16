@@ -331,7 +331,8 @@ void Main::update() {
   angleVertical += 0.1f;
   auto [FPSLimited, FPSReal] = _core->getFPS();
   auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Terrain", {20, 20}, {widthScreen / 10, heightScreen / 10});
+  _core->getGUI()->startWindow("Terrain");
+  _core->getGUI()->setWindowPosition({20, 20});
   if (_core->getGUI()->startTree("Info")) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
@@ -384,7 +385,8 @@ void Main::update() {
   }
   _core->getGUI()->endWindow();
 
-  _core->getGUI()->startWindow("Editor", {widthScreen - widthScreen / 7, 20}, {widthScreen / 10, heightScreen / 10});
+  _core->getGUI()->startWindow("Editor");
+  _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
   _terrainDebug->drawDebug();
   _core->getGUI()->endWindow();
 }

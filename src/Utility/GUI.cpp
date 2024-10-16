@@ -158,6 +158,13 @@ bool GUI::drawInputFloat(std::map<std::string, float*> variable) {
   return result;
 }
 
+bool GUI::drawInputText(std::string label, char* buffer, int size) {
+  bool result = false;
+  if (ImGui::InputText(label.c_str(), buffer, size, ImGuiInputTextFlags_EnterReturnsTrue)) result = true;
+
+  return result;
+}
+
 bool GUI::drawInputInt(std::map<std::string, int*> variable) {
   bool result = false;
   for (auto& [key, value] : variable) {
@@ -275,22 +282,33 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   ImGui::NewFrame();
 }
 
-void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale) {
-  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-  // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
-  ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
-
+void GUI::startWindow(std::string name, float fontScale) {
   ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::GetFont()->Scale = fontScale;
   ImGui::PushFont(ImGui::GetFont());
 }
 
-std::tuple<int, int, int, int> GUI::endWindow() {
-  ImVec2 size = ImGui::GetWindowSize();
-  ImVec2 position = ImGui::GetWindowPos();
+void GUI::setWindowSize(std::tuple<int, int> size) {
+  ImGui::SetWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)));
+}
+
+void GUI::setWindowPosition(std::tuple<int, int> position) {
+  ImGui::SetWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)));
+}
+
+std::tuple<int, int> GUI::getWindowSize() {
+  auto size = ImGui::GetWindowSize();
+  return {size.x, size.y};
+}
+
+std::tuple<int, int> GUI::getWindowPosition() {
+  auto position = ImGui::GetWindowPos();
+  return {position.x, position.y};
+}
+
+void GUI::endWindow() {
   ImGui::PopFont();
   ImGui::End();
-  return {position.x, position.y, size.x, size.y};
 }
 
 bool GUI::startTree(std::string name, bool open) {

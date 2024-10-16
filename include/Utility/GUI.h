@@ -68,8 +68,12 @@ class GUI : public InputSubscriberExclusive {
   GUI(std::shared_ptr<EngineState> engineState);
   void reset();
   void initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale = 1.f);
-  std::tuple<int, int, int, int> endWindow();
+  void startWindow(std::string name, float fontScale = 1.f);
+  std::tuple<int, int> getWindowSize();
+  std::tuple<int, int> getWindowPosition();
+  void setWindowSize(std::tuple<int, int> size);
+  void setWindowPosition(std::tuple<int, int> position);
+  void endWindow();
   bool startTree(std::string name, bool open = true);
   void endTree();
   void drawText(std::vector<std::string> text);
@@ -79,6 +83,7 @@ class GUI : public InputSubscriberExclusive {
   bool drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber);
   bool drawInputFloat(std::map<std::string, float*> variable);
   bool drawInputInt(std::map<std::string, int*> variable);
+  bool drawInputText(std::string label, char* buffer, int size);
   void updateBuffers(int current);
   void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
   bool cursorNotify(float xPos, float yPos) override;
