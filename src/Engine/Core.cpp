@@ -1027,13 +1027,12 @@ std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> 
                                    _commandBufferApplication, _gameState, _engineState);
 }
 
-std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
-                                                   std::pair<int, int> patches) {
-  return std::make_shared<TerrainCPU>(heightmap, patches, _commandBufferApplication, _gameState, _engineState);
+std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap) {
+  return std::make_shared<TerrainCPU>(heightmap, _gameState, _engineState);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution) {
-  return std::make_shared<TerrainCPU>(heights, resolution, _commandBufferApplication, _gameState, _engineState);
+  return std::make_shared<TerrainCPU>(heights, resolution, _gameState, _engineState);
 }
 
 std::shared_ptr<Line> Core::createLine() {

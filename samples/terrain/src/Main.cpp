@@ -289,6 +289,15 @@ Main::Main() {
   }
   _core->addDrawable(_terrainDebug);
 
+  _terrainCPU = _core->createTerrainCPU(_terrainDebug->getHeightmap());
+  {
+    auto model = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
+    model = glm::scale(model, _terrainScale);
+    _terrainCPU->setModel(model);
+  }
+
+  _core->addDrawable(_terrainCPU);
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -301,6 +310,7 @@ void Main::update() {
     _core->startRecording();
     _terrainDebug->transfer(_core->getCommandBufferApplication());
     _core->endRecording();
+    _terrainCPU->setHeightmap(_terrainDebug->getHeightmap());
   }
 
   static float i = 0;
@@ -380,7 +390,6 @@ void Main::update() {
     if (_core->getGUI()->drawInputInt(tesselationLevels)) {
       _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
-
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();
@@ -388,6 +397,20 @@ void Main::update() {
   _core->getGUI()->startWindow("Editor");
   _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
   _terrainDebug->drawDebug();
+  if (_core->getGUI()->drawCheckbox({{"Show GPU", &_showGPU}})) {
+    if (_showGPU == false) {
+      _core->removeDrawable(_terrainDebug);
+    } else {
+      _core->addDrawable(_terrainDebug);
+    }
+  }
+  if (_core->getGUI()->drawCheckbox({{"Show CPU", &_showCPU}})) {
+    if (_showCPU == false) {
+      _core->removeDrawable(_terrainCPU);
+    } else {
+      _core->addDrawable(_terrainCPU);
+    }
+  }
   _core->getGUI()->endWindow();
 }
 

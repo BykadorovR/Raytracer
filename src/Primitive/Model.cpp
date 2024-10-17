@@ -708,7 +708,7 @@ void Model3D::_updateColorDescriptor() {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;

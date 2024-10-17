@@ -411,11 +411,11 @@ bool GUI::keyNotify(int key, int scancode, int action, int mods) {
     io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
-#endif
 
   if (io.WantCaptureKeyboard) {
     return true;
   }
+#endif
 
   return false;
 }

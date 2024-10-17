@@ -47,45 +47,41 @@ class TerrainCPU : public Drawable {
  private:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
-
-  std::shared_ptr<MeshStatic3D> _mesh;
+  std::tuple<int, int> _resolution;
+  std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
+  std::vector<bool> _changeMeshTriangles, _changeMeshHeightmap;
   std::shared_ptr<UniformBuffer> _cameraBuffer;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSetColor;
   std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass;
-  std::pair<int, int> _patchNumber;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   bool _enableEdge = false;
   DrawType _drawType = DrawType::FILL;
   int _numStrips, _numVertsPerStrip;
   bool _hasIndexes = false;
+  std::shared_ptr<ImageCPU<uint8_t>> _heightMap;
+  std::vector<float> _heights;
 
   void _updateColorDescriptor();
-  void _loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
-                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<EngineState> engineState);
-  void _loadTriangles(std::vector<float> heights,
-                      std::tuple<int, int> resolution,
-                      std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                      std::shared_ptr<EngineState> engineState);
-  void _loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
+  void _loadStrip(int currentFrame);
+  void _loadTriangles(int currentFrame);
+  void _loadTerrain();
 
  public:
   TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
-             std::pair<int, int> patchNumber,
-             std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<GameState> gameState,
              std::shared_ptr<EngineState> engineState);
   TerrainCPU(std::vector<float> heights,
              std::tuple<int, int> resolution,
-             std::shared_ptr<CommandBuffer> commandBufferTransfer,
              std::shared_ptr<GameState> gameState,
              std::shared_ptr<EngineState> engineState);
 
   void setDrawType(DrawType drawType);
+  void setHeightmap(std::shared_ptr<ImageCPU<uint8_t>> heightMap);
+  void setHeightmap(std::vector<float> heights);
 
   DrawType getDrawType();
   void patchEdge(bool enable);
@@ -171,6 +167,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void patchEdge(bool enable);
   void showLoD(bool enable);
   bool heightmapChanged();
+  std::shared_ptr<ImageCPU<uint8_t>> getHeightmap();
+
   void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawDebug();

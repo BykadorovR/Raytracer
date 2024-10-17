@@ -160,7 +160,8 @@ void Main::update() {
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
   auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   if (_core->getGUI()->drawSlider(

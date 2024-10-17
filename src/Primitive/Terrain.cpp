@@ -97,30 +97,39 @@ TerrainPhysics::~TerrainPhysics() {
 }
 
 TerrainCPU::TerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
-                       std::pair<int, int> patchNumber,
-                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<GameState> gameState,
                        std::shared_ptr<EngineState> engineState) {
   setName("TerrainCPU");
   _engineState = engineState;
   _gameState = gameState;
-  _patchNumber = patchNumber;
+  _heightMap = heightMap;
 
-  _loadStrip(heightMap, commandBufferTransfer, engineState);
-  _loadTerrain(commandBufferTransfer, engineState);
+  _changeMeshHeightmap.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _mesh.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _mesh[i] = std::make_shared<MeshDynamic3D>(_engineState);
+    _loadStrip(i);
+  }
+  _loadTerrain();
 }
 
 TerrainCPU::TerrainCPU(std::vector<float> heights,
                        std::tuple<int, int> resolution,
-                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<GameState> gameState,
                        std::shared_ptr<EngineState> engineState) {
   setName("TerrainCPU");
   _engineState = engineState;
   _gameState = gameState;
+  _resolution = resolution;
+  _heights = heights;
 
-  _loadTriangles(heights, resolution, commandBufferTransfer, engineState);
-  _loadTerrain(commandBufferTransfer, engineState);
+  _changeMeshTriangles.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _mesh.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _mesh[i] = std::make_shared<MeshDynamic3D>(_engineState);
+    _loadTriangles(i);
+  }
+  _loadTerrain();
 }
 
 void TerrainCPU::_updateColorDescriptor() {
@@ -137,16 +146,13 @@ void TerrainCPU::_updateColorDescriptor() {
   }
 }
 
-void TerrainCPU::_loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
-                            std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                            std::shared_ptr<EngineState> engineState) {
+void TerrainCPU::_loadStrip(int currentFrame) {
   // vertex generation
   std::vector<Vertex3D> vertices;
   std::vector<uint32_t> indices;
-  _mesh = std::make_shared<MeshStatic3D>(engineState);
-  auto [width, height] = heightMap->getResolution();
-  auto channels = heightMap->getChannels();
-  auto data = heightMap->getData();
+  auto [width, height] = _heightMap->getResolution();
+  auto channels = _heightMap->getChannels();
+  auto data = _heightMap->getData();
   // 255 - max value from height map, 256 is number of colors
   for (unsigned int i = 0; i < height; i++) {
     for (unsigned int j = 0; j < width; j++) {
@@ -160,8 +166,7 @@ void TerrainCPU::_loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
     }
   }
 
-  // TODO: refactor to memcpy? Why it uses GPU at all, read vulkan-tutorial
-  _mesh->setVertices(vertices, commandBufferTransfer);
+  _mesh[currentFrame]->setVertices(vertices);
 
   // index generation
   for (unsigned int i = 0; i < height - 1; i++) {  // for each row a.k.a. each strip
@@ -175,54 +180,49 @@ void TerrainCPU::_loadStrip(std::shared_ptr<ImageCPU<uint8_t>> heightMap,
   _numStrips = height - 1;
   _numVertsPerStrip = width * 2;
 
-  _mesh->setIndexes(indices, commandBufferTransfer);
+  _mesh[currentFrame]->setIndexes(indices);
 
   _hasIndexes = true;
 }
 
-void TerrainCPU::_loadTriangles(std::vector<float> heights,
-                                std::tuple<int, int> resolution,
-                                std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                std::shared_ptr<EngineState> engineState) {
-  auto [width, height] = resolution;
+void TerrainCPU::_loadTriangles(int currentFrame) {
+  auto [width, height] = _resolution;
   std::vector<Vertex3D> vertices;
-  _mesh = std::make_shared<MeshStatic3D>(engineState);
   for (int y = 0; y < height - 1; y++) {
     for (int x = 0; x < width - 1; x++) {
       // define patch: 4 points (square)
       Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + x, heights[x + width * y], -height / 2.0f + y);
+      vertex1.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * y], -height / 2.0f + y);
       vertices.push_back(vertex1);
 
       Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (x + 1), heights[x + 1 + width * y], -height / 2.0f + y);
+      vertex2.pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * y], -height / 2.0f + y);
       vertices.push_back(vertex2);
 
       Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + x, heights[x + width * (y + 1)], -height / 2.0f + (y + 1));
+      vertex3.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * (y + 1)], -height / 2.0f + (y + 1));
       vertices.push_back(vertex3);
 
       vertices.push_back(vertex3);
       vertices.push_back(vertex2);
 
       Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (x + 1), heights[x + 1 + width * (y + 1)], -height / 2.0f + (y + 1));
+      vertex4.pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * (y + 1)], -height / 2.0f + (y + 1));
       vertices.push_back(vertex4);
     }
   }
-  _mesh->setVertices(vertices, commandBufferTransfer);
+  _mesh[currentFrame]->setVertices(vertices);
 
   _numStrips = height - 1;
   _numVertsPerStrip = (width - 1) * 6;
 }
 
-void TerrainCPU::_loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                              std::shared_ptr<EngineState> engineState) {
+void TerrainCPU::_loadTerrain() {
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
 
   _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), engineState);
+                                                  sizeof(BufferMVP), _engineState);
 
   // layout for Color
   {
@@ -235,15 +235,15 @@ void TerrainCPU::_loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransf
     layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
-    _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, engineState->getDescriptorPool(),
-                                                          engineState->getDevice());
+    _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
+                                                          _engineState->getDevice());
     // update descriptor set in setMaterial
     _updateColorDescriptor();
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/terrainCPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainCPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
@@ -251,17 +251,35 @@ void TerrainCPU::_loadTerrain(std::shared_ptr<CommandBuffer> commandBufferTransf
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-          _descriptorSetLayout, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}), _renderPass);
+          _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),
+          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _renderPass);
 
       _pipelineWireframe = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineWireframe->createGeometry(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-          _descriptorSetLayout, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}), _renderPass);
+          _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),
+          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _renderPass);
     }
+  }
+}
+
+void TerrainCPU::setHeightmap(std::shared_ptr<ImageCPU<uint8_t>> heightMap) {
+  auto currentFrame = _engineState->getFrameInFlight();
+  _heightMap = heightMap;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changeMeshHeightmap[currentFrame] = true;
+  }
+}
+
+void TerrainCPU::setHeightmap(std::vector<float> heights) {
+  auto currentFrame = _engineState->getFrameInFlight();
+  _heights = heights;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changeMeshTriangles[currentFrame] = true;
   }
 }
 
@@ -300,11 +318,11 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
 
-    VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
+    VkBuffer vertexBuffers[] = {_mesh[currentFrame]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
     if (_hasIndexes) {
-      VkBuffer indexBuffers = _mesh->getIndexBuffer()->getBuffer()->getData();
+      VkBuffer indexBuffers = _mesh[currentFrame]->getIndexBuffer()->getBuffer()->getData();
       vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], indexBuffers, 0, VK_INDEX_TYPE_UINT32);
     }
 
@@ -330,6 +348,15 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
         vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _numVertsPerStrip, 1, i * _numVertsPerStrip, 0);
     }
   };
+
+  if (_changeMeshTriangles.size() > 0 && _changeMeshTriangles[_engineState->getFrameInFlight()]) {
+    _loadTriangles(currentFrame);
+    _changeMeshTriangles[_engineState->getFrameInFlight()] = false;
+  }
+  if (_changeMeshHeightmap.size() > 0 && _changeMeshHeightmap[_engineState->getFrameInFlight()]) {
+    _loadStrip(currentFrame);
+    _changeMeshHeightmap[_engineState->getFrameInFlight()] = false;
+  }
 
   auto pipeline = _pipeline;
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe;
@@ -820,6 +847,8 @@ void TerrainDebug::showLoD(bool enable) { _showLoD = enable; }
 void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
 
 void TerrainDebug::setTileRotation(int tileID, glm::mat4 rotation) { _patchRotations[tileID] = rotation; }
+
+std::shared_ptr<ImageCPU<uint8_t>> TerrainDebug::getHeightmap() { return _heightMapCPU; }
 
 bool TerrainDebug::heightmapChanged() {
   bool change = false;

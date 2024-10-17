@@ -31,6 +31,8 @@ class Main {
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
   std::shared_ptr<Terrain> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
+  std::shared_ptr<TerrainCPU> _terrainCPU;
+  bool _showGPU = true, _showCPU = true;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
