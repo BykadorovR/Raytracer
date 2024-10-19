@@ -19,9 +19,11 @@ layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
+layout (location = 3) flat out int outTextureID;
 
 struct PatchDescription {
     mat4 rotation;
+    int textureID;
 };
 
 layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
@@ -111,6 +113,8 @@ void main() {
     float heightValue = calculateHeightTexture(TexCoord, texCoord);
     // calculate the same way as in C++, but result is the same as in the line above
     //float heightValue = calculateHeightPosition(p.xz, texCoord);
+
+    outTextureID = patchDescription[gl_PrimitiveID].textureID;
 
     mat4 rotationMatTmp = patchDescription[gl_PrimitiveID].rotation;
     mat2 rotationMat = mat2(rotationMatTmp[0][0], rotationMatTmp[0][1],

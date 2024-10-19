@@ -3,6 +3,7 @@
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 tessColor;
+layout(location = 3) flat in int inTextureID;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -32,18 +33,23 @@ vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
 void main() {
     if (push.tessColorFlag > 0) {
         outColor = vec4(tessColor, 1);
+        return;
     } else {
-        float height = fragHeight;
-        if (height < push.heightLevels[0]) {
-            outColor = texture(texSampler[0], fragTexCoord);
-        } else if (height < push.heightLevels[1]) {
-            outColor = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        } else if (height < push.heightLevels[2]) {
-            outColor = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        } else if (height < push.heightLevels[3]) {
-            outColor = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+        if (inTextureID == -1) {
+            float height = fragHeight;
+            if (height < push.heightLevels[0]) {
+                outColor = texture(texSampler[0], fragTexCoord);
+            } else if (height < push.heightLevels[1]) {
+                outColor = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
+            } else if (height < push.heightLevels[2]) {
+                outColor = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
+            } else if (height < push.heightLevels[3]) {
+                outColor = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
+            } else {
+                outColor = texture(texSampler[3], fragTexCoord);
+            }
         } else {
-            outColor = texture(texSampler[3], fragTexCoord);
+            outColor = texture(texSampler[inTextureID], fragTexCoord);
         }
     }
 

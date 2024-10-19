@@ -795,15 +795,20 @@ void TerrainDebug::_updateColorDescriptor() {
 
 void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
   _patchRotations = std::vector<glm::mat4>(_patchNumber.first * _patchNumber.second, glm::mat4(1.f));
+  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
   _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
   _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
-      _patchNumber.first * _patchNumber.second * sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 }
 
 void TerrainDebug::_updatePatchDescription(int currentFrame) {
+  std::vector<PatchDescription> patchData;
+  for (int i = 0; i < _patchRotations.size(); i++) {
+    patchData.push_back({.rotation = _patchRotations[i], .textureID = _patchTextures[i]});
+  }
   // fill only number of lights because it's stub
-  _patchDescriptionSSBO[currentFrame]->setData(_patchRotations.data(), _patchRotations.size() * sizeof(glm::mat4));
+  _patchDescriptionSSBO[currentFrame]->setData(patchData.data(), patchData.size() * sizeof(PatchDescription));
 }
 
 void TerrainDebug::setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics) {
@@ -845,6 +850,8 @@ DrawType TerrainDebug::getDrawType() { return _drawType; }
 void TerrainDebug::showLoD(bool enable) { _showLoD = enable; }
 
 void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
+
+void TerrainDebug::setTileTexture(int tileID, int textureID) { _patchTextures[tileID] = textureID; }
 
 void TerrainDebug::setTileRotation(int tileID, glm::mat4 rotation) { _patchRotations[tileID] = rotation; }
 
@@ -1037,6 +1044,17 @@ void TerrainDebug::drawDebug() {
       }
     }
 
+    std::map<std::string, int*> textureList;
+    textureList["##Texture"] = &_textureIndex;
+    if (_gui->drawListBox({"default", "0", "1", "2", "3"}, textureList, 5)) {
+      if (_pickedTile > 0 && _pickedTile < _patchTextures.size()) {
+        _patchTextures[_pickedTile] = _textureIndex - 1;
+        for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+          _changePatch[i] = true;
+        }
+      }
+    }
+
     _gui->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
 
     if (_gui->drawButton("Save heightmap")) {
@@ -1111,6 +1129,7 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
       _pickedPixel = _calculatePixelByPosition(hit.value());
       // reset selected item in angles list
       _angleIndex = _patchRotationsIndex[_pickedTile];
+      _textureIndex = _patchTextures[_pickedTile] + 1;
     }
   }
 }
