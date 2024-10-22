@@ -796,6 +796,28 @@ void TerrainDebug::_updateColorDescriptor() {
 void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
   _patchRotations = std::vector<glm::mat4>(_patchNumber.first * _patchNumber.second, glm::mat4(1.f));
   _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+  //
+  for (int y = 0; y < _patchNumber.second; y++)
+    for (int x = 0; x < _patchNumber.first; x++) {
+      int index = x + y * _patchNumber.first;
+      int texture0 = x / _patchNumber.first * width + y / _patchNumber.second * height;
+      int texture1 = (x + 1) / _patchNumber.first * width + y / _patchNumber.second * height;
+      int texture2 = x / _patchNumber.first * width + (y + 1) / _patchNumber.second * height;
+      int texture3 = (x + 1) / _patchNumber.first * width + (y + 1) / _patchNumber.second * height;
+      int height = std::max({_heightMapCPU->getData()[texture0], _heightMapCPU->getData()[texture1],
+                             _heightMapCPU->getData()[texture2], _heightMapCPU->getData()[texture3]});
+      if (height < _heightLevels[0]) {
+        _patchTextures[index] = 0;
+      } else if (height < _heightLevels[1]) {
+        _patchTextures[index] = 1;
+      } else if (height < _heightLevels[2]) {
+        _patchTextures[index] = 2;
+      } else {
+        _patchTextures[index] = 3;
+      }
+    }
+
   _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
   _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
       _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,

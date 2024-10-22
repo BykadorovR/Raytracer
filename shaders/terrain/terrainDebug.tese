@@ -19,7 +19,7 @@ layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
-layout (location = 3) flat out int outTextureID;
+layout (location = 4) flat out int outNeighborID[3][3];
 
 struct PatchDescription {
     mat4 rotation;
@@ -38,16 +38,16 @@ layout( push_constant ) uniform constants {
 } push;
 
 
-float calculateHeightTexture(in vec2 TexCoord, inout vec2 texCoord) {
-    texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
+float calculateHeightTexture(in vec2 TexCoord) {
+    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
     return texture(heightMap, texCoord).x;
 }
 
-float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
+float calculateHeightPosition(in vec2 p) {
     vec2 textureSize = textureSize(heightMap, 0);
     vec2 pos = p + (textureSize - vec2(1.0)) / vec2(2.0);
     ivec2 integral = ivec2(floor(pos));
-    texCoord = fract(pos);
+    vec2 texCoord = fract(pos);
     ivec2 index0 = integral;
     ivec2 index1 = integral + ivec2(1, 0);
     ivec2 index2 = integral + ivec2(0, 1);
@@ -62,8 +62,15 @@ float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
     return heightValue;
 }
 
+int getPatchID(int x, int y) {
+    int newID = gl_PrimitiveID + x + y * push.patchDimX;
+    newID = min(newID, push.patchDimX * push.patchDimY - 1);
+    newID = max(newID, 0);
+    return newID;
+}
+
 void main() {
-    // get patch coordinate (2D)
+    // get vertex coordinate (2D)
     float u = gl_TessCoord.x;
     float v = gl_TessCoord.y;
 
@@ -109,16 +116,24 @@ void main() {
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
 
-    vec2 texCoord;
-    float heightValue = calculateHeightTexture(TexCoord, texCoord);
+    float heightValue = calculateHeightTexture(TexCoord);
     // calculate the same way as in C++, but result is the same as in the line above
-    //float heightValue = calculateHeightPosition(p.xz, texCoord);
+    //float heightValue = calculateHeightPosition(p.xz);
 
-    outTextureID = patchDescription[gl_PrimitiveID].textureID;
+    outNeighborID[0][0] = patchDescription[getPatchID(-1, -1)].textureID;
+    outNeighborID[1][0] = patchDescription[getPatchID(0, -1)].textureID;
+    outNeighborID[2][0] = patchDescription[getPatchID(1, -1)].textureID;
+    outNeighborID[0][1] = patchDescription[getPatchID(-1, 0)].textureID;
+    outNeighborID[1][1] = patchDescription[getPatchID(0, 0)].textureID;
+    outNeighborID[2][1] = patchDescription[getPatchID(1, 0)].textureID;
+    outNeighborID[0][2] = patchDescription[getPatchID(-1, 1)].textureID;
+    outNeighborID[1][2] = patchDescription[getPatchID(0, 1)].textureID;
+    outNeighborID[2][2] = patchDescription[getPatchID(1, 1)].textureID;
 
     mat4 rotationMatTmp = patchDescription[gl_PrimitiveID].rotation;
     mat2 rotationMat = mat2(rotationMatTmp[0][0], rotationMatTmp[0][1],
                             rotationMatTmp[1][0], rotationMatTmp[1][1]);
+    // we can't do fract here, because here we opperate with vertices and result in pixels can be wrong
     TexCoord = rotationMat * TexCoord;
     // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
     // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)

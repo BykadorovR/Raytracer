@@ -3,7 +3,7 @@
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 tessColor;
-layout(location = 3) flat in int inTextureID;
+layout(location = 4) flat in int outNeighborID[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -19,42 +19,30 @@ layout(push_constant) uniform constants {
     layout(offset = 128) int pickedPatch;
 } push;
 
-//It is important to get the gradients before going into non-uniform flow code.
-vec2 dx = dFdx(fragTexCoord);
-vec2 dy = dFdy(fragTexCoord);
-vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
-    vec4 firstTile = textureGrad(texSampler[id1], fragTexCoord, dx, dy);
-    vec4 secondTile = textureGrad(texSampler[id2], fragTexCoord, dx, dy);
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
-}
-
 void main() {
+    vec2 texCoord = fract(fragTexCoord);
+    vec2 dx = dFdx(texCoord);
+    vec2 dy = dFdy(texCoord);
+    int textureID = outNeighborID[1][1];
     if (push.tessColorFlag > 0) {
         outColor = vec4(tessColor, 1);
-        return;
     } else {
-        if (inTextureID == -1) {
-            float height = fragHeight;
-            if (height < push.heightLevels[0]) {
-                outColor = texture(texSampler[0], fragTexCoord);
-            } else if (height < push.heightLevels[1]) {
-                outColor = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-            } else if (height < push.heightLevels[2]) {
-                outColor = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-            } else if (height < push.heightLevels[3]) {
-                outColor = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-            } else {
-                outColor = texture(texSampler[3], fragTexCoord);
-            }
+        if (textureID == -1) {
+            outColor = textureGrad(texSampler[0], texCoord, dx, dy);
         } else {
-            outColor = texture(texSampler[inTextureID], fragTexCoord);
+            float rate = 0.2;           
+            if (texCoord.x < rate) {
+                float weight = smoothstep(-rate, rate, texCoord.x);
+                vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
+                vec4 color2 = textureGrad(texSampler[outNeighborID[0][1]], texCoord, dx, dy);
+                outColor = mix(color2, color1, weight);
+            } else {
+                outColor = textureGrad(texSampler[textureID], texCoord, dx, dy);
+            }
         }
     }
 
-    vec2 line = fract(fragTexCoord);
-    if (push.patchEdge > 0 && (line.x < 0.01 || line.y < 0.01 || line.x > 0.99 || line.y > 0.99)) {
+    if (push.patchEdge > 0 && (texCoord.x < 0.01 || texCoord.y < 0.01 || texCoord.x > 0.99 || texCoord.y > 0.99)) {
         outColor = vec4(1, 1, 0, 1);
         // in fragment shader gl_PrimitiveID behaves the same way as in tesselation shaders IF there is no geometry shader
         if (push.pickedPatch == gl_PrimitiveID) {
