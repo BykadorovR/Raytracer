@@ -162,9 +162,9 @@ Main::Main() {
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
-    auto tile1 = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto tile2 = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1 = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
+    auto tile2 = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3 = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
     _materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
@@ -176,13 +176,13 @@ Main::Main() {
                                            mipMapLevels);
     auto tile0Normal = _core->createTexture("../assets/desert/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile1Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile1Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile2Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile2Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile2Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
     auto tile3Color = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
@@ -207,26 +207,26 @@ Main::Main() {
     auto tile0AO = _core->createTexture("../assets/desert/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto tile1Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile1Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile1Metallic = _core->createTexture("../assets/rock/metallic.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Metallic = _core->createTexture("../assets/grass/metallic.png", settings->getLoadTextureAuxilaryFormat(),
                                               mipMapLevels);
-    auto tile1Roughness = _core->createTexture("../assets/rock/roughness.png", settings->getLoadTextureAuxilaryFormat(),
-                                               mipMapLevels);
-    auto tile1AO = _core->createTexture("../assets/rock/ao.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Roughness = _core->createTexture("../assets/grass/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1AO = _core->createTexture("../assets/grass/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto tile2Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile2Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile2Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile2Metallic = _core->createTexture("../assets/grass/metallic.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Metallic = _core->createTexture("../assets/rock/metallic.png", settings->getLoadTextureAuxilaryFormat(),
                                               mipMapLevels);
-    auto tile2Roughness = _core->createTexture("../assets/grass/roughness.png",
-                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
-    auto tile2AO = _core->createTexture("../assets/grass/ao.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Roughness = _core->createTexture("../assets/rock/roughness.png", settings->getLoadTextureAuxilaryFormat(),
+                                               mipMapLevels);
+    auto tile2AO = _core->createTexture("../assets/rock/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
     auto tile3Color = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),

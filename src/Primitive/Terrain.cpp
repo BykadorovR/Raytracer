@@ -800,18 +800,25 @@ void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
   //
   for (int y = 0; y < _patchNumber.second; y++)
     for (int x = 0; x < _patchNumber.first; x++) {
+      int patchX0 = (float)x / _patchNumber.first * width;
+      int patchY0 = (float)y / _patchNumber.second * height;
+      int patchX1 = (float)(x + 1) / _patchNumber.first * width;
+      int patchY1 = (float)(y + 1) / _patchNumber.second * height;
+
+      int heightLevel = 0;
+      for (int i = patchY0; i < patchY1; i++) {
+        for (int j = patchX0; j < patchX1; j++) {
+          int textureCoord = (j + i * width) * _heightMapCPU->getChannels();
+          heightLevel = std::max(heightLevel, (int)_heightMapCPU->getData()[textureCoord]);
+        }
+      }
+
       int index = x + y * _patchNumber.first;
-      int texture0 = x / _patchNumber.first * width + y / _patchNumber.second * height;
-      int texture1 = (x + 1) / _patchNumber.first * width + y / _patchNumber.second * height;
-      int texture2 = x / _patchNumber.first * width + (y + 1) / _patchNumber.second * height;
-      int texture3 = (x + 1) / _patchNumber.first * width + (y + 1) / _patchNumber.second * height;
-      int height = std::max({_heightMapCPU->getData()[texture0], _heightMapCPU->getData()[texture1],
-                             _heightMapCPU->getData()[texture2], _heightMapCPU->getData()[texture3]});
-      if (height < _heightLevels[0]) {
+      if (heightLevel < _heightLevels[0]) {
         _patchTextures[index] = 0;
-      } else if (height < _heightLevels[1]) {
+      } else if (heightLevel < _heightLevels[1]) {
         _patchTextures[index] = 1;
-      } else if (height < _heightLevels[2]) {
+      } else if (heightLevel < _heightLevels[2]) {
         _patchTextures[index] = 2;
       } else {
         _patchTextures[index] = 3;
@@ -1068,9 +1075,9 @@ void TerrainDebug::drawDebug() {
 
     std::map<std::string, int*> textureList;
     textureList["##Texture"] = &_textureIndex;
-    if (_gui->drawListBox({"default", "0", "1", "2", "3"}, textureList, 5)) {
+    if (_gui->drawListBox({"0", "1", "2", "3"}, textureList, 4)) {
       if (_pickedTile > 0 && _pickedTile < _patchTextures.size()) {
-        _patchTextures[_pickedTile] = _textureIndex - 1;
+        _patchTextures[_pickedTile] = _textureIndex;
         for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
           _changePatch[i] = true;
         }
@@ -1151,7 +1158,7 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
       _pickedPixel = _calculatePixelByPosition(hit.value());
       // reset selected item in angles list
       _angleIndex = _patchRotationsIndex[_pickedTile];
-      _textureIndex = _patchTextures[_pickedTile] + 1;
+      _textureIndex = _patchTextures[_pickedTile];
     }
   }
 }

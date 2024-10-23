@@ -19,7 +19,7 @@ layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
-layout (location = 4) flat out int outNeighborID[3][3];
+layout (location = 3) flat out int outNeighborID[3][3];
 
 struct PatchDescription {
     mat4 rotation;

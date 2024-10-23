@@ -3,7 +3,7 @@
 layout(location = 0) in float fragHeight;
 layout(location = 1) in vec2 fragTexCoord;
 layout(location = 2) in vec3 tessColor;
-layout(location = 4) flat in int outNeighborID[3][3];
+layout(location = 3) flat in int outNeighborID[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -36,6 +36,11 @@ void main() {
                 vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
                 vec4 color2 = textureGrad(texSampler[outNeighborID[0][1]], texCoord, dx, dy);
                 outColor = mix(color2, color1, weight);
+            } else if (texCoord.x > 1 - rate) {
+                float weight = smoothstep(1 - rate, 1 + rate, texCoord.x);
+                vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
+                vec4 color2 = textureGrad(texSampler[outNeighborID[2][1]], texCoord, dx, dy);
+                outColor = mix(color1, color2, weight);
             } else {
                 outColor = textureGrad(texSampler[textureID], texCoord, dx, dy);
             }
