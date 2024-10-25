@@ -794,8 +794,7 @@ void TerrainDebug::_updateColorDescriptor() {
 }
 
 void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
-  _patchRotations = std::vector<glm::mat4>(_patchNumber.first * _patchNumber.second, glm::mat4(1.f));
-  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
+  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   //
   for (int y = 0; y < _patchNumber.second; y++)
@@ -825,16 +824,16 @@ void TerrainDebug::_reallocatePatchDescription(int currentFrame) {
       }
     }
 
-  _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, -1);
+  _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
   _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
       _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 }
 
 void TerrainDebug::_updatePatchDescription(int currentFrame) {
-  std::vector<PatchDescription> patchData;
-  for (int i = 0; i < _patchRotations.size(); i++) {
-    patchData.push_back({.rotation = _patchRotations[i], .textureID = _patchTextures[i]});
+  std::vector<PatchDescription> patchData(_patchNumber.first * _patchNumber.second);
+  for (int i = 0; i < patchData.size(); i++) {
+    patchData[i] = PatchDescription({.rotation = 90 * _patchRotationsIndex[i], .textureID = _patchTextures[i]});
   }
   // fill only number of lights because it's stub
   _patchDescriptionSSBO[currentFrame]->setData(patchData.data(), patchData.size() * sizeof(PatchDescription));
@@ -882,7 +881,7 @@ void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
 
 void TerrainDebug::setTileTexture(int tileID, int textureID) { _patchTextures[tileID] = textureID; }
 
-void TerrainDebug::setTileRotation(int tileID, glm::mat4 rotation) { _patchRotations[tileID] = rotation; }
+void TerrainDebug::setTileRotation(int tileID, int angle) { _patchRotationsIndex[tileID] = angle; }
 
 std::shared_ptr<ImageCPU<uint8_t>> TerrainDebug::getHeightmap() { return _heightMapCPU; }
 
@@ -1063,10 +1062,8 @@ void TerrainDebug::drawDebug() {
     std::map<std::string, int*> angleList;
     angleList["##Angle"] = &_angleIndex;
     if (_gui->drawListBox({"0", "90", "180", "270"}, angleList, 4)) {
-      auto rotation = glm::rotate(glm::mat4(1.f), glm::radians(90.f * _angleIndex), glm::vec3(0.f, 0.f, 1.f));
-      if (_pickedTile > 0 && _pickedTile < _patchRotations.size()) {
+      if (_pickedTile > 0 && _pickedTile < _patchRotationsIndex.size()) {
         _patchRotationsIndex[_pickedTile] = _angleIndex;
-        _patchRotations[_pickedTile] = rotation;
         for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
           _changePatch[i] = true;
         }

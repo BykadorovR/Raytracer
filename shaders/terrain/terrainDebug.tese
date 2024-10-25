@@ -15,16 +15,17 @@ layout(set = 0, binding = 1) uniform UniformCamera {
 
 layout(set = 0, binding = 2) uniform sampler2D heightMap;
 
+struct PatchDescription {
+    int rotation;
+    int textureID;
+};
+
 // send to Fragment Shader for coloring
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
 layout (location = 3) flat out int outNeighborID[3][3];
-
-struct PatchDescription {
-    mat4 rotation;
-    int textureID;
-};
+layout (location = 12) flat out int outNeighborRotation[3][3];
 
 layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
     PatchDescription patchDescription[];
@@ -118,23 +119,33 @@ void main() {
 
     float heightValue = calculateHeightTexture(TexCoord);
     // calculate the same way as in C++, but result is the same as in the line above
-    //float heightValue = calculateHeightPosition(p.xz);
-
+    //float heightValue = calculateHeightPosition(p.xz);    
     outNeighborID[0][0] = patchDescription[getPatchID(-1, -1)].textureID;
-    outNeighborID[1][0] = patchDescription[getPatchID(0, -1)].textureID;
-    outNeighborID[2][0] = patchDescription[getPatchID(1, -1)].textureID;
-    outNeighborID[0][1] = patchDescription[getPatchID(-1, 0)].textureID;
-    outNeighborID[1][1] = patchDescription[getPatchID(0, 0)].textureID;
-    outNeighborID[2][1] = patchDescription[getPatchID(1, 0)].textureID;
-    outNeighborID[0][2] = patchDescription[getPatchID(-1, 1)].textureID;
-    outNeighborID[1][2] = patchDescription[getPatchID(0, 1)].textureID;
-    outNeighborID[2][2] = patchDescription[getPatchID(1, 1)].textureID;
+    outNeighborRotation[0][0] = patchDescription[getPatchID(-1, -1)].rotation;
 
-    mat4 rotationMatTmp = patchDescription[gl_PrimitiveID].rotation;
-    mat2 rotationMat = mat2(rotationMatTmp[0][0], rotationMatTmp[0][1],
-                            rotationMatTmp[1][0], rotationMatTmp[1][1]);
-    // we can't do fract here, because here we opperate with vertices and result in pixels can be wrong
-    TexCoord = rotationMat * TexCoord;
+    outNeighborID[1][0] = patchDescription[getPatchID(0, -1)].textureID;
+    outNeighborRotation[1][0] = patchDescription[getPatchID(0, -1)].rotation;
+
+    outNeighborID[2][0] = patchDescription[getPatchID(1, -1)].textureID;
+    outNeighborRotation[2][0] = patchDescription[getPatchID(1, -1)].rotation;
+
+    outNeighborID[0][1] = patchDescription[getPatchID(-1, 0)].textureID;
+    outNeighborRotation[0][1] = patchDescription[getPatchID(-1, 0)].rotation;
+
+    outNeighborID[1][1] = patchDescription[getPatchID(0, 0)].textureID;
+    outNeighborRotation[1][1] = patchDescription[getPatchID(0, 0)].rotation;
+
+    outNeighborID[2][1] = patchDescription[getPatchID(1, 0)].textureID;
+    outNeighborRotation[2][1] = patchDescription[getPatchID(1, 0)].rotation;
+
+    outNeighborID[0][2] = patchDescription[getPatchID(-1, 1)].textureID;
+    outNeighborRotation[0][2] = patchDescription[getPatchID(-1, 1)].rotation;
+
+    outNeighborID[1][2] = patchDescription[getPatchID(0, 1)].textureID;
+    outNeighborRotation[1][2] = patchDescription[getPatchID(0, 1)].rotation;
+
+    outNeighborID[2][2] = patchDescription[getPatchID(1, 1)].textureID;
+    outNeighborRotation[2][2] = patchDescription[getPatchID(1, 1)].rotation;
     // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
     // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
     Height = heightValue * 255.0;

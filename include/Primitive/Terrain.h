@@ -128,7 +128,6 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   glm::vec2 _cursorPosition;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
-  std::vector<glm::mat4> _patchRotations;
   std::vector<int> _patchTextures;
   std::vector<int> _patchRotationsIndex;
   int _angleIndex = -1, _textureIndex = -1;
@@ -136,9 +135,9 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<bool> _changedHeightmap;
   char _terrainPath[256] = "";
 
-  struct PatchDescription {
-    glm::mat4 rotation;
-    alignas(16) int textureID;
+  struct alignas(16) PatchDescription {
+    int rotation;
+    int textureID;
   };
 
   void _updateColorDescriptor();
@@ -167,7 +166,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
 
   void setMaterial(std::shared_ptr<MaterialColor> material);
   void setDrawType(DrawType drawType);
-  void setTileRotation(int tileID, glm::mat4 rotation);
+  void setTileRotation(int tileID, int angle);
   void setTileTexture(int tileID, int textureID);
 
   DrawType getDrawType();
