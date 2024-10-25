@@ -64,11 +64,77 @@ void main() {
 
                 outColor = (weight1 * color1 + weight2 * color2 + weight3 * color3 + weight4 * color4) / ((rate - (-rate)) * (-rate - rate));
             } else if (fract(fragTexCoord.x) > 1 - rate && fract(fragTexCoord.y) > 1 - rate) {
-                outColor = vec4(1, 1, 1, 0);
+                vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
+
+                vec2 texCoord2 = rotate(outNeighborRotation[2][1]) * fragTexCoord;
+                vec2 dx2 = dFdx(texCoord2);
+                vec2 dy2 = dFdy(texCoord2);
+                vec4 color2 = textureGrad(texSampler[outNeighborID[2][1]], texCoord2, dx2, dy2);
+
+                vec2 texCoord3 = rotate(outNeighborRotation[2][2]) * fragTexCoord;
+                vec2 dx3 = dFdx(texCoord3);
+                vec2 dy3 = dFdy(texCoord3);
+                vec4 color3 = textureGrad(texSampler[outNeighborID[2][2]], texCoord3, dx3, dy3);
+
+                vec2 texCoord4 = rotate(outNeighborRotation[1][2]) * fragTexCoord;
+                vec2 dx4 = dFdx(texCoord4);
+                vec2 dy4 = dFdy(texCoord4);
+                vec4 color4 = textureGrad(texSampler[outNeighborID[1][2]], texCoord4, dx4, dy4);
+
+                float weight1 = (1 + rate - fract(fragTexCoord.x)) * (fract(fragTexCoord.y) - (1 + rate));
+                float weight2 = (fract(fragTexCoord.x) - (1 - rate)) * (fract(fragTexCoord.y) - (1 + rate));
+                float weight3 = (fract(fragTexCoord.x) - (1 - rate)) * (1 - rate - fract(fragTexCoord.y));
+                float weight4 = (1 + rate - fract(fragTexCoord.x)) * (1 - rate - fract(fragTexCoord.y));
+
+                outColor = (weight1 * color1 + weight2 * color2 + weight3 * color3 + weight4 * color4) / ((1 + rate - (1 - rate)) * ((1 - rate) - (1 + rate)));
             } else if (fract(fragTexCoord.x) > 1 - rate && fract(fragTexCoord.y) < rate) {
-                outColor = vec4(1, 1, 1, 0);
+                vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
+
+                vec2 texCoord2 = rotate(outNeighborRotation[2][1]) * fragTexCoord;
+                vec2 dx2 = dFdx(texCoord2);
+                vec2 dy2 = dFdy(texCoord2);
+                vec4 color2 = textureGrad(texSampler[outNeighborID[2][1]], texCoord2, dx2, dy2);
+
+                vec2 texCoord3 = rotate(outNeighborRotation[1][0]) * fragTexCoord;
+                vec2 dx3 = dFdx(texCoord3);
+                vec2 dy3 = dFdy(texCoord3);
+                vec4 color3 = textureGrad(texSampler[outNeighborID[1][0]], texCoord3, dx3, dy3);
+
+                vec2 texCoord4 = rotate(outNeighborRotation[2][0]) * fragTexCoord;
+                vec2 dx4 = dFdx(texCoord4);
+                vec2 dy4 = dFdy(texCoord4);
+                vec4 color4 = textureGrad(texSampler[outNeighborID[2][0]], texCoord4, dx4, dy4);
+
+                float weight1 = (1 + rate - fract(fragTexCoord.x)) * (-rate - fract(fragTexCoord.y));
+                float weight2 = (fract(fragTexCoord.x) - (1 - rate)) * (-rate - fract(fragTexCoord.y));
+                float weight3 = (1 + rate - fract(fragTexCoord.x)) * (fract(fragTexCoord.y) - rate);
+                float weight4 = (fract(fragTexCoord.x) - (1 - rate)) * (fract(fragTexCoord.y) - rate);
+
+                outColor = (weight1 * color1 + weight2 * color2 + weight3 * color3 + weight4 * color4) / ((1 + rate - (1 - rate)) * (-rate - rate));
             } else if (fract(fragTexCoord.x) < rate && fract(fragTexCoord.y) > 1 - rate) {
-                outColor = vec4(1, 1, 1, 0);
+                vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
+
+                vec2 texCoord2 = rotate(outNeighborRotation[0][1]) * fragTexCoord;
+                vec2 dx2 = dFdx(texCoord2);
+                vec2 dy2 = dFdy(texCoord2);
+                vec4 color2 = textureGrad(texSampler[outNeighborID[0][1]], texCoord2, dx2, dy2);
+
+                vec2 texCoord3 = rotate(outNeighborRotation[1][2]) * fragTexCoord;
+                vec2 dx3 = dFdx(texCoord3);
+                vec2 dy3 = dFdy(texCoord3);
+                vec4 color3 = textureGrad(texSampler[outNeighborID[1][2]], texCoord3, dx3, dy3);
+
+                vec2 texCoord4 = rotate(outNeighborRotation[0][2]) * fragTexCoord;
+                vec2 dx4 = dFdx(texCoord4);
+                vec2 dy4 = dFdy(texCoord4);
+                vec4 color4 = textureGrad(texSampler[outNeighborID[0][2]], texCoord4, dx4, dy4);
+
+                float weight1 = (fract(fragTexCoord.x) - (-rate)) * (fract(fragTexCoord.y) - (1 + rate));
+                float weight2 = (rate - fract(fragTexCoord.x)) * (fract(fragTexCoord.y) - (1 + rate));
+                float weight3 = (fract(fragTexCoord.x) - (-rate)) * ((1 - rate) - fract(fragTexCoord.y));
+                float weight4 = (rate - fract(fragTexCoord.x)) * ((1 - rate) - fract(fragTexCoord.y));
+
+                outColor = (weight1 * color1 + weight2 * color2 + weight3 * color3 + weight4 * color4) / ((rate - (-rate)) * (1 - rate - (1 + rate)));
             } else if (fract(fragTexCoord.x) < rate && fract(fragTexCoord.y) > rate && fract(fragTexCoord.y) < 1 - rate) {
                 vec4 color1 = textureGrad(texSampler[textureID], texCoord, dx, dy);
                 
