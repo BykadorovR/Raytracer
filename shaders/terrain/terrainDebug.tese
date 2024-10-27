@@ -24,8 +24,7 @@ struct PatchDescription {
 layout (location = 0) out float Height;
 layout (location = 1) out vec2 TexCoord;
 layout (location = 2) out vec3 outTessColor;
-layout (location = 3) flat out int outNeighborID[3][3];
-layout (location = 12) flat out int outNeighborRotation[3][3];
+layout (location = 3) flat out PatchDescription outNeighbor[3][3];
 
 layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
     PatchDescription patchDescription[];
@@ -68,6 +67,11 @@ int getPatchID(int x, int y) {
     newID = min(newID, push.patchDimX * push.patchDimY - 1);
     newID = max(newID, 0);
     return newID;
+}
+
+void fillPatchInfo(ivec2 index) {
+    outNeighbor[index[0]][index[1]].textureID = patchDescription[getPatchID(index[0] - 1, index[1] - 1)].textureID;
+    outNeighbor[index[0]][index[1]].rotation = patchDescription[getPatchID(index[0] - 1, index[1] - 1)].rotation;
 }
 
 void main() {
@@ -119,33 +123,16 @@ void main() {
 
     float heightValue = calculateHeightTexture(TexCoord);
     // calculate the same way as in C++, but result is the same as in the line above
-    //float heightValue = calculateHeightPosition(p.xz);    
-    outNeighborID[0][0] = patchDescription[getPatchID(-1, -1)].textureID;
-    outNeighborRotation[0][0] = patchDescription[getPatchID(-1, -1)].rotation;
-
-    outNeighborID[1][0] = patchDescription[getPatchID(0, -1)].textureID;
-    outNeighborRotation[1][0] = patchDescription[getPatchID(0, -1)].rotation;
-
-    outNeighborID[2][0] = patchDescription[getPatchID(1, -1)].textureID;
-    outNeighborRotation[2][0] = patchDescription[getPatchID(1, -1)].rotation;
-
-    outNeighborID[0][1] = patchDescription[getPatchID(-1, 0)].textureID;
-    outNeighborRotation[0][1] = patchDescription[getPatchID(-1, 0)].rotation;
-
-    outNeighborID[1][1] = patchDescription[getPatchID(0, 0)].textureID;
-    outNeighborRotation[1][1] = patchDescription[getPatchID(0, 0)].rotation;
-
-    outNeighborID[2][1] = patchDescription[getPatchID(1, 0)].textureID;
-    outNeighborRotation[2][1] = patchDescription[getPatchID(1, 0)].rotation;
-
-    outNeighborID[0][2] = patchDescription[getPatchID(-1, 1)].textureID;
-    outNeighborRotation[0][2] = patchDescription[getPatchID(-1, 1)].rotation;
-
-    outNeighborID[1][2] = patchDescription[getPatchID(0, 1)].textureID;
-    outNeighborRotation[1][2] = patchDescription[getPatchID(0, 1)].rotation;
-
-    outNeighborID[2][2] = patchDescription[getPatchID(1, 1)].textureID;
-    outNeighborRotation[2][2] = patchDescription[getPatchID(1, 1)].rotation;
+    //float heightValue = calculateHeightPosition(p.xz);
+    fillPatchInfo(ivec2(0, 0));
+    fillPatchInfo(ivec2(1, 0));
+    fillPatchInfo(ivec2(2, 0));
+    fillPatchInfo(ivec2(0, 1));
+    fillPatchInfo(ivec2(1, 1));
+    fillPatchInfo(ivec2(2, 1));
+    fillPatchInfo(ivec2(0, 2));
+    fillPatchInfo(ivec2(1, 2));
+    fillPatchInfo(ivec2(2, 2));
     // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
     // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
     Height = heightValue * 255.0;

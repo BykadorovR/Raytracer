@@ -122,6 +122,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   bool _enableShadow = true;
   DrawType _drawType = DrawType::FILL;
   int _pickedTile = -1;
+  float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
   glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
   glm::vec3 _rayOrigin, _rayDirection;
   bool _showWireframe = false, _showNormals = false, _showPatches = false;

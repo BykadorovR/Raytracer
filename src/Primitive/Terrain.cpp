@@ -404,6 +404,10 @@ struct HeightLevelsDebug {
   alignas(16) int enableLighting;
   alignas(16) glm::vec3 cameraPosition;
   alignas(16) int tile;
+  alignas(16) float stripeLeft;
+  alignas(16) float stripeRight;
+  alignas(16) float stripeTop;
+  alignas(16) float stripeBot;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -957,6 +961,10 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.showLOD = _showLoD;
       pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
       pushConstants.tile = _pickedTile;
+      pushConstants.stripeLeft = _stripeLeft;
+      pushConstants.stripeRight = _stripeRight;
+      pushConstants.stripeTop = _stripeTop;
+      pushConstants.stripeBot = _stripeBot;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevelsDebug), &pushConstants);
@@ -1079,6 +1087,31 @@ void TerrainDebug::drawDebug() {
           _changePatch[i] = true;
         }
       }
+    }
+
+    std::map<std::string, float*> terrainStripeLeft;
+    terrainStripeLeft["Stripe Left"] = &_stripeLeft;
+    if (_gui->drawInputFloat(terrainStripeLeft)) {
+      if (_stripeLeft + _stripeRight > 1) _stripeLeft = 1 - _stripeRight;
+      if (_stripeLeft < 0) _stripeLeft = 0;
+    }
+    std::map<std::string, float*> terrainStripeRight;
+    terrainStripeRight["Stripe Right"] = &_stripeRight;
+    if (_gui->drawInputFloat(terrainStripeRight)) {
+      if (_stripeLeft + _stripeRight > 1) _stripeRight = 1 - _stripeLeft;
+      if (_stripeRight < 0) _stripeRight = 0;
+    }
+    std::map<std::string, float*> terrainStripeTop;
+    terrainStripeTop["Stripe Top"] = &_stripeTop;
+    if (_gui->drawInputFloat(terrainStripeTop)) {
+      if (_stripeTop + _stripeBot > 1) _stripeTop = 1 - _stripeBot;
+      if (_stripeTop < 0) _stripeTop = 0;
+    }
+    std::map<std::string, float*> terrainStripeBot;
+    terrainStripeBot["Stripe Bot"] = &_stripeBot;
+    if (_gui->drawInputFloat(terrainStripeBot)) {
+      if (_stripeTop + _stripeBot > 1) _stripeBot = 1 - _stripeTop;
+      if (_stripeBot < 0) _stripeBot = 0;
     }
 
     _gui->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
