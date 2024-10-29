@@ -36,25 +36,6 @@ layout( push_constant ) uniform constants {
     float heightShift;
 } push;
 
-float calculateHeightPosition(in vec2 p) {
-    vec2 textureSize = textureSize(heightMap, 0);
-    vec2 pos = p + (textureSize - vec2(1.0)) / vec2(2.0);
-    ivec2 integral = ivec2(floor(pos));
-    vec2 texCoord = fract(pos);
-    ivec2 index0 = integral;
-    ivec2 index1 = integral + ivec2(1, 0);
-    ivec2 index2 = integral + ivec2(0, 1);
-    ivec2 index3 = integral + ivec2(1, 1);
-    float sample0 = texelFetch(heightMap, index0, 0).x;
-    float sample1 = texelFetch(heightMap, index1, 0).x;
-    float sample2 = texelFetch(heightMap, index2, 0).x;
-    float sample3 = texelFetch(heightMap, index3, 0).x;
-    float fxy1 = sample0 + texCoord.x * (sample1 - sample0);
-    float fxy2 = sample2 + texCoord.x * (sample3 - sample2);
-    float heightValue = fxy1 + texCoord.y * (fxy2 - fxy1);
-    return heightValue;
-}
-
 int getPatchID(int x, int y) {
     int newID = gl_PrimitiveID + x + y * push.patchDimX;
     newID = min(newID, push.patchDimX * push.patchDimY - 1);

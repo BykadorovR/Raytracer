@@ -1207,6 +1207,43 @@ void TerrainDebug::scrollNotify(double xOffset, double yOffset) {
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
 }
 
+void Terrain::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+  std::vector<Vertex3D> vertices;
+  glm::vec2 scale = {(float)(width - 1) / _patchNumber.first, (float)(height - 1) / _patchNumber.second};
+  glm::vec2 offset = {0.5f, 0.5f};  // to match the center of the pixels
+  for (int y = 0; y < _patchNumber.second; y++) {
+    for (int x = 0; x < _patchNumber.first; x++) {
+      // define patch: 4 points (square)
+      Vertex3D vertex1{};
+      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
+      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex1);
+
+      Vertex3D vertex2{};
+      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
+      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex2);
+
+      Vertex3D vertex3{};
+      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
+      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex3);
+
+      Vertex3D vertex4{};
+      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
+      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
+                         glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex4);
+    }
+  }
+  _mesh->setVertices(vertices, commandBuffer);
+}
+
 Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                  std::pair<int, int> patchNumber,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -1227,37 +1264,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
                                          VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
                                          commandBufferTransfer, engineState);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
-  std::vector<Vertex3D> vertices;
   _mesh = std::make_shared<MeshStatic3D>(engineState);
-  for (int y = 0; y < patchNumber.second; y++) {
-    for (int x = 0; x < patchNumber.first; x++) {
-      // define patch: 4 points (square)
-      Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)patchNumber.second);
-      vertex1.texCoord = glm::vec2(x, y);
-      vertices.push_back(vertex1);
-
-      Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)patchNumber.second);
-      vertex2.texCoord = glm::vec2(x + 1, y);
-      vertices.push_back(vertex2);
-
-      Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)patchNumber.second);
-      vertex3.texCoord = glm::vec2(x, y + 1);
-      vertices.push_back(vertex3);
-
-      Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)patchNumber.second);
-      vertex4.texCoord = glm::vec2(x + 1, y + 1);
-      vertices.push_back(vertex4);
-    }
-  }
-  _mesh->setVertices(vertices, commandBufferTransfer);
+  _calculateMesh(commandBufferTransfer);
 
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
   defaultPushConstants["control"] = LoDConstants::getPushConstant();

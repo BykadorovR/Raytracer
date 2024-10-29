@@ -223,6 +223,7 @@ class Terrain : public Drawable, public Shadowable {
   void _updateColorDescriptor();
   void _updatePhongDescriptor();
   void _updatePBRDescriptor();
+  void _calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
   Terrain(std::shared_ptr<BufferImage> heightMap,

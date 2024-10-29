@@ -206,6 +206,7 @@ Main::Main() {
     model = glm::scale(model, _terrainScale);
     _terrainCPU->setModel(model);
   }
+  _terrainCPU->setDrawType(DrawType::WIREFRAME);
 
   _core->addDrawable(_terrainCPU);
 
