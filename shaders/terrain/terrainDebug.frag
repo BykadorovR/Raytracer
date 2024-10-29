@@ -1,8 +1,7 @@
 #version 450
 
-layout(location = 0) in float fragHeight;
-layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 tessColor;
+layout(location = 0) in vec2 fragTexCoord;
+layout(location = 1) in vec3 tessColor;
 
 struct PatchDescription {
     int rotation;
@@ -12,7 +11,7 @@ struct PatchDescription {
 // Q01 - Q11 - Q21
 // Q02 - Q12 - Q22
 // Q11 - current patch
-layout(location = 3) flat in PatchDescription inNeighbor[3][3];
+layout(location = 2) flat in PatchDescription inNeighbor[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;

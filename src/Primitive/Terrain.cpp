@@ -161,7 +161,8 @@ void TerrainCPU::_loadStrip(int currentFrame) {
 
       // vertex
       Vertex3D vertex;
-      vertex.pos = glm::vec3(-width / 2.0f + j, (int)y * _heightScale / 256.f - _heightShift, -height / 2.0f + i);
+      // need to normalize [0, 255] to [0, 1]
+      vertex.pos = glm::vec3(-width / 2.0f + j, (y / 255.f) * _heightScale - _heightShift, -height / 2.0f + i);
       vertices.push_back(vertex);
     }
   }
@@ -457,8 +458,8 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
   _heightMapGPU = _gameState->getResourceManager()->loadImageGPU<uint8_t>({heightMapCPU});
   _changedHeightmap.resize(_engineState->getSettings()->getMaxFramesInFlight());
   _heightMap = std::make_shared<Texture>(_heightMapGPU, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
-                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
-                                         engineState);
+                                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
+                                         commandBufferTransfer, engineState);
 
   _changeMesh.resize(engineState->getSettings()->getMaxFramesInFlight());
   _mesh.resize(engineState->getSettings()->getMaxFramesInFlight());
@@ -666,32 +667,34 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
 void TerrainDebug::_calculateMesh(int index) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   std::vector<Vertex3D> vertices;
-
+  glm::vec2 scale = {(float)(width - 1) / _patchNumber.first, (float)(height - 1) / _patchNumber.second};
+  glm::vec2 offset = {0.5f, 0.5f};  // to match the center of the pixels
   for (int y = 0; y < _patchNumber.second; y++) {
     for (int x = 0; x < _patchNumber.first; x++) {
       // define patch: 4 points (square)
       Vertex3D vertex1{};
       vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1.texCoord = glm::vec2(x, y);
+      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
       vertices.push_back(vertex1);
 
       Vertex3D vertex2{};
       vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2.texCoord = glm::vec2(x + 1, y);
+      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
       vertices.push_back(vertex2);
 
       Vertex3D vertex3{};
       vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3.texCoord = glm::vec2(x, y + 1);
+      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
       vertices.push_back(vertex3);
 
       Vertex3D vertex4{};
       vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                               -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex4.texCoord = glm::vec2(x + 1, y + 1);
+      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
+                         glm::vec2((float)width, (float)height);
       vertices.push_back(vertex4);
     }
   }
@@ -1221,8 +1224,8 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
 
   _heightMap = std::make_shared<Texture>(heightMap, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
-                                         VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, commandBufferTransfer,
-                                         engineState);
+                                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
+                                         commandBufferTransfer, engineState);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
   std::vector<Vertex3D> vertices;
   _mesh = std::make_shared<MeshStatic3D>(engineState);

@@ -21,10 +21,9 @@ struct PatchDescription {
 };
 
 // send to Fragment Shader for coloring
-layout (location = 0) out float Height;
-layout (location = 1) out vec2 TexCoord;
-layout (location = 2) out vec3 outTessColor;
-layout (location = 3) flat out PatchDescription outNeighbor[3][3];
+layout (location = 0) out vec2 TexCoord;
+layout (location = 1) out vec3 outTessColor;
+layout (location = 2) flat out PatchDescription outNeighbor[3][3];
 
 layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
     PatchDescription patchDescription[];
@@ -36,12 +35,6 @@ layout( push_constant ) uniform constants {
     float heightScale;
     float heightShift;
 } push;
-
-
-float calculateHeightTexture(in vec2 TexCoord) {
-    vec2 texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
-    return texture(heightMap, texCoord).x;
-}
 
 float calculateHeightPosition(in vec2 p) {
     vec2 textureSize = textureSize(heightMap, 0);
@@ -90,7 +83,7 @@ void main() {
     outTessColor = (tc1 - tc0) * v + tc0;
 
     // ----------------------------------------------------------------------
-    // retrieve control point texture coordinates
+    // retrieve control point texture coordinates for height map
     vec2 t00 = TextureCoord[0];
     vec2 t01 = TextureCoord[1];
     vec2 t10 = TextureCoord[2];
@@ -121,7 +114,8 @@ void main() {
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
 
-    float heightValue = calculateHeightTexture(TexCoord);
+    float heightValue = texture(heightMap, TexCoord).x;
+    TexCoord = vec2(u, v);
     // calculate the same way as in C++, but result is the same as in the line above
     //float heightValue = calculateHeightPosition(p.xz);
     fillPatchInfo(ivec2(0, 0));
@@ -133,9 +127,6 @@ void main() {
     fillPatchInfo(ivec2(0, 2));
     fillPatchInfo(ivec2(1, 2));
     fillPatchInfo(ivec2(2, 2));
-    // we don't want to deal with negative values in fragment shaders (that we will have after * scale - shift)
-    // so we use this value for texturing and levels in fragment shader (0 - 60 grass, 60 - 120 - mountain, etc)
-    Height = heightValue * 255.0;
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
     // ----------------------------------------------------------------------

@@ -289,7 +289,8 @@ Main::Main() {
   }
   _core->addDrawable(_terrainDebug);
 
-  _terrainCPU = _core->createTerrainCPU(_terrainDebug->getHeightmap());
+  _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
+  _terrainCPU->setDrawType(DrawType::WIREFRAME);
   {
     auto model = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
     model = glm::scale(model, _terrainScale);
@@ -310,7 +311,7 @@ void Main::update() {
     _core->startRecording();
     _terrainDebug->transfer(_core->getCommandBufferApplication());
     _core->endRecording();
-    _terrainCPU->setHeightmap(_terrainDebug->getHeightmap());
+    _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
   }
 
   static float i = 0;
