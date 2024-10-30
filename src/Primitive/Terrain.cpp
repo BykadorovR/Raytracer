@@ -400,15 +400,16 @@ struct PatchConstants {
 struct HeightLevelsDebug {
   alignas(16) float heightLevels[4];
   alignas(16) int patchEdge;
-  alignas(16) int showLOD;
-  alignas(16) int enableShadow;
-  alignas(16) int enableLighting;
+  int showLOD;
+  int enableShadow;
+  int enableLighting;
   alignas(16) glm::vec3 cameraPosition;
-  alignas(16) int tile;
-  alignas(16) float stripeLeft;
-  alignas(16) float stripeRight;
-  alignas(16) float stripeTop;
-  alignas(16) float stripeBot;
+  int tile;
+  float stripeLeft;
+  float stripeRight;
+  float stripeTop;
+  float stripeBot;
+  alignas(16) glm::vec3 click;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -968,6 +969,9 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.stripeRight = _stripeRight;
       pushConstants.stripeTop = _stripeTop;
       pushConstants.stripeBot = _stripeBot;
+      if (_hitCoords) {
+        pushConstants.click = _hitCoords.value();
+      }
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevelsDebug), &pushConstants);
@@ -1183,12 +1187,12 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
     _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
     _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
 
-    auto hit = _terrainPhysics->hit(_rayOrigin,
-                                    _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
-    if (hit) {
+    _hitCoords = _terrainPhysics->hit(_rayOrigin,
+                                      _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
+    if (_hitCoords) {
       // find the corresponding patch number
-      _pickedTile = _calculateTileByPosition(hit.value());
-      _pickedPixel = _calculatePixelByPosition(hit.value());
+      _pickedTile = _calculateTileByPosition(_hitCoords.value());
+      _pickedPixel = _calculatePixelByPosition(_hitCoords.value());
       // reset selected item in angles list
       _angleIndex = _patchRotationsIndex[_pickedTile];
       _textureIndex = _patchTextures[_pickedTile];

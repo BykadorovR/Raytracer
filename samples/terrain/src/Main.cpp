@@ -251,16 +251,16 @@ Main::Main() {
 
   _createTerrainColor();
 
-  auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
+  auto terrainCPU = _core->loadImageCPU("../assets/heightmap_test4x4_new.png");
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
   _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x + 256 * _terrainScale.x, _terrainPositionDebug.y,
                                     _terrainPositionDebug.z);
 
   _physicsManager = std::make_shared<PhysicsManager>();
-  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
+  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap_test4x4_new.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager);
-  _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageCPU("../assets/heightmap.png"),
+  _terrainDebug = std::make_shared<TerrainDebug>(_core->loadImageCPU("../assets/heightmap_test4x4_new.png"),
                                                  std::pair{_patchX, _patchY}, _core->getCommandBufferApplication(),
                                                  _core->getGUI(), _core->getGameState(), _core->getEngineState());
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));

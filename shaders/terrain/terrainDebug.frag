@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 tessColor;
-
+layout(location = 2) in vec4 inVertexCoord;
 struct PatchDescription {
     int rotation;
     int textureID;
@@ -11,7 +11,7 @@ struct PatchDescription {
 // Q01 - Q11 - Q21
 // Q02 - Q12 - Q22
 // Q11 - current patch
-layout(location = 2) flat in PatchDescription inNeighbor[3][3];
+layout(location = 3) flat in PatchDescription inNeighbor[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -19,16 +19,17 @@ layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];
-    layout(offset = 48) int patchEdge;
-    layout(offset = 64) int tessColorFlag;
-    layout(offset = 80) int enableShadow;
-    layout(offset = 96) int enableLighting;
-    layout(offset = 112) vec3 cameraPosition;
-    layout(offset = 128) int pickedPatch;
-    layout(offset = 144) float stripeLeft;
-    layout(offset = 160) float stripeRight;
-    layout(offset = 176) float stripeTop;
-    layout(offset = 192) float stripeBot;
+    int patchEdge;
+    int tessColorFlag;
+    int enableShadow;
+    int enableLighting;
+    vec3 cameraPosition;
+    int pickedPatch;
+    float stripeLeft;
+    float stripeRight;
+    float stripeTop;
+    float stripeBot;
+    vec3 click;
 } push;
 
 mat2 rotate(float a) {
@@ -89,7 +90,11 @@ vec4 getColorSide(ivec2 index1, ivec2 index2, float coord, float rate1, float ra
     return outColor = (weight1 * color1 + weight2 * color2) / (rate2 - rate1);
 }
 
-void main() {    
+void main() {
+    if (distance(inVertexCoord.xyz, push.click) < 0.01) {
+        outColor = vec4(1, 1, 1, 1);
+        return;
+    }
     vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;
     vec2 dx = dFdx(texCoord);
     vec2 dy = dFdy(texCoord);

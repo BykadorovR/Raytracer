@@ -135,6 +135,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   std::vector<bool> _changedHeightmap;
   char _terrainPath[256] = "";
+  std::optional<glm::vec3> _hitCoords;
 
   struct alignas(16) PatchDescription {
     int rotation;
