@@ -23,8 +23,7 @@ struct PatchDescription {
 // send to Fragment Shader for coloring
 layout (location = 0) out vec2 TexCoord;
 layout (location = 1) out vec3 outTessColor;
-layout (location = 2) out vec4 outVertexCoord;
-layout (location = 3) flat out PatchDescription outNeighbor[3][3];
+layout (location = 2) flat out PatchDescription outNeighbor[3][3];
 
 layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
     PatchDescription patchDescription[];
@@ -111,8 +110,6 @@ void main() {
     fillPatchInfo(ivec2(2, 2));
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
-
-    outVertexCoord = mvp.model * p;    
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;

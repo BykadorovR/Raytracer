@@ -126,7 +126,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
   glm::vec3 _rayOrigin, _rayDirection;
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
-  glm::vec2 _cursorPosition;
+  glm::vec2 _cursorPosition = glm::vec2(-1.f);
+  glm::vec2 _clickPosition = glm::vec2(-1.f);
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
   std::vector<int> _patchTextures;

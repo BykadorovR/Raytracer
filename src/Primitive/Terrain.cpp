@@ -409,7 +409,6 @@ struct HeightLevelsDebug {
   float stripeRight;
   float stripeTop;
   float stripeBot;
-  alignas(16) glm::vec3 click;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -729,14 +728,13 @@ glm::ivec2 TerrainDebug::_calculatePixelByPosition(glm::vec3 position) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
 
   auto leftTop = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
-  auto rightTop = _model * glm::vec4(-width / 2.0f + (width - 1), 0.f, -height / 2.0f, 1.f);
-  auto leftBot = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height - 1, 1.f);
-  auto rightBot = _model * glm::vec4(-width / 2.0f + (width - 1), 0.f, -height / 2.0f + height - 1, 1.f);
+  auto rightTop = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f, 1.f);
+  auto leftBot = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height, 1.f);
+  auto rightBot = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f + height, 1.f);
   glm::vec3 terrainSize = rightBot - leftTop;
   glm::vec2 ratio = glm::vec2((glm::vec4(position, 1.f) - leftTop).x / terrainSize.x,
                               (glm::vec4(position, 1.f) - leftTop).z / terrainSize.z);
-  auto textureCoords = glm::vec2(ratio.x * width, ratio.y * height);
-  return textureCoords;
+  return glm::ivec2(std::round(ratio.x * width), std::round(ratio.y * height));
 }
 
 int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
@@ -969,9 +967,6 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.stripeRight = _stripeRight;
       pushConstants.stripeTop = _stripeTop;
       pushConstants.stripeBot = _stripeBot;
-      if (_hitCoords) {
-        pushConstants.click = _hitCoords.value();
-      }
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevelsDebug), &pushConstants);
@@ -1057,6 +1052,11 @@ void TerrainDebug::drawDebug() {
   if (_gui->startTree("Terrain")) {
     _gui->drawText({"Tile: " + std::to_string(_pickedTile)});
     _gui->drawText({"Texture: " + std::to_string(_pickedPixel.x) + "x" + std::to_string(_pickedPixel.y)});
+    _gui->drawText({"Click: " + std::to_string(_clickPosition.x) + "x" + std::to_string(_clickPosition.y)});
+    glm::vec3 physicsHit = glm::vec3(-1.f);
+    if (_hitCoords) physicsHit = _hitCoords.value();
+    _gui->drawText({"Hit: " + std::to_string(physicsHit.x) + "x" + std::to_string(physicsHit.y) + "x" +
+                    std::to_string(physicsHit.z)});
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchNumber.first}, {"Patch y", &_patchNumber.second}};
     if (_gui->drawInputInt(patchesNumber)) {
       // we can't change mesh here because we have to change it for all frames in flight eventually
@@ -1160,6 +1160,7 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
 #else
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 #endif
+    _clickPosition = _cursorPosition;
     auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
     // forward transformation
     // x, y, z, 1 * MVP -> clip?
@@ -1170,8 +1171,8 @@ void TerrainDebug::mouseNotify(int button, int action, int mods) {
     // backward transformation
     // x, y
     glm::vec2 normalizedScreen = glm::vec2(
-        (2.0f * _cursorPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
-        1.0f - (2.0f * _cursorPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
+        (2.0f * _clickPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
+        1.0f - (2.0f * _clickPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
     glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
 
     // Convert to camera (view) space
