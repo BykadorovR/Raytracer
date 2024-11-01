@@ -150,6 +150,8 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void _calculateMesh(int index);
   void _reallocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);
+  int _saveAuxilary(std::string path);
+  void _loadAuxilary(std::string path);
   int _saveHeightmap(std::string path);
   void _loadHeightmap(std::string path);
 

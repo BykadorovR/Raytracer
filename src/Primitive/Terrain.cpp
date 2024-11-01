@@ -7,6 +7,7 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <nlohmann/json.hpp>
 
 TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                glm::vec3 position,
@@ -701,12 +702,50 @@ void TerrainDebug::_calculateMesh(int index) {
   _mesh[index]->setVertices(vertices);
 }
 
+int TerrainDebug::_saveAuxilary(std::string path) {
+  nlohmann::json outputJSON;
+  outputJSON["stripe"] = {_stripeLeft, _stripeRight, _stripeTop, _stripeBot};
+  outputJSON["rotation"] = _patchRotationsIndex;
+  outputJSON["textures"] = _patchTextures;
+  std::ofstream file(path + ".json");
+  file << outputJSON;
+  return true;
+}
+
+void TerrainDebug::_loadAuxilary(std::string path) {
+  std::ifstream file(path + ".json");
+  nlohmann::json inputJSON;
+  file >> inputJSON;
+  _stripeLeft = inputJSON["stripe"][0];
+  _stripeRight = inputJSON["stripe"][1];
+  _stripeTop = inputJSON["stripe"][2];
+  _stripeBot = inputJSON["stripe"][3];
+  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
+    _patchRotationsIndex[i] = inputJSON["rotation"][i];
+  }
+  for (int i = 0; i < inputJSON["textures"].size(); i++) {
+    _patchTextures[i] = inputJSON["textures"][i];
+  }
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changePatch[i] = true;
+  }
+}
+
 int TerrainDebug::_saveHeightmap(std::string path) {
   auto [width, height] = _heightMapCPU->getResolution();
   int channels = _heightMapCPU->getChannels();
   auto rawData = _heightMapCPU->getData().get();
-  int result = stbi_write_png(path.c_str(), width, height, channels, rawData, width * channels);
+  int result = stbi_write_png((path + ".png").c_str(), width, height, channels, rawData, width * channels);
   return result;
+}
+
+void TerrainDebug::_loadHeightmap(std::string path) {
+  _heightMapCPU = _gameState->getResourceManager()->loadImageCPU<uint8_t>(path + ".png");
+  _heightMapGPU->setData(_heightMapCPU->getData().get());
+  // need to recreate TerrainPhysics because heightmapCPU was updated
+  _terrainPhysics->reset(_heightMapCPU);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
 }
 
 void TerrainDebug::_changeHeightmap(glm::ivec2 position, int value) {
@@ -904,14 +943,6 @@ bool TerrainDebug::heightmapChanged() {
 
 void TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
   _heightMap->copyFrom(_heightMapGPU, commandBuffer);
-}
-
-void TerrainDebug::_loadHeightmap(std::string path) {
-  _heightMapCPU = _gameState->getResourceManager()->loadImageCPU<uint8_t>(path);
-  _heightMapGPU->setData(_heightMapCPU->getData().get());
-  // need to recreate TerrainPhysics because heightmapCPU was updated
-  _terrainPhysics->reset(_heightMapCPU);
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
 }
 
 void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -1123,12 +1154,14 @@ void TerrainDebug::drawDebug() {
 
     _gui->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
 
-    if (_gui->drawButton("Save heightmap")) {
+    if (_gui->drawButton("Save terrain")) {
       _saveHeightmap(std::string(_terrainPath));
+      _saveAuxilary(std::string(_terrainPath));
     }
 
-    if (_gui->drawButton("Load heightmap")) {
+    if (_gui->drawButton("Load terrain")) {
       _loadHeightmap(std::string(_terrainPath));
+      _loadAuxilary(std::string(_terrainPath));
     }
 
     if (_gui->drawCheckbox({{"Patches", &_showPatches}})) {

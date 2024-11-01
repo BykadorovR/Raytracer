@@ -93,6 +93,13 @@ FetchContent_Declare(
         GIT_TAG        release-v3
 )
 
+set(JSON_BuildTests OFF CACHE BOOL "Disable JSON tests")
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.3
+)
+
 FetchContent_Declare(
   jolt
   GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
@@ -100,7 +107,7 @@ FetchContent_Declare(
   SOURCE_SUBDIR  Build
 )
 
-FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json)
 if (NOT ANDROID)
   FetchContent_MakeAvailable(glfw)
 endif()
@@ -198,8 +205,8 @@ file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
 #Jolt should start with capital J
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json)
 endif()

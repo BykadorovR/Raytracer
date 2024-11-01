@@ -307,13 +307,6 @@ Main::Main() {
 }
 
 void Main::update() {
-  if (_terrainDebug->heightmapChanged()) {
-    _core->startRecording();
-    _terrainDebug->transfer(_core->getCommandBufferApplication());
-    _core->endRecording();
-    _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
-  }
-
   static float i = 0;
   // update light position
   float radius = 15.f;
@@ -413,6 +406,14 @@ void Main::update() {
     }
   }
   _core->getGUI()->endWindow();
+
+  // should be in the end in case of "load terrain" pressed and handled in drawDebug()
+  if (_terrainDebug->heightmapChanged()) {
+    _core->startRecording();
+    _terrainDebug->transfer(_core->getCommandBufferApplication());
+    _core->endRecording();
+    _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
+  }
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }
