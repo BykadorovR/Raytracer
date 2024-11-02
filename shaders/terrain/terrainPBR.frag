@@ -1,26 +1,58 @@
 #version 450
 #define epsilon 0.0001
 
-layout(location = 0) in float fragHeight;
-layout(location = 1) in vec2 fragTexCoord;
-layout(location = 2) in vec3 fragNormal;
-layout(location = 3) in vec3 tessColor;
-layout(location = 4) in vec3 fragPosition;
-layout(location = 5) in mat3 fragTBN;
+layout(location = 0) in vec2 fragTexCoord;
+layout(location = 1) in vec3 fragNormal;
+layout(location = 2) in vec3 tessColor;
+layout(location = 3) in vec3 fragPosition;
+layout(location = 4) in mat3 fragTBN;
 //mat3 takes 3 slots
-layout(location = 8) in vec4 fragLightDirectionalCoord[2];
+layout(location = 7) in vec4 fragLightDirectionalCoord[2];
+struct PatchDescription {
+    int rotation;
+    int textureID;
+};
+// Q00 - Q10 - Q20
+// Q01 - Q11 - Q21
+// Q02 - Q12 - Q22
+// Q11 - current patch
+layout(location = 9) flat in PatchDescription inNeighbor[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
-layout(set = 0, binding = 4) uniform sampler2D normalSampler[4];
-layout(set = 0, binding = 5) uniform sampler2D metallicSampler[4];
-layout(set = 0, binding = 6) uniform sampler2D roughnessSampler[4];
-layout(set = 0, binding = 7) uniform sampler2D occlusionSampler[4];
-layout(set = 0, binding = 8) uniform sampler2D emissiveSampler[4];
-layout(set = 0, binding = 9) uniform samplerCube irradianceSampler;
-layout(set = 0, binding = 10) uniform samplerCube specularIBLSampler;
-layout(set = 0, binding = 11) uniform sampler2D specularBRDFSampler;
+layout(set = 0, binding = 4) uniform sampler2D texSampler[4];
+layout(set = 0, binding = 5) uniform sampler2D normalSampler[4];
+layout(set = 0, binding = 6) uniform sampler2D metallicSampler[4];
+layout(set = 0, binding = 7) uniform sampler2D roughnessSampler[4];
+layout(set = 0, binding = 8) uniform sampler2D occlusionSampler[4];
+layout(set = 0, binding = 9) uniform sampler2D emissiveSampler[4];
+layout(set = 0, binding = 10) uniform samplerCube irradianceSampler;
+layout(set = 0, binding = 11) uniform samplerCube specularIBLSampler;
+layout(set = 0, binding = 12) uniform sampler2D specularBRDFSampler;
+layout(set = 0, binding = 13) uniform Material {
+    float metallicFactor;
+    float roughnessFactor;
+    // occludedColor = mix(color, color * <sampled occlusion texture value>, <occlusion strength>)
+    float occlusionStrength;
+    vec3 emissiveFactor;
+} material;
+
+layout(set = 0, binding = 14) uniform AlphaMask {
+    bool alphaMask;
+    float alphaMaskCutoff;
+} alphaMask;
+
+
+layout(push_constant) uniform constants {
+    layout(offset = 32) float heightLevels[4];
+    int enableShadow;
+    int enableLighting;
+    vec3 cameraPosition;
+    float stripeLeft;
+    float stripeRight;
+    float stripeTop;
+    float stripeBot;
+} push;
 
 struct LightDirectional {
     //
@@ -52,75 +84,63 @@ layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
 layout(set = 1, binding = 3) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 1, binding = 4) uniform samplerCube shadowPointSampler[4];
 
-layout(set = 0, binding = 12) uniform Material {
-    float metallicFactor;
-    float roughnessFactor;
-    // occludedColor = mix(color, color * <sampled occlusion texture value>, <occlusion strength>)
-    float occlusionStrength;
-    vec3 emissiveFactor;
-} material;
 
-layout(set = 0, binding = 13) uniform AlphaMask {
-    bool alphaMask;
-    float alphaMaskCutoff;
-} alphaMask;
-
-layout(push_constant) uniform constants {
-    layout(offset = 32) float heightLevels[4];
-    layout(offset = 48) int enableShadow;
-    layout(offset = 64) int enableLighting;
-    layout(offset = 80) vec3 cameraPosition;
-} push;
-
-//It is important to get the gradients before going into non-uniform flow code.
-vec2 dx = dFdx(fragTexCoord);
-vec2 dy = dFdy(fragTexCoord);
-vec4 calculateColor(float max1, float max2, int id1, int id2, float height) {
-    vec4 firstTile = textureGrad(texSampler[id1], fragTexCoord, dx, dy);
-    vec4 secondTile = textureGrad(texSampler[id2], fragTexCoord, dx, dy);
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
+mat2 rotate(float a) {
+    float s = sin(radians(a));
+    float c = cos(radians(a));
+    mat2 m = mat2(c, s, -s, c);
+    return m;
 }
 
-vec3 calculateNormal(float max1, float max2, int id1, int id2, float height) {
-    vec3 firstTile = textureGrad(normalSampler[id1], fragTexCoord, dx, dy).rgb;
-    vec3 secondTile = textureGrad(normalSampler[id2], fragTexCoord, dx, dy).rgb;
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
+// Q12 -- Q22
+//  |      |
+//  |      |
+// Q11 -- Q21
+vec4 getColorCorner(sampler2D inSampler[4], ivec2 index11, ivec2 index12, ivec2 index21, ivec2 index22, float rateLeft, float rateRight, float rateTop, float rateBot) {
+    vec2 texCoord11 = rotate(inNeighbor[index11[0]][index11[1]].rotation) * fragTexCoord;
+    vec2 dx11 = dFdx(texCoord11);
+    vec2 dy11 = dFdy(texCoord11);
+    vec4 color11 = textureGrad(inSampler[inNeighbor[index11[0]][index11[1]].textureID], texCoord11, dx11, dy11);
+
+    vec2 texCoord12 = rotate(inNeighbor[index12[0]][index12[1]].rotation) * fragTexCoord;
+    vec2 dx12 = dFdx(texCoord12);
+    vec2 dy12 = dFdy(texCoord12);
+    vec4 color12 = textureGrad(inSampler[inNeighbor[index12[0]][index12[1]].textureID], texCoord12, dx12, dy12);
+
+    vec2 texCoord21 = rotate(inNeighbor[index21[0]][index21[1]].rotation) * fragTexCoord;
+    vec2 dx21 = dFdx(texCoord21);
+    vec2 dy21 = dFdy(texCoord21);
+    vec4 color21 = textureGrad(inSampler[inNeighbor[index21[0]][index21[1]].textureID], texCoord21, dx21, dy21);
+
+    vec2 texCoord22 = rotate(inNeighbor[index22[0]][index22[1]].rotation) * fragTexCoord;
+    vec2 dx22 = dFdx(texCoord22);
+    vec2 dy22 = dFdy(texCoord22);
+    vec4 color22 = textureGrad(inSampler[inNeighbor[index22[0]][index22[1]].textureID], texCoord22, dx22, dy22);
+
+    float den = (rateRight - rateLeft) * (rateTop - rateBot);
+    float weight11 = (rateRight - fract(fragTexCoord.x)) * (rateTop - fract(fragTexCoord.y));
+    float weight12 = (rateRight - fract(fragTexCoord.x)) * (fract(fragTexCoord.y) - rateBot);
+    float weight21 = (fract(fragTexCoord.x) - rateLeft) * (rateTop - fract(fragTexCoord.y));
+    float weight22 = (fract(fragTexCoord.x) - rateLeft) * (fract(fragTexCoord.y) - rateBot);
+    return (weight11 * color11 + weight12 * color12 + weight21 * color21 + weight22 * color22) / den;
 }
 
-float calculateMetallic(float max1, float max2, int id1, int id2, float height) {
-    float firstTile = textureGrad(metallicSampler[id1], fragTexCoord, dx, dy).b;
-    float secondTile = textureGrad(metallicSampler[id2], fragTexCoord, dx, dy).b;
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
-}
+//for X - first right Q, then left Q
+//for Y - first bot Q, then top Q
+vec4 getColorSide(sampler2D inSampler[4], ivec2 index1, ivec2 index2, float coord, float rate1, float rate2) {
+    vec2 texCoord1 = rotate(inNeighbor[index1[0]][index1[1]].rotation) * fragTexCoord;
+    vec2 dx1 = dFdx(texCoord1);
+    vec2 dy1 = dFdy(texCoord1);
+    vec4 color1 = textureGrad(inSampler[inNeighbor[index1[0]][index1[1]].textureID], texCoord1, dx1, dy1);
 
-float calculateRoughness(float max1, float max2, int id1, int id2, float height) {
-    float firstTile = textureGrad(roughnessSampler[id1], fragTexCoord, dx, dy).g;
-    float secondTile = textureGrad(roughnessSampler[id2], fragTexCoord, dx, dy).g;
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
-}
+    vec2 texCoord2 = rotate(inNeighbor[index2[0]][index2[1]].rotation) * fragTexCoord;
+    vec2 dx2 = dFdx(texCoord2);
+    vec2 dy2 = dFdy(texCoord2);
+    vec4 color2 = textureGrad(inSampler[inNeighbor[index2[0]][index2[1]].textureID], texCoord2, dx2, dy2);
 
-float calculateOcclusion(float max1, float max2, int id1, int id2, float height) {
-    float firstTile = textureGrad(occlusionSampler[id1], fragTexCoord, dx, dy).r;
-    float secondTile = textureGrad(occlusionSampler[id2], fragTexCoord, dx, dy).r;
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
-}
-
-vec3 calculateEmissive(float max1, float max2, int id1, int id2, float height) {
-    vec3 firstTile = textureGrad(emissiveSampler[id1], fragTexCoord, dx, dy).rgb;
-    vec3 secondTile = textureGrad(emissiveSampler[id2], fragTexCoord, dx, dy).rgb;
-    float delta = max2 - max1;
-    float factor = (height - max1) / delta;
-    return mix(firstTile, secondTile, factor);
+    float weight1 = (coord - rate1);
+    float weight2 = (rate2 - coord);
+    return (weight1 * color1 + weight2 * color2) / (rate2 - rate1);
 }
 
 #define getLightDir(index) lightDirectional[index]
@@ -133,53 +153,129 @@ vec3 calculateEmissive(float max1, float max2, int id1, int id2, float height) {
 #include "../pbr.glsl"
 
 void main() {
-    float height = fragHeight;
-    vec4 albedoTexture;
-    vec3 normalTexture;
-    float metallicTexture;
-    float roughnessTexture;
-    float occlusionTexture;
-    vec3 emissiveTexture;
-    if (height < push.heightLevels[0]) {
-        albedoTexture = texture(texSampler[0], fragTexCoord);
-        normalTexture = texture(normalSampler[0], fragTexCoord).rgb;
-        metallicTexture = texture(metallicSampler[0], fragTexCoord).b;
-        roughnessTexture = texture(roughnessSampler[0], fragTexCoord).g;
-        occlusionTexture = texture(occlusionSampler[0], fragTexCoord).r;
-        emissiveTexture = texture(emissiveSampler[0], fragTexCoord).rgb;
-    } else if (height < push.heightLevels[1]) {
-        albedoTexture = calculateColor(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        normalTexture = calculateNormal(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        metallicTexture = calculateMetallic(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        roughnessTexture = calculateRoughness(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        occlusionTexture = calculateOcclusion(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-        emissiveTexture = calculateEmissive(push.heightLevels[0], push.heightLevels[1], 0, 1, height);
-    } else if (height < push.heightLevels[2]) {
-        albedoTexture = calculateColor(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        normalTexture = calculateNormal(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        metallicTexture = calculateMetallic(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        roughnessTexture = calculateRoughness(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        occlusionTexture = calculateOcclusion(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-        emissiveTexture = calculateEmissive(push.heightLevels[1], push.heightLevels[2], 1, 2, height);
-    } else if (height < push.heightLevels[3]) {
-        albedoTexture = calculateColor(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-        normalTexture = calculateNormal(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-        metallicTexture = calculateMetallic(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-        roughnessTexture = calculateRoughness(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-        occlusionTexture = calculateOcclusion(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-        emissiveTexture = calculateEmissive(push.heightLevels[2], push.heightLevels[3], 2, 3, height);
-    } else {
-        albedoTexture = texture(texSampler[3], fragTexCoord);
-        normalTexture = texture(normalSampler[3], fragTexCoord).rgb;
-        metallicTexture = texture(metallicSampler[3], fragTexCoord).b;
-        roughnessTexture = texture(roughnessSampler[3], fragTexCoord).g;
-        occlusionTexture = texture(occlusionSampler[3], fragTexCoord).r;
-        emissiveTexture = texture(emissiveSampler[3], fragTexCoord).rgb;
-    }
-    outColor = albedoTexture;
+    vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;
+    vec2 dx = dFdx(texCoord);
+    vec2 dy = dFdy(texCoord);
+    int textureID = inNeighbor[1][1].textureID;
 
-    float metallicValue = metallicTexture * material.metallicFactor;
-    float roughnessValue = roughnessTexture * material.roughnessFactor;
+    vec4 albedoColor;
+    vec3 normalColor;
+    float metallicColor;
+    float roughnessColor;
+    float occlusionColor;
+    vec3 emissiveColor;
+    if (fract(fragTexCoord.x) < push.stripeLeft && fract(fragTexCoord.y) < push.stripeTop) {
+        // Q00 --- Q10
+        //  |   |   |
+        //    - | - | - -  
+        //  |   |   |
+        // Q01 --- Q11
+        //      |
+        //      |
+        albedoColor = getColorCorner(texSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop);
+        normalColor = getColorCorner(normalSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop).rgb;
+        metallicColor = getColorCorner(metallicSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop).b;
+        roughnessColor = getColorCorner(roughnessSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop).g;
+        occlusionColor = getColorCorner(occlusionSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop).r;
+        emissiveColor = getColorCorner(emissiveSampler, ivec2(0, 1), ivec2(0, 0), ivec2(1, 1), ivec2(1, 0), -push.stripeRight, push.stripeLeft, -push.stripeBot, push.stripeTop).rgb;
+    } else if (fract(fragTexCoord.x) > 1 - push.stripeRight && fract(fragTexCoord.y) > 1 - push.stripeBot) {
+        //        |
+        //        |
+        //   Q11 --- Q21
+        //    |   |   |
+        //- -   - | - |
+        //    |   |   |
+        //   Q12 --- Q22
+        albedoColor = getColorCorner(texSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop);
+        normalColor = getColorCorner(normalSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+        metallicColor = getColorCorner(metallicSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).b;
+        roughnessColor = getColorCorner(roughnessSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).g;
+        occlusionColor = getColorCorner(occlusionSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).r;
+        emissiveColor = getColorCorner(emissiveSampler, ivec2(1, 2), ivec2(1, 1), ivec2(2, 2), ivec2(2, 1), 1 - push.stripeRight, 1 + push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+    } else if (fract(fragTexCoord.x) > 1 - push.stripeRight && fract(fragTexCoord.y) < push.stripeTop) {
+        //   Q10 --- Q20
+        //    |   |   |
+        //- -   - | - |
+        //    |   |   |
+        //   Q11 --- Q21
+        //        |
+        //        |
+        albedoColor = getColorCorner(texSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop);
+        normalColor = getColorCorner(normalSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop).rgb;
+        metallicColor = getColorCorner(metallicSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop).b;
+        roughnessColor = getColorCorner(roughnessSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop).g;
+        occlusionColor = getColorCorner(occlusionSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop).r;
+        emissiveColor = getColorCorner(emissiveSampler, ivec2(1, 1), ivec2(1, 0), ivec2(2, 1), ivec2(2, 0), 1 - push.stripeRight, 1 + push.stripeLeft, -push.stripeBot, push.stripeTop).rgb;
+    } else if (fract(fragTexCoord.x) < push.stripeLeft && fract(fragTexCoord.y) > 1 - push.stripeBot) {
+        //      |
+        //      |
+        // Q01 --- Q11
+        //  |   |   |
+        //    - | - | - -
+        //  |   |   |
+        // Q02 --- Q12
+        albedoColor = getColorCorner(texSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop);
+        normalColor = getColorCorner(normalSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+        metallicColor = getColorCorner(metallicSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).b;
+        roughnessColor = getColorCorner(roughnessSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).g;
+        occlusionColor = getColorCorner(occlusionSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).r;
+        emissiveColor = getColorCorner(emissiveSampler, ivec2(0, 2), ivec2(0, 1), ivec2(1, 2), ivec2(1, 1), -push.stripeRight, push.stripeLeft, 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+    } else if (fract(fragTexCoord.x) < push.stripeLeft && fract(fragTexCoord.y) > push.stripeTop && fract(fragTexCoord.y) < 1 - push.stripeBot) {
+        //      _  _
+        //     |
+        // Q01 - Q11 -
+        //     |
+        albedoColor = getColorSide(texSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft);
+        normalColor = getColorSide(normalSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft).rgb;
+        metallicColor = getColorSide(metallicSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft).b;
+        roughnessColor = getColorSide(roughnessSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft).g;
+        occlusionColor = getColorSide(occlusionSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft).r;
+        emissiveColor = getColorSide(emissiveSampler, ivec2(1, 1), ivec2(0, 1), fract(fragTexCoord.x), -push.stripeRight, push.stripeLeft).rgb;
+    } else if (fract(fragTexCoord.x) > 1 - push.stripeRight && fract(fragTexCoord.y) > push.stripeTop && fract(fragTexCoord.y) < 1 - push.stripeBot) {
+        //   _  _
+        //       |
+        // - Q11 - Q21
+        //       |
+        albedoColor = getColorSide(texSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft);
+        normalColor = getColorSide(normalSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft).rgb;
+        metallicColor = getColorSide(metallicSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft).b;
+        roughnessColor = getColorSide(roughnessSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft).g;
+        occlusionColor = getColorSide(occlusionSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft).r;
+        emissiveColor = getColorSide(emissiveSampler, ivec2(2, 1), ivec2(1, 1), fract(fragTexCoord.x), 1 - push.stripeRight, 1 + push.stripeLeft).rgb;
+    } else if (fract(fragTexCoord.y) < push.stripeTop && fract(fragTexCoord.x) > push.stripeLeft && fract(fragTexCoord.x) < 1 - push.stripeRight) {
+        //   Q10
+        //  - | -
+        //   Q11
+        //    |
+        albedoColor = getColorSide(texSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop);
+        normalColor = getColorSide(normalSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop).rgb;
+        metallicColor = getColorSide(metallicSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop).b;
+        roughnessColor = getColorSide(roughnessSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop).g;
+        occlusionColor = getColorSide(occlusionSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop).r;
+        emissiveColor = getColorSide(emissiveSampler, ivec2(1, 1), ivec2(1, 0), fract(fragTexCoord.y), -push.stripeBot, push.stripeTop).rgb;
+    } else if (fract(fragTexCoord.y) > 1 - push.stripeBot && fract(fragTexCoord.x) > push.stripeLeft && fract(fragTexCoord.x) < 1 - push.stripeRight) {
+        //    |
+        //   Q11
+        //  - | -
+        //   Q12 
+        albedoColor = getColorSide(texSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop);
+        normalColor = getColorSide(normalSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+        metallicColor = getColorSide(metallicSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop).b;
+        roughnessColor = getColorSide(roughnessSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop).g;
+        occlusionColor = getColorSide(occlusionSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop).r;
+        emissiveColor = getColorSide(emissiveSampler, ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop).rgb;
+    } else {
+        albedoColor = textureGrad(texSampler[textureID], texCoord, dx, dy);
+        normalColor = textureGrad(normalSampler[textureID], texCoord, dx, dy).rgb;
+        metallicColor = textureGrad(metallicSampler[textureID], texCoord, dx, dy).b;
+        roughnessColor = textureGrad(roughnessSampler[textureID], texCoord, dx, dy).g;
+        occlusionColor = textureGrad(occlusionSampler[textureID], texCoord, dx, dy).r;
+        emissiveColor = textureGrad(emissiveSampler[textureID], texCoord, dx, dy).rgb;
+    }
+    outColor = albedoColor;
+
+    float metallicValue = metallicColor * material.metallicFactor;
+    float roughnessValue = roughnessColor * material.roughnessFactor;
 
     if (alphaMask.alphaMask) {
         if (outColor.a < alphaMask.alphaMaskCutoff) {
@@ -188,7 +284,7 @@ void main() {
     }
 
     if (push.enableLighting > 0) {
-        vec3 normal = normalTexture;
+        vec3 normal = normalColor;
         if (length(normal) > epsilon) {
             normal = normal * 2.0 - 1.0;
             normal = normalize(fragTBN * normal);
@@ -205,7 +301,7 @@ void main() {
             for (int i = 0; i < lightDirectionalNumber; i++) {
                 vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
                 vec3 inRadiance = getLightDir(i).color;
-                vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoColor.rgb);
                 float shadow = 0.0;
                 if (push.enableShadow > 0)
                     shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
@@ -218,7 +314,7 @@ void main() {
                 if (distance > getLightPoint(i).distance) break;
                 float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
                 vec3 inRadiance = getLightPoint(i).color * attenuation;
-                vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
+                vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoColor.rgb);
                 float shadow = 0.0;
                 if (push.enableShadow > 0)
                     shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
@@ -230,10 +326,10 @@ void main() {
             //so it doesn't matter, any texture -> .r channel
 
             //IBL
-            outColor.rgb += calculateIBL(occlusionTexture.r, normal, viewDir, metallicValue, roughnessValue, albedoTexture.rgb);
+            outColor.rgb += calculateIBL(occlusionColor.r, normal, viewDir, metallicValue, roughnessValue, albedoColor.rgb);
 
             //add emissive to resulting reflected radiance from all light sources
-            outColor.rgb += emissiveTexture * material.emissiveFactor;
+            outColor.rgb += emissiveColor * material.emissiveFactor;
         }
     }
    

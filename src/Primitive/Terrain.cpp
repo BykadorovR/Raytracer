@@ -404,7 +404,6 @@ struct HeightLevelsDebug {
   int showLOD;
   int enableShadow;
   int enableLighting;
-  alignas(16) glm::vec3 cameraPosition;
   int tile;
   float stripeLeft;
   float stripeRight;
@@ -424,9 +423,13 @@ struct HeightLevelsDebug {
 
 struct HeightLevels {
   alignas(16) float heightLevels[4];
-  alignas(16) int enableShadow;
-  alignas(16) int enableLighting;
+  int enableShadow;
+  int enableLighting;
   alignas(16) glm::vec3 cameraPosition;
+  float stripeLeft;
+  float stripeRight;
+  float stripeTop;
+  float stripeBot;
   static VkPushConstantRange getPushConstant() {
     VkPushConstantRange pushConstant{};
     // this push constant range starts at the beginning
@@ -610,15 +613,15 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
     layoutColor[2].pImmutableSamplers = nullptr;
     layoutColor[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[3].binding = 3;
-    layoutColor[3].descriptorCount = 4;
-    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutColor[3].descriptorCount = 1;
+    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutColor[3].pImmutableSamplers = nullptr;
-    layoutColor[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutColor[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[4].binding = 4;
-    layoutColor[4].descriptorCount = 1;
-    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutColor[4].descriptorCount = 4;
+    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutColor[4].pImmutableSamplers = nullptr;
-    layoutColor[4].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    layoutColor[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
@@ -821,19 +824,19 @@ void TerrainDebug::_updateColorDescriptor() {
   textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
   textureInfoColor[2] = textureHeightmap;
 
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[3] = bufferPatchInfo;
+
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
     textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
     textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
     textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[3] = textureBaseColor;
-
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[4] = bufferPatchInfo;
+  textureInfoColor[4] = textureBaseColor;
 
   _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
@@ -909,7 +912,7 @@ void TerrainDebug::setMaterial(std::shared_ptr<MaterialColor> material) {
   if (_material) {
     _material->unregisterUpdate(_descriptorSetColor);
   }
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 4}});
   _material = material;
   for (int i = 0; i < _changedMaterial.size(); i++) {
     _changedMaterial[i] = true;
@@ -992,7 +995,6 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.patchEdge = _enableEdge;
       pushConstants.showLOD = _showLoD;
-      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
       pushConstants.tile = _pickedTile;
       pushConstants.stripeLeft = _stripeLeft;
       pushConstants.stripeRight = _stripeRight;
@@ -1245,44 +1247,7 @@ void TerrainDebug::scrollNotify(double xOffset, double yOffset) {
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
 }
 
-void Terrain::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
-  std::vector<Vertex3D> vertices;
-  glm::vec2 scale = {(float)(width - 1) / _patchNumber.first, (float)(height - 1) / _patchNumber.second};
-  glm::vec2 offset = {0.5f, 0.5f};  // to match the center of the pixels
-  for (int y = 0; y < _patchNumber.second; y++) {
-    for (int x = 0; x < _patchNumber.first; x++) {
-      // define patch: 4 points (square)
-      Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
-      vertices.push_back(vertex1);
-
-      Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
-      vertices.push_back(vertex2);
-
-      Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
-      vertices.push_back(vertex3);
-
-      Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
-                         glm::vec2((float)width, (float)height);
-      vertices.push_back(vertex4);
-    }
-  }
-  _mesh->setVertices(vertices, commandBuffer);
-}
-
-Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
+Terrain::Terrain(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
                  std::pair<int, int> patchNumber,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<GameState> gameState,
@@ -1297,8 +1262,10 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
   _material = _defaultMaterialColor;
   _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _heightMapCPU = heightMapCPU;
+  _heightMapGPU = _gameState->getResourceManager()->loadImageGPU<uint8_t>({heightMapCPU});
 
-  _heightMap = std::make_shared<Texture>(heightMap, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
+  _heightMap = std::make_shared<Texture>(_heightMapGPU, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
                                          VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
                                          commandBufferTransfer, engineState);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
@@ -1473,10 +1440,14 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     }
   }
 
+  _patchDescriptionSSBO.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _reallocatePatchDescription(i);
+  }
   // layout for Color
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(4);
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor(5);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
     layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1493,10 +1464,16 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutColor[2].pImmutableSamplers = nullptr;
     layoutColor[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[3].binding = 3;
-    layoutColor[3].descriptorCount = 4;
-    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutColor[3].descriptorCount = 1;
+    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutColor[3].pImmutableSamplers = nullptr;
-    layoutColor[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutColor[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    layoutColor[4].binding = 4;
+    layoutColor[4].descriptorCount = 4;
+    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutColor[4].pImmutableSamplers = nullptr;
+    layoutColor[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
@@ -1528,7 +1505,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   // layout for Phong
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(8);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
     layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1545,10 +1522,10 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPhong[2].pImmutableSamplers = nullptr;
     layoutPhong[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 4;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPhong[3].descriptorCount = 1;
+    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutPhong[4].binding = 4;
     layoutPhong[4].descriptorCount = 4;
     layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1560,10 +1537,15 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPhong[5].pImmutableSamplers = nullptr;
     layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPhong[6].binding = 6;
-    layoutPhong[6].descriptorCount = 1;
-    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPhong[6].descriptorCount = 4;
+    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPhong[6].pImmutableSamplers = nullptr;
     layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[7].binding = 7;
+    layoutPhong[7].descriptorCount = 1;
+    layoutPhong[7].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPhong[7].pImmutableSamplers = nullptr;
+    layoutPhong[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPhong);
 
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
@@ -1598,7 +1580,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
   // layout for PBR
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(14);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(15);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
     layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1615,10 +1597,10 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPBR[2].pImmutableSamplers = nullptr;
     layoutPBR[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 4;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutPBR[3].descriptorCount = 1;
+    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutPBR[4].binding = 4;
     layoutPBR[4].descriptorCount = 4;
     layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1645,7 +1627,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPBR[8].pImmutableSamplers = nullptr;
     layoutPBR[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[9].binding = 9;
-    layoutPBR[9].descriptorCount = 1;
+    layoutPBR[9].descriptorCount = 4;
     layoutPBR[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[9].pImmutableSamplers = nullptr;
     layoutPBR[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -1661,7 +1643,7 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPBR[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[12].binding = 12;
     layoutPBR[12].descriptorCount = 1;
-    layoutPBR[12].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPBR[12].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[12].pImmutableSamplers = nullptr;
     layoutPBR[12].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     layoutPBR[13].binding = 13;
@@ -1669,6 +1651,11 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
     layoutPBR[13].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutPBR[13].pImmutableSamplers = nullptr;
     layoutPBR[13].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[14].binding = 14;
+    layoutPBR[14].descriptorCount = 1;
+    layoutPBR[14].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPBR[14].pImmutableSamplers = nullptr;
+    layoutPBR[14].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PBR].push_back(
@@ -1699,6 +1686,48 @@ Terrain::Terrain(std::shared_ptr<BufferImage> heightMap,
           _renderPass);
     }
   }
+
+  _changePatch.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _updatePatchDescription(i);
+  }
+}
+
+void Terrain::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+  std::vector<Vertex3D> vertices;
+  glm::vec2 scale = {(float)(width - 1) / _patchNumber.first, (float)(height - 1) / _patchNumber.second};
+  glm::vec2 offset = {0.5f, 0.5f};  // to match the center of the pixels
+  for (int y = 0; y < _patchNumber.second; y++) {
+    for (int x = 0; x < _patchNumber.first; x++) {
+      // define patch: 4 points (square)
+      Vertex3D vertex1{};
+      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
+      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex1);
+
+      Vertex3D vertex2{};
+      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
+      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex2);
+
+      Vertex3D vertex3{};
+      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
+      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex3);
+
+      Vertex3D vertex4{};
+      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
+      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
+                         glm::vec2((float)width, (float)height);
+      vertices.push_back(vertex4);
+    }
+  }
+  _mesh->setVertices(vertices, commandBuffer);
 }
 
 void Terrain::_updateColorDescriptor() {
@@ -1724,13 +1753,19 @@ void Terrain::_updateColorDescriptor() {
   textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
   textureInfoColor[2] = textureHeightmap;
 
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[3] = bufferPatchInfo;
+
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
     textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
     textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
     textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[3] = textureBaseColor;
+  textureInfoColor[4] = textureBaseColor;
 
   _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
@@ -1758,13 +1793,19 @@ void Terrain::_updatePhongDescriptor() {
   textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
   textureInfoColor[2] = textureHeightmap;
 
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[3] = bufferPatchInfo;
+
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
     textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
     textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
     textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[3] = textureBaseColor;
+  textureInfoColor[4] = textureBaseColor;
 
   std::vector<VkDescriptorImageInfo> textureBaseNormal(material->getNormal().size());
   for (int j = 0; j < material->getNormal().size(); j++) {
@@ -1772,7 +1813,7 @@ void Terrain::_updatePhongDescriptor() {
     textureBaseNormal[j].imageView = material->getNormal()[j]->getImageView()->getImageView();
     textureBaseNormal[j].sampler = material->getNormal()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[4] = textureBaseNormal;
+  textureInfoColor[5] = textureBaseNormal;
 
   std::vector<VkDescriptorImageInfo> textureBaseSpecular(material->getSpecular().size());
   for (int j = 0; j < material->getSpecular().size(); j++) {
@@ -1780,14 +1821,14 @@ void Terrain::_updatePhongDescriptor() {
     textureBaseSpecular[j].imageView = material->getSpecular()[j]->getImageView()->getImageView();
     textureBaseSpecular[j].sampler = material->getSpecular()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[5] = textureBaseSpecular;
+  textureInfoColor[6] = textureBaseSpecular;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
   // write to binding = 0 for vertex shader
   bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
   bufferInfoCoefficients[0].offset = 0;
   bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
-  bufferInfoColor[6] = bufferInfoCoefficients;
+  bufferInfoColor[7] = bufferInfoCoefficients;
   _descriptorSetPhong->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
@@ -1814,13 +1855,19 @@ void Terrain::_updatePBRDescriptor() {
   textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
   textureInfoColor[2] = textureHeightmap;
 
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[3] = bufferPatchInfo;
+
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
     textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
     textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
     textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[3] = textureBaseColor;
+  textureInfoColor[4] = textureBaseColor;
 
   std::vector<VkDescriptorImageInfo> textureBaseNormal(material->getNormal().size());
   for (int j = 0; j < material->getNormal().size(); j++) {
@@ -1828,7 +1875,7 @@ void Terrain::_updatePBRDescriptor() {
     textureBaseNormal[j].imageView = material->getNormal()[j]->getImageView()->getImageView();
     textureBaseNormal[j].sampler = material->getNormal()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[4] = textureBaseNormal;
+  textureInfoColor[5] = textureBaseNormal;
 
   std::vector<VkDescriptorImageInfo> textureBaseMetallic(material->getMetallic().size());
   for (int j = 0; j < material->getMetallic().size(); j++) {
@@ -1836,7 +1883,7 @@ void Terrain::_updatePBRDescriptor() {
     textureBaseMetallic[j].imageView = material->getMetallic()[j]->getImageView()->getImageView();
     textureBaseMetallic[j].sampler = material->getMetallic()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[5] = textureBaseMetallic;
+  textureInfoColor[6] = textureBaseMetallic;
 
   std::vector<VkDescriptorImageInfo> textureBaseRoughness(material->getRoughness().size());
   for (int j = 0; j < material->getRoughness().size(); j++) {
@@ -1844,7 +1891,7 @@ void Terrain::_updatePBRDescriptor() {
     textureBaseRoughness[j].imageView = material->getRoughness()[j]->getImageView()->getImageView();
     textureBaseRoughness[j].sampler = material->getRoughness()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[6] = textureBaseRoughness;
+  textureInfoColor[7] = textureBaseRoughness;
 
   std::vector<VkDescriptorImageInfo> textureBaseOcclusion(material->getOccluded().size());
   for (int j = 0; j < material->getOccluded().size(); j++) {
@@ -1852,7 +1899,7 @@ void Terrain::_updatePBRDescriptor() {
     textureBaseOcclusion[j].imageView = material->getOccluded()[j]->getImageView()->getImageView();
     textureBaseOcclusion[j].sampler = material->getOccluded()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[7] = textureBaseOcclusion;
+  textureInfoColor[8] = textureBaseOcclusion;
 
   std::vector<VkDescriptorImageInfo> textureBaseEmissive(material->getEmissive().size());
   for (int j = 0; j < material->getEmissive().size(); j++) {
@@ -1860,42 +1907,106 @@ void Terrain::_updatePBRDescriptor() {
     textureBaseEmissive[j].imageView = material->getEmissive()[j]->getImageView()->getImageView();
     textureBaseEmissive[j].sampler = material->getEmissive()[j]->getSampler()->getSampler();
   }
-  textureInfoColor[8] = textureBaseEmissive;
+  textureInfoColor[9] = textureBaseEmissive;
 
   // TODO: this textures are part of global engineState for PBR
   std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
   bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
   bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
   bufferInfoIrradiance[0].sampler = material->getDiffuseIBL()->getSampler()->getSampler();
-  textureInfoColor[9] = bufferInfoIrradiance;
+  textureInfoColor[10] = bufferInfoIrradiance;
 
   std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
   bufferInfoSpecularIBL[0].imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
   bufferInfoSpecularIBL[0].imageView = material->getSpecularIBL()->getImageView()->getImageView();
   bufferInfoSpecularIBL[0].sampler = material->getSpecularIBL()->getSampler()->getSampler();
-  textureInfoColor[10] = bufferInfoSpecularIBL;
+  textureInfoColor[11] = bufferInfoSpecularIBL;
 
   std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
   bufferInfoSpecularBRDF[0].imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
   bufferInfoSpecularBRDF[0].imageView = material->getSpecularBRDF()->getImageView()->getImageView();
   bufferInfoSpecularBRDF[0].sampler = material->getSpecularBRDF()->getSampler()->getSampler();
-  textureInfoColor[11] = bufferInfoSpecularBRDF;
+  textureInfoColor[12] = bufferInfoSpecularBRDF;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
   // write to binding = 0 for vertex shader
   bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
   bufferInfoCoefficients[0].offset = 0;
   bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
-  bufferInfoColor[12] = bufferInfoCoefficients;
+  bufferInfoColor[13] = bufferInfoCoefficients;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
   // write to binding = 0 for vertex shader
   bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
   bufferInfoAlphaCutoff[0].offset = 0;
   bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
-  bufferInfoColor[13] = bufferInfoAlphaCutoff;
+  bufferInfoColor[14] = bufferInfoAlphaCutoff;
 
   _descriptorSetPBR->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+}
+
+void Terrain::_reallocatePatchDescription(int currentFrame) {
+  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+  //
+  for (int y = 0; y < _patchNumber.second; y++)
+    for (int x = 0; x < _patchNumber.first; x++) {
+      int patchX0 = (float)x / _patchNumber.first * width;
+      int patchY0 = (float)y / _patchNumber.second * height;
+      int patchX1 = (float)(x + 1) / _patchNumber.first * width;
+      int patchY1 = (float)(y + 1) / _patchNumber.second * height;
+
+      int heightLevel = 0;
+      for (int i = patchY0; i < patchY1; i++) {
+        for (int j = patchX0; j < patchX1; j++) {
+          int textureCoord = (j + i * width) * _heightMapCPU->getChannels();
+          heightLevel = std::max(heightLevel, (int)_heightMapCPU->getData()[textureCoord]);
+        }
+      }
+
+      int index = x + y * _patchNumber.first;
+      if (heightLevel < _heightLevels[0]) {
+        _patchTextures[index] = 0;
+      } else if (heightLevel < _heightLevels[1]) {
+        _patchTextures[index] = 1;
+      } else if (heightLevel < _heightLevels[2]) {
+        _patchTextures[index] = 2;
+      } else {
+        _patchTextures[index] = 3;
+      }
+    }
+
+  _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
+  _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
+      _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+}
+
+void Terrain::_updatePatchDescription(int currentFrame) {
+  std::vector<PatchDescription> patchData(_patchNumber.first * _patchNumber.second);
+  for (int i = 0; i < patchData.size(); i++) {
+    patchData[i] = PatchDescription({.rotation = 90 * _patchRotationsIndex[i], .textureID = _patchTextures[i]});
+  }
+  // fill only number of lights because it's stub
+  _patchDescriptionSSBO[currentFrame]->setData(patchData.data(), patchData.size() * sizeof(PatchDescription));
+}
+
+void Terrain::setAuxilary(std::string path) {
+  std::ifstream file(path);
+  nlohmann::json inputJSON;
+  file >> inputJSON;
+  _stripeLeft = inputJSON["stripe"][0];
+  _stripeRight = inputJSON["stripe"][1];
+  _stripeTop = inputJSON["stripe"][2];
+  _stripeBot = inputJSON["stripe"][3];
+  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
+    _patchRotationsIndex[i] = inputJSON["rotation"][i];
+  }
+  for (int i = 0; i < inputJSON["textures"].size(); i++) {
+    _patchTextures[i] = inputJSON["textures"][i];
+  }
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changePatch[i] = true;
 }
 
 void Terrain::setTessellationLevel(int min, int max) {
@@ -1923,7 +2034,7 @@ void Terrain::setMaterial(std::shared_ptr<MaterialColor> material) {
   if (_material) {
     _material->unregisterUpdate(_descriptorSetColor);
   }
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 3}});
+  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 4}});
   _material = material;
   _materialType = MaterialType::COLOR;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -1934,7 +2045,7 @@ void Terrain::setMaterial(std::shared_ptr<MaterialColor> material) {
 void Terrain::setMaterial(std::shared_ptr<MaterialPhong> material) {
   if (_material) _material->unregisterUpdate(_descriptorSetPhong);
   material->registerUpdate(_descriptorSetPhong,
-                           {{MaterialTexture::COLOR, 3}, {MaterialTexture::NORMAL, 4}, {MaterialTexture::SPECULAR, 5}});
+                           {{MaterialTexture::COLOR, 4}, {MaterialTexture::NORMAL, 5}, {MaterialTexture::SPECULAR, 6}});
   _material = material;
   _materialType = MaterialType::PHONG;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -1944,15 +2055,15 @@ void Terrain::setMaterial(std::shared_ptr<MaterialPhong> material) {
 
 void Terrain::setMaterial(std::shared_ptr<MaterialPBR> material) {
   if (_material) _material->unregisterUpdate(_descriptorSetPBR);
-  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 3},
-                                               {MaterialTexture::NORMAL, 4},
-                                               {MaterialTexture::METALLIC, 5},
-                                               {MaterialTexture::ROUGHNESS, 6},
-                                               {MaterialTexture::OCCLUSION, 7},
-                                               {MaterialTexture::EMISSIVE, 8},
-                                               {MaterialTexture::IBL_DIFFUSE, 9},
-                                               {MaterialTexture::IBL_SPECULAR, 10},
-                                               {MaterialTexture::BRDF_SPECULAR, 11}});
+  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 4},
+                                               {MaterialTexture::NORMAL, 5},
+                                               {MaterialTexture::METALLIC, 6},
+                                               {MaterialTexture::ROUGHNESS, 7},
+                                               {MaterialTexture::OCCLUSION, 8},
+                                               {MaterialTexture::EMISSIVE, 9},
+                                               {MaterialTexture::IBL_DIFFUSE, 10},
+                                               {MaterialTexture::IBL_SPECULAR, 11},
+                                               {MaterialTexture::BRDF_SPECULAR, 12}});
   _material = material;
   _materialType = MaterialType::PBR;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -2023,6 +2134,10 @@ void Terrain::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
       pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
+      pushConstants.stripeLeft = _stripeLeft;
+      pushConstants.stripeRight = _stripeRight;
+      pushConstants.stripeTop = _stripeTop;
+      pushConstants.stripeBot = _stripeBot;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
                          sizeof(HeightLevels), &pushConstants);
@@ -2100,6 +2215,16 @@ void Terrain::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
   };
+
+  if (_changePatch[_engineState->getFrameInFlight()]) {
+    _updatePatchDescription(_engineState->getFrameInFlight());
+    _changePatch[_engineState->getFrameInFlight()] = false;
+  }
+
+  if (_changedMaterial[currentFrame]) {
+    _updateColorDescriptor();
+    _changedMaterial[currentFrame] = false;
+  }
 
   auto pipeline = _pipeline[_materialType];
   drawTerrain(pipeline);

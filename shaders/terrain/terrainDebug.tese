@@ -25,7 +25,7 @@ layout (location = 0) out vec2 TexCoord;
 layout (location = 1) out vec3 outTessColor;
 layout (location = 2) flat out PatchDescription outNeighbor[3][3];
 
-layout(std140, set = 0, binding = 4) readonly buffer PatchDescriptionBuffer {
+layout(std140, set = 0, binding = 3) readonly buffer PatchDescriptionBuffer {
     PatchDescription patchDescription[];
 };
 

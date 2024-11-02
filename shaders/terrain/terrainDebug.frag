@@ -14,7 +14,7 @@ layout(location = 2) flat in PatchDescription inNeighbor[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
-layout(set = 0, binding = 3) uniform sampler2D texSampler[4];
+layout(set = 0, binding = 4) uniform sampler2D texSampler[4];
 
 layout(push_constant) uniform constants {
     layout(offset = 32) float heightLevels[4];
@@ -22,7 +22,6 @@ layout(push_constant) uniform constants {
     int tessColorFlag;
     int enableShadow;
     int enableLighting;
-    vec3 cameraPosition;
     int pickedPatch;
     float stripeLeft;
     float stripeRight;
@@ -85,7 +84,7 @@ vec4 getColorSide(ivec2 index1, ivec2 index2, float coord, float rate1, float ra
 
     float weight1 = (coord - rate1);
     float weight2 = (rate2 - coord);
-    return outColor = (weight1 * color1 + weight2 * color2) / (rate2 - rate1);
+    return (weight1 * color1 + weight2 * color2) / (rate2 - rate1);
 }
 
 void main() {

@@ -7,6 +7,7 @@ layout (vertices = 4) out;
 
 // varying input from vertex shader
 layout (location = 0) in vec2 TexCoord[];
+
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
@@ -40,7 +41,7 @@ void main() {
 
     //set default level for tessColor
     gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
-    
+
     // ----------------------------------------------------------------------
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {

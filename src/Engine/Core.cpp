@@ -1023,8 +1023,7 @@ std::shared_ptr<Sprite> Core::createSprite() {
 
 std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                              std::pair<int, int> patches) {
-  return std::make_shared<Terrain>(_gameState->getResourceManager()->loadImageGPU<uint8_t>({heightmap}), patches,
-                                   _commandBufferApplication, _gameState, _engineState);
+  return std::make_shared<Terrain>(heightmap, patches, _commandBufferApplication, _gameState, _engineState);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap) {

@@ -59,12 +59,8 @@ void main() {
 
     float heightValue = texture(heightMap, TexCoord).x;
     TexCoord = vec2(u, v);
-    // calculate the same way as in C++, but result is the same as in the line above
-    //float heightValue = calculateHeightPosition(p.xz, texCoord);
-
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
-
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;

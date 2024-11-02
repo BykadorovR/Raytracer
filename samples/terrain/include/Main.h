@@ -32,13 +32,13 @@ class Main {
   std::shared_ptr<Terrain> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  bool _showGPU = true, _showCPU = true;
+  bool _showGPU = true, _showCPU = true, _showTerrain = true;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
   enum class Type { COLOR = 1, PHONG = 2, PBR = 3 };
   int _typeIndex = 0;
-
+  char _terrainPath[256] = "";
   int _patchX = 12, _patchY = 12;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
@@ -49,9 +49,10 @@ class Main {
   glm::vec3 _terrainPositionDebug = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainScale = glm::vec3(0.1f, 0.1f, 0.1f);
 
-  void _createTerrainColor();
-  void _createTerrainPhong();
-  void _createTerrainPBR();
+  void _loadAuxilary(std::string path);
+  void _createTerrainColor(std::string path);
+  void _createTerrainPhong(std::string path);
+  void _createTerrainPBR(std::string path);
 
  public:
   Main();

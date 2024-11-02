@@ -36,7 +36,7 @@ vec3 hsv2rgb(vec3 c) {
 void main() {
     // ----------------------------------------------------------------------
     // pass attributes through
-    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;    
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
 
     //set default level for tessColor

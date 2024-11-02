@@ -88,6 +88,11 @@ class TerrainCPU : public Drawable {
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
 
+struct alignas(16) PatchDescription {
+  int rotation;
+  int textureID;
+};
+
 class TerrainDebug : public Drawable, public InputSubscriber {
  private:
   std::shared_ptr<EngineState> _engineState;
@@ -137,11 +142,6 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<bool> _changedHeightmap;
   char _terrainPath[256] = "";
   std::optional<glm::vec3> _hitCoords;
-
-  struct alignas(16) PatchDescription {
-    int rotation;
-    int textureID;
-  };
 
   void _updateColorDescriptor();
   int _calculateTileByPosition(glm::vec3 position);
@@ -223,19 +223,29 @@ class Terrain : public Drawable, public Shadowable {
   float _minDistance = 30, _maxDistance = 100;
   bool _enableLighting = true;
   bool _enableShadow = true;
+  std::vector<int> _patchTextures;
+  std::vector<int> _patchRotationsIndex;
+  std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
+  std::shared_ptr<ImageCPU<uint8_t>> _heightMapCPU;
+  std::shared_ptr<BufferImage> _heightMapGPU;
+  float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
+  std::vector<bool> _changePatch;
 
+  void _reallocatePatchDescription(int currentFrame);
+  void _updatePatchDescription(int currentFrame);
   void _updateColorDescriptor();
   void _updatePhongDescriptor();
   void _updatePBRDescriptor();
   void _calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
-  Terrain(std::shared_ptr<BufferImage> heightMap,
+  Terrain(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
           std::pair<int, int> patchNumber,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<GameState> gameState,
           std::shared_ptr<EngineState> engineState);
 
+  void setAuxilary(std::string path);
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);

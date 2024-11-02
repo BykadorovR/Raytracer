@@ -27,9 +27,10 @@ void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
-void Main::_createTerrainPhong() {
+void Main::_createTerrainPhong(std::string path) {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  auto heightmap = _core->loadImageCPU(path);
+  _terrain = _core->createTerrain(heightmap, {_patchX, _patchY});
   _terrain->setMaterial(_materialPhong);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -45,9 +46,10 @@ void Main::_createTerrainPhong() {
   _core->addDrawable(_terrain);
 }
 
-void Main::_createTerrainPBR() {
+void Main::_createTerrainPBR(std::string path) {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  auto heightmap = _core->loadImageCPU(path);
+  _terrain = _core->createTerrain(heightmap, {_patchX, _patchY});
   _terrain->setMaterial(_materialPBR);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -63,9 +65,10 @@ void Main::_createTerrainPBR() {
   _core->addDrawable(_terrain);
 }
 
-void Main::_createTerrainColor() {
+void Main::_createTerrainColor(std::string path) {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  auto heightmap = _core->loadImageCPU(path);
+  _terrain = _core->createTerrain(heightmap, {_patchX, _patchY});
   _terrain->setMaterial(_materialColor);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -249,12 +252,11 @@ Main::Main() {
     fillMaterialPBR(_materialPBR);
   }
 
-  _createTerrainColor();
+  _createTerrainColor("../assets/heightmap.png");
 
   auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
-  _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x + 256 * _terrainScale.x, _terrainPositionDebug.y,
-                                    _terrainPositionDebug.z);
+  _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x, _terrainPositionDebug.y, _terrainPositionDebug.z);
 
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
@@ -367,13 +369,13 @@ void Main::update() {
       _core->startRecording();
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor();
+          _createTerrainColor("../assets/heightmap.png");
           break;
         case 1:
-          _createTerrainPhong();
+          _createTerrainPhong("../assets/heightmap.png");
           break;
         case 2:
-          _createTerrainPBR();
+          _createTerrainPBR("../assets/heightmap.png");
           break;
       }
       _core->endRecording();
@@ -384,13 +386,36 @@ void Main::update() {
     if (_core->getGUI()->drawInputInt(tesselationLevels)) {
       _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
+
+    _core->getGUI()->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
+
+    if (_core->getGUI()->drawButton("Load terrain")) {
+      _core->startRecording();
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor(std::string(_terrainPath) + ".png");
+          break;
+        case 1:
+          _createTerrainPhong(std::string(_terrainPath) + ".png");
+          break;
+        case 2:
+          _createTerrainPBR(std::string(_terrainPath) + ".png");
+          break;
+      }
+      _core->endRecording();
+      _terrain->setAuxilary(std::string(_terrainPath) + ".json");
+    }
+
     _core->getGUI()->endTree();
   }
-  _core->getGUI()->endWindow();
 
-  _core->getGUI()->startWindow("Editor");
-  _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
-  _terrainDebug->drawDebug();
+  if (_core->getGUI()->drawCheckbox({{"Show Terrain", &_showTerrain}})) {
+    if (_showTerrain == false) {
+      _core->removeDrawable(_terrain);
+    } else {
+      _core->addDrawable(_terrain);
+    }
+  }
   if (_core->getGUI()->drawCheckbox({{"Show GPU", &_showGPU}})) {
     if (_showGPU == false) {
       _core->removeDrawable(_terrainDebug);
@@ -406,6 +431,13 @@ void Main::update() {
     }
   }
   _core->getGUI()->endWindow();
+
+  if (_showCPU || _showGPU) {
+    _core->getGUI()->startWindow("Editor");
+    _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
+    _terrainDebug->drawDebug();
+    _core->getGUI()->endWindow();
+  }
 
   // should be in the end in case of "load terrain" pressed and handled in drawDebug()
   if (_terrainDebug->heightmapChanged()) {
