@@ -32,14 +32,13 @@ class Main {
   std::shared_ptr<Terrain> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  bool _showGPU = true, _showCPU = true, _showTerrain = true;
+  bool _showGPU = false, _showCPU = false, _showTerrain = true;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
-  enum class Type { COLOR = 1, PHONG = 2, PBR = 3 };
-  int _typeIndex = 0;
+  int _typeIndex = 1;
   char _terrainPath[256] = "";
-  int _patchX = 12, _patchY = 12;
+  int _patchX = 64, _patchY = 64;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};

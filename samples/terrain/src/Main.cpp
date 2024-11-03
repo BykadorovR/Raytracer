@@ -252,7 +252,17 @@ Main::Main() {
     fillMaterialPBR(_materialPBR);
   }
 
-  _createTerrainColor("../assets/heightmap.png");
+  switch (_typeIndex) {
+    case 0:
+      _createTerrainColor("../assets/heightmap.png");
+      break;
+    case 1:
+      _createTerrainPhong("../assets/heightmap.png");
+      break;
+    case 2:
+      _createTerrainPBR("../assets/heightmap.png");
+      break;
+  }
 
   auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
@@ -289,7 +299,6 @@ Main::Main() {
     auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
     _terrainDebug->setModel(scaleMatrix);
   }
-  _core->addDrawable(_terrainDebug);
 
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
@@ -298,8 +307,6 @@ Main::Main() {
     model = glm::scale(model, _terrainScale);
     _terrainCPU->setModel(model);
   }
-
-  _core->addDrawable(_terrainCPU);
 
   _core->endRecording();
 
