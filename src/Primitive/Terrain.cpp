@@ -365,63 +365,6 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   drawTerrain(pipeline);
 }
 
-struct TesselationControlPush {
-  int patchDimX;
-  int patchDimY;
-  int minTessellationLevel;
-  int maxTessellationLevel;
-  float near;
-  float far;
-
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant{};
-    // this push constant range starts at the beginning
-    // this push constant range takes up the size of a MeshPushConstants struct
-    pushConstant.size = sizeof(TesselationControlPush);
-    // this push constant range is accessible only in the vertex shader
-    pushConstant.stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    return pushConstant;
-  }
-};
-
-struct TesselationEvaluationPush {
-  float heightScale;
-  float heightShift;
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant{};
-    // this push constant range starts at the beginning
-    // this push constant range takes up the size of a MeshPushConstants struct
-    pushConstant.offset = sizeof(TesselationControlPush);
-    pushConstant.size = sizeof(TesselationEvaluationPush);
-    // this push constant range is accessible only in the vertex shader
-    pushConstant.stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    return pushConstant;
-  }
-};
-
-struct FragmentPushDebug {
-  alignas(16) float heightLevels[4];
-  alignas(16) int patchEdge;
-  int showLOD;
-  int enableShadow;
-  int enableLighting;
-  int tile;
-  float stripeLeft;
-  float stripeRight;
-  float stripeTop;
-  float stripeBot;
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant{};
-    // this push constant range starts at the beginning
-    // this push constant range takes up the size of a MeshPushConstants struct
-    pushConstant.offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPush);
-    pushConstant.size = sizeof(FragmentPushDebug);
-    // this push constant range is accessible only in the vertex shader
-    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    return pushConstant;
-  }
-};
-
 struct LoDConstants {
   int minTessellationLevel;
   int maxTessellationLevel;
@@ -530,13 +473,9 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
   }
 
   std::map<std::string, VkPushConstantRange> defaultPushConstants;
-  defaultPushConstants["control"] = TesselationControlPush::getPushConstant();
-  defaultPushConstants["evaluate"] = TesselationEvaluationPush::getPushConstant();
-  defaultPushConstants["fragment"] = FragmentPushDebug::getPushConstant();
-
-  std::map<std::string, VkPushConstantRange> defaultPushConstantsNormal;
-  defaultPushConstantsNormal["control"] = TesselationControlPush::getPushConstant();
-  defaultPushConstantsNormal["evaluateNormal"] = PatchConstants::getPushConstant();
+  defaultPushConstants["control"] = LoDConstants::getPushConstant();
+  defaultPushConstants["evaluate"] = PatchConstants::getPushConstant();
+  defaultPushConstants["fragment"] = HeightLevelsDebug::getPushConstant();
 
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
@@ -607,7 +546,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
       auto shaderNormal = std::make_shared<Shader>(engineState);
       shaderNormal->add("shaders/terrain/terrainDebug_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      shaderNormal->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+      shaderNormal->add("shaders/terrain/terrainDebug_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
@@ -619,7 +558,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
-          _descriptorSetLayoutNormalsMesh, defaultPushConstantsNormal, _mesh[0]->getBindingDescription(),
+          _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                     {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
@@ -630,7 +569,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
       auto shaderNormal = std::make_shared<Shader>(engineState);
       shaderNormal->add("shaders/terrain/terrainDebug_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      shaderNormal->add("shaders/terrain/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+      shaderNormal->add("shaders/terrain/terrainDebug_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shaderNormal->add("shaders/terrain/terrainTangent_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
@@ -642,7 +581,7 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
-          _descriptorSetLayoutNormalsMesh, defaultPushConstantsNormal, _mesh[0]->getBindingDescription(),
+          _descriptorSetLayoutNormalsMesh, defaultPushConstants, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                     {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
@@ -665,17 +604,17 @@ TerrainDebug::TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
     layoutColor[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
     layoutColor[1].binding = 1;
     layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+    layoutColor[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[2].binding = 2;
     layoutColor[2].descriptorCount = 1;
-    layoutColor[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutColor[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutColor[2].pImmutableSamplers = nullptr;
     layoutColor[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[3].binding = 3;
     layoutColor[3].descriptorCount = 1;
-    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     layoutColor[3].pImmutableSamplers = nullptr;
     layoutColor[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
     layoutColor[4].binding = 4;
@@ -873,23 +812,23 @@ void TerrainDebug::_updateColorDescriptor() {
   bufferInfoCameraControl[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCameraControl;
 
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferPatchInfo;
-
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
   bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
   bufferInfoCameraEval[0].offset = 0;
   bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-  bufferInfoColor[2] = bufferInfoCameraEval;
+  bufferInfoColor[1] = bufferInfoCameraEval;
 
   std::vector<VkDescriptorImageInfo> textureHeightmap(1);
   textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
   textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
   textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-  textureInfoColor[3] = textureHeightmap;
+  textureInfoColor[2] = textureHeightmap;
+
+  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
+  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
+  bufferPatchInfo[0].offset = 0;
+  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
+  bufferInfoColor[3] = bufferPatchInfo;
 
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
@@ -1029,41 +968,30 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     scissor.offset = {0, 0};
     scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
-      TesselationControlPush pushConstants;
-      pushConstants.patchDimX = _patchNumber.first;
-      pushConstants.patchDimY = _patchNumber.second;
+      LoDConstants pushConstants;
       pushConstants.near = _minDistance;
       pushConstants.far = _maxDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(TesselationControlPush), &pushConstants);
+                         VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(LoDConstants), &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPush pushConstants;
-
-      pushConstants.heightScale = _heightScale;
-      pushConstants.heightShift = _heightShift;
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(TesselationControlPush),
-                         sizeof(TesselationEvaluationPush), &pushConstants);
-    }
-
-    if (pipeline->getPushConstants().find("evaluateNormal") != pipeline->getPushConstants().end()) {
       PatchConstants pushConstants;
       pushConstants.patchDimX = _patchNumber.first;
       pushConstants.patchDimY = _patchNumber.second;
       pushConstants.heightScale = _heightScale;
       pushConstants.heightShift = _heightShift;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(TesselationControlPush),
-                         sizeof(PatchConstants), &pushConstants);
+                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(LoDConstants), sizeof(PatchConstants),
+                         &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
-      FragmentPushDebug pushConstants;
+      HeightLevelsDebug pushConstants;
       std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.patchEdge = _enableEdge;
       pushConstants.showLOD = _showLoD;
@@ -1073,9 +1001,8 @@ void TerrainDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.stripeTop = _stripeTop;
       pushConstants.stripeBot = _stripeBot;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_FRAGMENT_BIT,
-                         sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPush), sizeof(FragmentPushDebug),
-                         &pushConstants);
+                         VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(LoDConstants) + sizeof(PatchConstants),
+                         sizeof(HeightLevelsDebug), &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
