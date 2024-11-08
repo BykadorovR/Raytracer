@@ -85,7 +85,7 @@ void Main::_createTerrainColor(std::string path) {
 }
 
 Main::Main() {
-  int mipMapLevels = 8;
+  int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
   settings->setName("Terrain");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
