@@ -15,10 +15,8 @@ layout(set = 0, binding = 1) uniform UniformCamera {
 layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout(location = 0) out vec4 modelCoords;
 
-layout( push_constant ) uniform constants {
-    layout(offset = 16) int patchDimX;
-    int patchDimY;
-    float heightScale;
+layout( push_constant ) uniform constants {    
+    layout(offset = 16) float heightScale;
     float heightShift;
 } push;
 

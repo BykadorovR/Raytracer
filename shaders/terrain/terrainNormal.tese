@@ -5,7 +5,6 @@ layout (quads, fractional_odd_spacing, ccw) in;
 
 // received from Tessellation Control Shader - all texture coordinates for the patch vertices
 layout (location = 0) in vec2 TextureCoord[];
-layout (location = 1) in vec3 tessColor[];
 
 layout(set = 0, binding = 1) uniform UniformCamera {
     mat4 model;

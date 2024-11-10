@@ -144,8 +144,8 @@ vec4 getColorSide(sampler2D inSampler[4], ivec2 index1, ivec2 index2, float coor
 #define getLightPoint(index) lightPoint[index]
 #define getLightAmbient(index) lightAmbient[index]
 #define getMaterial() material
-#include "../shadow.glsl"
-#include "../phong.glsl"
+#include "../../shadow.glsl"
+#include "../../phong.glsl"
 
 void main() {
     vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;

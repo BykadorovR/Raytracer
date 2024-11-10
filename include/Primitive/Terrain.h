@@ -94,28 +94,20 @@ struct alignas(16) PatchDescription {
 };
 
 class TerrainDebug : public Drawable, public InputSubscriber {
- private:
+ protected:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
-
-  std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
-  std::shared_ptr<Material> _material;
-  std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  std::vector<bool> _changedMaterial;
-
-  std::shared_ptr<GUI> _gui;
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh;
-  std::shared_ptr<DescriptorSet> _descriptorSetNormal;
+  std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::shared_ptr<DescriptorSet> _descriptorSetColor;
-  std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
-  std::shared_ptr<Pipeline> _pipelineNormalMesh, _pipelineTangentMesh;
-  std::shared_ptr<RenderPass> _renderPass;
+
+  std::shared_ptr<Material> _material;
+  std::vector<bool> _changedMaterial;
   std::shared_ptr<ImageCPU<uint8_t>> _heightMapCPU;
   std::shared_ptr<BufferImage> _heightMapGPU;
   std::shared_ptr<Texture> _heightMap;
-  std::pair<int, int> _patchNumber;
+  std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
+
+  DrawType _drawType = DrawType::FILL;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
@@ -125,44 +117,20 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   bool _showLoD = false;
   bool _enableLighting = true;
   bool _enableShadow = true;
-  DrawType _drawType = DrawType::FILL;
-  int _pickedTile = -1;
-  float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
-  glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
-  glm::vec3 _rayOrigin, _rayDirection;
-  bool _showWireframe = false, _showNormals = false, _showPatches = false;
-  glm::vec2 _cursorPosition = glm::vec2(-1.f);
-  glm::vec2 _clickPosition = glm::vec2(-1.f);
-  std::shared_ptr<TerrainPhysics> _terrainPhysics;
-  std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
   std::vector<int> _patchTextures;
   std::vector<int> _patchRotationsIndex;
-  int _angleIndex = -1, _textureIndex = -1;
-  std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   std::vector<bool> _changedHeightmap;
-  char _terrainPath[256] = "";
-  std::optional<glm::vec3> _hitCoords;
+  std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
+  std::pair<int, int> _patchNumber;
 
-  void _updateColorDescriptor();
   int _calculateTileByPosition(glm::vec3 position);
   glm::ivec2 _calculatePixelByPosition(glm::vec3 position);
   void _changeHeightmap(glm::ivec2 position, int value);
   void _calculateMesh(int index);
-  void _reallocatePatchDescription(int currentFrame);
-  void _updatePatchDescription(int currentFrame);
-  int _saveAuxilary(std::string path);
-  void _loadAuxilary(std::string path);
   int _saveHeightmap(std::string path);
   void _loadHeightmap(std::string path);
 
  public:
-  TerrainDebug(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
-               std::pair<int, int> patchNumber,
-               std::shared_ptr<CommandBuffer> commandBufferTransfer,
-               std::shared_ptr<GUI> gui,
-               std::shared_ptr<GameState> gameState,
-               std::shared_ptr<EngineState> engineState);
-
   void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);
@@ -181,41 +149,29 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<ImageCPU<uint8_t>> getHeightmap();
 
   void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
-  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawDebug();
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+  virtual void drawDebug() = 0;
 
-  void cursorNotify(float xPos, float yPos) override;
-  void mouseNotify(int button, int action, int mods) override;
-  void keyNotify(int key, int scancode, int action, int mods) override;
-  void charNotify(unsigned int code) override;
-  void scrollNotify(double xOffset, double yOffset) override;
+  void cursorNotify(float xPos, float yPos) = 0;
+  void mouseNotify(int button, int action, int mods) = 0;
+  void keyNotify(int key, int scancode, int action, int mods) = 0;
+  void charNotify(unsigned int code) = 0;
+  void scrollNotify(double xOffset, double yOffset) = 0;
 };
 
-class Terrain : public Drawable, public Shadowable {
- private:
+class TerrainGPU : public Drawable, public Shadowable {
+ protected:
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<GameState> _gameState;
 
   std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<Material> _material;
-  MaterialType _materialType = MaterialType::COLOR;
-
-  std::shared_ptr<MaterialColor> _defaultMaterialColor;
-
-  std::vector<bool> _changedMaterial;
-
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
-  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
-      _descriptorSetLayout;
-  std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutShadows;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
-  std::map<MaterialType, std::shared_ptr<Pipeline>> _pipeline;
-  std::shared_ptr<RenderPass> _renderPass, _renderPassShadow;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
   std::shared_ptr<Texture> _heightMap;
-  std::pair<int, int> _patchNumber;
+  std::shared_ptr<ImageCPU<uint8_t>> _heightMapCPU;
+  std::shared_ptr<BufferImage> _heightMapGPU;
+  MaterialType _materialType = MaterialType::COLOR;
+  std::vector<bool> _changedMaterial;
+  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+
   float _heightScale = 64.f;
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
@@ -225,27 +181,13 @@ class Terrain : public Drawable, public Shadowable {
   bool _enableShadow = true;
   std::vector<int> _patchTextures;
   std::vector<int> _patchRotationsIndex;
-  std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
-  std::shared_ptr<ImageCPU<uint8_t>> _heightMapCPU;
-  std::shared_ptr<BufferImage> _heightMapGPU;
-  float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
   std::vector<bool> _changePatch;
+  std::pair<int, int> _patchNumber;
 
-  void _reallocatePatchDescription(int currentFrame);
-  void _updatePatchDescription(int currentFrame);
-  void _updateColorDescriptor();
-  void _updatePhongDescriptor();
-  void _updatePBRDescriptor();
   void _calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
-  Terrain(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
-          std::pair<int, int> patchNumber,
-          std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<GameState> gameState,
-          std::shared_ptr<EngineState> engineState);
-
-  void setAuxilary(std::string path);
+  virtual void setAuxilary(std::string path) = 0;
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
@@ -257,6 +199,6 @@ class Terrain : public Drawable, public Shadowable {
   void setMaterial(std::shared_ptr<MaterialPhong> material);
   void setMaterial(std::shared_ptr<MaterialPBR> material);
 
-  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+  void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) = 0;
 };

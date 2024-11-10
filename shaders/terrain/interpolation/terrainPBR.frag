@@ -149,8 +149,8 @@ vec4 getColorSide(sampler2D inSampler[4], ivec2 index1, ivec2 index2, float coor
 #define getSpecularIBLSampler() specularIBLSampler
 #define getSpecularBRDFSampler() specularBRDFSampler
 #define getMaterial() material
-#include "../shadow.glsl"
-#include "../pbr.glsl"
+#include "../../shadow.glsl"
+#include "../../pbr.glsl"
 
 void main() {
     vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;

@@ -1,4 +1,6 @@
 #include "Engine/Core.h"
+#include "Primitive/TerrainInterpolation.h"
+#include "Primitive/TerrainComposition.h"
 #include <typeinfo>
 
 Core::Core(std::shared_ptr<Settings> settings) { _engineState = std::make_shared<EngineState>(settings); }
@@ -1021,9 +1023,15 @@ std::shared_ptr<Sprite> Core::createSprite() {
   return std::make_shared<Sprite>(_commandBufferApplication, _gameState, _engineState);
 }
 
-std::shared_ptr<Terrain> Core::createTerrain(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
-                                             std::pair<int, int> patches) {
-  return std::make_shared<Terrain>(heightmap, patches, _commandBufferApplication, _gameState, _engineState);
+std::shared_ptr<TerrainGPU> Core::createTerrainInterpolation(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                                             std::pair<int, int> patches) {
+  return std::make_shared<TerrainInterpolation>(heightmap, patches, _commandBufferApplication, _gameState,
+                                                _engineState);
+}
+
+std::shared_ptr<TerrainGPU> Core::createTerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
+                                                           std::pair<int, int> patches) {
+  return std::make_shared<TerrainComposition>(heightmap, patches, _commandBufferApplication, _gameState, _engineState);
 }
 
 std::shared_ptr<TerrainCPU> Core::createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap) {

@@ -29,14 +29,15 @@ class Main {
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
-  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainGPU> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  bool _showGPU = false, _showCPU = false, _showTerrain = true;
+  bool _showDebug = false, _showCPU = false, _showTerrain = true;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
   int _typeIndex = 1;
+  int _interpolationIndex = 0;
   char _terrainPath[256] = "";
   int _patchX = 64, _patchY = 64;
   float _heightScale = 64.f;
@@ -47,11 +48,11 @@ class Main {
   glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainPositionDebug = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainScale = glm::vec3(0.1f, 0.1f, 0.1f);
-
-  void _loadAuxilary(std::string path);
+  enum class InrepolationMode { INTERPOLATION, COMPOSITION } _interpolationMode = InrepolationMode::INTERPOLATION;
   void _createTerrainColor(std::string path);
   void _createTerrainPhong(std::string path);
   void _createTerrainPBR(std::string path);
+  void _createTerrainDebug(std::string path);
 
  public:
   Main();
