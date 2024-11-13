@@ -6,8 +6,9 @@
 class InputHandler : public InputSubscriber {
  private:
   bool _cursorEnabled = false;
-  std::function<void(std::optional<glm::vec3>)> _callback;
+  std::function<void(std::optional<glm::vec3>)> _callbackMove;
   std::shared_ptr<Core> _core;
+  glm::vec2 _position;
 
  public:
   InputHandler(std::shared_ptr<Core> core);
@@ -34,10 +35,9 @@ class Main {
   std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
   std::shared_ptr<Model3DPhysics> _model3DPhysics;
   std::shared_ptr<MaterialColor> _materialColor;
-  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainGPU> _terrain;
   std::shared_ptr<TerrainCPU> _terrainCPU;
   std::optional<glm::vec3> _shift;
-  bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
   bool _showGPU = true, _showCPU = true;
   int _patchX = 12, _patchY = 12;
   float _heightScale = 64.f;
@@ -45,6 +45,8 @@ class Main {
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 4;
   float _minDistance = 30, _maxDistance = 100;
+  glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
+  glm::vec3 _terrainScale = glm::vec3(1.f);
   void _createTerrainColor();
 
  public:

@@ -43,11 +43,11 @@ float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>
   return sample * 64.f - 16.f;
 }
 
-void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callback = callback; }
+void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callbackMove = callback; }
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
-void InputHandler::cursorNotify(float xPos, float yPos) {}
+void InputHandler::cursorNotify(float xPos, float yPos) { _position = glm::vec2{xPos, yPos}; }
 
 void InputHandler::mouseNotify(int button, int action, int mods) {}
 
@@ -55,10 +55,10 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
+      _core->getEngineState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      _core->getState()->getInput()->showCursor(true);
+      _core->getEngineState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
@@ -76,7 +76,7 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
     shift = glm::vec3(2.f, 0.f, 0.f);
   }
 
-  _callback(shift);
+  _callbackMove(shift);
 #endif
 }
 
@@ -86,25 +86,20 @@ void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
 
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  _terrain->patchEdge(_showPatches);
-  _terrain->showLoD(_showLoD);
-  if (_showWireframe) {
-    _terrain->setDrawType(DrawType::WIREFRAME);
+  {
+    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
+    model = glm::scale(model, _terrainScale);
+    _terrain->setModel(model);
   }
-  if (_showNormals) {
-    _terrain->setDrawType(DrawType::NORMAL);
-  }
-  if (_showWireframe == false && _showNormals == false) {
-    _terrain->setDrawType(DrawType::FILL);
-  }
-
   _core->addDrawable(_terrain);
 }
 
@@ -132,12 +127,12 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setSpeed(0.05f, 0.5f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
@@ -146,11 +141,8 @@ Main::Main() {
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
+
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
 
@@ -181,7 +173,8 @@ Main::Main() {
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
-  _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+  _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
+                                                     _physicsManager);
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
@@ -193,7 +186,6 @@ Main::Main() {
   _core->addDrawable(_cubePlayer);
   auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
   _inputHandler->setMoveCallback(callbackPosition);
-
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
@@ -211,6 +203,13 @@ Main::Main() {
   //_terrainCPU = _core->createTerrainCPU(heightmapCPU, {_patchX, _patchY});
   auto heights = _terrainPhysics->getHeights();
   _terrainCPU = _core->createTerrainCPU(heights, _terrainPhysics->getResolution());
+  {
+    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
+    model = glm::scale(model, _terrainScale);
+    _terrainCPU->setModel(model);
+  }
+  _terrainCPU->setDrawType(DrawType::WIREFRAME);
+
   _core->addDrawable(_terrainCPU);
 
   {
@@ -254,7 +253,6 @@ Main::Main() {
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (maxPart - minPart) / 2.f,
                                                        _physicsManager);
   }
-
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -273,13 +271,13 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightVertical->setModel(model);
   }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -291,8 +289,9 @@ void Main::update() {
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Terrain", {20, 20}, {widthScreen / 10, heightScreen / 10});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Terrain");
+  _core->getGUI()->setWindowPosition({20, 20});
   if (_core->getGUI()->startTree("Info")) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
@@ -329,25 +328,6 @@ void Main::update() {
       _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
 
-    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
-      _terrain->patchEdge(_showPatches);
-    }
-    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
-      _terrain->showLoD(_showLoD);
-    }
-    if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrain->setDrawType(DrawType::WIREFRAME);
-      _terrainCPU->setDrawType(DrawType::WIREFRAME);
-      _showNormals = false;
-    }
-    if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrain->setDrawType(DrawType::NORMAL);
-      _showWireframe = false;
-    }
-    if (_showWireframe == false && _showNormals == false) {
-      _terrain->setDrawType(DrawType::FILL);
-      _terrainCPU->setDrawType(DrawType::FILL);
-    }
     if (_core->getGUI()->drawCheckbox({{"Show GPU", &_showGPU}})) {
       if (_showGPU == false) {
         _core->removeDrawable(_terrain);

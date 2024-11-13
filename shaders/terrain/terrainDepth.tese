@@ -15,36 +15,10 @@ layout(set = 0, binding = 1) uniform UniformCamera {
 layout(set = 0, binding = 2) uniform sampler2D heightMap;
 layout(location = 0) out vec4 modelCoords;
 
-layout( push_constant ) uniform constants {
-    layout(offset = 16) int patchDimX;
-    int patchDimY;
-    float heightScale;
+layout( push_constant ) uniform constants {    
+    layout(offset = 16) float heightScale;
     float heightShift;
 } push;
-
-float calculateHeightTexture(in vec2 TexCoord, inout vec2 texCoord) {
-    texCoord = TexCoord / vec2(push.patchDimX, push.patchDimY);
-    return texture(heightMap, texCoord).x;
-}
-
-float calculateHeightPosition(in vec2 p, inout vec2 texCoord) {
-    vec2 textureSize = textureSize(heightMap, 0);
-    vec2 pos = p + (textureSize - vec2(1.0)) / vec2(2.0);
-    ivec2 integral = ivec2(floor(pos));
-    texCoord = fract(pos);
-    ivec2 index0 = integral;
-    ivec2 index1 = integral + ivec2(1, 0);
-    ivec2 index2 = integral + ivec2(0, 1);
-    ivec2 index3 = integral + ivec2(1, 1);
-    float sample0 = texelFetch(heightMap, index0, 0).x;
-    float sample1 = texelFetch(heightMap, index1, 0).x;
-    float sample2 = texelFetch(heightMap, index2, 0).x;
-    float sample3 = texelFetch(heightMap, index3, 0).x;
-    float fxy1 = sample0 + texCoord.x * (sample1 - sample0);
-    float fxy2 = sample2 + texCoord.x * (sample3 - sample2);
-    float heightValue = fxy1 + texCoord.y * (fxy2 - fxy1);
-    return heightValue;
-}
 
 void main() {
     // get patch coordinate (2D)
@@ -81,14 +55,10 @@ void main() {
     vec4 p1 = (p11 - p10) * u + p10;
     vec4 p = (p1 - p0) * v + p0;
 
-    vec2 texCoord;
-    float heightValue = calculateHeightTexture(TexCoord, texCoord);
-    // calculate the same way as in C++, but result is the same as in the line above
-    //float heightValue = calculateHeightPosition(p.xz, texCoord);
-
+    float heightValue = texture(heightMap, TexCoord).x;
+    TexCoord = vec2(u, v);
     // displace point along normal
     p += normal * (heightValue * push.heightScale - push.heightShift);
-
     // ----------------------------------------------------------------------
     // output patch point position in clip space
     gl_Position = mvp.proj * mvp.view * mvp.model * p;

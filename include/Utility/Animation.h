@@ -1,7 +1,7 @@
 #pragma once
 #include "Utility/Loader.h"
 #include "Utility/Logger.h"
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 
 class Animation {
  private:
@@ -9,7 +9,7 @@ class Animation {
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::shared_ptr<Logger> _logger;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   // separate descriptor for each skin
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
   int _animationIndex = 0;
@@ -24,7 +24,7 @@ class Animation {
   Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
             const std::vector<std::shared_ptr<SkinGLTF>>& skins,
             const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
-            std::shared_ptr<State> state);
+            std::shared_ptr<EngineState> engineState);
   std::vector<std::string> getAnimations();
   void setAnimation(std::string name);
   void setPlay(bool play);

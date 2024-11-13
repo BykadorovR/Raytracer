@@ -8,7 +8,7 @@
 #include "Utility/Settings.h"
 #include "Utility/Input.h"
 
-class State {
+class EngineState {
  private:
   std::shared_ptr<Settings> _settings;
   std::shared_ptr<Window> _window;
@@ -24,10 +24,11 @@ class State {
   ANativeWindow* _nativeWindow;
 #endif
  public:
-  State(std::shared_ptr<Settings> settings);
+  EngineState(std::shared_ptr<Settings> settings);
 #ifdef __ANDROID__
   void setNativeWindow(ANativeWindow* window);
   void setAssetManager(AAssetManager* assetManager);
+  AAssetManager* getAssetManager();
 #endif
   void initialize();
   std::shared_ptr<Settings> getSettings();

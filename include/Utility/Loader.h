@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Graphic/Material.h"
 #include "Primitive/Mesh.h"
 #ifdef __ANDROID__
@@ -27,10 +27,10 @@ class ImageCPU {
 
 class LoaderImage {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
 
  public:
-  LoaderImage(std::shared_ptr<State> state);
+  LoaderImage(std::shared_ptr<EngineState> engineState);
   template <class T>
   std::shared_ptr<ImageCPU<T>> loadCPU(std::string path);
 
@@ -41,7 +41,7 @@ class LoaderImage {
     int channels = imagesCPU[0]->getChannels();
     std::shared_ptr<BufferImage> bufferImage = std::make_shared<BufferImage>(
         std::tuple{width, height}, channels, imagesCPU.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
     for (int i = 0; i < imagesCPU.size(); i++) {
       auto pixels = imagesCPU[i]->getData();
       VkDeviceSize imageSize = width * height * channels;
@@ -58,7 +58,7 @@ struct NodeGLTF {
   // node index
   uint32_t index;
   std::vector<std::shared_ptr<NodeGLTF>> children;
-  // index in Mesh3D vector
+  // index in MeshStatic3D vector
   int mesh = -1;
 
   glm::vec3 translation{};
@@ -121,7 +121,7 @@ class ModelGLTF {
   std::vector<std::shared_ptr<MaterialPBR>> _materialsPBR;
   std::vector<std::shared_ptr<SkinGLTF>> _skins;
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
-  std::vector<std::shared_ptr<Mesh3D>> _meshes;
+  std::vector<std::shared_ptr<MeshStatic3D>> _meshes;
 
  public:
   void setMaterialsColor(std::vector<std::shared_ptr<MaterialColor>>& materialsColor);
@@ -130,7 +130,7 @@ class ModelGLTF {
   void setSkins(std::vector<std::shared_ptr<SkinGLTF>>& skins);
   void setAnimations(std::vector<std::shared_ptr<AnimationGLTF>>& animations);
   void setNodes(std::vector<std::shared_ptr<NodeGLTF>>& nodes);
-  void setMeshes(std::vector<std::shared_ptr<Mesh3D>>& meshes);
+  void setMeshes(std::vector<std::shared_ptr<MeshStatic3D>>& meshes);
 
   const std::vector<std::shared_ptr<MaterialColor>>& getMaterialsColor();
   const std::vector<std::shared_ptr<MaterialPhong>>& getMaterialsPhong();
@@ -139,13 +139,13 @@ class ModelGLTF {
   const std::vector<std::shared_ptr<AnimationGLTF>>& getAnimations();
   // one mesh - one node
   const std::vector<std::shared_ptr<NodeGLTF>>& getNodes();
-  const std::vector<std::shared_ptr<Mesh3D>>& getMeshes();
+  const std::vector<std::shared_ptr<MeshStatic3D>>& getMeshes();
 };
 
 class LoaderGLTF {
  private:
   std::filesystem::path _path;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<LoaderImage> _loaderImage;
   tinygltf::TinyGLTF _loader;
   std::map<std::string, std::shared_ptr<ModelGLTF>> _models;
@@ -174,12 +174,12 @@ class LoaderGLTF {
                  std::shared_ptr<NodeGLTF> parent,
                  uint32_t nodeIndex,
                  const std::vector<std::shared_ptr<MaterialGLTF>>& materials,
-                 const std::vector<std::shared_ptr<Mesh3D>>& meshes,
+                 const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
                  std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer);
 
  public:
-  LoaderGLTF(std::shared_ptr<LoaderImage> loaderImage, std::shared_ptr<State> state);
+  LoaderGLTF(std::shared_ptr<LoaderImage> loaderImage, std::shared_ptr<EngineState> engineState);
 #ifdef __ANDROID__
   void setAssetManager(AAssetManager* assetManager);
 #endif

@@ -16,16 +16,16 @@ void LoggerAndroid::end() {
 #endif
 }
 
-LoggerUtils::LoggerUtils(std::shared_ptr<State> state) {
-  _state = state;
+LoggerUtils::LoggerUtils(std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   _cmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(
-      state->getInstance()->getInstance(), "vkCmdBeginDebugUtilsLabelEXT");
-  _cmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(state->getInstance()->getInstance(),
-                                                                                    "vkCmdEndDebugUtilsLabelEXT");
+      engineState->getInstance()->getInstance(), "vkCmdBeginDebugUtilsLabelEXT");
+  _cmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(
+      engineState->getInstance()->getInstance(), "vkCmdEndDebugUtilsLabelEXT");
 }
 
 void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color) {
-  auto frameInFlight = _state->getFrameInFlight();
+  auto frameInFlight = _engineState->getFrameInFlight();
   VkDebugUtilsLabelEXT markerInfo = {};
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = marker.c_str();
@@ -34,7 +34,7 @@ void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffe
 }
 
 void LoggerUtils::end(std::shared_ptr<CommandBuffer> buffer) {
-  auto frameInFlight = _state->getFrameInFlight();
+  auto frameInFlight = _engineState->getFrameInFlight();
   _cmdEndDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight]);
 }
 
@@ -42,13 +42,13 @@ void LoggerNVTX::begin(std::string name) { nvtxRangePush(name.c_str()); }
 
 void LoggerNVTX::end() { nvtxRangePop(); }
 
-Logger::Logger(std::shared_ptr<State> state) {
+Logger::Logger(std::shared_ptr<EngineState> engineState) {
 #ifdef __ANDROID__
   _loggerAndroid = std::make_shared<LoggerAndroid>();
 #else
-  _state = state;
-  if (state)
-    _loggerUtils = std::make_shared<LoggerUtils>(state);
+  _engineState = engineState;
+  if (engineState)
+    _loggerUtils = std::make_shared<LoggerUtils>(engineState);
   else
     _loggerNVTX = std::make_shared<LoggerNVTX>();
 #endif

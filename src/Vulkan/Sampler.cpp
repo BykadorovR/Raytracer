@@ -4,8 +4,8 @@ Sampler::Sampler(VkSamplerAddressMode mode,
                  int mipMapLevels,
                  int anisotropicSamples,
                  VkFilter filter,
-                 std::shared_ptr<State> state) {
-  _state = state;
+                 std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   // sampler
   VkSamplerCreateInfo samplerInfo{};
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -15,7 +15,7 @@ Sampler::Sampler(VkSamplerAddressMode mode,
   samplerInfo.addressModeV = mode;
   samplerInfo.addressModeW = mode;
   samplerInfo.anisotropyEnable = anisotropicSamples > 0 ? VK_TRUE : VK_FALSE;
-  samplerInfo.maxAnisotropy = std::min((int)_state->getDevice()->getDeviceLimits().maxSamplerAnisotropy,
+  samplerInfo.maxAnisotropy = std::min((int)_engineState->getDevice()->getDeviceLimits().maxSamplerAnisotropy,
                                        anisotropicSamples);
   samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
@@ -25,11 +25,11 @@ Sampler::Sampler(VkSamplerAddressMode mode,
   samplerInfo.minLod = 0.0f;
   samplerInfo.maxLod = static_cast<float>(mipMapLevels);
 
-  if (vkCreateSampler(_state->getDevice()->getLogicalDevice(), &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
+  if (vkCreateSampler(_engineState->getDevice()->getLogicalDevice(), &samplerInfo, nullptr, &_sampler) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture sampler!");
   }
 }
 
 VkSampler& Sampler::getSampler() { return _sampler; }
 
-Sampler::~Sampler() { vkDestroySampler(_state->getDevice()->getLogicalDevice(), _sampler, nullptr); }
+Sampler::~Sampler() { vkDestroySampler(_engineState->getDevice()->getLogicalDevice(), _sampler, nullptr); }

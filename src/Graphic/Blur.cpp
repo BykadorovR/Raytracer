@@ -17,7 +17,7 @@ void Blur::_updateWeights() {
 void Blur::_updateDescriptors(int currentFrame) {
   _blurWeightsSSBO[currentFrame] = std::make_shared<Buffer>(
       _blurWeights.size() * sizeof(float), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   _blurWeightsSSBO[currentFrame]->setData(_blurWeights.data());
 }
 
@@ -43,12 +43,14 @@ void Blur::setSigma(int sigma) {
 }
 
 void Blur::_initialize(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
-  _descriptorSetHorizontal = std::make_shared<DescriptorSet>(
-      _state->getSettings()->getMaxFramesInFlight(), _textureLayout, _state->getDescriptorPool(), _state->getDevice());
+  _descriptorSetHorizontal = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                             _textureLayout, _engineState->getDescriptorPool(),
+                                                             _engineState->getDevice());
   _descriptorSetHorizontal->createBlur(src, dst);
 
-  _descriptorSetVertical = std::make_shared<DescriptorSet>(
-      _state->getSettings()->getMaxFramesInFlight(), _textureLayout, _state->getDescriptorPool(), _state->getDevice());
+  _descriptorSetVertical = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                           _textureLayout, _engineState->getDescriptorPool(),
+                                                           _engineState->getDevice());
   _descriptorSetVertical->createBlur(dst, src);
 }
 
@@ -58,38 +60,39 @@ void Blur::reset(std::vector<std::shared_ptr<Texture>> src, std::vector<std::sha
 
 Blur::Blur(std::vector<std::shared_ptr<Texture>> src,
            std::vector<std::shared_ptr<Texture>> dst,
-           std::shared_ptr<State> state) {
-  _state = state;
+           std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
 
-  auto shaderVertical = std::make_shared<Shader>(_state);
+  auto shaderVertical = std::make_shared<Shader>(_engineState);
   shaderVertical->add("shaders/postprocessing/blurVertical_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
-  auto shaderHorizontal = std::make_shared<Shader>(_state);
+  auto shaderHorizontal = std::make_shared<Shader>(_engineState);
   shaderHorizontal->add("shaders/postprocessing/blurHorizontal_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
-  _textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  _textureLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   _textureLayout->createPostprocessing();
 
-  _blurWeightsSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-  _changed.resize(_state->getSettings()->getMaxFramesInFlight());
+  _blurWeightsSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _changed.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
-  auto bufferLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  auto bufferLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   bufferLayout->createShaderStorageBuffer({0}, {VK_SHADER_STAGE_COMPUTE_BIT});
-  _descriptorSetWeights = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), bufferLayout,
-                                                          _state->getDescriptorPool(), _state->getDevice());
+  _descriptorSetWeights = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          bufferLayout, _engineState->getDescriptorPool(),
+                                                          _engineState->getDevice());
 
   _initialize(src, dst);
 
-  _computePipelineVertical = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _computePipelineVertical = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipelineVertical->createParticleSystemCompute(
       shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
       {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), bufferLayout}}, {});
-  _computePipelineHorizontal = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _computePipelineHorizontal = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipelineHorizontal->createParticleSystemCompute(
       shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
       {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), bufferLayout}}, {});
 
   _updateWeights();
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _updateDescriptors(i);
     _setWeights(i);
     _changed[i] = false;
@@ -137,7 +140,7 @@ void Blur::drawCompute(int currentFrame, bool horizontal, std::shared_ptr<Comman
                             &_descriptorSetWeights->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  auto [width, height] = _state->getSettings()->getResolution();
+  auto [width, height] = _engineState->getSettings()->getResolution();
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / groupCountX)),
                 std::max(1, (int)std::ceil(height / groupCountY)), 1);
 }

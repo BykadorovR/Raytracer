@@ -57,42 +57,43 @@ void Model3D::enableDepth(bool enable) { _enableDepth = enable; }
 bool Model3D::isDepthEnabled() { return _enableDepth; }
 
 Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-                 const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-                 std::shared_ptr<LightManager> lightManager,
+                 const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<ResourceManager> resourceManager,
-                 std::shared_ptr<State> state) {
+                 std::shared_ptr<GameState> gameState,
+                 std::shared_ptr<EngineState> engineState) {
   setName("Model3D");
-  _state = state;
+  _engineState = engineState;
   _nodes = nodes;
   _meshes = meshes;
-  _lightManager = lightManager;
-  auto settings = _state->getSettings();
-
+  _gameState = gameState;
+  auto settings = _engineState->getSettings();
+  _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   // default material if model doesn't have material at all, we still have to send data to shader
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPhong->setBaseColor({resourceManager->getTextureOne()});
-  _defaultMaterialPhong->setNormal({resourceManager->getTextureZero()});
-  _defaultMaterialPhong->setSpecular({resourceManager->getTextureZero()});
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _mesh = std::make_shared<Mesh3D>(state);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialPhong->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
+  _defaultMaterialPhong->setNormal({_gameState->getResourceManager()->getTextureZero()});
+  _defaultMaterialPhong->setSpecular({_gameState->getResourceManager()->getTextureZero()});
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _materials = {_defaultMaterialPhong};
+
+  _mesh = std::make_shared<MeshStatic3D>(engineState);
   _defaultAnimation = std::make_shared<Animation>(std::vector<std::shared_ptr<NodeGLTF>>{},
                                                   std::vector<std::shared_ptr<SkinGLTF>>{},
-                                                  std::vector<std::shared_ptr<AnimationGLTF>>{}, state);
+                                                  std::vector<std::shared_ptr<AnimationGLTF>>{}, engineState);
   _animation = _defaultAnimation;
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassDepth->initializeLightDepth();
 
   // initialize UBO
-  _cameraUBOFull = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   _state);
+  _cameraUBOFull = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(BufferMVP), _engineState);
 
   // setup joints
   {
-    _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutJoints(1);
     layoutJoints[0].binding = 0;
     layoutJoints[0].descriptorCount = 1;
@@ -106,7 +107,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup Normal
   {
-    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh(2);
     layoutNormalsMesh[0].binding = 0;
     layoutNormalsMesh[0].descriptorCount = 1;
@@ -122,10 +123,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // TODO: we can just have one buffer and put it twice to descriptor
 
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                                _descriptorSetLayoutNormalsMesh,
-                                                                state->getDescriptorPool(), state->getDevice());
-    for (int i = 0; i < state->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
+        engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
+        engineState->getDescriptorPool(), engineState->getDevice());
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
@@ -143,12 +144,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     }
 
     // initialize Normal (per vertex)
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/shape/cubeNormal_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-    _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineNormalMesh->createGraphic3D(
         VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -162,7 +163,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
         _renderPass);
 
     // it's kind of pointless, but if material is set, double sided property can be handled
-    _pipelineNormalMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineNormalMeshCullOff = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineNormalMeshCullOff->createGraphic3D(
         VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -177,12 +178,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize Tangent (per vertex)
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/shape/cubeTangent_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/shape/cubeNormal_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/shape/cubeNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangentMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangentMesh->createGraphic3D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -196,7 +197,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           _renderPass);
 
       // it's kind of pointless, but if material is set, double sided property can be handled
-      _pipelineTangentMeshCullOff = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangentMeshCullOff = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangentMeshCullOff->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -213,7 +214,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup color
   {
-    _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
@@ -232,11 +233,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/model/modelColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/model/modelColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
       std::vector<std::tuple<VkFormat, uint32_t>> attributes = {
           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
           {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -251,7 +252,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
-      _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineCullOff[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
       _pipelineCullOff[MaterialType::COLOR]->createGraphic3D(
           VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -259,7 +261,8 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
 
-      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipelineWireframe[MaterialType::COLOR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                           engineState->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->createGraphic3D(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -271,7 +274,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // setup Phong
   {
-    _descriptorSetLayoutPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -306,49 +309,51 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     _descriptorSetLayoutPhong->createCustom(layoutPhong);
 
-    _updatePhongDescriptor({_defaultMaterialPhong});
+    setMaterial({_defaultMaterialPhong});
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelPhong_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-    _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+    _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = LightPush::getPushConstant();
 
-    _pipeline[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
-                                                    {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                     shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                    {{"phong", _descriptorSetLayoutPhong},
-                                                     {"joints", _descriptorSetLayoutJoints},
-                                                     {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                    defaultPushConstants, _mesh->getBindingDescription(),
-                                                    _mesh->getAttributeDescriptions(), _renderPass);
+    _pipeline[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-    _pipelineCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineCullOff[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                           {{"phong", _descriptorSetLayoutPhong},
-                                                            {"joints", _descriptorSetLayoutJoints},
-                                                            {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                           defaultPushConstants, _mesh->getBindingDescription(),
-                                                           _mesh->getAttributeDescriptions(), _renderPass);
+    _pipelineCullOff[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                       engineState->getDevice());
+    _pipelineCullOff[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-    _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-    _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
-                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                             {{"phong", _descriptorSetLayoutPhong},
-                                                              {"joints", _descriptorSetLayoutJoints},
-                                                              {"globalPhong", lightManager->getDSLGlobalPhong()}},
-                                                             defaultPushConstants, _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions(), _renderPass);
+    _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
+    _pipelineWireframe[MaterialType::PHONG]->createGraphic3D(
+        VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"phong", _descriptorSetLayoutPhong},
+         {"joints", _descriptorSetLayoutJoints},
+         {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()}},
+        defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
   }
 
   // setup PBR
   {
-    _descriptorSetLayoutPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(12);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -418,11 +423,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     // initialize PBR
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/model/modelPBR_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/model/modelPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
+      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(), engineState->getDevice());
       std::map<std::string, VkPushConstantRange> defaultPushConstants;
       defaultPushConstants["constants"] = LightPush::getPushConstant();
 
@@ -431,65 +436,70 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                      shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                                                     {{"pbr", _descriptorSetLayoutPBR},
                                                      {"joints", _descriptorSetLayoutJoints},
-                                                     {"globalPBR", lightManager->getDSLGlobalPBR()}},
+                                                     {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
                                                     defaultPushConstants, _mesh->getBindingDescription(),
                                                     _mesh->getAttributeDescriptions(), _renderPass);
 
-      _pipelineCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-      _pipelineCullOff[MaterialType::PBR]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
-                                                           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                           {{"pbr", _descriptorSetLayoutPBR},
-                                                            {"joints", _descriptorSetLayoutJoints},
-                                                            {"globalPBR", lightManager->getDSLGlobalPBR()}},
-                                                           defaultPushConstants, _mesh->getBindingDescription(),
-                                                           _mesh->getAttributeDescriptions(), _renderPass);
+      _pipelineCullOff[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                       engineState->getDevice());
+      _pipelineCullOff[MaterialType::PBR]->createGraphic3D(
+          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          {{"pbr", _descriptorSetLayoutPBR},
+           {"joints", _descriptorSetLayoutJoints},
+           {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
+          defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
 
-      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(state->getSettings(), state->getDevice());
-      _pipelineWireframe[MaterialType::PBR]->createGraphic3D(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
-                                                             {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                                                              shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                                                             {{"pbr", _descriptorSetLayoutPBR},
-                                                              {"joints", _descriptorSetLayoutJoints},
-                                                              {"globalPBR", lightManager->getDSLGlobalPBR()}},
-                                                             defaultPushConstants, _mesh->getBindingDescription(),
-                                                             _mesh->getAttributeDescriptions(), _renderPass);
+      _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(engineState->getSettings(),
+                                                                         engineState->getDevice());
+      _pipelineWireframe[MaterialType::PBR]->createGraphic3D(
+          VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE,
+          {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+          {{"pbr", _descriptorSetLayoutPBR},
+           {"joints", _descriptorSetLayoutJoints},
+           {"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()}},
+          defaultPushConstants, _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
 
-  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   layoutCamera->createUniformBuffer();
 
-  int lightNumber = _state->getSettings()->getMaxDirectionalLights() + _state->getSettings()->getMaxPointLights();
-  for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back(
-        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
+  int lightNumber = _engineState->getSettings()->getMaxDirectionalLights() +
+                    _engineState->getSettings()->getMaxPointLights();
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(BufferMVP), _engineState)});
   }
 
-  for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       sizeof(BufferMVP), _engineState);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
   // initialize descriptor sets
   {
-    for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                       _state->getDescriptorPool(), _state->getDevice());
+    for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+      auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       layoutCamera, _engineState->getDescriptorPool(),
+                                                       _engineState->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
 
-    for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                      _state->getDescriptorPool(), _state->getDevice());
-        facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
+        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), layoutCamera,
+                                                      _engineState->getDescriptorPool(), _engineState->getDevice());
+        facesSet[j]->createUniformBuffer(
+            _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -497,9 +507,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth directional
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
@@ -511,10 +521,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
   // initialize depth point
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
     shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
     _pipelinePoint->createGraphic3DShadow(
@@ -533,10 +543,10 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 void Model3D::_updateJointsDescriptor() {
   _descriptorSetJoints.resize(_animation->getJointMatricesBuffer().size());
   for (int skin = 0; skin < _animation->getJointMatricesBuffer().size(); skin++) {
-    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayoutJoints,
-                                                                 _state->getDescriptorPool(), _state->getDevice());
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(
+        _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutJoints,
+        _engineState->getDescriptorPool(), _engineState->getDevice());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
       // write for binding = 0 for joint matrices
       std::vector<VkDescriptorBufferInfo> bufferInfoJointMatrices(1);
@@ -549,104 +559,227 @@ void Model3D::_updateJointsDescriptor() {
   }
 }
 
-void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+void Model3D::_updatePBRDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialPBR> material = std::dynamic_pointer_cast<MaterialPBR>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for textures
+    std::vector<VkDescriptorImageInfo> bufferInfoBaseColor(1);
+    bufferInfoBaseColor[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoBaseColor[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+    bufferInfoBaseColor[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoBaseColor;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
+    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
+    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
+    textureInfoColor[2] = bufferInfoNormal;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoMetallic(1);
+    bufferInfoMetallic[0].imageLayout = material->getMetallic()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoMetallic[0].imageView = material->getMetallic()[0]->getImageView()->getImageView();
+    bufferInfoMetallic[0].sampler = material->getMetallic()[0]->getSampler()->getSampler();
+    textureInfoColor[3] = bufferInfoMetallic;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoRoughness(1);
+    bufferInfoRoughness[0].imageLayout = material->getRoughness()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoRoughness[0].imageView = material->getRoughness()[0]->getImageView()->getImageView();
+    bufferInfoRoughness[0].sampler = material->getRoughness()[0]->getSampler()->getSampler();
+    textureInfoColor[4] = bufferInfoRoughness;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoOcclusion(1);
+    bufferInfoOcclusion[0].imageLayout = material->getOccluded()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoOcclusion[0].imageView = material->getOccluded()[0]->getImageView()->getImageView();
+    bufferInfoOcclusion[0].sampler = material->getOccluded()[0]->getSampler()->getSampler();
+    textureInfoColor[5] = bufferInfoOcclusion;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoEmissive(1);
+    bufferInfoEmissive[0].imageLayout = material->getEmissive()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoEmissive[0].imageView = material->getEmissive()[0]->getImageView()->getImageView();
+    bufferInfoEmissive[0].sampler = material->getEmissive()[0]->getSampler()->getSampler();
+    textureInfoColor[6] = bufferInfoEmissive;
+
+    // TODO: this textures are part of global engineState for PBR
+    std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
+    bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
+    bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
+    bufferInfoIrradiance[0].sampler = material->getDiffuseIBL()->getSampler()->getSampler();
+    textureInfoColor[7] = bufferInfoIrradiance;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
+    bufferInfoSpecularIBL[0].imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecularIBL[0].imageView = material->getSpecularIBL()->getImageView()->getImageView();
+    bufferInfoSpecularIBL[0].sampler = material->getSpecularIBL()->getSampler()->getSampler();
+    textureInfoColor[8] = bufferInfoSpecularIBL;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
+    bufferInfoSpecularBRDF[0].imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecularBRDF[0].imageView = material->getSpecularBRDF()->getImageView()->getImageView();
+    bufferInfoSpecularBRDF[0].sampler = material->getSpecularBRDF()->getSampler()->getSampler();
+    textureInfoColor[9] = bufferInfoSpecularBRDF;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].offset = 0;
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[10] = bufferInfoAlphaCutoff;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].offset = 0;
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[11] = bufferInfoCoefficients;
+
+    _descriptorSetPBR[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::_updatePhongDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialPhong> material = std::dynamic_pointer_cast<MaterialPhong>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for base color
+    std::vector<VkDescriptorImageInfo> bufferInfoBase(1);
+    bufferInfoBase[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoBase[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
+    bufferInfoBase[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoBase;
+
+    // write for binding = 2 for normal color
+    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
+    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
+    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
+    textureInfoColor[2] = bufferInfoNormal;
+
+    std::vector<VkDescriptorImageInfo> bufferInfoSpecular(1);
+    bufferInfoSpecular[0].imageLayout = material->getSpecular()[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoSpecular[0].imageView = material->getSpecular()[0]->getImageView()->getImageView();
+    bufferInfoSpecular[0].sampler = material->getSpecular()[0]->getSampler()->getSampler();
+    textureInfoColor[3] = bufferInfoSpecular;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].offset = 0;
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[4] = bufferInfoAlphaCutoff;
+
+    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].offset = 0;
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoColor[5] = bufferInfoCoefficients;
+
+    _descriptorSetPhong[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::_updateColorDescriptor() {
+  int currentFrame = _engineState->getFrameInFlight();
+  for (int i = 0; i < _materials.size(); i++) {
+    std::shared_ptr<MaterialColor> material = std::dynamic_pointer_cast<MaterialColor>(_materials[i]);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
+    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
+    // write to binding = 0 for vertex shader
+    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].offset = 0;
+    bufferInfoCamera[0].range = sizeof(BufferMVP);
+    bufferInfoColor[0] = bufferInfoCamera;
+
+    // write for binding = 1 for textures
+    auto texture = _defaultMaterialColor->getBaseColor();
+    if (material->getBaseColor().size() > 0) texture = material->getBaseColor();
+    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
+    bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
+    bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
+    bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
+    textureInfoColor[1] = bufferInfoTexture;
+    _descriptorSetColor[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
   for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetColor.size())
+      _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
+
+    if (_descriptorSetColor.size() <= material)
+      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
+  }
+  _materialType = MaterialType::COLOR;
+
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
+  for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetPhong.size())
+      _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
+
+    if (_descriptorSetPhong.size() <= material)
+      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPhong,
+          _engineState->getDescriptorPool(), _engineState->getDevice()));
+    materials[material]->registerUpdate(
+        _descriptorSetPhong[material],
+        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
+  }
+  _materialType = MaterialType::PHONG;
+
+  _materials.clear();
+  for (auto& material : materials) {
+    _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
+  }
+}
+
+void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
+  for (int material = 0; material < materials.size(); material++) {
+    if (material < _materials.size() && material < _descriptorSetPBR.size())
+      _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
+
     if (_descriptorSetPBR.size() <= material)
-      _descriptorSetPBR.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                  _descriptorSetLayoutPBR, _state->getDescriptorPool(),
-                                                                  _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for textures
-      std::vector<VkDescriptorImageInfo> bufferInfoBaseColor(1);
-      bufferInfoBaseColor[0].imageLayout =
-          materials[material]->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoBaseColor[0].imageView = materials[material]->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoBaseColor[0].sampler = materials[material]->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoBaseColor;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-      bufferInfoNormal[0].imageLayout =
-          materials[material]->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoNormal[0].imageView = materials[material]->getNormal()[0]->getImageView()->getImageView();
-      bufferInfoNormal[0].sampler = materials[material]->getNormal()[0]->getSampler()->getSampler();
-      textureInfoColor[2] = bufferInfoNormal;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoMetallic(1);
-      bufferInfoMetallic[0].imageLayout =
-          materials[material]->getMetallic()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoMetallic[0].imageView = materials[material]->getMetallic()[0]->getImageView()->getImageView();
-      bufferInfoMetallic[0].sampler = materials[material]->getMetallic()[0]->getSampler()->getSampler();
-      textureInfoColor[3] = bufferInfoMetallic;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoRoughness(1);
-      bufferInfoRoughness[0].imageLayout =
-          materials[material]->getRoughness()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoRoughness[0].imageView = materials[material]->getRoughness()[0]->getImageView()->getImageView();
-      bufferInfoRoughness[0].sampler = materials[material]->getRoughness()[0]->getSampler()->getSampler();
-      textureInfoColor[4] = bufferInfoRoughness;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoOcclusion(1);
-      bufferInfoOcclusion[0].imageLayout =
-          materials[material]->getOccluded()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoOcclusion[0].imageView = materials[material]->getOccluded()[0]->getImageView()->getImageView();
-      bufferInfoOcclusion[0].sampler = materials[material]->getOccluded()[0]->getSampler()->getSampler();
-      textureInfoColor[5] = bufferInfoOcclusion;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoEmissive(1);
-      bufferInfoEmissive[0].imageLayout =
-          materials[material]->getEmissive()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoEmissive[0].imageView = materials[material]->getEmissive()[0]->getImageView()->getImageView();
-      bufferInfoEmissive[0].sampler = materials[material]->getEmissive()[0]->getSampler()->getSampler();
-      textureInfoColor[6] = bufferInfoEmissive;
-
-      // TODO: this textures are part of global state for PBR
-      std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
-      bufferInfoIrradiance[0].imageLayout =
-          materials[material]->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
-      bufferInfoIrradiance[0].imageView = materials[material]->getDiffuseIBL()->getImageView()->getImageView();
-      bufferInfoIrradiance[0].sampler = materials[material]->getDiffuseIBL()->getSampler()->getSampler();
-      textureInfoColor[7] = bufferInfoIrradiance;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
-      bufferInfoSpecularIBL[0].imageLayout =
-          materials[material]->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecularIBL[0].imageView = materials[material]->getSpecularIBL()->getImageView()->getImageView();
-      bufferInfoSpecularIBL[0].sampler = materials[material]->getSpecularIBL()->getSampler()->getSampler();
-      textureInfoColor[8] = bufferInfoSpecularIBL;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
-      bufferInfoSpecularBRDF[0].imageLayout =
-          materials[material]->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecularBRDF[0].imageView = materials[material]->getSpecularBRDF()->getImageView()->getImageView();
-      bufferInfoSpecularBRDF[0].sampler = materials[material]->getSpecularBRDF()->getSampler()->getSampler();
-      textureInfoColor[9] = bufferInfoSpecularBRDF;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoAlphaCutoff[0].buffer = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getData();
-      bufferInfoAlphaCutoff[0].offset = 0;
-      bufferInfoAlphaCutoff[0].range = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getSize();
-      bufferInfoColor[10] = bufferInfoAlphaCutoff;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCoefficients[0].buffer = materials[material]->getBufferCoefficients()->getBuffer()[i]->getData();
-      bufferInfoCoefficients[0].offset = 0;
-      bufferInfoCoefficients[0].range = materials[material]->getBufferCoefficients()->getBuffer()[i]->getSize();
-      bufferInfoColor[11] = bufferInfoCoefficients;
-
-      _descriptorSetPBR[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
+      _descriptorSetPBR.push_back(
+          std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPBR,
+                                          _engineState->getDescriptorPool(), _engineState->getDevice()));
     materials[material]->registerUpdate(_descriptorSetPBR[material], {{MaterialTexture::COLOR, 1},
                                                                       {MaterialTexture::NORMAL, 2},
                                                                       {MaterialTexture::METALLIC, 3},
@@ -657,128 +790,13 @@ void Model3D::_updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> mat
                                                                       {MaterialTexture::IBL_SPECULAR, 8},
                                                                       {MaterialTexture::BRDF_SPECULAR, 9}});
   }
-}
-
-void Model3D::_updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (_descriptorSetPhong.size() <= material)
-      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutPhong,
-                                                                    _state->getDescriptorPool(), _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for base color
-      std::vector<VkDescriptorImageInfo> bufferInfoBase(1);
-      bufferInfoBase[0].imageLayout =
-          materials[material]->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoBase[0].imageView = materials[material]->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoBase[0].sampler = materials[material]->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoBase;
-
-      // write for binding = 2 for normal color
-      std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-      bufferInfoNormal[0].imageLayout =
-          materials[material]->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoNormal[0].imageView = materials[material]->getNormal()[0]->getImageView()->getImageView();
-      bufferInfoNormal[0].sampler = materials[material]->getNormal()[0]->getSampler()->getSampler();
-      textureInfoColor[2] = bufferInfoNormal;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoSpecular(1);
-      bufferInfoSpecular[0].imageLayout =
-          materials[material]->getSpecular()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoSpecular[0].imageView = materials[material]->getSpecular()[0]->getImageView()->getImageView();
-      bufferInfoSpecular[0].sampler = materials[material]->getSpecular()[0]->getSampler()->getSampler();
-      textureInfoColor[3] = bufferInfoSpecular;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoAlphaCutoff[0].buffer = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getData();
-      bufferInfoAlphaCutoff[0].offset = 0;
-      bufferInfoAlphaCutoff[0].range = materials[material]->getBufferAlphaCutoff()->getBuffer()[i]->getSize();
-      bufferInfoColor[4] = bufferInfoAlphaCutoff;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCoefficients[0].buffer = materials[material]->getBufferCoefficients()->getBuffer()[i]->getData();
-      bufferInfoCoefficients[0].offset = 0;
-      bufferInfoCoefficients[0].range = materials[material]->getBufferCoefficients()->getBuffer()[i]->getSize();
-      bufferInfoColor[5] = bufferInfoCoefficients;
-
-      _descriptorSetPhong[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
-    materials[material]->registerUpdate(
-        _descriptorSetPhong[material],
-        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
-  }
-}
-
-void Model3D::_updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (_descriptorSetColor.size() <= material)
-      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutColor,
-                                                                    _state->getDescriptorPool(), _state->getDevice()));
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for textures
-      auto texture = _defaultMaterialColor->getBaseColor();
-      if (materials[material]->getBaseColor().size() > 0) texture = materials[material]->getBaseColor();
-      std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoTexture;
-      _descriptorSetColor[material]->createCustom(i, bufferInfoColor, textureInfoColor);
-    }
-    if (material < _materials.size()) _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
-    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
-  _materialType = MaterialType::COLOR;
-  _updateColorDescriptor(materials);
-
-  _materials.clear();
-  for (auto& material : materials) {
-    _materials.push_back(material);
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
-  _materialType = MaterialType::PHONG;
-  _updatePhongDescriptor(materials);
-
-  _materials.clear();
-  for (auto& material : materials) {
-    _materials.push_back(material);
-  }
-}
-
-void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
   _materialType = MaterialType::PBR;
-  _updatePBRDescriptor(materials);
-
   _materials.clear();
   for (auto& material : materials) {
     _materials.push_back(material);
+  }
+  for (int i = 0; i < _changedMaterial.size(); i++) {
+    _changedMaterial[i] = true;
   }
 }
 
@@ -810,7 +828,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         glm::mat4 view,
                         glm::mat4 projection,
                         std::shared_ptr<NodeGLTF> node) {
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   if (node->mesh >= 0 && _meshes[node->mesh]->getPrimitives().size() > 0) {
     VkBuffer vertexBuffers[] = {_meshes[node->mesh]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -936,9 +954,7 @@ void Model3D::enableShadow(bool enable) { _enableShadow = enable; }
 
 void Model3D::enableLighting(bool enable) { _enableLighting = enable; }
 
-void Model3D::draw(std::tuple<int, int> resolution,
-                   std::shared_ptr<Camera> camera,
-                   std::shared_ptr<CommandBuffer> commandBuffer) {
+void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto pipeline = _pipeline[_materialType];
   auto pipelineCullOff = _pipelineCullOff[_materialType];
   if (_drawType == DrawType::WIREFRAME) pipeline = _pipelineWireframe[_materialType];
@@ -951,7 +967,24 @@ void Model3D::draw(std::tuple<int, int> resolution,
     pipelineCullOff = _pipelineTangentMeshCullOff;
   }
 
-  int currentFrame = _state->getFrameInFlight();
+  auto resolution = _engineState->getSettings()->getResolution();
+  int currentFrame = _engineState->getFrameInFlight();
+
+  if (_changedMaterial[currentFrame]) {
+    switch (_materialType) {
+      case MaterialType::COLOR:
+        _updateColorDescriptor();
+        break;
+      case MaterialType::PHONG:
+        _updatePhongDescriptor();
+        break;
+      case MaterialType::PBR:
+        _updatePBRDescriptor();
+        break;
+    }
+    _changedMaterial[currentFrame] = false;
+  }
+
   VkViewport viewport{};
   viewport.x = 0.0f;
   viewport.y = std::get<1>(resolution);
@@ -970,9 +1003,10 @@ void Model3D::draw(std::tuple<int, int> resolution,
     LightPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = camera->getEye();
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_state->getFrameInFlight()], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+    pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_engineState->getFrameInFlight()],
+                       pipeline->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush),
+                       &pushConstants);
   }
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -983,9 +1017,9 @@ void Model3D::draw(std::tuple<int, int> resolution,
                                           return info.first == std::string("globalPhong");
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 2, 1,
-                            &_lightManager->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        2, 1, &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // global PBR
@@ -994,22 +1028,23 @@ void Model3D::draw(std::tuple<int, int> resolution,
                                         return info.first == std::string("globalPBR");
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            pipeline->getPipelineLayout(), 2, 1,
-                            &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
+        2, 1, &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull, camera->getView(),
-              camera->getProjection(), node);
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull,
+              _gameState->getCameraManager()->getCurrentCamera()->getView(),
+              _gameState->getCameraManager()->getCurrentCamera()->getProjection(), node);
   }
 }
 
 void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
   if (_enableDepth == false) return;
 
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
@@ -1018,14 +1053,16 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -1060,9 +1097,10 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   if (lightType == LightType::POINT) {
     if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition =
+          _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
-      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -1072,13 +1110,13 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
-    lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
   // Render all nodes at top-level
   for (auto& node : _nodes) {

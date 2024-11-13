@@ -14,10 +14,10 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
     if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
+      _core->getEngineState()->getInput()->showCursor(false);
       _cursorEnabled = false;
     } else {
-      _core->getState()->getInput()->showCursor(true);
+      _core->getEngineState()->getInput()->showCursor(true);
       _cursorEnabled = true;
     }
   }
@@ -52,11 +52,11 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
@@ -65,11 +65,7 @@ Main::Main() {
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
@@ -165,28 +161,28 @@ Main::Main() {
   // draw advanced textured model Phong
   auto gltfModelBottle = _core->createModelGLTF("../assets/WaterBottle/WaterBottle.gltf");
   {
-    auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPhong();
-    for (auto& material : materialModelBottle) {
+    _modelBottle = _core->createModel3D(gltfModelBottle);
+    _materialModelBottlePhong = gltfModelBottle->getMaterialsPhong();
+    for (auto& material : _materialModelBottlePhong) {
       fillMaterialPhong(material);
     }
-    modelBottle->setMaterial(materialModelBottle);
+    _modelBottle->setMaterial(_materialModelBottlePhong);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 0.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
+      _modelBottle->setModel(model);
     }
-    _core->addDrawable(modelBottle);
+    _core->addDrawable(_modelBottle);
   }
 
   // draw advanced textured model PBR
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsPBR();
-    for (auto& material : materialModelBottle) {
+    _materialModelBottlePBR = gltfModelBottle->getMaterialsPBR();
+    for (auto& material : _materialModelBottlePBR) {
       fillMaterialPBR(material);
     }
-    modelBottle->setMaterial(materialModelBottle);
+    modelBottle->setMaterial(_materialModelBottlePBR);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -197,8 +193,8 @@ Main::Main() {
   // draw textured model without lighting model
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
-    auto materialModelBottle = gltfModelBottle->getMaterialsColor();
-    modelBottle->setMaterial(materialModelBottle);
+    _materialModelBottleColor = gltfModelBottle->getMaterialsColor();
+    modelBottle->setMaterial(_materialModelBottleColor);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
       model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
@@ -319,13 +315,13 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
     _cubeColoredLightVertical->setModel(model);
   }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
   {
     auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
     model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
@@ -346,11 +342,31 @@ void Main::update() {
     _animationFish->setPlay(false);
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+
+  std::map<std::string, int*> materialType;
+  materialType["##Type"] = &_typeIndex;
+  if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, materialType, 3)) {
+    _core->startRecording();
+    switch (_typeIndex) {
+      case 0:
+        _modelBottle->setMaterial(_materialModelBottleColor);
+        break;
+      case 1:
+        _modelBottle->setMaterial(_materialModelBottlePhong);
+        break;
+      case 2:
+        _modelBottle->setMaterial(_materialModelBottlePBR);
+        break;
+    }
+    _core->endRecording();
+  }
+
   _core->getGUI()->endWindow();
 }
 

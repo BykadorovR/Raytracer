@@ -5,6 +5,7 @@
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Command.h"
 #include "Utility/Settings.h"
+#include "Utility/GameState.h"
 #include "Utility/ResourceManager.h"
 #include "Utility/Logger.h"
 #include "Utility/Loader.h"
@@ -35,8 +36,9 @@ class Model3DPhysics {
 
 class Model3D : public Drawable, public Shadowable {
  private:
-  std::shared_ptr<State> _state;
-
+  std::shared_ptr<EngineState> _engineState;
+  std::shared_ptr<GameState> _gameState;
+  std::vector<bool> _changedMaterial;
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
   std::shared_ptr<UniformBuffer> _cameraUBOFull;
@@ -56,22 +58,21 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::shared_ptr<Animation> _defaultAnimation;
   bool _enableDepth = true;
   bool _enableShadow = true;
   bool _enableLighting = true;
-  std::shared_ptr<LightManager> _lightManager;
   std::shared_ptr<Animation> _animation;
   std::vector<std::shared_ptr<Material>> _materials;
-  std::vector<std::shared_ptr<Mesh3D>> _meshes;
+  std::vector<std::shared_ptr<MeshStatic3D>> _meshes;
   MaterialType _materialType = MaterialType::PHONG;
   DrawType _drawType = DrawType::FILL;
 
   void _updateJointsDescriptor();
-  void _updateColorDescriptor(std::vector<std::shared_ptr<MaterialColor>> materials);
-  void _updatePhongDescriptor(std::vector<std::shared_ptr<MaterialPhong>> materials);
-  void _updatePBRDescriptor(std::vector<std::shared_ptr<MaterialPBR>> materials);
+  void _updateColorDescriptor();
+  void _updatePhongDescriptor();
+  void _updatePBRDescriptor();
 
   void _drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                  std::shared_ptr<Pipeline> pipeline,
@@ -84,11 +85,10 @@ class Model3D : public Drawable, public Shadowable {
 
  public:
   Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
-          const std::vector<std::shared_ptr<Mesh3D>>& meshes,
-          std::shared_ptr<LightManager> lightManager,
+          const std::vector<std::shared_ptr<MeshStatic3D>>& meshes,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<ResourceManager> resourceManager,
-          std::shared_ptr<State> state);
+          std::shared_ptr<GameState> gameState,
+          std::shared_ptr<EngineState> engineState);
   void enableShadow(bool enable);
   void enableLighting(bool enable);
 
@@ -105,8 +105,6 @@ class Model3D : public Drawable, public Shadowable {
   DrawType getDrawType();
   std::shared_ptr<AABB> getAABB();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };

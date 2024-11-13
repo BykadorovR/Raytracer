@@ -7,13 +7,25 @@ layout (vertices = 4) out;
 
 // varying input from vertex shader
 layout (location = 0) in vec2 TexCoord[];
+
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
     mat4 proj;
 } mvp;
 
+struct PatchDescription {
+    int rotation;
+    int textureID;
+};
+
+layout(std140, set = 0, binding = 1) readonly buffer PatchDescriptionBuffer {
+    PatchDescription patchDescription[];
+};
+
 layout( push_constant ) uniform constants {
+    int patchDimX;
+    int patchDimY;
     int minTessellationLevel;
     int maxTessellationLevel;
     float near;
@@ -23,6 +35,10 @@ layout( push_constant ) uniform constants {
 // varying output to evaluation shader
 layout (location = 0) out vec2 TextureCoord[];
 layout (location = 1) out vec3 tessColor[];
+layout (location = 2) out vec4 outTilesWeights[];
+layout (location = 3) flat out int outTextureID[];
+layout (location = 4) flat out ivec4 outNeighboursID[];
+layout (location = 5) flat out int outRotation[];
 
 // All components are in the range [0…1], including hue.
 vec3 hsv2rgb(vec3 c) {
@@ -31,6 +47,12 @@ vec3 hsv2rgb(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+int getPatchID(int x, int y) {
+    int newID = gl_PrimitiveID + x + y * push.patchDimX;
+    newID = min(newID, push.patchDimX * push.patchDimY - 1);
+    newID = max(newID, 0);
+    return newID;
+}
 
 void main() {
     // ----------------------------------------------------------------------
@@ -38,7 +60,6 @@ void main() {
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
 
-    //set default level for tessColor
     gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
     
     // ----------------------------------------------------------------------
@@ -77,6 +98,26 @@ void main() {
         gl_TessLevelInner[1] = max(tessLevel0, tessLevel2);
     }
 
+
+    int offsetX = gl_InvocationID % 2;
+    int offsetY = gl_InvocationID / 2;
+    outTilesWeights[gl_InvocationID] = vec4(0, 0, 0, 0);
+    // calculate weight of the texture in each specific vertex
+    outTilesWeights[gl_InvocationID][patchDescription[getPatchID(-1 + offsetX, -1 + offsetY)].textureID] = 1;
+    outTilesWeights[gl_InvocationID][patchDescription[getPatchID(0  + offsetX, -1 + offsetY)].textureID] = 1;
+    outTilesWeights[gl_InvocationID][patchDescription[getPatchID(-1 + offsetX, 0  + offsetY)].textureID] = 1;
+    outTilesWeights[gl_InvocationID][patchDescription[getPatchID(0  + offsetX, 0  + offsetY)].textureID] = 1;
+
+    // pass current patch texture ID
+    outTextureID[gl_InvocationID] = patchDescription[gl_PrimitiveID].textureID;
+    // pass left - top - right - bottom texture ids of neighbours
+    outNeighboursID[gl_InvocationID] = ivec4(patchDescription[getPatchID(-1, 0)].textureID,
+                                             patchDescription[getPatchID(0, -1)].textureID,
+                                             patchDescription[getPatchID(1, 0)].textureID,
+                                             patchDescription[getPatchID(0, 1)].textureID);
+
+
+    outRotation[gl_InvocationID] = patchDescription[gl_PrimitiveID].rotation;
     tessColor[gl_InvocationID] = hsv2rgb(vec3((gl_TessLevelOuter[gl_InvocationID] - push.minTessellationLevel) / 
                                               (push.maxTessellationLevel - push.minTessellationLevel), 1, 1));
 }

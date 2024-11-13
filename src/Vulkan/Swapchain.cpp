@@ -1,8 +1,8 @@
 #include "Vulkan/Swapchain.h"
 #include <algorithm>
 
-Swapchain::Swapchain(VkFormat imageFormat, std::shared_ptr<State> state) {
-  _state = state;
+Swapchain::Swapchain(VkFormat imageFormat, std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   _imageFormat = imageFormat;
   _initialize();
 }
@@ -31,10 +31,10 @@ VkExtent2D& Swapchain::getSwapchainExtent() { return _swapchainExtent; }
 Swapchain::~Swapchain() { _destroy(); }
 
 void Swapchain::_initialize() {
-  auto physicalDevice = _state->getDevice()->getPhysicalDevice();
+  auto physicalDevice = _engineState->getDevice()->getPhysicalDevice();
   // pick surface format
-  VkSurfaceFormatKHR surfaceFormat = _state->getDevice()->getSupportedSurfaceFormats()[0];
-  for (const auto& availableFormat : _state->getDevice()->getSupportedSurfaceFormats()) {
+  VkSurfaceFormatKHR surfaceFormat = _engineState->getDevice()->getSupportedSurfaceFormats()[0];
+  for (const auto& availableFormat : _engineState->getDevice()->getSupportedSurfaceFormats()) {
     if (availableFormat.format == _imageFormat && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
       surfaceFormat = availableFormat;
     }
@@ -42,7 +42,7 @@ void Swapchain::_initialize() {
   // pick surface present mode
   VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 #ifndef __ANDROID__
-  for (const auto& availablePresentMode : _state->getDevice()->getSupportedSurfacePresentModes()) {
+  for (const auto& availablePresentMode : _engineState->getDevice()->getSupportedSurfacePresentModes()) {
     // triple buffering
     if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
       presentMode = availablePresentMode;
@@ -51,14 +51,14 @@ void Swapchain::_initialize() {
 #endif
   // swap extent is the resolution of the swap chain images and
   // it's almost always exactly equal to the resolution of the window
-  auto surfaceCapabilities = _state->getDevice()->getSupportedSurfaceCapabilities();
+  auto surfaceCapabilities = _engineState->getDevice()->getSupportedSurfaceCapabilities();
   VkExtent2D extent = surfaceCapabilities.currentExtent;
   if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width, height;
 #ifdef __ANDROID__
-    std::tie(width, height) = _state->getWindow()->getResolution();
+    std::tie(width, height) = _engineState->getWindow()->getResolution();
 #else
-    glfwGetFramebufferSize((GLFWwindow*)(_state->getWindow()->getWindow()), &width, &height);
+    glfwGetFramebufferSize((GLFWwindow*)(_engineState->getWindow()->getWindow()), &width, &height);
 #endif
     VkExtent2D actualExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 
@@ -77,7 +77,7 @@ void Swapchain::_initialize() {
 
   VkSwapchainCreateInfoKHR createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  createInfo.surface = _state->getSurface()->getSurface();
+  createInfo.surface = _engineState->getSurface()->getSurface();
 
   createInfo.minImageCount = imageCount;
   createInfo.imageFormat = surfaceFormat.format;
@@ -86,12 +86,12 @@ void Swapchain::_initialize() {
   createInfo.imageArrayLayers = 1;
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
-  uint32_t queueFamilyIndices[] = {_state->getDevice()->getSupportedFamilyIndex(QueueType::GRAPHIC).value(),
-                                   _state->getDevice()->getSupportedFamilyIndex(QueueType::PRESENT).value()};
+  uint32_t queueFamilyIndices[] = {_engineState->getDevice()->getSupportedFamilyIndex(QueueType::GRAPHIC).value(),
+                                   _engineState->getDevice()->getSupportedFamilyIndex(QueueType::PRESENT).value()};
   // if we have separate queues for presentation and graphic we can use concurrent mode
   // render using graphic queue and show using presentation queue
-  if (_state->getDevice()->getSupportedFamilyIndex(QueueType::GRAPHIC) !=
-      _state->getDevice()->getSupportedFamilyIndex(QueueType::PRESENT)) {
+  if (_engineState->getDevice()->getSupportedFamilyIndex(QueueType::GRAPHIC) !=
+      _engineState->getDevice()->getSupportedFamilyIndex(QueueType::PRESENT)) {
     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     createInfo.queueFamilyIndexCount = 2;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -109,16 +109,17 @@ void Swapchain::_initialize() {
   createInfo.presentMode = presentMode;
   createInfo.clipped = VK_TRUE;
 
-  if (vkCreateSwapchainKHR(_state->getDevice()->getLogicalDevice(), &createInfo, nullptr, &_swapchain) != VK_SUCCESS) {
+  if (vkCreateSwapchainKHR(_engineState->getDevice()->getLogicalDevice(), &createInfo, nullptr, &_swapchain) !=
+      VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain!");
   }
 
-  if (vkGetSwapchainImagesKHR(_state->getDevice()->getLogicalDevice(), _swapchain, &imageCount, nullptr) !=
+  if (vkGetSwapchainImagesKHR(_engineState->getDevice()->getLogicalDevice(), _swapchain, &imageCount, nullptr) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
   std::vector<VkImage> swapchainImages(imageCount);
-  if (vkGetSwapchainImagesKHR(_state->getDevice()->getLogicalDevice(), _swapchain, &imageCount,
+  if (vkGetSwapchainImagesKHR(_engineState->getDevice()->getLogicalDevice(), _swapchain, &imageCount,
                               swapchainImages.data()) != VK_SUCCESS) {
     throw std::runtime_error("failed to create swap chain image!");
   }
@@ -129,16 +130,18 @@ void Swapchain::_initialize() {
   _swapchainImageViews.resize(swapchainImages.size());
   for (uint32_t i = 0; i < swapchainImages.size(); i++) {
     auto image = std::make_shared<Image>(swapchainImages[i], std::tuple{extent.width, extent.height},
-                                         surfaceFormat.format, _state);
+                                         surfaceFormat.format, _engineState);
     _swapchainImageViews[i] = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
-                                                          VK_IMAGE_ASPECT_COLOR_BIT, _state);
+                                                          VK_IMAGE_ASPECT_COLOR_BIT, _engineState);
   }
 }
 
-void Swapchain::_destroy() { vkDestroySwapchainKHR(_state->getDevice()->getLogicalDevice(), _swapchain, nullptr); }
+void Swapchain::_destroy() {
+  vkDestroySwapchainKHR(_engineState->getDevice()->getLogicalDevice(), _swapchain, nullptr);
+}
 
 void Swapchain::reset() {
-  if (vkDeviceWaitIdle(_state->getDevice()->getLogicalDevice()) != VK_SUCCESS)
+  if (vkDeviceWaitIdle(_engineState->getDevice()->getLogicalDevice()) != VK_SUCCESS)
     throw std::runtime_error("failed to create reset swap chain!");
 
   _destroy();

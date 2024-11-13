@@ -3,9 +3,9 @@
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core) {
   _camera = camera;
   _core = core;
-  auto state = core->getState();
+  auto state = core->getEngineState();
 
-  for (auto elem : _core->getState()->getSettings()->getAttenuations()) {
+  for (auto elem : _core->getEngineState()->getSettings()->getAttenuations()) {
     _attenuationKeys.push_back(std::to_string(std::get<0>(elem)));
   }
 
@@ -13,7 +13,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   for (int i = 0; i < _lineFrustum.size(); i++) {
     auto line = _core->createLine();
     auto mesh = line->getMesh();
-    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)}, _core->getCommandBufferApplication());
+    mesh->setColor({glm::vec3(1.f, 0.f, 0.f)});
     _lineFrustum[i] = line;
   }
 
@@ -75,71 +75,50 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _materialShadow = _core->createMaterialColor(MaterialTarget::SIMPLE);
   _materialShadow->setBaseColor({core->getResourceManager()->getTextureOne()});
   _spriteShadow->setMaterial(_materialShadow);
-  {
-    auto camera = std::dynamic_pointer_cast<CameraFly>(_camera);
-    auto [resX, resY] = _core->getState()->getSettings()->getResolution();
-    float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
-    float width1 = height1 * ((float)resX / (float)resY);
-    _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                             glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear()),
-                                             glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                             glm::vec3(-width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[3]->getMesh()->setPosition({glm::vec3(width1 / 2.f, -height1 / 2.f, -camera->getNear()),
-                                             glm::vec3(width1 / 2.f, height1 / 2.f, -camera->getNear())},
-                                            _core->getCommandBufferApplication());
-    float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
-    float width2 = height2 * ((float)resX / (float)resY);
-    _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                             glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar()),
-                                             glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                             glm::vec3(-width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[7]->getMesh()->setPosition({glm::vec3(width2 / 2.f, -height2 / 2.f, -camera->getFar()),
-                                             glm::vec3(width2 / 2.f, height2 / 2.f, -camera->getFar())},
-                                            _core->getCommandBufferApplication());
-    // bottom
-    _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
-                                         _core->getCommandBufferApplication());
-    _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos},
-                                            _core->getCommandBufferApplication());
-    _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)},
-                                         _core->getCommandBufferApplication());
-    // top
-    _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos},
-                                             _core->getCommandBufferApplication());
-    _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                          _core->getCommandBufferApplication());
-    _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos},
-                                             _core->getCommandBufferApplication());
-    _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                          _core->getCommandBufferApplication());
-  }
+}
+
+void DebugVisualization::_drawFrustumLines(glm::vec3 nearPart, glm::vec3 farPart) {
+  _lineFrustum[0]->getMesh()->setPosition({glm::vec3(-nearPart.x / 2.f, -nearPart.y / 2.f, -nearPart.z),
+                                           glm::vec3(nearPart.x / 2.f, -nearPart.y / 2.f, -nearPart.z)});
+  _lineFrustum[1]->getMesh()->setPosition({glm::vec3(-nearPart.x / 2.f, nearPart.y / 2.f, -nearPart.z),
+                                           glm::vec3(nearPart.x / 2.f, nearPart.y / 2.f, -nearPart.z)});
+  _lineFrustum[2]->getMesh()->setPosition({glm::vec3(-nearPart.x / 2.f, -nearPart.y / 2.f, -nearPart.z),
+                                           glm::vec3(-nearPart.x / 2.f, nearPart.y / 2.f, -nearPart.z)});
+  _lineFrustum[3]->getMesh()->setPosition({glm::vec3(nearPart.x / 2.f, -nearPart.y / 2.f, -nearPart.z),
+                                           glm::vec3(nearPart.x / 2.f, nearPart.y / 2.f, -nearPart.z)});
+  _lineFrustum[4]->getMesh()->setPosition({glm::vec3(-farPart.x / 2.f, -farPart.y / 2.f, -farPart.z),
+                                           glm::vec3(farPart.x / 2.f, -farPart.y / 2.f, -farPart.z)});
+  _lineFrustum[5]->getMesh()->setPosition({glm::vec3(-farPart.x / 2.f, farPart.y / 2.f, -farPart.z),
+                                           glm::vec3(farPart.x / 2.f, farPart.y / 2.f, -farPart.z)});
+  _lineFrustum[6]->getMesh()->setPosition({glm::vec3(-farPart.x / 2.f, -farPart.y / 2.f, -farPart.z),
+                                           glm::vec3(-farPart.x / 2.f, farPart.y / 2.f, -farPart.z)});
+  _lineFrustum[7]->getMesh()->setPosition({glm::vec3(farPart.x / 2.f, -farPart.y / 2.f, -farPart.z),
+                                           glm::vec3(farPart.x / 2.f, farPart.y / 2.f, -farPart.z)});
+  // bottom
+  _lineFrustum[8]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[0].pos});
+  _lineFrustum[8]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)});
+  _lineFrustum[9]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[4]->getMesh()->getVertexData()[1].pos});
+  _lineFrustum[9]->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(0.f, 0.f, 1.f)});
+  // top
+  _lineFrustum[10]->getMesh()->setPosition({glm::vec3(0.f), _lineFrustum[5]->getMesh()->getVertexData()[0].pos});
+  _lineFrustum[10]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
+  _lineFrustum[11]->getMesh()->setPosition({glm::vec3(0), _lineFrustum[5]->getMesh()->getVertexData()[1].pos});
+  _lineFrustum[11]->getMesh()->setColor({glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
 }
 
 void DebugVisualization::_drawShadowMaps() {
-  auto currentFrame = _core->getState()->getFrameInFlight();
+  auto currentFrame = _core->getEngineState()->getFrameInFlight();
   auto gui = _core->getGUI();
   if (_showDepth) {
     if (_initializedDepth == false) {
       for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
-        glm::vec3 pos = _core->getDirectionalLights()[i]->getPosition();
+        glm::vec3 pos = _core->getDirectionalLights()[i]->getCamera()->getPosition();
         _shadowKeys.push_back("Dir " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
                               std::format("{:.2f}", pos.y));
       }
       for (int i = 0; i < _core->getPointLights().size(); i++) {
         for (int j = 0; j < 6; j++) {
-          glm::vec3 pos = _core->getPointLights()[i]->getPosition();
+          glm::vec3 pos = _core->getPointLights()[i]->getCamera()->getPosition();
           _shadowKeys.push_back("Point " + std::to_string(i) + ": " + std::format("{:.2f}", pos.x) + "x" +
                                 std::format("{:.2f}", pos.y) + "_" + std::to_string(j));
         }
@@ -205,14 +184,14 @@ void DebugVisualization::update() {
   if (_registerLights == false) {
     for (int i = 0; i < _core->getPointLights().size(); i++) {
       {
-        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
+        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
         model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
         _pointLightModels[i]->setModel(model);
       }
     }
 
     for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
-      auto model = glm::translate(glm::mat4(1.f), _core->getDirectionalLights()[i]->getPosition());
+      auto model = _core->getDirectionalLights()[i]->getCamera()->getView();
       model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
       _directionalLightModels[i]->setModel(model);
     }
@@ -222,7 +201,7 @@ void DebugVisualization::update() {
 void DebugVisualization::draw() {
   auto gui = _core->getGUI();
 
-  auto [resX, resY] = _core->getState()->getSettings()->getResolution();
+  auto [resX, resY] = _core->getEngineState()->getSettings()->getResolution();
   auto eye = _camera->getEye();
   auto direction = _camera->getDirection();
   if (gui->startTree("Coordinates")) {
@@ -283,12 +262,12 @@ void DebugVisualization::draw() {
       } else {
         _frustumDraw = true;
         auto camera = std::dynamic_pointer_cast<CameraFly>(_camera);
-        auto [resX, resY] = _core->getState()->getSettings()->getResolution();
+        auto [resX, resY] = _core->getEngineState()->getSettings()->getResolution();
         float height1 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getNear();
         float width1 = height1 * ((float)resX / (float)resY);
         float height2 = 2 * tan(glm::radians(camera->getFOV() / 2.f)) * camera->getFar();
         float width2 = height2 * ((float)resX / (float)resY);
-
+        _drawFrustumLines(glm::vec3(width1, height1, camera->getNear()), glm::vec3(width2, height2, camera->getFar()));
         auto model = glm::scale(glm::mat4(1.f), glm::vec3(width2, height2, 1.f));
         model = glm::translate(model, glm::vec3(0.f, 0.f, -camera->getFar()));
         _farPlaneCW->setModel(glm::inverse(camera->getView()) * model);
@@ -311,9 +290,9 @@ void DebugVisualization::draw() {
     if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}})) _core->getBlur()->setKernelSize(blurKernelSize);
     int blurSigma = _core->getBlur()->getSigma();
     if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) _core->getBlur()->setSigma(blurSigma);
-    int bloomPasses = _core->getState()->getSettings()->getBloomPasses();
+    int bloomPasses = _core->getEngineState()->getSettings()->getBloomPasses();
     if (_core->getGUI()->drawInputInt({{"Passes", &bloomPasses}}))
-      _core->getState()->getSettings()->setBloomPasses(bloomPasses);
+      _core->getEngineState()->getSettings()->setBloomPasses(bloomPasses);
 
     gui->drawInputFloat({{"R", &_R}});
     _R = std::min(_R, 1.f);
@@ -324,7 +303,7 @@ void DebugVisualization::draw() {
     gui->drawInputFloat({{"B", &_B}});
     _B = std::min(_B, 1.f);
     _B = std::max(_B, 0.f);
-    _core->getState()->getSettings()->setClearColor({_R, _G, _B, 1.f});
+    _core->getEngineState()->getSettings()->setClearColor({_R, _G, _B, 1.f});
     gui->endTree();
   }
 
@@ -354,7 +333,7 @@ void DebugVisualization::draw() {
       for (int i = 0; i < _core->getPointLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_pointLightModels[i]);
         {
-          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getPosition());
+          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
           if (_enableSpheres) {
             if (_lightSpheresIndex < 0) _lightSpheresIndex = _core->getPointLights()[i]->getAttenuationIndex();
             _core->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);

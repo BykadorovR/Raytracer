@@ -40,12 +40,12 @@ void Material::update(int currentFrame) {
   }
 }
 
-Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _state = state;
+Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
 
-  _uniformBufferAlphaCutoff = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                              sizeof(AlphaCutoff), state);
-  _changedAlpha.resize(_state->getSettings()->getMaxFramesInFlight(), false);
+  _uniformBufferAlphaCutoff = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                              sizeof(AlphaCutoff), engineState);
+  _changedAlpha.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
 }
 
 void Material::unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor) { _descriptorsUpdate.erase(descriptor); }
@@ -61,7 +61,7 @@ void Material::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
   std::unique_lock<std::mutex> lock(_mutex);
   _alphaCutoff.alphaCutoff = alphaCutoff;
   _alphaCutoff.alphaMask = alphaCutoff;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) _changedAlpha[i] = true;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedAlpha[i] = true;
 }
 
 bool Material::getDoubleSided() { return _doubleSided; }
@@ -72,23 +72,24 @@ std::shared_ptr<UniformBuffer> Material::getBufferAlphaCutoff() { return _unifor
 
 MaterialPBR::MaterialPBR(MaterialTarget target,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                         std::shared_ptr<State> state)
-    : MaterialColor(target, commandBufferTransfer, state) {
+                         std::shared_ptr<EngineState> engineState)
+    : Material(commandBufferTransfer, engineState) {
   _target = target;
   // define coefficients
-  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), state);
-  _changedTextures[MaterialTexture::NORMAL].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::METALLIC].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::ROUGHNESS].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::OCCLUSION].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::EMISSIVE].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::IBL_DIFFUSE].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::IBL_SPECULAR].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::BRDF_SPECULAR].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedCoefficients.resize(_state->getSettings()->getMaxFramesInFlight(), false);
+  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(Coefficients), engineState);
+  _changedTextures[MaterialTexture::COLOR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::NORMAL].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::METALLIC].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::ROUGHNESS].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::OCCLUSION].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::EMISSIVE].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::IBL_DIFFUSE].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::IBL_SPECULAR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::BRDF_SPECULAR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedCoefficients.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   // set default coefficients
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _updateCoefficientBuffer(i);
   }
 }
@@ -96,6 +97,8 @@ MaterialPBR::MaterialPBR(MaterialTarget target,
 void MaterialPBR::_updateCoefficientBuffer(int currentFrame) {
   _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
 }
+
+const std::vector<std::shared_ptr<Texture>> MaterialPBR::getBaseColor() { return _textures[MaterialTexture::COLOR]; }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPBR::getNormal() { return _textures[MaterialTexture::NORMAL]; }
 
@@ -115,12 +118,22 @@ std::shared_ptr<Texture> MaterialPBR::getSpecularIBL() { return _textures[Materi
 
 std::shared_ptr<Texture> MaterialPBR::getSpecularBRDF() { return _textures[MaterialTexture::BRDF_SPECULAR][0]; }
 
+void MaterialPBR::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
+  std::unique_lock<std::mutex> lock(_mutex);
+  if (static_cast<int>(_target) != color.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
+  _textures[MaterialTexture::COLOR] = color;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changedTextures[MaterialTexture::COLOR][i] = true;
+  }
+}
+
 void MaterialPBR::setNormal(std::vector<std::shared_ptr<Texture>> normal) {
   std::unique_lock<std::mutex> lock(_mutex);
   if (static_cast<int>(_target) != normal.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::NORMAL] = normal;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::NORMAL][i] = true;
   }
 }
@@ -130,7 +143,7 @@ void MaterialPBR::setMetallic(std::vector<std::shared_ptr<Texture>> metallic) {
   if (static_cast<int>(_target) != metallic.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::METALLIC] = metallic;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::METALLIC][i] = true;
   }
 }
@@ -140,7 +153,7 @@ void MaterialPBR::setRoughness(std::vector<std::shared_ptr<Texture>> roughness) 
   if (static_cast<int>(_target) != roughness.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::ROUGHNESS] = roughness;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::ROUGHNESS][i] = true;
   }
 }
@@ -150,7 +163,7 @@ void MaterialPBR::setOccluded(std::vector<std::shared_ptr<Texture>> occluded) {
   if (static_cast<int>(_target) != occluded.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::OCCLUSION] = occluded;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::OCCLUSION][i] = true;
   }
 }
@@ -160,7 +173,7 @@ void MaterialPBR::setEmissive(std::vector<std::shared_ptr<Texture>> emissive) {
   if (static_cast<int>(_target) != emissive.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::EMISSIVE] = emissive;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::EMISSIVE][i] = true;
   }
 }
@@ -168,7 +181,7 @@ void MaterialPBR::setEmissive(std::vector<std::shared_ptr<Texture>> emissive) {
 void MaterialPBR::setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL) {
   std::unique_lock<std::mutex> lock(_mutex);
   _textures[MaterialTexture::IBL_DIFFUSE] = {diffuseIBL};
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::IBL_DIFFUSE][i] = true;
   }
 }
@@ -176,11 +189,11 @@ void MaterialPBR::setDiffuseIBL(std::shared_ptr<Texture> diffuseIBL) {
 void MaterialPBR::setSpecularIBL(std::shared_ptr<Texture> specularIBL, std::shared_ptr<Texture> specularBRDF) {
   std::unique_lock<std::mutex> lock(_mutex);
   _textures[MaterialTexture::IBL_SPECULAR] = {specularIBL};
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::IBL_SPECULAR][i] = true;
   }
   _textures[MaterialTexture::BRDF_SPECULAR] = {specularBRDF};
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::BRDF_SPECULAR][i] = true;
   }
 }
@@ -194,22 +207,23 @@ void MaterialPBR::setCoefficients(float metallicFactor,
   _coefficients.roughnessFactor = roughnessFactor;
   _coefficients.occlusionStrength = occlusionStrength;
   _coefficients.emissiveFactor = emissiveFactor;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
 }
 
 MaterialPhong::MaterialPhong(MaterialTarget target,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                             std::shared_ptr<State> state)
-    : MaterialColor(target, commandBufferTransfer, state) {
+                             std::shared_ptr<EngineState> engineState)
+    : Material(commandBufferTransfer, engineState) {
   _target = target;
 
-  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), state);
-  _changedTextures[MaterialTexture::NORMAL].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::SPECULAR].resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedCoefficients.resize(_state->getSettings()->getMaxFramesInFlight(), false);
+  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(Coefficients), engineState);
+  _changedTextures[MaterialTexture::COLOR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::NORMAL].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::SPECULAR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedCoefficients.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   // set default coefficients
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _updateCoefficientBuffer(i);
   }
 }
@@ -218,10 +232,22 @@ void MaterialPhong::_updateCoefficientBuffer(int currentFrame) {
   _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
 }
 
+const std::vector<std::shared_ptr<Texture>> MaterialPhong::getBaseColor() { return _textures[MaterialTexture::COLOR]; }
+
 const std::vector<std::shared_ptr<Texture>> MaterialPhong::getNormal() { return _textures[MaterialTexture::NORMAL]; }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPhong::getSpecular() {
   return _textures[MaterialTexture::SPECULAR];
+}
+
+void MaterialPhong::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
+  std::unique_lock<std::mutex> lock(_mutex);
+  if (static_cast<int>(_target) != color.size())
+    throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
+  _textures[MaterialTexture::COLOR] = color;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changedTextures[MaterialTexture::COLOR][i] = true;
+  }
 }
 
 void MaterialPhong::setSpecular(std::vector<std::shared_ptr<Texture>> specular) {
@@ -230,7 +256,7 @@ void MaterialPhong::setSpecular(std::vector<std::shared_ptr<Texture>> specular) 
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::SPECULAR] = specular;
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::SPECULAR][i] = true;
   }
 }
@@ -241,7 +267,7 @@ void MaterialPhong::setNormal(std::vector<std::shared_ptr<Texture>> normal) {
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::NORMAL] = normal;
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::NORMAL][i] = true;
   }
 }
@@ -252,16 +278,16 @@ void MaterialPhong::setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::v
   _coefficients._diffuse = diffuse;
   _coefficients._specular = specular;
   _coefficients._shininess = shininess;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
 }
 
 MaterialColor::MaterialColor(MaterialTarget target,
                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                             std::shared_ptr<State> state)
-    : Material(commandBufferTransfer, state) {
+                             std::shared_ptr<EngineState> engineState)
+    : Material(commandBufferTransfer, engineState) {
   _target = target;
-  _changedCoefficients.resize(_state->getSettings()->getMaxFramesInFlight(), false);
-  _changedTextures[MaterialTexture::COLOR].resize(_state->getSettings()->getMaxFramesInFlight(), false);
+  _changedCoefficients.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changedTextures[MaterialTexture::COLOR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
 }
 
 void MaterialColor::_updateCoefficientBuffer(int currentFrame) {}
@@ -273,7 +299,7 @@ void MaterialColor::setBaseColor(std::vector<std::shared_ptr<Texture>> color) {
   if (static_cast<int>(_target) != color.size())
     throw std::invalid_argument("expected size of vector is " + std::to_string(static_cast<int>(_target)));
   _textures[MaterialTexture::COLOR] = color;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changedTextures[MaterialTexture::COLOR][i] = true;
   }
 }

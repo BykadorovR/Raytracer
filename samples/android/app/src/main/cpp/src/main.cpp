@@ -39,7 +39,6 @@ std::shared_ptr<PointLight> _pointLightHorizontal;
 std::shared_ptr<DirectionalLight> _directionalLight;
 std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubeTextured, _cubeTexturedWireframe;
 std::shared_ptr<Animation> _animationFish;
-std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
 bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
 float _directionalValue = 0.5f, _pointVerticalValue = 1.f, _pointHorizontalValue = 10.f;
 std::tuple<int, int> _resolution = {1080, 2400};
@@ -50,7 +49,7 @@ std::shared_ptr<Equirectangular> _equirectangular;
 std::shared_ptr<MaterialColor> _materialColor;
 std::shared_ptr<MaterialPhong> _materialPhong;
 std::shared_ptr<MaterialPBR> _materialPBR;
-std::shared_ptr<Terrain> _terrain;
+std::shared_ptr<TerrainGPU> _terrain;
 std::shared_ptr<Model3D> _modelSimple;
 std::shared_ptr<Shape3D> _boundingBox, _cubePlayer;
 std::shared_ptr<Model3DPhysics> _model3DPhysics;
@@ -65,14 +64,17 @@ float _heightShift = 16.f;
 std::array<float, 4> _heightLevels = {16, 128, 192, 256};
 int _minTessellationLevel = 4, _maxTessellationLevel = 32;
 float _minDistance = 30, _maxDistance = 100;
+glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
+glm::vec3 _terrainScale = glm::vec3(1.f);
 
 void _createTerrainPhong() {
-  _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -80,17 +82,16 @@ void _createTerrainPhong() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain);
 }
 
 void _createTerrainPBR() {
-  _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -98,17 +99,16 @@ void _createTerrainPBR() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain);
 }
 
 void _createTerrainColor() {
-  _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
   {
-    // auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -6.f, 0.f));
+    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
+    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
     _terrain->setModel(translateMatrix);
   }
 
@@ -116,8 +116,6 @@ void _createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain);
 }
 
 void update() {
@@ -125,13 +123,14 @@ void update() {
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
                                                 radius * sin(glm::radians(angleHorizontal)));
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
 
   angleHorizontal += 0.05f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 120}, {widthScreen / 5, 0}, 3.f);
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help", 3.f);
+  _core->getGUI()->setWindowPosition({20, 120});
   if (_core->getGUI()->startTree("Main", false)) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
@@ -146,17 +145,23 @@ void update() {
     terrainType["##Type"] = &_typeIndex;
     if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
       _core->startRecording();
+      _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
           _createTerrainColor();
           break;
         case 1:
+          _core->removeShadowable(_terrain);
           _createTerrainPhong();
+          _core->addShadowable(_terrain);
           break;
         case 2:
+          _core->removeShadowable(_terrain);
           _createTerrainPBR();
+          _core->addShadowable(_terrain);
           break;
       }
+      _core->addDrawable(_terrain);
       _core->endRecording();
     }
     _core->getGUI()->endTree();
@@ -210,10 +215,10 @@ void initialize() {
   auto commandBufferTransfer = _core->getCommandBufferApplication();
 
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _camera->setSpeed(0.1f, 0.05f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _core->setCamera(_camera);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -238,7 +243,7 @@ void initialize() {
 
   _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
   auto ambientLight = _core->createAmbientLight();
   // calculate ambient color with default gamma
@@ -247,9 +252,8 @@ void initialize() {
 
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
-  _directionalLight->setPosition({0.f, 35.f, 0.f});
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setArea({-20.f, 20.f, -20.f, 20.f}, 0.1f, 60.f);
+  _directionalLight->getCamera()->setPosition({0.f, 35.f, 0.f});
 
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
@@ -446,6 +450,8 @@ void initialize() {
   }
 
   _createTerrainColor();
+  _core->addDrawable(_terrain);
+  _core->addShadowable(_terrain);
 
   auto particleTexture = _core->createTexture("gradient.png", settings->getLoadTextureAuxilaryFormat(), 1);
 
@@ -619,7 +625,8 @@ void initialize() {
     auto heightmapCPU = _core->loadImageCPU("heightmap.png");
 
     _physicsManager = std::make_shared<PhysicsManager>();
-    _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, std::tuple{64, 16}, _physicsManager);
+    _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale,
+                                                       std::tuple{64, 16}, _physicsManager);
 
     _cubePlayer = _core->createShape3D(ShapeType::CUBE);
     _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));
@@ -678,7 +685,7 @@ bool _move = false;
 void handle_input(android_app* app) {
   if (_move) {
     LOGI("Movement process");
-    _core->getState()->getInput()->keyHandler(87, 0, 1, 0);
+    _core->getEngineState()->getInput()->keyHandler(87, 0, 1, 0);
   }
 
   auto* inputBuffer = android_app_swap_input_buffers(app);
@@ -713,8 +720,8 @@ void handle_input(android_app* app) {
         }
         if (pointer.id == 0) {
           // 0 - left button, 1 - press, 0 = mod, doesn't matter
-          _core->getState()->getInput()->cursorHandler(x, y);
-          _core->getState()->getInput()->mouseHandler(0, 1, 0);
+          _core->getEngineState()->getInput()->cursorHandler(x, y);
+          _core->getEngineState()->getInput()->mouseHandler(0, 1, 0);
         }
         break;
 
@@ -728,12 +735,12 @@ void handle_input(android_app* app) {
         if (pointer.id == 1) {
           _move = false;
           LOGI("End movement");
-          _core->getState()->getInput()->keyHandler(87, 0, 0, 0);
+          _core->getEngineState()->getInput()->keyHandler(87, 0, 0, 0);
         }
         if (pointer.id == 0) {
           // 0 - left button, 0 - release, 0 = mod, doesn't matter
-          _core->getState()->getInput()->cursorHandler(x, y);
-          _core->getState()->getInput()->mouseHandler(0, 0, 0);
+          _core->getEngineState()->getInput()->cursorHandler(x, y);
+          _core->getEngineState()->getInput()->mouseHandler(0, 0, 0);
         }
         break;
 
@@ -746,7 +753,7 @@ void handle_input(android_app* app) {
           x = GameActivityPointerAxes_getX(&pointer);
           y = GameActivityPointerAxes_getY(&pointer);
           if (pointer.id == 0) {
-            _core->getState()->getInput()->cursorHandler(x, y);
+            _core->getEngineState()->getInput()->cursorHandler(x, y);
           }
         }
         break;
@@ -803,7 +810,7 @@ void android_main(android_app* app) {
   int events;
   android_poll_source* source;
   do {
-    auto number = ALooper_pollAll(_initialized ? 1 : 0, nullptr, &events, (void**)&source);
+    auto number = ALooper_pollOnce(_initialized ? 1 : 0, nullptr, &events, (void**)&source);
     if (number >= 0) {
       if (source != NULL) source->process(app, source);
     }

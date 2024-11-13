@@ -23,9 +23,7 @@ class Drawable : virtual public Named {
   glm::mat4 _translateOrigin = glm::mat4(1.f);
 
  public:
-  virtual void draw(std::tuple<int, int> resolution,
-                    std::shared_ptr<Camera> camera,
-                    std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+  virtual void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
   void setModel(glm::mat4 model);
   void setOrigin(glm::mat4 translateOrigin);
   glm::mat4 getModel();

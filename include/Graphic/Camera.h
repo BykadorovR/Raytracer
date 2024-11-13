@@ -6,11 +6,51 @@
 #include <memory>
 #include <map>
 #include <array>
-#include "Utility/State.h"
+#include "Utility/EngineState.h"
 #include "Utility/Input.h"
 #include "Vulkan/Window.h"
 #undef near
 #undef far
+
+class CameraDirectionalLight {
+ protected:
+  // projection
+  std::array<float, 4> _rect;
+  float _near;
+  float _far;
+  // camera
+  glm::vec3 _eye;
+  glm::vec3 _direction;
+  glm::vec3 _up;
+
+ public:
+  CameraDirectionalLight();
+  void setPosition(glm::vec3 position);
+  void setArea(std::array<float, 4> rect, float near, float far);
+  glm::vec3 getPosition();
+  glm::mat4 getView();
+  glm::mat4 getProjection();
+};
+
+class CameraPointLight {
+ private:
+  // projection
+  float _near;
+  float _far;
+  // camera
+  glm::vec3 _eye;
+  std::array<glm::vec3, 6> _direction;
+  std::array<glm::vec3, 6> _up;
+
+ public:
+  CameraPointLight();
+  void setPosition(glm::vec3 position);
+  void setArea(float near, float far);
+  float getFar();
+  glm::vec3 getPosition();
+  glm::mat4 getView(int face);
+  glm::mat4 getProjection();
+};
 
 class Camera {
  protected:
@@ -52,14 +92,14 @@ class CameraFly : public Camera, public InputSubscriber {
   float _xLast;
   float _yLast;
   std::map<int, bool> _keyStatus;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   bool _once;
   float _sensitivity = 0.1f;
   float _moveSpeed = 0.1f;
   float _aspect;
 
  public:
-  CameraFly(std::shared_ptr<State> state);
+  CameraFly(std::shared_ptr<EngineState> engineState);
   void setProjectionParameters(float fov, float near, float far);
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   void setSpeed(float rotate, float translate);

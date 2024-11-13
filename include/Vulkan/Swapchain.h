@@ -4,7 +4,7 @@
 
 class Swapchain {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
 
   VkSwapchainKHR _swapchain;
   std::vector<std::shared_ptr<ImageView>> _swapchainImageViews;
@@ -17,7 +17,7 @@ class Swapchain {
   void _destroy();
 
  public:
-  Swapchain(VkFormat imageFormat, std::shared_ptr<State> state);
+  Swapchain(VkFormat imageFormat, std::shared_ptr<EngineState> engineState);
   void reset();
 
   void overrideImageLayout(VkImageLayout imageLayout);

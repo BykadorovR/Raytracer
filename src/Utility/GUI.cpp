@@ -1,13 +1,13 @@
 #include "Utility/GUI.h"
 
-GUI::GUI(std::shared_ptr<State> state) {
-  _state = state;
-  _resolution = state->getSettings()->getResolution();
+GUI::GUI(std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
+  _resolution = engineState->getSettings()->getResolution();
 
-  _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
-  _indexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
-  _vertexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
-  _indexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
+  _vertexBuffer.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _indexBuffer.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _vertexCount.resize(engineState->getSettings()->getMaxFramesInFlight(), 0);
+  _indexCount.resize(engineState->getSettings()->getMaxFramesInFlight(), 0);
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -27,7 +27,7 @@ GUI::GUI(std::shared_ptr<State> state) {
 
 void GUI::reset() {
   ImGuiIO& io = ImGui::GetIO();
-  _resolution = _state->getSettings()->getResolution();
+  _resolution = _engineState->getSettings()->getResolution();
   io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
 }
 
@@ -42,10 +42,11 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   // check if device extensions are supported
   uint32_t extensionCount;
-  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount, nullptr);
+  vkEnumerateDeviceExtensionProperties(_engineState->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
+                                       nullptr);
 
   std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
+  vkEnumerateDeviceExtensionProperties(_engineState->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
                                        availableExtensions.data());
   bool supported = false;
   for (const auto& extension : availableExtensions) {
@@ -57,39 +58,40 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   auto stagingBuffer = std::make_shared<Buffer>(
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   stagingBuffer->setData(fontData);
 
-  _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
-                                       _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+  _fontImage = std::make_shared<Image>(
+      std::tuple{texWidth, texHeight}, 1, 1, _engineState->getSettings()->getLoadTextureColorFormat(),
+      VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _engineState);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           _state);
-  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView, _state);
+                                           _engineState);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView,
+                                           _engineState);
 
-  _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
-  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+  _descriptorPool = std::make_shared<DescriptorPool>(100, _engineState->getDevice());
+  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformData),
-                                                   _state);
-  _descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
-                                                   _descriptorPool, _state->getDevice());
+  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   sizeof(UniformData), _engineState);
+  _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   _descriptorSetLayout, _descriptorPool, _engineState->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
 
-  auto shader = std::make_shared<Shader>(_state);
+  auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/UI/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeDebug();
-  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+  _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
                        {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
@@ -156,6 +158,13 @@ bool GUI::drawInputFloat(std::map<std::string, float*> variable) {
   return result;
 }
 
+bool GUI::drawInputText(std::string label, char* buffer, int size) {
+  bool result = false;
+  if (ImGui::InputText(label.c_str(), buffer, size, ImGuiInputTextFlags_EnterReturnsTrue)) result = true;
+
+  return result;
+}
+
 bool GUI::drawInputInt(std::map<std::string, int*> variable) {
   bool result = false;
   for (auto& [key, value] : variable) {
@@ -187,7 +196,7 @@ void GUI::updateBuffers(int current) {
 
   if ((_vertexBuffer[current] == nullptr) || (_vertexCount[current] != imDrawData->TotalVtxCount)) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _vertexCount[current] = imDrawData->TotalVtxCount;
     _vertexBuffer[current]->map();
   }
@@ -195,7 +204,7 @@ void GUI::updateBuffers(int current) {
   // Index buffer
   if ((_indexBuffer[current] == nullptr) || (_indexCount[current] != imDrawData->TotalIdxCount)) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _indexCount[current] = imDrawData->TotalIdxCount;
     _indexBuffer[current]->map();
   }
@@ -273,22 +282,33 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   ImGui::NewFrame();
 }
 
-void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale) {
-  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-  // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
-  ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
-
+void GUI::startWindow(std::string name, float fontScale) {
   ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::GetFont()->Scale = fontScale;
   ImGui::PushFont(ImGui::GetFont());
 }
 
-std::tuple<int, int, int, int> GUI::endWindow() {
-  ImVec2 size = ImGui::GetWindowSize();
-  ImVec2 position = ImGui::GetWindowPos();
+void GUI::setWindowSize(std::tuple<int, int> size) {
+  ImGui::SetWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)));
+}
+
+void GUI::setWindowPosition(std::tuple<int, int> position) {
+  ImGui::SetWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)));
+}
+
+std::tuple<int, int> GUI::getWindowSize() {
+  auto size = ImGui::GetWindowSize();
+  return {size.x, size.y};
+}
+
+std::tuple<int, int> GUI::getWindowPosition() {
+  auto position = ImGui::GetWindowPos();
+  return {position.x, position.y};
+}
+
+void GUI::endWindow() {
   ImGui::PopFont();
   ImGui::End();
-  return {position.x, position.y, size.x, size.y};
 }
 
 bool GUI::startTree(std::string name, bool open) {
@@ -300,12 +320,18 @@ void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(float xPos, float yPos) {
+bool GUI::cursorNotify(float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::mouseNotify(int button, int action, int mods) {
+bool GUI::mouseNotify(int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
 #ifdef __ANDROID__
   if (action == 1) io.MouseDown[0] = true;
@@ -324,20 +350,37 @@ void GUI::mouseNotify(int button, int action, int mods) {
     io.MouseDown[1] = false;
   }
 #endif
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::charNotify(unsigned int code) {
+bool GUI::charNotify(unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::scrollNotify(double xOffset, double yOffset) {
+bool GUI::scrollNotify(double xOffset, double yOffset) {
   ImGuiIO& io = ImGui::GetIO();
   io.MouseWheelH += (float)xOffset;
   io.MouseWheel += (float)yOffset;
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::keyNotify(int key, int scancode, int action, int mods) {
+bool GUI::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
@@ -368,5 +411,11 @@ void GUI::keyNotify(int key, int scancode, int action, int mods) {
     io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
 #endif
+
+  return false;
 }

@@ -45,26 +45,25 @@ Shape3DPhysics::~Shape3DPhysics() {
 }
 
 Shape3D::Shape3D(ShapeType shapeType,
-                 std::shared_ptr<Mesh3D> mesh,
+                 std::shared_ptr<MeshStatic3D> mesh,
                  VkCullModeFlags cullMode,
-                 std::shared_ptr<LightManager> lightManager,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<ResourceManager> resourceManager,
-                 std::shared_ptr<State> state) {
+                 std::shared_ptr<GameState> gameState,
+                 std::shared_ptr<EngineState> engineState) {
   setName("Shape3D");
   _shapeType = shapeType;
-  _state = state;
-  _lightManager = lightManager;
+  _engineState = engineState;
+  _gameState = gameState;
   _cullMode = cullMode;
   _mesh = mesh;
 
   // needed for layout
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
-  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
+  _defaultMaterialPBR = std::make_shared<MaterialPBR>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
 
   if (shapeType == ShapeType::CUBE) {
-    _defaultMaterialColor->setBaseColor({resourceManager->getCubemapOne()->getTexture()});
+    _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getCubemapOne()->getTexture()});
     _shadersColor[ShapeType::CUBE][MaterialType::COLOR] = {"shaders/shape/cubeColor_vertex.spv",
                                                            "shaders/shape/cubeColor_fragment.spv"};
     _shadersColor[ShapeType::CUBE][MaterialType::PHONG] = {"shaders/shape/cubePhong_vertex.spv",
@@ -81,7 +80,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   if (shapeType == ShapeType::SPHERE) {
-    _defaultMaterialColor->setBaseColor({resourceManager->getTextureOne()});
+    _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
     _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
                                                              "shaders/shape/sphereColor_fragment.spv"};
     _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
@@ -99,16 +98,16 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   _material = _defaultMaterialColor;
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _renderPassDepth = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
+  _renderPassDepth = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassDepth->initializeLightDepth();
 
-  _uniformBufferCamera = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                         sizeof(BufferMVP), state);
+  _uniformBufferCamera = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                         sizeof(BufferMVP), engineState);
   // setup normals
   {
-    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh(2);
     layoutNormalsMesh[0].binding = 0;
     layoutNormalsMesh[0].descriptorCount = 1;
@@ -122,10 +121,10 @@ Shape3D::Shape3D(ShapeType shapeType,
     layoutNormalsMesh[1].stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
     _descriptorSetLayoutNormalsMesh->createCustom(layoutNormalsMesh);
 
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                                _descriptorSetLayoutNormalsMesh,
-                                                                state->getDescriptorPool(), state->getDevice());
-    for (int i = 0; i < state->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
+        engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
+        engineState->getDescriptorPool(), engineState->getDevice());
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
@@ -144,12 +143,12 @@ Shape3D::Shape3D(ShapeType shapeType,
 
     // initialize Normal (per vertex)
     {
-      auto shader = std::make_shared<Shader>(state);
+      auto shader = std::make_shared<Shader>(engineState);
       shader->add(_shadersNormalsMesh[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersNormalsMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add(_shadersNormalsMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineNormalMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineNormalMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineNormalMesh->createGraphic3D(
           cullMode, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -164,12 +163,12 @@ Shape3D::Shape3D(ShapeType shapeType,
     }
     // initialize Tangent (per vertex)
     {
-      auto shader = std::make_shared<Shader>(state);
+      auto shader = std::make_shared<Shader>(engineState);
       shader->add(_shadersTangentMesh[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersTangentMesh[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add(_shadersTangentMesh[_shapeType][2], VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineTangentMesh = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipelineTangentMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       _pipelineTangentMesh->createGraphic3D(
           cullMode, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -185,7 +184,7 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
   // setup color
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
     layoutColor[0].binding = 0;
     layoutColor[0].descriptorCount = 1;
@@ -200,17 +199,17 @@ Shape3D::Shape3D(ShapeType shapeType,
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
 
-    _descriptorSetColor = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, state->getDescriptorPool(),
-                                                          state->getDevice());
+    _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, engineState->getDescriptorPool(),
+                                                          engineState->getDevice());
     _updateColorDescriptor(_defaultMaterialColor);
     // initialize color
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add(_shadersColor[_shapeType][MaterialType::COLOR][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::COLOR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipeline[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                              _state->getDevice());
+      _pipeline[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                              _engineState->getDevice());
       std::vector<std::tuple<VkFormat, uint32_t>> attributes;
       if (_shapeType == ShapeType::CUBE) {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
@@ -228,8 +227,8 @@ Shape3D::Shape3D(ShapeType shapeType,
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
           _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
-      _pipelineWireframe[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                                       _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                                       _engineState->getDevice());
       _pipelineWireframe[_shapeType][MaterialType::COLOR]->createGraphic3D(
           _cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -241,7 +240,7 @@ Shape3D::Shape3D(ShapeType shapeType,
 
   // setup Phong
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPhong(5);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
@@ -270,21 +269,22 @@ Shape3D::Shape3D(ShapeType shapeType,
     layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPhong);
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PHONG].push_back({"globalPhong", lightManager->getDSLGlobalPhong()});
+    _descriptorSetLayout[MaterialType::PHONG].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalPhong()});
 
-    _descriptorSetPhong = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, state->getDescriptorPool(),
-                                                          state->getDevice());
+    _descriptorSetPhong = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, engineState->getDescriptorPool(),
+                                                          engineState->getDevice());
     // update descriptor set in setMaterial
 
     // initialize Phong
     {
-      auto shader = std::make_shared<Shader>(state);
+      auto shader = std::make_shared<Shader>(engineState);
       shader->add(_shadersColor[_shapeType][MaterialType::PHONG][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::PHONG][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                              _state->getDevice());
+      _pipeline[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                              _engineState->getDevice());
 
       std::vector<std::tuple<VkFormat, uint32_t>> attributes;
       if (_shapeType == ShapeType::CUBE) {
@@ -307,8 +307,8 @@ Shape3D::Shape3D(ShapeType shapeType,
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
-      _pipelineWireframe[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                                       _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                                       _engineState->getDevice());
       _pipelineWireframe[_shapeType][MaterialType::PHONG]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -321,7 +321,7 @@ Shape3D::Shape3D(ShapeType shapeType,
 
   // setup PBR
   {
-    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
+    auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
     std::vector<VkDescriptorSetLayoutBinding> layoutPBR(12);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
@@ -385,20 +385,21 @@ Shape3D::Shape3D(ShapeType shapeType,
     layoutPBR[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
-    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", lightManager->getDSLGlobalPBR()});
+    _descriptorSetLayout[MaterialType::PBR].push_back({"globalPBR", _gameState->getLightManager()->getDSLGlobalPBR()});
 
-    _descriptorSetPBR = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                        descriptorSetLayout, state->getDescriptorPool(),
-                                                        state->getDevice());
+    _descriptorSetPBR = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                        descriptorSetLayout, engineState->getDescriptorPool(),
+                                                        engineState->getDevice());
     // update descriptor set in setMaterial
 
     // initialize PBR
     {
-      auto shader = std::make_shared<Shader>(_state);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add(_shadersColor[_shapeType][MaterialType::PBR][0], VK_SHADER_STAGE_VERTEX_BIT);
       shader->add(_shadersColor[_shapeType][MaterialType::PBR][1], VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+      _pipeline[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                            _engineState->getDevice());
       std::vector<std::tuple<VkFormat, uint32_t>> attributes;
       if (_shapeType == ShapeType::CUBE) {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
@@ -420,8 +421,8 @@ Shape3D::Shape3D(ShapeType shapeType,
           std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
-      _pipelineWireframe[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_state->getSettings(),
-                                                                                     _state->getDevice());
+      _pipelineWireframe[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
+                                                                                     _engineState->getDevice());
       _pipelineWireframe[_shapeType][MaterialType::PBR]->createGraphic3D(
           cullMode, VK_POLYGON_MODE_LINE,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -433,43 +434,44 @@ Shape3D::Shape3D(ShapeType shapeType,
   }
 
   // shadows
-  auto layoutCamera = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  auto layoutCamera = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   layoutCamera->createUniformBuffer();
 
   // initialize camera UBO and descriptor sets for shadow
   // initialize UBO
-  for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back(
-        {std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP), _state)});
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                               sizeof(BufferMVP), _engineState)});
   }
 
-  for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                       _state);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       sizeof(BufferMVP), _engineState);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
-  auto cameraDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
+  auto cameraDescriptorSetLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   cameraDescriptorSetLayout->createUniformBuffer();
   {
-    for (int i = 0; i < _state->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                       cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                       _state->getDevice());
+    for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+      auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       cameraDescriptorSetLayout, _engineState->getDescriptorPool(),
+                                                       _engineState->getDevice());
       cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
 
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
 
-    for (int i = 0; i < _state->getSettings()->getMaxPointLights(); i++) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                      cameraDescriptorSetLayout, _state->getDescriptorPool(),
-                                                      _state->getDevice());
-        facesSet[j]->createUniformBuffer(_cameraUBODepth[i + _state->getSettings()->getMaxDirectionalLights()][j]);
+        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                      cameraDescriptorSetLayout, _engineState->getDescriptorPool(),
+                                                      _engineState->getDevice());
+        facesSet[j]->createUniformBuffer(
+            _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j]);
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -477,9 +479,9 @@ Shape3D::Shape3D(ShapeType shapeType,
 
   // initialize shadows directional
   {
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
-    _pipelineDirectional = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
         VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"depth", layoutCamera}}, {},
         _mesh->getBindingDescription(),
@@ -492,10 +494,10 @@ Shape3D::Shape3D(ShapeType shapeType,
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
-    auto shader = std::make_shared<Shader>(_state);
+    auto shader = std::make_shared<Shader>(_engineState);
     shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
     shader->add(_shadersLight[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
-    _pipelinePoint = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
+    _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelinePoint->createGraphic3DShadow(
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
@@ -507,8 +509,8 @@ Shape3D::Shape3D(ShapeType shapeType,
 }
 
 void Shape3D::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -531,8 +533,8 @@ void Shape3D::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
 }
 
 void Shape3D::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -575,8 +577,8 @@ void Shape3D::_updatePhongDescriptor(std::shared_ptr<MaterialPhong> material) {
 }
 
 void Shape3D::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
-  std::vector<VkDescriptorImageInfo> colorImageInfo(_state->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
@@ -623,7 +625,7 @@ void Shape3D::_updatePBRDescriptor(std::shared_ptr<MaterialPBR> material) {
     bufferInfoEmissive[0].sampler = material->getEmissive()[0]->getSampler()->getSampler();
     textureInfoColor[6] = bufferInfoEmissive;
 
-    // TODO: this textures are part of global state for PBR
+    // TODO: this textures are part of global engineState for PBR
     std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
     bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
     bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
@@ -694,15 +696,15 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
 
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
-std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
+std::shared_ptr<MeshStatic3D> Shape3D::getMesh() { return _mesh; }
 
-void Shape3D::draw(std::tuple<int, int> resolution,
-                   std::shared_ptr<Camera> camera,
-                   std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _state->getFrameInFlight();
+void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _engineState->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
     vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                       pipeline->getPipeline());
+
+    auto resolution = _engineState->getSettings()->getResolution();
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = std::get<1>(resolution);
@@ -722,7 +724,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
       LightPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = camera->getEye();
+      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
 
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
@@ -730,8 +732,8 @@ void Shape3D::draw(std::tuple<int, int> resolution,
 
     BufferMVP cameraUBO{};
     cameraUBO.model = _model * _translateOrigin;
-    cameraUBO.view = camera->getView();
-    cameraUBO.projection = camera->getProjection();
+    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
+    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
     _uniformBufferCamera->getBuffer()[currentFrame]->setData(&cameraUBO);
 
@@ -773,7 +775,8 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     if (globalLayoutPhong != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
     }
 
     // PBR
@@ -795,7 +798,8 @@ void Shape3D::draw(std::tuple<int, int> resolution,
     if (globalLayoutPBR != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 1, 1,
-                              &_lightManager->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0,
+                              nullptr);
     }
 
     // normals and tangents
@@ -821,7 +825,7 @@ void Shape3D::draw(std::tuple<int, int> resolution,
 }
 
 void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
@@ -829,14 +833,16 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
                     pipeline->getPipeline());
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
-    resolution = _lightManager->getDirectionalLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getDirectionalLights()[lightIndex]
                      ->getDepthTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
-    resolution = _lightManager->getPointLights()[lightIndex]
+    resolution = _gameState->getLightManager()
+                     ->getPointLights()[lightIndex]
                      ->getDepthCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
@@ -873,9 +879,10 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
       DepthConstants pushConstants;
-      pushConstants.lightPosition = _lightManager->getPointLights()[lightIndex]->getPosition();
+      pushConstants.lightPosition =
+          _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
-      pushConstants.far = _lightManager->getPointLights()[lightIndex]->getFar();
+      pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
     }
@@ -885,13 +892,13 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   glm::mat4 projection(1.f);
   int lightIndexTotal = lightIndex;
   if (lightType == LightType::DIRECTIONAL) {
-    view = _lightManager->getDirectionalLights()[lightIndex]->getViewMatrix();
-    projection = _lightManager->getDirectionalLights()[lightIndex]->getProjectionMatrix();
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
   }
   if (lightType == LightType::POINT) {
-    lightIndexTotal += _state->getSettings()->getMaxDirectionalLights();
-    view = _lightManager->getPointLights()[lightIndex]->getViewMatrix(face);
-    projection = _lightManager->getPointLights()[lightIndex]->getProjectionMatrix();
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
 
   BufferMVP cameraMVP{};

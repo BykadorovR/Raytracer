@@ -36,6 +36,7 @@ class DebugVisualization {
   float _directionalValue, _pointValue;
   std::shared_ptr<MaterialColor> _materialShadow;
   void _drawFrustum();
+  void _drawFrustumLines(glm::vec3 nearPart, glm::vec3 farPart);
   void _drawShadowMaps();
 
  public:
