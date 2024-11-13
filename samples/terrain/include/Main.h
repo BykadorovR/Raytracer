@@ -48,7 +48,12 @@ class Main {
   glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainPositionDebug = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainScale = glm::vec3(0.1f, 0.1f, 0.1f);
+  std::optional<float> _stripeLeft, _stripeRight, _stripeTop, _stripeBot;
+  std::vector<int> _patchTextures;
+  std::vector<int> _patchRotationsIndex;
+
   enum class InrepolationMode { INTERPOLATION, COMPOSITION } _interpolationMode = InrepolationMode::INTERPOLATION;
+  void _loadTerrain(std::string path);
   void _createTerrainColor(std::string path);
   void _createTerrainPhong(std::string path);
   void _createTerrainPBR(std::string path);

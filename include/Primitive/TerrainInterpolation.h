@@ -83,7 +83,9 @@ class TerrainInterpolation : public TerrainGPU {
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
 
-  void _reallocatePatchDescription(int currentFrame);
+  void _fillPatchTexturesDescription();
+  void _fillPatchRotationsDescription();
+  void _allocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);
   void _updateColorDescriptor();
   void _updatePhongDescriptor();
@@ -91,12 +93,10 @@ class TerrainInterpolation : public TerrainGPU {
 
  public:
   TerrainInterpolation(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
-                       std::pair<int, int> patchNumber,
-                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
                        std::shared_ptr<GameState> gameState,
                        std::shared_ptr<EngineState> engineState);
-
-  void setAuxilary(std::string path) override;
+  void initialize(std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void setStripes(float stripeLeft, float stripeTop, float stripeRight, float stripeBot);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
   virtual ~TerrainInterpolation() = default;

@@ -181,13 +181,15 @@ class TerrainGPU : public Drawable, public Shadowable {
   bool _enableShadow = true;
   std::vector<int> _patchTextures;
   std::vector<int> _patchRotationsIndex;
-  std::vector<bool> _changePatch;
-  std::pair<int, int> _patchNumber;
+  std::pair<int, int> _patchNumber = {32, 32};
 
   void _calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer);
 
  public:
-  virtual void setAuxilary(std::string path) = 0;
+  virtual void initialize(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
+  void setPatchNumber(int x, int y);
+  void setPatchRotations(std::vector<int> patchRotationsIndex);
+  void setPatchTextures(std::vector<int> patchTextures);
   void setTessellationLevel(int min, int max);
   void setDisplayDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);

@@ -40,24 +40,16 @@ mat2 rotate(float a) {
 // Q11 -- Q21
 vec4 getColorCorner(ivec2 index11, ivec2 index12, ivec2 index21, ivec2 index22, float rateLeft, float rateRight, float rateTop, float rateBot) {
     vec2 texCoord11 = rotate(inNeighbor[index11[0]][index11[1]].rotation) * fragTexCoord;
-    vec2 dx11 = dFdx(texCoord11);
-    vec2 dy11 = dFdy(texCoord11);
-    vec4 color11 = textureGrad(texSampler[inNeighbor[index11[0]][index11[1]].textureID], texCoord11, dx11, dy11);
+    vec4 color11 = texture(texSampler[inNeighbor[index11[0]][index11[1]].textureID], texCoord11);
 
     vec2 texCoord12 = rotate(inNeighbor[index12[0]][index12[1]].rotation) * fragTexCoord;
-    vec2 dx12 = dFdx(texCoord12);
-    vec2 dy12 = dFdy(texCoord12);
-    vec4 color12 = textureGrad(texSampler[inNeighbor[index12[0]][index12[1]].textureID], texCoord12, dx12, dy12);
+    vec4 color12 = texture(texSampler[inNeighbor[index12[0]][index12[1]].textureID], texCoord12);
 
     vec2 texCoord21 = rotate(inNeighbor[index21[0]][index21[1]].rotation) * fragTexCoord;
-    vec2 dx21 = dFdx(texCoord21);
-    vec2 dy21 = dFdy(texCoord21);
-    vec4 color21 = textureGrad(texSampler[inNeighbor[index21[0]][index21[1]].textureID], texCoord21, dx21, dy21);
+    vec4 color21 = texture(texSampler[inNeighbor[index21[0]][index21[1]].textureID], texCoord21);
 
     vec2 texCoord22 = rotate(inNeighbor[index22[0]][index22[1]].rotation) * fragTexCoord;
-    vec2 dx22 = dFdx(texCoord22);
-    vec2 dy22 = dFdy(texCoord22);
-    vec4 color22 = textureGrad(texSampler[inNeighbor[index22[0]][index22[1]].textureID], texCoord22, dx22, dy22);
+    vec4 color22 = texture(texSampler[inNeighbor[index22[0]][index22[1]].textureID], texCoord22);
 
     float den = (rateRight - rateLeft) * (rateTop - rateBot);
     float weight11 = (rateRight - fract(fragTexCoord.x)) * (rateTop - fract(fragTexCoord.y));
@@ -71,14 +63,10 @@ vec4 getColorCorner(ivec2 index11, ivec2 index12, ivec2 index21, ivec2 index22, 
 //for Y - first bot Q, then top Q
 vec4 getColorSide(ivec2 index1, ivec2 index2, float coord, float rate1, float rate2) {
     vec2 texCoord1 = rotate(inNeighbor[index1[0]][index1[1]].rotation) * fragTexCoord;
-    vec2 dx1 = dFdx(texCoord1);
-    vec2 dy1 = dFdy(texCoord1);
-    vec4 color1 = textureGrad(texSampler[inNeighbor[index1[0]][index1[1]].textureID], texCoord1, dx1, dy1);
+    vec4 color1 = texture(texSampler[inNeighbor[index1[0]][index1[1]].textureID], texCoord1);
 
     vec2 texCoord2 = rotate(inNeighbor[index2[0]][index2[1]].rotation) * fragTexCoord;
-    vec2 dx2 = dFdx(texCoord2);
-    vec2 dy2 = dFdy(texCoord2);
-    vec4 color2 = textureGrad(texSampler[inNeighbor[index2[0]][index2[1]].textureID], texCoord2, dx2, dy2);
+    vec4 color2 = texture(texSampler[inNeighbor[index2[0]][index2[1]].textureID], texCoord2);
 
     float weight1 = (coord - rate1);
     float weight2 = (rate2 - coord);
@@ -87,9 +75,8 @@ vec4 getColorSide(ivec2 index1, ivec2 index2, float coord, float rate1, float ra
 
 void main() {
     vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;
-    vec2 dx = dFdx(texCoord);
-    vec2 dy = dFdy(texCoord);
     int textureID = inNeighbor[1][1].textureID;
+    
     if (fract(fragTexCoord.x) < push.stripeLeft && fract(fragTexCoord.y) < push.stripeTop) {
         // Q00 --- Q10
         //  |   |   |
@@ -151,7 +138,7 @@ void main() {
         //   Q12 
         outColor = getColorSide(ivec2(1, 2), ivec2(1, 1), fract(fragTexCoord.y), 1 - push.stripeBot, 1 + push.stripeTop);
     } else {
-        outColor = textureGrad(texSampler[textureID], texCoord, dx, dy);
+        outColor = texture(texSampler[textureID], texCoord);
     }
 
     // check whether fragment output is higher than threshold, if so output as brightness color

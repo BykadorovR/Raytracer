@@ -17,7 +17,6 @@ set(CMAKE_CXX_STANDARD 20)
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 include(FetchContent)
 
 if (NOT ANDROID)

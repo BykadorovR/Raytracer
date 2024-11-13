@@ -746,29 +746,29 @@ void TerrainCompositionDebug::scrollNotify(double xOffset, double yOffset) {
 }
 
 TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
-                                       std::pair<int, int> patchNumber,
-                                       std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                        std::shared_ptr<GameState> gameState,
                                        std::shared_ptr<EngineState> engineState) {
   setName("Terrain");
   _engineState = engineState;
   _gameState = gameState;
-  _patchNumber = patchNumber;
+  _heightMapCPU = heightMapCPU;
+}
 
+void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer) {
   // needed for layout
-  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBufferTransfer, engineState);
+  _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::TERRAIN, commandBuffer, _engineState);
   _defaultMaterialColor->setBaseColor(std::vector{4, _gameState->getResourceManager()->getTextureOne()});
   _material = _defaultMaterialColor;
   _changedMaterial.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
-  _heightMapCPU = heightMapCPU;
-  _heightMapGPU = _gameState->getResourceManager()->loadImageGPU<uint8_t>({heightMapCPU});
+
+  _heightMapGPU = _gameState->getResourceManager()->loadImageGPU<uint8_t>({_heightMapCPU});
 
   _heightMap = std::make_shared<Texture>(_heightMapGPU, _engineState->getSettings()->getLoadTextureAuxilaryFormat(),
-                                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
-                                         commandBufferTransfer, engineState);
+                                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR, commandBuffer,
+                                         _engineState);
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
-  _mesh = std::make_shared<MeshStatic3D>(engineState);
-  _calculateMesh(commandBufferTransfer);
+  _mesh = std::make_shared<MeshStatic3D>(_engineState);
+  _calculateMesh(commandBuffer);
 
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
@@ -776,17 +776,17 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
   _renderPassShadow->initializeLightDepth();
 
   _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), engineState);
-  for (int i = 0; i < engineState->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraBufferDepth.push_back({std::make_shared<UniformBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                                  sizeof(BufferMVP), engineState)});
+                                                  sizeof(BufferMVP), _engineState);
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    _cameraBufferDepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                  sizeof(BufferMVP), _engineState)});
   }
 
-  for (int i = 0; i < engineState->getSettings()->getMaxPointLights(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
     std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                       sizeof(BufferMVP), engineState);
+      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                       sizeof(BufferMVP), _engineState);
     }
     _cameraBufferDepth.push_back(facesBuffer);
   }
@@ -814,10 +814,10 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
     _descriptorSetLayoutShadows.push_back({"shadows", descriptorSetLayout});
 
     for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
-      auto descriptorSetShadows = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                                  descriptorSetLayout, engineState->getDescriptorPool(),
-                                                                  engineState->getDevice());
-      for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      auto descriptorSetShadows = std::make_shared<DescriptorSet>(
+          _engineState->getSettings()->getMaxFramesInFlight(), descriptorSetLayout, _engineState->getDescriptorPool(),
+          _engineState->getDevice());
+      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
         std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
@@ -846,9 +846,9 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
       std::vector<std::shared_ptr<DescriptorSet>> facesSet;
       for (int f = 0; f < 6; f++) {
         auto descriptorSetShadows = std::make_shared<DescriptorSet>(
-            engineState->getSettings()->getMaxFramesInFlight(), descriptorSetLayout, engineState->getDescriptorPool(),
-            engineState->getDevice());
-        for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+            _engineState->getSettings()->getMaxFramesInFlight(), descriptorSetLayout, _engineState->getDescriptorPool(),
+            _engineState->getDevice());
+        for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
           std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
           std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
           std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
@@ -883,7 +883,7 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
 
     // initialize Shadows (Directional)
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
@@ -914,7 +914,7 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
 
     // initialize Shadows (Point)
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
@@ -953,9 +953,13 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
     }
   }
 
-  _patchDescriptionSSBO.resize(engineState->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _reallocatePatchDescription(i);
+  if (_patchRotationsIndex.size() == 0) _fillPatchRotationsDescription();
+  if (_patchTextures.size() == 0) _fillPatchTexturesDescription();
+
+  _patchDescriptionSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _allocatePatchDescription(i);
+    _updatePatchDescription(i);
   }
   // layout for Color
   {
@@ -989,14 +993,14 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
 
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
-    _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, engineState->getDescriptorPool(),
-                                                          engineState->getDevice());
+    _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
+                                                          _engineState->getDevice());
     setMaterial(_defaultMaterialColor);
 
     // initialize Color
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/composition/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/composition/terrainColor_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
@@ -1083,14 +1087,14 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PHONG].push_back(
         {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
-    _descriptorSetPhong = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, engineState->getDescriptorPool(),
-                                                          engineState->getDevice());
+    _descriptorSetPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
+                                                          _engineState->getDevice());
     // update descriptor set in setMaterial
 
     // initialize Phong
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/composition/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/composition/terrainPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
@@ -1212,14 +1216,14 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
     _descriptorSetLayout[MaterialType::PBR].push_back(
         {"globalPBR", _gameState->getLightManager()->getDSLGlobalTerrainPBR()});
 
-    _descriptorSetPBR = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                        descriptorSetLayout, engineState->getDescriptorPool(),
-                                                        engineState->getDevice());
+    _descriptorSetPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                        descriptorSetLayout, _engineState->getDescriptorPool(),
+                                                        _engineState->getDevice());
     // update descriptor set in setMaterial
 
     // initialize PBR
     {
-      auto shader = std::make_shared<Shader>(engineState);
+      auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/composition/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/composition/terrainPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
@@ -1256,11 +1260,57 @@ TerrainComposition::TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> height
           _renderPass);
     }
   }
+}
 
-  _changePatch.resize(engineState->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _updatePatchDescription(i);
+void TerrainComposition::_fillPatchTexturesDescription() {
+  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
+  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
+  //
+  for (int y = 0; y < _patchNumber.second; y++)
+    for (int x = 0; x < _patchNumber.first; x++) {
+      int patchX0 = (float)x / _patchNumber.first * width;
+      int patchY0 = (float)y / _patchNumber.second * height;
+      int patchX1 = (float)(x + 1) / _patchNumber.first * width;
+      int patchY1 = (float)(y + 1) / _patchNumber.second * height;
+
+      int heightLevel = 0;
+      for (int i = patchY0; i < patchY1; i++) {
+        for (int j = patchX0; j < patchX1; j++) {
+          int textureCoord = (j + i * width) * _heightMapCPU->getChannels();
+          heightLevel = std::max(heightLevel, (int)_heightMapCPU->getData()[textureCoord]);
+        }
+      }
+
+      int index = x + y * _patchNumber.first;
+      if (heightLevel < _heightLevels[0]) {
+        _patchTextures[index] = 0;
+      } else if (heightLevel < _heightLevels[1]) {
+        _patchTextures[index] = 1;
+      } else if (heightLevel < _heightLevels[2]) {
+        _patchTextures[index] = 2;
+      } else {
+        _patchTextures[index] = 3;
+      }
+    }
+}
+
+void TerrainComposition::_fillPatchRotationsDescription() {
+  _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
+}
+
+void TerrainComposition::_allocatePatchDescription(int currentFrame) {
+  _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
+      _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+}
+
+void TerrainComposition::_updatePatchDescription(int currentFrame) {
+  std::vector<PatchDescription> patchData(_patchNumber.first * _patchNumber.second);
+  for (int i = 0; i < patchData.size(); i++) {
+    patchData[i] = PatchDescription({.rotation = 90 * _patchRotationsIndex[i], .textureID = _patchTextures[i]});
   }
+  // fill only number of lights because it's stub
+  _patchDescriptionSSBO[currentFrame]->setData(patchData.data(), patchData.size() * sizeof(PatchDescription));
 }
 
 void TerrainComposition::_updateColorDescriptor() {
@@ -1478,66 +1528,6 @@ void TerrainComposition::_updatePBRDescriptor() {
   _descriptorSetPBR->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
-void TerrainComposition::_reallocatePatchDescription(int currentFrame) {
-  _patchTextures = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
-  auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
-  //
-  for (int y = 0; y < _patchNumber.second; y++)
-    for (int x = 0; x < _patchNumber.first; x++) {
-      int patchX0 = (float)x / _patchNumber.first * width;
-      int patchY0 = (float)y / _patchNumber.second * height;
-      int patchX1 = (float)(x + 1) / _patchNumber.first * width;
-      int patchY1 = (float)(y + 1) / _patchNumber.second * height;
-
-      int heightLevel = 0;
-      for (int i = patchY0; i < patchY1; i++) {
-        for (int j = patchX0; j < patchX1; j++) {
-          int textureCoord = (j + i * width) * _heightMapCPU->getChannels();
-          heightLevel = std::max(heightLevel, (int)_heightMapCPU->getData()[textureCoord]);
-        }
-      }
-
-      int index = x + y * _patchNumber.first;
-      if (heightLevel < _heightLevels[0]) {
-        _patchTextures[index] = 0;
-      } else if (heightLevel < _heightLevels[1]) {
-        _patchTextures[index] = 1;
-      } else if (heightLevel < _heightLevels[2]) {
-        _patchTextures[index] = 2;
-      } else {
-        _patchTextures[index] = 3;
-      }
-    }
-
-  _patchRotationsIndex = std::vector<int>(_patchNumber.first * _patchNumber.second, 0);
-  _patchDescriptionSSBO[currentFrame] = std::make_shared<Buffer>(
-      _patchNumber.first * _patchNumber.second * sizeof(PatchDescription), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
-}
-
-void TerrainComposition::_updatePatchDescription(int currentFrame) {
-  std::vector<PatchDescription> patchData(_patchNumber.first * _patchNumber.second);
-  for (int i = 0; i < patchData.size(); i++) {
-    patchData[i] = PatchDescription({.rotation = 90 * _patchRotationsIndex[i], .textureID = _patchTextures[i]});
-  }
-  // fill only number of lights because it's stub
-  _patchDescriptionSSBO[currentFrame]->setData(patchData.data(), patchData.size() * sizeof(PatchDescription));
-}
-
-void TerrainComposition::setAuxilary(std::string path) {
-  std::ifstream file(path);
-  nlohmann::json inputJSON;
-  file >> inputJSON;
-  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
-    _patchRotationsIndex[i] = inputJSON["rotation"][i];
-  }
-  for (int i = 0; i < inputJSON["textures"].size(); i++) {
-    _patchTextures[i] = inputJSON["textures"][i];
-  }
-
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changePatch[i] = true;
-}
-
 void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
@@ -1700,11 +1690,6 @@ void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
         break;
     }
     _changedMaterial[currentFrame] = false;
-  }
-
-  if (_changePatch[_engineState->getFrameInFlight()]) {
-    _updatePatchDescription(_engineState->getFrameInFlight());
-    _changePatch[_engineState->getFrameInFlight()] = false;
   }
 
   auto pipeline = _pipeline[_materialType];

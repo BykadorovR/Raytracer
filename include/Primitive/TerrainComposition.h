@@ -79,7 +79,9 @@ class TerrainComposition : public TerrainGPU {
   std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint;
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
 
-  void _reallocatePatchDescription(int currentFrame);
+  void _fillPatchTexturesDescription();
+  void _fillPatchRotationsDescription();
+  void _allocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);
   void _updateColorDescriptor();
   void _updatePhongDescriptor();
@@ -87,12 +89,9 @@ class TerrainComposition : public TerrainGPU {
 
  public:
   TerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> heightMapCPU,
-                     std::pair<int, int> patchNumber,
-                     std::shared_ptr<CommandBuffer> commandBufferTransfer,
                      std::shared_ptr<GameState> gameState,
                      std::shared_ptr<EngineState> engineState);
-
-  void setAuxilary(std::string path) override;
+  void initialize(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
   virtual ~TerrainComposition() = default;

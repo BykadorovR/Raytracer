@@ -143,10 +143,8 @@ class Core {
   std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
-  std::shared_ptr<TerrainGPU> createTerrainInterpolation(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
-                                                         std::pair<int, int> patches);
-  std::shared_ptr<TerrainGPU> createTerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
-                                                       std::pair<int, int> patches);
+  std::shared_ptr<TerrainGPU> createTerrainInterpolation(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
+  std::shared_ptr<TerrainGPU> createTerrainComposition(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   std::shared_ptr<TerrainCPU> createTerrainCPU(std::vector<float> heights, std::tuple<int, int> resolution);
   std::shared_ptr<TerrainCPU> createTerrainCPU(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   std::shared_ptr<Line> createLine();

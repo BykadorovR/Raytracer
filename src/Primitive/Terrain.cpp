@@ -566,6 +566,15 @@ void TerrainGPU::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
   _mesh->setVertices(vertices, commandBuffer);
 }
 
+void TerrainGPU::setPatchNumber(int x, int y) {
+  _patchNumber.first = x;
+  _patchNumber.second = y;
+}
+
+void TerrainGPU::setPatchRotations(std::vector<int> patchRotationsIndex) { _patchRotationsIndex = patchRotationsIndex; }
+
+void TerrainGPU::setPatchTextures(std::vector<int> patchTextures) { _patchTextures = patchTextures; }
+
 void TerrainGPU::setTessellationLevel(int min, int max) {
   _minTessellationLevel = min;
   _maxTessellationLevel = max;

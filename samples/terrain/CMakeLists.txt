@@ -10,7 +10,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+include(FetchContent)
+
+set(JSON_BuildTests OFF CACHE BOOL "Disable JSON tests")
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.3
+)
+
+FetchContent_MakeAvailable(json)
 
 #affects all projects, add folder "include" to include section in VS
 include_directories("include")
@@ -35,7 +44,7 @@ endif()
 
 find_package(VulkanEngine REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${VulkanEngine_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${VulkanEngine_LIBRARIES} nlohmann_json::nlohmann_json)
 
 set(SHADER_COMPILE_DEBUG 1)
 #recompile after every build just in case, it's fast

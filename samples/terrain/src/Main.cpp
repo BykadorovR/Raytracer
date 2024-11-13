@@ -4,6 +4,7 @@
 #include "Main.h"
 #include "Primitive/TerrainInterpolation.h"
 #include "Primitive/TerrainComposition.h"
+#include <nlohmann/json.hpp>
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -33,12 +34,19 @@ void Main::_createTerrainPhong(std::string path) {
   auto heightmap = _core->loadImageCPU(path);
   switch (_interpolationMode) {
     case InrepolationMode::INTERPOLATION:
-      _terrain = _core->createTerrainInterpolation(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
       break;
     case InrepolationMode::COMPOSITION:
-      _terrain = _core->createTerrainComposition(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainComposition(heightmap);
       break;
   }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -56,12 +64,19 @@ void Main::_createTerrainPBR(std::string path) {
   auto heightmap = _core->loadImageCPU(path);
   switch (_interpolationMode) {
     case InrepolationMode::INTERPOLATION:
-      _terrain = _core->createTerrainInterpolation(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
       break;
     case InrepolationMode::COMPOSITION:
-      _terrain = _core->createTerrainComposition(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainComposition(heightmap);
       break;
   }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -79,12 +94,19 @@ void Main::_createTerrainColor(std::string path) {
   auto heightmap = _core->loadImageCPU(path);
   switch (_interpolationMode) {
     case InrepolationMode::INTERPOLATION:
-      _terrain = _core->createTerrainInterpolation(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
       break;
     case InrepolationMode::COMPOSITION:
-      _terrain = _core->createTerrainComposition(heightmap, {_patchX, _patchY});
+      _terrain = _core->createTerrainComposition(heightmap);
       break;
   }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -96,6 +118,29 @@ void Main::_createTerrainColor(std::string path) {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
+}
+
+void Main::_loadTerrain(std::string path) {
+  std::ifstream file(path);
+  nlohmann::json inputJSON;
+  file >> inputJSON;
+  if (inputJSON["stripe"].is_null() == false) {
+    _stripeLeft = inputJSON["stripe"][0];
+    _stripeRight = inputJSON["stripe"][1];
+    _stripeTop = inputJSON["stripe"][2];
+    _stripeBot = inputJSON["stripe"][3];
+  }
+
+  _patchX = inputJSON["patches"][0];
+  _patchY = inputJSON["patches"][1];
+  _patchRotationsIndex.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
+    _patchRotationsIndex[i] = inputJSON["rotation"][i];
+  }
+  _patchTextures.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["textures"].size(); i++) {
+    _patchTextures[i] = inputJSON["textures"][i];
+  }
 }
 
 void Main::_createTerrainDebug(std::string path) {
@@ -463,6 +508,7 @@ void Main::update() {
     if (_core->getGUI()->drawButton("Load terrain")) {
       _core->startRecording();
       if (_showTerrain) _core->removeDrawable(_terrain);
+      _loadTerrain(std::string(_terrainPath) + ".json");
       switch (_typeIndex) {
         case 0:
           _createTerrainColor(std::string(_terrainPath) + ".png");
@@ -476,7 +522,6 @@ void Main::update() {
       }
       if (_showTerrain) _core->addDrawable(_terrain);
       _core->endRecording();
-      _terrain->setAuxilary(std::string(_terrainPath) + ".json");
     }
 
     _core->getGUI()->endTree();
