@@ -39,7 +39,6 @@ std::shared_ptr<PointLight> _pointLightHorizontal;
 std::shared_ptr<DirectionalLight> _directionalLight;
 std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubeTextured, _cubeTexturedWireframe;
 std::shared_ptr<Animation> _animationFish;
-std::shared_ptr<Terrain> _terrainColor, _terrainPhong, _terrainPBR;
 bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;
 float _directionalValue = 0.5f, _pointVerticalValue = 1.f, _pointHorizontalValue = 10.f;
 std::tuple<int, int> _resolution = {1080, 2400};
@@ -50,7 +49,7 @@ std::shared_ptr<Equirectangular> _equirectangular;
 std::shared_ptr<MaterialColor> _materialColor;
 std::shared_ptr<MaterialPhong> _materialPhong;
 std::shared_ptr<MaterialPBR> _materialPBR;
-std::shared_ptr<Terrain> _terrain;
+std::shared_ptr<TerrainGPU> _terrain;
 std::shared_ptr<Model3D> _modelSimple;
 std::shared_ptr<Shape3D> _boundingBox, _cubePlayer;
 std::shared_ptr<Model3DPhysics> _model3DPhysics;
@@ -69,9 +68,9 @@ glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
 glm::vec3 _terrainScale = glm::vec3(1.f);
 
 void _createTerrainPhong() {
-  _core->removeDrawable(_terrain);
-  _core->removeShadowable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
@@ -83,16 +82,12 @@ void _createTerrainPhong() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain, AlphaType::OPAQUE);
-  _core->addShadowable(_terrain);
 }
 
 void _createTerrainPBR() {
-  _core->removeDrawable(_terrain);
-  _core->removeShadowable(_terrain);
-
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
@@ -104,16 +99,12 @@ void _createTerrainPBR() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain, AlphaType::OPAQUE);
-  _core->addShadowable(_terrain);
 }
 
 void _createTerrainColor() {
-  _core->removeDrawable(_terrain);
-  _core->removeShadowable(_terrain);
-
-  _terrain = _core->createTerrain(_core->loadImageCPU("heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
   {
     auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
@@ -125,8 +116,6 @@ void _createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-
-  _core->addDrawable(_terrain, AlphaType::OPAQUE);
 }
 
 void update() {
@@ -156,17 +145,23 @@ void update() {
     terrainType["##Type"] = &_typeIndex;
     if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
       _core->startRecording();
+      _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
           _createTerrainColor();
           break;
         case 1:
+          _core->removeShadowable(_terrain);
           _createTerrainPhong();
+          _core->addShadowable(_terrain);
           break;
         case 2:
+          _core->removeShadowable(_terrain);
           _createTerrainPBR();
+          _core->addShadowable(_terrain);
           break;
       }
+      _core->addDrawable(_terrain);
       _core->endRecording();
     }
     _core->getGUI()->endTree();
@@ -455,6 +450,8 @@ void initialize() {
   }
 
   _createTerrainColor();
+  _core->addDrawable(_terrain);
+  _core->addShadowable(_terrain);
 
   auto particleTexture = _core->createTexture("gradient.png", settings->getLoadTextureAuxilaryFormat(), 1);
 
@@ -813,7 +810,7 @@ void android_main(android_app* app) {
   int events;
   android_poll_source* source;
   do {
-    auto number = ALooper_pollAll(_initialized ? 1 : 0, nullptr, &events, (void**)&source);
+    auto number = ALooper_pollOnce(_initialized ? 1 : 0, nullptr, &events, (void**)&source);
     if (number >= 0) {
       if (source != NULL) source->process(app, source);
     }

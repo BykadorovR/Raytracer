@@ -86,7 +86,9 @@ void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../assets/heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
 
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);

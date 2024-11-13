@@ -532,7 +532,7 @@ void Core::_renderGraphic() {
   for (auto& drawable : _drawables[AlphaType::OPAQUE]) {
     // TODO: add getName() to drawable?
     std::string drawableName = typeid(drawable.get()).name();
-    _logger->begin("Render " + drawableName + " " + std::to_string(globalFrame), _commandBufferRender);
+    _logger->begin("Render " + drawable->getName() + " " + std::to_string(globalFrame), _commandBufferRender);
     drawable->draw(_commandBufferRender);
     _logger->end(_commandBufferRender);
   }

@@ -30,7 +30,7 @@ class Main {
   std::shared_ptr<MaterialColor> _materialColor;
   std::shared_ptr<MaterialPhong> _materialPhong;
   std::shared_ptr<MaterialPBR> _materialPBR;
-  std::shared_ptr<Terrain> _terrain;
+  std::shared_ptr<TerrainGPU> _terrain;
   int _patchX = 12, _patchY = 12;
   float _heightScale = 64.f;
   float _heightShift = 16.f;
@@ -38,7 +38,7 @@ class Main {
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
   float _minDistance = 30, _maxDistance = 100;
   glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
-  glm::vec3 _terrainScale = glm::vec3(1.f, 1.f, 1.f);
+  glm::vec3 _terrainScale = glm::vec3(0.1f, 0.1f, 0.1f);
   int _typeIndex = 0;
   void _createTerrainColor();
   void _createTerrainPhong();

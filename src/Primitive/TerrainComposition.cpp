@@ -8,6 +8,7 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <nlohmann/json.hpp>
+#include <fstream>
 
 struct TesselationControlPush {
   int patchDimX;
@@ -41,7 +42,7 @@ struct FragmentPush {
   alignas(16) float heightLevels[4];
   int enableShadow;
   int enableLighting;
-  alignas(16) glm::vec3 cameraPosition;
+  glm::vec3 cameraPosition;
 };
 
 struct FragmentPushDebug {

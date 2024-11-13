@@ -31,7 +31,9 @@ void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 void Main::_createTerrainPhong() {
   _core->removeDrawable(_terrain);
   _core->removeShadowable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -51,7 +53,9 @@ void Main::_createTerrainPhong() {
 void Main::_createTerrainPBR() {
   _core->removeDrawable(_terrain);
   _core->removeShadowable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
@@ -71,7 +75,9 @@ void Main::_createTerrainPBR() {
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
   _core->removeShadowable(_terrain);
-  _terrain = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"), {_patchX, _patchY});
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
   {
     auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);

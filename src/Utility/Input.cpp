@@ -45,7 +45,9 @@ void Input::charHandler(unsigned int code) {
 }
 
 void Input::scrollHandler(double xOffset, double yOffset) {
+#ifndef __ANDROID__
   if (_showCursor == true)
+#endif
     for (auto& sub : _subscribersExclusive)
       if (sub->scrollNotify(xOffset, yOffset)) return;
 
@@ -55,7 +57,9 @@ void Input::scrollHandler(double xOffset, double yOffset) {
 }
 
 void Input::cursorHandler(double xpos, double ypos) {
+#ifndef __ANDROID__
   if (_showCursor == true)
+#endif
     for (auto& sub : _subscribersExclusive) sub->cursorNotify(xpos, ypos);
 
   for (auto& sub : _subscribers) {
@@ -64,7 +68,9 @@ void Input::cursorHandler(double xpos, double ypos) {
 }
 
 void Input::mouseHandler(int button, int action, int mods) {
+#ifndef __ANDROID__
   if (_showCursor == true)
+#endif
     for (auto& sub : _subscribersExclusive)
       if (sub->mouseNotify(button, action, mods)) return;
 

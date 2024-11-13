@@ -225,7 +225,6 @@ extern PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR vkGetPhysicalDeviceWin
 #endif
 
 #ifdef USE_DEBUG_EXTENTIONS
-#include <vulkan/vk_sdk_platform.h>
 // VK_EXT_debug_report
 extern PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT;
 extern PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXT;

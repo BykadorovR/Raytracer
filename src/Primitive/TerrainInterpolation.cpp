@@ -8,6 +8,7 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <nlohmann/json.hpp>
+#include <fstream>
 
 struct TesselationControlPush {
   int minTessellationLevel;
