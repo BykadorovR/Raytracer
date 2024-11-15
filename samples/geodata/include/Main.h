@@ -2,6 +2,7 @@
 #include "Engine/Core.h"
 #include "Primitive/Shape3D.h"
 #include "Primitive/Terrain.h"
+#include "Graphic/CameraRTS.h"
 
 class InputHandler : public InputSubscriber {
  private:
@@ -23,7 +24,8 @@ class InputHandler : public InputSubscriber {
 class Main {
  private:
   std::shared_ptr<Core> _core;
-  std::shared_ptr<CameraFly> _camera;
+  std::shared_ptr<CameraFly> _cameraFly;
+  std::shared_ptr<CameraRTS> _cameraRTS;
   std::shared_ptr<InputHandler> _inputHandler;
 
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;

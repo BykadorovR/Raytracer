@@ -127,13 +127,12 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getEngineState());
-  _camera->setSpeed(0.05f, 0.5f);
-  _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _cameraFly = std::make_shared<CameraFly>(_core->getEngineState());
+  _cameraFly->setSpeed(0.05f, 0.5f);
+  _cameraFly->setProjectionParameters(60.f, 0.1f, 100.f);
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraFly));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
-  _core->setCamera(_camera);
 
   _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
@@ -250,9 +249,18 @@ Main::Main() {
       _boundingBox->setOrigin(origin);
     }
     _core->addDrawable(_boundingBox);
-    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (maxPart - minPart) / 2.f,
+    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 50.f, -10.f), (maxPart - minPart) / 2.f,
                                                        _physicsManager);
   }
+
+  _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
+  _cameraRTS->setProjectionParameters(60.f, 0.1f, 100.f);
+  _cameraRTS->setShift(glm::vec3(0.f, 15.f, 2.f));
+  _cameraRTS->setAspect((float)std::get<0>(_core->getEngineState()->getSettings()->getResolution()) /
+                        (float)std::get<1>(_core->getEngineState()->getSettings()->getResolution()));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraRTS));
+  _core->setCamera(_cameraRTS);
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -298,8 +306,8 @@ void Main::update() {
     _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
     _core->getGUI()->endTree();
   }
-  auto eye = _camera->getEye();
-  auto direction = _camera->getDirection();
+  auto eye = _cameraFly->getEye();
+  auto direction = _cameraFly->getDirection();
   if (_core->getGUI()->startTree("Coordinates")) {
     _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
                                std::string("eye y: ") + std::format("{:.2f}", eye.y),
@@ -312,7 +320,7 @@ void Main::update() {
   }
   if (_core->getGUI()->drawButton("Reset")) {
     _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
-    _model3DPhysics->setPosition(glm::vec3(-4.f, -1.f, -3.f));
+    _model3DPhysics->setPosition(glm::vec3(-4.f, 50.f, -10.f));
   }
   if (_core->getGUI()->startTree("Toggles")) {
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
@@ -347,7 +355,7 @@ void Main::update() {
   _core->getGUI()->endWindow();
 
   if (_shift.has_value()) {
-    _shape3DPhysics->setLinearVelocity(_shift.value());
+    _model3DPhysics->setLinearVelocity(_shift.value());
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   _modelSimple->setModel(_model3DPhysics->getModel());
@@ -357,7 +365,10 @@ void Main::update() {
   _physicsManager->step();
 }
 
-void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }
+void Main::reset(int width, int height) {
+  _cameraRTS->setAspect((float)width / (float)height);
+  _cameraFly->setAspect((float)width / (float)height);
+}
 
 void Main::start() { _core->draw(); }
 

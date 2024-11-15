@@ -28,7 +28,7 @@ class Input {
   std::shared_ptr<Window> _window;
   std::vector<std::shared_ptr<InputSubscriberExclusive>> _subscribersExclusive;
   std::vector<std::shared_ptr<InputSubscriber>> _subscribers;
-  bool _showCursor = false;
+  bool _showCursor = true;
 
  public:
   Input(std::shared_ptr<Window> window);

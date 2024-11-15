@@ -8,7 +8,6 @@
 #include <array>
 #include "Utility/EngineState.h"
 #include "Utility/Input.h"
-#include "Vulkan/Window.h"
 #undef near
 #undef far
 
@@ -64,7 +63,7 @@ class Camera {
 
  public:
   Camera();
-  glm::mat4 getView();
+  virtual glm::mat4 getView();
   virtual glm::mat4 getProjection() = 0;
   void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   glm::vec3 getEye();
