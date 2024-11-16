@@ -6,7 +6,6 @@
 
 class InputHandler : public InputSubscriber {
  private:
-  bool _cursorEnabled = false;
   std::function<void(std::optional<glm::vec3>)> _callbackMove;
   std::shared_ptr<Core> _core;
   glm::vec2 _position;
@@ -47,6 +46,7 @@ class Main {
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 4;
   float _minDistance = 30, _maxDistance = 100;
+  int _cameraIndex = 0;
   glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainScale = glm::vec3(1.f);
   void _createTerrainColor();

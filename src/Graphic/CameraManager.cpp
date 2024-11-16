@@ -7,3 +7,5 @@ std::shared_ptr<Camera> CameraManager::getCamera(std::string name) { return _cam
 void CameraManager::setCurrentCamera(std::shared_ptr<Camera> camera) { _currentCamera = camera; }
 
 std::shared_ptr<Camera> CameraManager::getCurrentCamera() { return _currentCamera; }
+
+void CameraManager::update() { _currentCamera->update(); }

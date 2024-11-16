@@ -40,4 +40,5 @@ class Input {
   void subscribe(std::shared_ptr<InputSubscriber> sub);
   void subscribe(std::shared_ptr<InputSubscriberExclusive> sub);
   void showCursor(bool show);
+  bool cursorEnabled();
 };

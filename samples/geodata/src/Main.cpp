@@ -54,12 +54,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
   std::optional<glm::vec3> shift = std::nullopt;
@@ -256,8 +254,6 @@ Main::Main() {
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
   _cameraRTS->setProjectionParameters(60.f, 0.1f, 100.f);
   _cameraRTS->setShift(glm::vec3(0.f, 15.f, 2.f));
-  _cameraRTS->setAspect((float)std::get<0>(_core->getEngineState()->getSettings()->getResolution()) /
-                        (float)std::get<1>(_core->getEngineState()->getSettings()->getResolution()));
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraRTS));
   _core->setCamera(_cameraRTS);
 
@@ -306,16 +302,41 @@ void Main::update() {
     _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
     _core->getGUI()->endTree();
   }
-  auto eye = _cameraFly->getEye();
-  auto direction = _cameraFly->getDirection();
+  auto currentCamera = _core->getCamera();
+  auto eye = currentCamera->getEye();
+  auto direction = currentCamera->getDirection();
+  auto up = currentCamera->getUp();
   if (_core->getGUI()->startTree("Coordinates")) {
     _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
                                std::string("eye y: ") + std::format("{:.2f}", eye.y),
                                std::string("eye z: ") + std::format("{:.2f}", eye.z)});
+    _core->getGUI()->drawText({std::string("direction x: ") + std::format("{:.2f}", direction.x),
+                               std::string("direction y: ") + std::format("{:.2f}", direction.y),
+                               std::string("direction z: ") + std::format("{:.2f}", direction.z)});
+    _core->getGUI()->drawText({std::string("up x: ") + std::format("{:.2f}", up.x),
+                               std::string("up y: ") + std::format("{:.2f}", up.y),
+                               std::string("up z: ") + std::format("{:.2f}", up.z)});
     auto model = _cubePlayer->getModel();
     _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model[3][0]),
                                std::string("player y: ") + std::format("{:.6f}", model[3][1]),
                                std::string("player z: ") + std::format("{:.6f}", model[3][2])});
+    _core->getGUI()->endTree();
+  }
+  if (_core->getGUI()->startTree("Camera")) {
+    std::map<std::string, int*> cameraList;
+    cameraList["##Camera"] = &_cameraIndex;
+    if (_core->getGUI()->drawListBox({"RTS", "Fly"}, cameraList, 2)) {
+      switch (_cameraIndex) {
+        case 0:
+          _cameraRTS->setViewParameters(currentCamera->getEye(), _cameraRTS->getDirection(), _cameraRTS->getUp());
+          _core->setCamera(_cameraRTS);
+          break;
+        case 1:
+          _cameraFly->setViewParameters(currentCamera->getEye(), currentCamera->getDirection(), currentCamera->getUp());
+          _core->setCamera(_cameraFly);
+          break;
+      };
+    }
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->drawButton("Reset")) {

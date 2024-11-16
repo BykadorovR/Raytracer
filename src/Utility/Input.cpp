@@ -86,3 +86,5 @@ void Input::showCursor(bool show) {
     glfwSetInputMode((GLFWwindow*)(_window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 #endif
 }
+
+bool Input::cursorEnabled() { return _showCursor; }

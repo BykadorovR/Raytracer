@@ -63,14 +63,16 @@ class Camera {
 
  public:
   Camera();
-  virtual glm::mat4 getView();
+  virtual void update() = 0;
+  virtual glm::mat4 getView() = 0;
   virtual glm::mat4 getProjection() = 0;
-  void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
+  virtual void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
   glm::vec3 getEye();
   glm::vec3 getDirection();
   glm::vec3 getUp();
   float getFar();
   float getNear();
+  virtual ~Camera() = default;
 };
 
 class CameraOrtho : public Camera {
@@ -78,16 +80,36 @@ class CameraOrtho : public Camera {
   std::array<float, 4> _rect;
 
  public:
+  void update() override;
   void setProjectionParameters(std::array<float, 4> rect, float near, float far);
   glm::mat4 getProjection() override;
+  glm::mat4 getView() override;
+  ~CameraOrtho() = default;
 };
 
-class CameraFly : public Camera, public InputSubscriber {
- private:
+class CameraPerspective : public Camera {
+ protected:
   float _fov;
   float _yaw;
   float _pitch;
   float _roll;
+  float _aspect;
+
+ public:
+  CameraPerspective();
+  void update() = 0;
+  void setProjectionParameters(float fov, float near, float far);
+  void setAspect(float aspect);
+  void setAngles(float yaw, float pitch, float roll);
+  glm::vec3 getAngles();
+  glm::mat4 getProjection() override;
+  glm::mat4 getView() override;
+  float getFOV();
+  ~CameraPerspective() = default;
+};
+
+class CameraFly : public CameraPerspective, public InputSubscriber {
+ private:
   float _xLast;
   float _yLast;
   std::map<int, bool> _keyStatus;
@@ -95,18 +117,12 @@ class CameraFly : public Camera, public InputSubscriber {
   bool _once;
   float _sensitivity = 0.1f;
   float _moveSpeed = 0.1f;
-  float _aspect;
 
  public:
   CameraFly(std::shared_ptr<EngineState> engineState);
-  void setProjectionParameters(float fov, float near, float far);
-  void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up);
+  void update() override;
+  void setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) override;
   void setSpeed(float rotate, float translate);
-  glm::mat4 getProjection() override;
-  glm::vec3 getAngles();
-  void setAngles(float yaw, float pitch, float roll);
-  void setAspect(float aspect);
-  float getFOV();
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;
   void keyNotify(int key, int scancode, int action, int mods) override;

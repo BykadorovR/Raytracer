@@ -649,6 +649,8 @@ void Core::_drawFrame(int imageIndex) {
   // submit compute particles
   auto particlesFuture = _pool->submit(std::bind(&Core::_computeParticles, this));
 
+  _gameState->getCameraManager()->update();
+
   // first update materials
   for (auto& e : _materials) {
     e->update(frameInFlight);
@@ -1111,6 +1113,8 @@ std::shared_ptr<Blur> Core::getBlur() { return _blur; }
 std::shared_ptr<EngineState> Core::getEngineState() { return _engineState; }
 
 std::shared_ptr<GameState> Core::getGameState() { return _gameState; }
+
+std::shared_ptr<Camera> Core::getCamera() { return _gameState->getCameraManager()->getCurrentCamera(); }
 
 std::shared_ptr<GUI> Core::getGUI() { return _gui; }
 

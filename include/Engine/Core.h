@@ -165,6 +165,7 @@ class Core {
   std::shared_ptr<Blur> getBlur();
   std::shared_ptr<EngineState> getEngineState();
   std::shared_ptr<GameState> getGameState();
+  std::shared_ptr<Camera> getCamera();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();
 };
