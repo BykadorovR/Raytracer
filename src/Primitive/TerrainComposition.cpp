@@ -695,35 +695,7 @@ void TerrainCompositionDebug::mouseNotify(int button, int action, int mods) {
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 #endif
     _clickPosition = _cursorPosition;
-    auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
-    // forward transformation
-    // x, y, z, 1 * MVP -> clip?
-    // clip / w -> NDC [-1, 1]
-    //(NDC + 1) / 2 -> normalized screen [0, 1]
-    // normalized screen * screen size -> screen
-
-    // backward transformation
-    // x, y
-    glm::vec2 normalizedScreen = glm::vec2(
-        (2.0f * _clickPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
-        1.0f - (2.0f * _clickPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
-    glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
-
-    // Convert to camera (view) space
-    glm::vec4 viewSpacePos = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getProjection()) *
-                             clipSpacePos;
-    viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
-
-    // Convert to world space
-    glm::vec4 worldSpaceRay = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView()) *
-                              viewSpacePos;
-
-    // normalize
-    _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
-    _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
-
-    _hitCoords = _terrainPhysics->hit(_rayOrigin,
-                                      _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
+    _hitCoords = _terrainPhysics->getHit(_cursorPosition);
     if (_hitCoords) {
       // find the corresponding patch number
       _pickedTile = _calculateTileByPosition(_hitCoords.value());

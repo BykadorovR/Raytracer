@@ -6,7 +6,6 @@
 
 Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _position = position;
 
   JPH::CharacterSettings settings;
   settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z));
@@ -21,12 +20,14 @@ Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_p
 
 // TODO: position should substract half of the shape size?
 void Model3DPhysics::setPosition(glm::vec3 position) {
-  _position = position;
   _physicsManager->getBodyInterface().SetPosition(
       _character->GetBodyID(), JPH::RVec3(position.x, position.y, position.z), JPH::EActivation::Activate);
 }
 
-glm::vec3 Model3DPhysics::getPosition() { return _position; }
+glm::vec3 Model3DPhysics::getPosition() {
+  auto position = _physicsManager->getBodyInterface().GetPosition(_character->GetBodyID());
+  return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+}
 
 void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
   _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});

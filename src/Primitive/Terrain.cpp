@@ -13,8 +13,12 @@ TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                glm::vec3 position,
                                glm::vec3 scale,
                                std::tuple<int, int> heightScaleOffset,
-                               std::shared_ptr<PhysicsManager> physicsManager) {
+                               std::shared_ptr<PhysicsManager> physicsManager,
+                               std::shared_ptr<GameState> gameState,
+                               std::shared_ptr<EngineState> engineState) {
   _physicsManager = physicsManager;
+  _gameState = gameState;
+  _engineState = engineState;
   _resolution = heightmap->getResolution();
   _heightScaleOffset = heightScaleOffset;
   _scale = scale;
@@ -72,20 +76,49 @@ void TerrainPhysics::setPosition(glm::vec3 position) {
                                                   JPH::EActivation::DontActivate);
 }
 
-std::optional<glm::vec3> TerrainPhysics::hit(glm::vec3 origin, glm::vec3 direction) {
+std::optional<glm::vec3> TerrainPhysics::getHit(glm::vec2 cursorPosition) {
+  auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
+  // forward transformation
+  // x, y, z, 1 * MVP -> clip?
+  // clip / w -> NDC [-1, 1]
+  //(NDC + 1) / 2 -> normalized screen [0, 1]
+  // normalized screen * screen size -> screen
+
+  // backward transformation
+  // x, y
+  glm::vec2 normalizedScreen = glm::vec2(
+      (2.0f * cursorPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
+      1.0f - (2.0f * cursorPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
+  glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
+
+  // Convert to camera (view) space
+  glm::vec4 viewSpacePos = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getProjection()) *
+                           clipSpacePos;
+  viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
+
+  // Convert to world space
+  glm::vec4 worldSpaceRay = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView()) * viewSpacePos;
+
+  // normalize
+  _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
+  _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
+
+  auto origin = _rayOrigin;
+  auto direction = _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection;
   JPH::RRayCast rray{JPH::RVec3(origin.x, origin.y, origin.z), JPH::Vec3(direction.x, direction.y, direction.z)};
   JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
   _physicsManager->getPhysicsSystem().GetNarrowPhaseQuery().CastRay(rray, JPH::RayCastSettings(), collector);
+
+  _hitCoords = std::nullopt;
   if (collector.HadHit()) {
     for (auto& hit : collector.mHits) {
       if (hit.mBodyID == _terrainID) {
         auto outPosition = rray.GetPointOnRay(hit.mFraction);
-        return glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+        _hitCoords = glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
       }
     }
   }
-
-  return std::nullopt;
+  return _hitCoords;
 }
 
 std::tuple<int, int> TerrainPhysics::getResolution() { return _resolution; }

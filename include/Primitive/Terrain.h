@@ -17,6 +17,8 @@
 class TerrainPhysics {
  private:
   std::shared_ptr<PhysicsManager> _physicsManager;
+  std::shared_ptr<GameState> _gameState;
+  std::shared_ptr<EngineState> _engineState;
   std::vector<float> _terrainPhysic;
   std::tuple<int, int> _resolution;
   std::vector<float> _heights;
@@ -26,6 +28,8 @@ class TerrainPhysics {
   JPH::Ref<JPH::ScaledShape> _terrainShape;
   std::tuple<int, int> _heightScaleOffset;
   std::shared_ptr<ImageCPU<uint8_t>> _heightmap;
+  std::optional<glm::vec3> _hitCoords;
+  glm::vec3 _rayOrigin, _rayDirection;
   void _initialize();
 
  public:
@@ -33,13 +37,15 @@ class TerrainPhysics {
                  glm::vec3 position,
                  glm::vec3 scale,
                  std::tuple<int, int> heightScaleOffset,
-                 std::shared_ptr<PhysicsManager> physicsManager);
+                 std::shared_ptr<PhysicsManager> physicsManager,
+                 std::shared_ptr<GameState> gameState,
+                 std::shared_ptr<EngineState> engineState);
   void reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
   std::tuple<int, int> getResolution();
   std::vector<float> getHeights();
-  std::optional<glm::vec3> hit(glm::vec3 origin, glm::vec3 direction);
+  std::optional<glm::vec3> getHit(glm::vec2 _cursorPosition);
   ~TerrainPhysics();
 };
 

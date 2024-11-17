@@ -43,13 +43,17 @@ float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>
   return sample * 64.f - 16.f;
 }
 
-void InputHandler::setMoveCallback(std::function<void(std::optional<glm::vec3>)> callback) { _callbackMove = callback; }
+void InputHandler::setMoveCallback(std::function<void(glm::vec2)> callback) { _callbackMove = callback; }
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
 void InputHandler::cursorNotify(float xPos, float yPos) { _position = glm::vec2{xPos, yPos}; }
 
-void InputHandler::mouseNotify(int button, int action, int mods) {}
+void InputHandler::mouseNotify(int button, int action, int mods) {
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+    _callbackMove(_position);
+  }
+}
 
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
@@ -60,21 +64,6 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
       _core->getEngineState()->getInput()->showCursor(true);
     }
   }
-  std::optional<glm::vec3> shift = std::nullopt;
-  if (action != GLFW_RELEASE && key == GLFW_KEY_UP) {
-    shift = glm::vec3(0.f, 0.f, -2.f);
-  }
-  if (action != GLFW_RELEASE && key == GLFW_KEY_DOWN) {
-    shift = glm::vec3(0.f, 0.f, 2.f);
-  }
-  if (action != GLFW_RELEASE && key == GLFW_KEY_LEFT) {
-    shift = glm::vec3(-2.f, 0.f, 0.f);
-  }
-  if (action != GLFW_RELEASE && key == GLFW_KEY_RIGHT) {
-    shift = glm::vec3(2.f, 0.f, 0.f);
-  }
-
-  _callbackMove(shift);
 #endif
 }
 
@@ -171,7 +160,7 @@ Main::Main() {
 
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
-                                                     _physicsManager);
+                                                     _physicsManager, _core->getGameState(), _core->getEngineState());
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
@@ -181,7 +170,13 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [&](std::optional<glm::vec3> shift) { _shift = shift; };
+  auto callbackPosition = [&](glm::vec2 click) {
+    auto hit = _terrainPhysics->getHit(click);
+    if (hit) {
+      auto endPoint = hit.value();
+      _shift = (endPoint - _model3DPhysics->getPosition());
+    }
+  };
   _inputHandler->setMoveCallback(callbackPosition);
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
@@ -375,9 +370,8 @@ void Main::update() {
   }
   _core->getGUI()->endWindow();
 
-  if (_shift.has_value()) {
-    _model3DPhysics->setLinearVelocity(_shift.value());
-  }
+  if (_shift) _model3DPhysics->setLinearVelocity(_shift.value());
+
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   _modelSimple->setModel(_model3DPhysics->getModel());
   _boundingBox->setModel(_model3DPhysics->getModel());

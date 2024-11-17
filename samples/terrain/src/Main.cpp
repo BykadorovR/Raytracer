@@ -15,12 +15,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -371,7 +369,7 @@ Main::Main() {
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
-                                                     _physicsManager);
+                                                     _physicsManager, _core->getGameState(), _core->getEngineState());
 
   _createTerrainDebug("../assets/heightmap.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());

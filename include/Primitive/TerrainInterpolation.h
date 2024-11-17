@@ -29,7 +29,6 @@ class TerrainInterpolationDebug : public TerrainDebug {
   int _pickedTile = -1;
   float _stripeLeft = 0.1f, _stripeRight = 0.3f, _stripeTop = 0.2f, _stripeBot = 0.4f;
   glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
-  glm::vec3 _rayOrigin, _rayDirection;
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
   glm::vec2 _cursorPosition = glm::vec2(-1.f);
   glm::vec2 _clickPosition = glm::vec2(-1.f);

@@ -5,7 +5,6 @@
 
 class InputHandler : public InputSubscriber {
  private:
-  bool _cursorEnabled = false;
   std::shared_ptr<Core> _core;
 
  public:
