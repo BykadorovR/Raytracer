@@ -118,6 +118,6 @@ class PhysicsManager {
   PhysicsManager();
   JPH::BodyInterface& getBodyInterface();
   JPH::PhysicsSystem& getPhysicsSystem();
-  void step();
+  void update();
   ~PhysicsManager();
 };

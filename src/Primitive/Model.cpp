@@ -6,17 +6,17 @@
 
 Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-
+  _size = size;
   JPH::CharacterSettings settings;
-  settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z));
+  settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x / 2.f, size.y / 2.f, size.z / 2.f));
   settings.mLayer = Layers::MOVING;
-  /*settings.mSupportingVolume = JPH::Plane::sFromPointsCCW(JPH::Vec3(position.x, position.y, position.z),
-                                                          JPH::Vec3(position.x + size.x, position.y, position.z +
-     size.z), JPH::Vec3(position.x + size.x, position.y, position.z + size.z));*/
+  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
   _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
                                   &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
 }
+
+glm::vec3 Model3DPhysics::getSize() { return _size; }
 
 // TODO: position should substract half of the shape size?
 void Model3DPhysics::setPosition(glm::vec3 position) {
@@ -27,6 +27,23 @@ void Model3DPhysics::setPosition(glm::vec3 position) {
 glm::vec3 Model3DPhysics::getPosition() {
   auto position = _physicsManager->getBodyInterface().GetPosition(_character->GetBodyID());
   return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+}
+
+void Model3DPhysics::postUpdate() { _character->PostSimulation(_collisionTolerance); }
+
+void Model3DPhysics::setFriction(float friction) {
+  _physicsManager->getBodyInterface().SetFriction(_character->GetBodyID(), friction);
+}
+
+std::optional<glm::vec3> Model3DPhysics::getGroundNormal() {
+  JPH::Character::EGroundState groundState = _character->GetGroundState();
+  if (groundState == JPH::Character::EGroundState::OnSteepGround ||
+      groundState == JPH::Character::EGroundState::OnGround) {
+    JPH::Vec3 normal = _character->GetGroundNormal();
+    return glm::vec3{normal.GetX(), normal.GetY(), normal.GetZ()};
+  }
+
+  return std::nullopt;
 }
 
 void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {

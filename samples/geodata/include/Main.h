@@ -38,7 +38,7 @@ class Main {
   std::shared_ptr<MaterialColor> _materialColor;
   std::shared_ptr<TerrainGPU> _terrain;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  std::optional<glm::vec3> _shift;
+  std::optional<glm::vec3> _direction;
   bool _showGPU = true, _showCPU = true;
   int _patchX = 12, _patchY = 12;
   float _heightScale = 64.f;
@@ -50,6 +50,8 @@ class Main {
   glm::vec3 _terrainPosition = glm::vec3(0.f, 0.f, 0.f);
   glm::vec3 _terrainScale = glm::vec3(1.f);
   void _createTerrainColor();
+  float _speed = 0.1f;
+  glm::vec3 _endPoint;
 
  public:
   Main();

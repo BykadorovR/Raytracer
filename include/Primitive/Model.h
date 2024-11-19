@@ -23,13 +23,19 @@ class Model3DPhysics {
   std::shared_ptr<PhysicsManager> _physicsManager;
   // destructor is private, can't use smart pointer
   JPH::Ref<JPH::Character> _character;
+  glm::vec3 _size;
+  float _collisionTolerance = 0.2f;
 
  public:
   Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void postUpdate();
   void setPosition(glm::vec3 position);
   glm::vec3 getPosition();
   void setLinearVelocity(glm::vec3 velocity);
+  void setFriction(float friction);
+  std::optional<glm::vec3> getGroundNormal();
   glm::mat4 getModel();
+  glm::vec3 getSize();
   ~Model3DPhysics();
 };
 

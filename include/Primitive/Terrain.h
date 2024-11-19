@@ -42,6 +42,7 @@ class TerrainPhysics {
                  std::shared_ptr<EngineState> engineState);
   void reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   void setPosition(glm::vec3 position);
+  void setFriction(float friction);
   glm::vec3 getPosition();
   std::tuple<int, int> getResolution();
   std::vector<float> getHeights();

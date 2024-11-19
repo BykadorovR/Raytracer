@@ -97,7 +97,7 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1920, 1080});
+  settings->setResolution(std::tuple{1280, 720});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
@@ -161,11 +161,12 @@ Main::Main() {
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
+  _terrainPhysics->setFriction(10.f);
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
   _cubePlayer = _core->createShape3D(ShapeType::CUBE);
-  _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));
+  _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -14.f, -10.f)));
   _cubePlayer->getMesh()->setColor(
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
@@ -173,8 +174,10 @@ Main::Main() {
   auto callbackPosition = [&](glm::vec2 click) {
     auto hit = _terrainPhysics->getHit(click);
     if (hit) {
-      auto endPoint = hit.value();
-      _shift = (endPoint - _model3DPhysics->getPosition());
+      _endPoint = hit.value();
+      auto position = _model3DPhysics->getPosition();
+      _direction = glm::normalize(_endPoint -
+                                  glm::vec3(position.x, position.y - _model3DPhysics->getSize().y / 2.f, position.z));
     }
   };
   _inputHandler->setMoveCallback(callbackPosition);
@@ -222,7 +225,7 @@ Main::Main() {
     auto max = aabb->getMax();
     auto center = (max + min) / 2.f;
     float part = 0.5f;
-    // divide to 2.f because we want to have part size overall and not part for left and the same for right
+    // divide to 2.f because Jolt accept half of the box not entire one
     auto minPart = glm::vec3(center.x - part * (max - min).x / 2.f, min.y, min.z);
     auto maxPart = glm::vec3(center.x + part * (max - min).x / 2.f, max.y, max.z);
     {
@@ -242,8 +245,9 @@ Main::Main() {
       _boundingBox->setOrigin(origin);
     }
     _core->addDrawable(_boundingBox);
-    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 50.f, -10.f), (maxPart - minPart) / 2.f,
+    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 14.f, -10.f), maxPart - minPart,
                                                        _physicsManager);
+    _model3DPhysics->setFriction(10.f);
   }
 
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
@@ -311,10 +315,18 @@ void Main::update() {
     _core->getGUI()->drawText({std::string("up x: ") + std::format("{:.2f}", up.x),
                                std::string("up y: ") + std::format("{:.2f}", up.y),
                                std::string("up z: ") + std::format("{:.2f}", up.z)});
-    auto model = _cubePlayer->getModel();
-    _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model[3][0]),
-                               std::string("player y: ") + std::format("{:.6f}", model[3][1]),
-                               std::string("player z: ") + std::format("{:.6f}", model[3][2])});
+    auto model = _model3DPhysics->getPosition();
+    _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model.x),
+                               std::string("player y: ") + std::format("{:.6f}", model.y),
+                               std::string("player z: ") + std::format("{:.6f}", model.z)});
+    auto normal = _model3DPhysics->getGroundNormal();
+    glm::vec3 normalValue = {-1, -1, -1};
+    if (normal) {
+      normalValue = normal.value();
+    }
+    _core->getGUI()->drawText({std::string("normal x: ") + std::format("{:.6f}", normalValue.x),
+                               std::string("normal y: ") + std::format("{:.6f}", normalValue.y),
+                               std::string("normal z: ") + std::format("{:.6f}", normalValue.z)});
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Camera")) {
@@ -336,7 +348,7 @@ void Main::update() {
   }
   if (_core->getGUI()->drawButton("Reset")) {
     _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
-    _model3DPhysics->setPosition(glm::vec3(-4.f, 50.f, -10.f));
+    _model3DPhysics->setPosition(glm::vec3(-4.f, 14.f, -10.f));
   }
   if (_core->getGUI()->startTree("Toggles")) {
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
@@ -370,14 +382,37 @@ void Main::update() {
   }
   _core->getGUI()->endWindow();
 
-  if (_shift) _model3DPhysics->setLinearVelocity(_shift.value());
+  if (_direction) {
+    auto position = _model3DPhysics->getPosition();
+    position.y -= _model3DPhysics->getSize().y / 2.f;
+    //_direction = glm::normalize(_endPoint - glm::vec3(position.x, position.y, position.z));
+    /*auto normal = _model3DPhysics->getGroundNormal();
+    if (normal) {
+      normal.value().y = 0.0f;
+      float dot = glm::dot(normal.value(), _direction.value());
+      if (dot < 0.0f) {
+        _direction.value() -= (dot * normal.value()) / glm::length(normal.value());
+      }
+    }*/
+    auto newPosition = position + _speed * _direction.value();
+    auto distance = glm::distance(_endPoint, position);
+    std::cout << _endPoint.x - position.x << " " << _endPoint.y - position.y << " " << _endPoint.z - position.z
+              << std::endl;
+    std::cout << distance << std::endl;
+    if (distance < 4 * _speed) {
+      newPosition = _endPoint;
+      _direction.reset();
+    }
+    _model3DPhysics->setPosition({newPosition.x, newPosition.y + _model3DPhysics->getSize().y / 2.f, newPosition.z});
+  }
 
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   _modelSimple->setModel(_model3DPhysics->getModel());
   _boundingBox->setModel(_model3DPhysics->getModel());
 
   // Step the world
-  _physicsManager->step();
+  _physicsManager->update();
+  _model3DPhysics->postUpdate();
 }
 
 void Main::reset(int width, int height) {

@@ -28,6 +28,10 @@ TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
   _initialize();
 }
 
+void TerrainPhysics::setFriction(float friction) {
+  _physicsManager->getBodyInterface().SetFriction(_terrainID, friction);
+}
+
 void TerrainPhysics::reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap) {
   _heightmap = heightmap;
   _physicsManager->getBodyInterface().RemoveBody(_terrainID);
@@ -63,6 +67,7 @@ void TerrainPhysics::_initialize() {
   auto terrainBody = _physicsManager->getBodyInterface().CreateBody(
       JPH::BodyCreationSettings(_terrainShape, JPH::Vec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
                                 JPH::EMotionType::Static, Layers::NON_MOVING));
+
   _terrainID = terrainBody->GetID();
   _physicsManager->getBodyInterface().AddBody(_terrainID, JPH::EActivation::DontActivate);
 }
