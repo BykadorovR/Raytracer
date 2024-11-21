@@ -6,8 +6,6 @@ void Window::setResized(bool resized) { _resized = resized; }
 
 void* Window::getWindow() { return _window; }
 
-std::tuple<int, int> Window::getResolution() { return _resolution; }
-
 Window::Window(std::tuple<int, int> resolution) { _resolution = resolution; }
 
 void Window::initialize() {

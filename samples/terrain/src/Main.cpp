@@ -207,6 +207,7 @@ Main::Main() {
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _camera->setSpeed(0.05f, 0.01f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
@@ -351,27 +352,27 @@ Main::Main() {
 
   switch (_typeIndex) {
     case 0:
-      _createTerrainColor("../assets/heightmap.png");
+      _createTerrainColor("../assets/heightmap_flat.png");
       break;
     case 1:
-      _createTerrainPhong("../assets/heightmap.png");
+      _createTerrainPhong("../assets/heightmap_flat.png");
       break;
     case 2:
-      _createTerrainPBR("../assets/heightmap.png");
+      _createTerrainPBR("../assets/heightmap_flat.png");
       break;
   }
   _core->addDrawable(_terrain);
 
-  auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
+  auto terrainCPU = _core->loadImageCPU("../assets/heightmap_flat.png");
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
   _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x, _terrainPositionDebug.y, _terrainPositionDebug.z);
 
   _physicsManager = std::make_shared<PhysicsManager>();
-  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
+  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap_flat.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
 
-  _createTerrainDebug("../assets/heightmap.png");
+  _createTerrainDebug("../assets/heightmap_flat.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
   {
@@ -449,13 +450,13 @@ void Main::update() {
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor("../assets/heightmap.png");
+          _createTerrainColor("../assets/heightmap_flat.png");
           break;
         case 1:
-          _createTerrainPhong("../assets/heightmap.png");
+          _createTerrainPhong("../assets/heightmap_flat.png");
           break;
         case 2:
-          _createTerrainPBR("../assets/heightmap.png");
+          _createTerrainPBR("../assets/heightmap_flat.png");
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
@@ -483,19 +484,19 @@ void Main::update() {
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor("../assets/heightmap.png");
+          _createTerrainColor("../assets/heightmap_flat.png");
           break;
         case 1:
-          _createTerrainPhong("../assets/heightmap.png");
+          _createTerrainPhong("../assets/heightmap_flat.png");
           break;
         case 2:
-          _createTerrainPBR("../assets/heightmap.png");
+          _createTerrainPBR("../assets/heightmap_flat.png");
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
 
       if (_showDebug) _core->removeDrawable(_terrainDebug);
-      _createTerrainDebug("../assets/heightmap.png");
+      _createTerrainDebug("../assets/heightmap_flat.png");
       if (_showDebug) _core->addDrawable(_terrainDebug);
 
       _core->endRecording();

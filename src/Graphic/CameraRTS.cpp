@@ -30,7 +30,7 @@ glm::mat4 CameraRTS::getView() {
 }
 
 void CameraRTS::cursorNotify(float xPos, float yPos) {
-  auto [wW, wH] = _engineState->getWindow()->getResolution();
+  auto [wW, wH] = _engineState->getSettings()->getResolution();
   _offset = {0, 0};
   if (xPos < _threshold || yPos < _threshold || xPos > wW - _threshold || yPos > wH - _threshold) {
     _attached = false;

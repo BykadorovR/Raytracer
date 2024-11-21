@@ -4,6 +4,7 @@
 #include "Main.h"
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Utility/PhysicsManager.h"
+#include <nlohmann/json.hpp>
 
 glm::vec3 getPosition(std::shared_ptr<Drawable> drawable) {
   glm::vec3 scale;
@@ -71,10 +72,36 @@ void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
+void Main::_loadTerrain(std::string path) {
+  std::ifstream file(path);
+  nlohmann::json inputJSON;
+  file >> inputJSON;
+  if (inputJSON["stripe"].is_null() == false) {
+    _stripeLeft = inputJSON["stripe"][0];
+    _stripeRight = inputJSON["stripe"][1];
+    _stripeTop = inputJSON["stripe"][2];
+    _stripeBot = inputJSON["stripe"][3];
+  }
+
+  _patchX = inputJSON["patches"][0];
+  _patchY = inputJSON["patches"][1];
+  _patchRotationsIndex.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
+    _patchRotationsIndex[i] = inputJSON["rotation"][i];
+  }
+  _patchTextures.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["textures"].size(); i++) {
+    _patchTextures[i] = inputJSON["textures"][i];
+  }
+}
+
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/heightmap.png"));
+  _loadTerrain("../assets/test.json");
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/test.png"));
   _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
 
@@ -156,12 +183,12 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
+  auto heightmapCPU = _core->loadImageCPU("../assets/test.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
-  _terrainPhysics->setFriction(10.f);
+  _terrainPhysics->setFriction(0.5f);
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
@@ -171,15 +198,7 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [&](glm::vec2 click) {
-    auto hit = _terrainPhysics->getHit(click);
-    if (hit) {
-      _endPoint = hit.value();
-      auto position = _model3DPhysics->getPosition();
-      _direction = glm::normalize(_endPoint -
-                                  glm::vec3(position.x, position.y - _model3DPhysics->getSize().y / 2.f, position.z));
-    }
-  };
+  auto callbackPosition = [&](glm::vec2 click) { _endPoint = _terrainPhysics->getHit(click); };
   _inputHandler->setMoveCallback(callbackPosition);
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
@@ -247,7 +266,7 @@ Main::Main() {
     _core->addDrawable(_boundingBox);
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 14.f, -10.f), maxPart - minPart,
                                                        _physicsManager);
-    _model3DPhysics->setFriction(10.f);
+    _model3DPhysics->setFriction(0.3f);
   }
 
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
@@ -382,30 +401,29 @@ void Main::update() {
   }
   _core->getGUI()->endWindow();
 
-  if (_direction) {
+  if (_endPoint) {
+    auto endPoint = _endPoint.value();
     auto position = _model3DPhysics->getPosition();
     position.y -= _model3DPhysics->getSize().y / 2.f;
-    //_direction = glm::normalize(_endPoint - glm::vec3(position.x, position.y, position.z));
-    /*auto normal = _model3DPhysics->getGroundNormal();
+    auto direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
+    // Cancel movement in opposite direction of normal when touching something we can't walk up
+    auto normal = _model3DPhysics->getGroundNormal();
     if (normal) {
       normal.value().y = 0.0f;
-      float dot = glm::dot(normal.value(), _direction.value());
+      float dot = glm::dot(normal.value(), direction);
       if (dot < 0.0f) {
-        _direction.value() -= (dot * normal.value()) / glm::length(normal.value());
+        auto change = (dot * normal.value()) / glm::length(normal.value());
+        direction -= change;
       }
-    }*/
-    auto newPosition = position + _speed * _direction.value();
-    auto distance = glm::distance(_endPoint, position);
-    std::cout << _endPoint.x - position.x << " " << _endPoint.y - position.y << " " << _endPoint.z - position.z
-              << std::endl;
-    std::cout << distance << std::endl;
-    if (distance < 4 * _speed) {
-      newPosition = _endPoint;
-      _direction.reset();
     }
-    _model3DPhysics->setPosition({newPosition.x, newPosition.y + _model3DPhysics->getSize().y / 2.f, newPosition.z});
-  }
+    _model3DPhysics->setLinearVelocity(_speed * direction);
 
+    auto distance = glm::distance(endPoint, position);
+    if (distance < 0.1f) {
+      _model3DPhysics->setLinearVelocity({0.f, 0.f, 0.f});
+      _endPoint.reset();
+    }
+  }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   _modelSimple->setModel(_model3DPhysics->getModel());
   _boundingBox->setModel(_model3DPhysics->getModel());
