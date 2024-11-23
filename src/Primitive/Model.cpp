@@ -40,19 +40,32 @@ void Model3DPhysics::setFriction(float friction) {
   _physicsManager->getBodyInterface().SetFriction(_character->GetBodyID(), friction);
 }
 
-std::optional<glm::vec3> Model3DPhysics::getGroundNormal() {
-  JPH::Character::EGroundState groundState = _character->GetGroundState();
-  if (groundState == JPH::Character::EGroundState::OnSteepGround ||
-      groundState == JPH::Character::EGroundState::OnGround) {
-    JPH::Vec3 normal = _character->GetGroundNormal();
-    return glm::vec3{normal.GetX(), normal.GetY(), normal.GetZ()};
-  }
+GroundState Model3DPhysics::getGroundState() { return (GroundState)_character->GetGroundState(); }
 
-  return std::nullopt;
+glm::vec3 Model3DPhysics::getGroundNormal() {
+  JPH::Vec3 normal = _character->GetGroundNormal();
+  return glm::vec3{normal.GetX(), normal.GetY(), normal.GetZ()};
+}
+
+void Model3DPhysics::setUp(glm::vec3 up) { _character->SetUp({up.x, up.y, up.z}); }
+
+glm::vec3 Model3DPhysics::getGroundVelocity() {
+  auto velocity = _character->GetGroundVelocity();
+  return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
 }
 
 void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
   _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});
+}
+
+glm::vec3 Model3DPhysics::getUp() {
+  auto up = _character->GetUp();
+  return {up.GetX(), up.GetY(), up.GetZ()};
+}
+
+glm::vec3 Model3DPhysics::getLinearVelocity() {
+  auto velocity = _physicsManager->getBodyInterface().GetLinearVelocity(_character->GetBodyID());
+  return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
 }
 
 glm::mat4 Model3DPhysics::getModel() {

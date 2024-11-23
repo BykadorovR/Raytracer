@@ -118,6 +118,8 @@ class PhysicsManager {
   PhysicsManager();
   JPH::BodyInterface& getBodyInterface();
   JPH::PhysicsSystem& getPhysicsSystem();
+  glm::vec3 getGravity();
+  float getDeltaTime();
   void update();
   ~PhysicsManager();
 };

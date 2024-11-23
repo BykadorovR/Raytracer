@@ -254,29 +254,30 @@ Main::Main() {
     auto min = aabb->getMin();
     auto max = aabb->getMax();
     auto center = (max + min) / 2.f;
-    float part = 0.5f;
     // divide to 2.f because Jolt accept half of the box not entire one
-    auto minPart = glm::vec3(center.x - part * (max - min).x / 2.f, min.y, min.z);
-    auto maxPart = glm::vec3(center.x + part * (max - min).x / 2.f, max.y, max.z);
+    auto minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                 glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
+    auto maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                 glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      model = glm::scale(model, glm::vec3(_modelScale, _modelScale, _modelScale));
       _modelSimple->setModel(model);
       auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
       _modelSimple->setOrigin(origin);
     }
     _core->addDrawable(_modelSimple);
 
-    _boundingBox = _core->createBoundingBox(minPart, maxPart);
+    _boundingBox = _core->createBoundingBox(minBB, maxBB);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
     {
       auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
       _boundingBox->setModel(model);
-      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
+      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((maxBB - minBB) / 2.f).y, 0.f));
       _boundingBox->setOrigin(origin);
     }
     _core->addDrawable(_boundingBox);
-    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 14.f, -10.f), maxPart - minPart,
-                                                       _physicsManager);
+    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 14.f, -10.f), maxBB - minBB, _physicsManager);
     _model3DPhysics->setFriction(0.3f);
   }
 
@@ -350,13 +351,9 @@ void Main::update() {
                                std::string("player y: ") + std::format("{:.6f}", model.y),
                                std::string("player z: ") + std::format("{:.6f}", model.z)});
     auto normal = _model3DPhysics->getGroundNormal();
-    glm::vec3 normalValue = {-1, -1, -1};
-    if (normal) {
-      normalValue = normal.value();
-    }
-    _core->getGUI()->drawText({std::string("normal x: ") + std::format("{:.6f}", normalValue.x),
-                               std::string("normal y: ") + std::format("{:.6f}", normalValue.y),
-                               std::string("normal z: ") + std::format("{:.6f}", normalValue.z)});
+    _core->getGUI()->drawText({std::string("normal x: ") + std::format("{:.6f}", normal.x),
+                               std::string("normal y: ") + std::format("{:.6f}", normal.y),
+                               std::string("normal z: ") + std::format("{:.6f}", normal.z)});
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Camera")) {
@@ -418,16 +415,23 @@ void Main::update() {
     position.y -= _model3DPhysics->getSize().y / 2.f;
     glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
     // Cancel movement in opposite direction of normal when touching something we can't walk up
-    auto normal = _model3DPhysics->getGroundNormal();
-    if (normal) {
-      normal.value().y = 0.0f;
-      float dot = glm::dot(normal.value(), direction);
+    if (_model3DPhysics->getGroundState() == GroundState::OnSteepGround ||
+        _model3DPhysics->getGroundState() == GroundState::NotSupported) {
+      auto normal = _model3DPhysics->getGroundNormal();
+      normal.y = 0.0f;
+      float dot = glm::dot(normal, direction);
       if (dot < 0.0f) {
-        auto change = (dot * normal.value()) / glm::length(normal.value());
+        auto change = (dot * normal) / glm::length2(normal);
         direction -= change;
       }
     }
-    _model3DPhysics->setLinearVelocity(_speed * direction);
+    // Update velocity
+    glm::vec3 currentVelocity = _model3DPhysics->getLinearVelocity();
+    glm::vec3 desiredVelocity = _speed * direction;
+    if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f) desiredVelocity.y = currentVelocity.y;
+    glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;
+
+    _model3DPhysics->setLinearVelocity(newVelocity);
 
     auto distance = glm::distance(endPoint, position);
     if (distance < 0.1f) {
@@ -436,8 +440,7 @@ void Main::update() {
     }
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
-  auto model = glm::translate(glm::mat4(1.f), _model3DPhysics->getPosition());
-  model = model * glm::mat4_cast(_rotation);
+  auto model = glm::scale(_model3DPhysics->getModel(), glm::vec3(_modelScale, _modelScale, _modelScale));
   _modelSimple->setModel(model);
   _boundingBox->setModel(_model3DPhysics->getModel());
 

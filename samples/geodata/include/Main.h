@@ -58,6 +58,8 @@ class Main {
   std::vector<int> _patchRotationsIndex;
   glm::vec3 _direction = {0.f, 0.f, 1.f};
   float _angle = 0.f;
+  float _modelScale = 3.f;
+  float _boundingBoxScale = 1.5f;
   glm::quat _rotation = glm::identity<glm::quat>();
 
   void _loadTerrain(std::string path);
