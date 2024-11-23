@@ -5,6 +5,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include "Utility/PhysicsManager.h"
 #include <nlohmann/json.hpp>
+#include "glm/gtx/vector_angle.hpp"
 
 glm::vec3 getPosition(std::shared_ptr<Drawable> drawable) {
   glm::vec3 scale;
@@ -198,7 +199,17 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [&](glm::vec2 click) { _endPoint = _terrainPhysics->getHit(click); };
+  auto callbackPosition = [&](glm::vec2 click) {
+    _endPoint = _terrainPhysics->getHit(click);
+    if (_endPoint) {
+      auto position = _model3DPhysics->getPosition();
+      position.y -= _model3DPhysics->getSize().y / 2.f;
+      glm::vec3 direction = glm::normalize(_endPoint.value() - glm::vec3(position.x, position.y, position.z));
+      _angle = glm::orientedAngle(_rotation * _direction, direction, glm::vec3(0.f, 1.f, 0.f));
+      _rotation = _rotation * glm::angleAxis(_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+      _model3DPhysics->setRotation(_rotation);
+    }
+  };
   _inputHandler->setMoveCallback(callbackPosition);
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
@@ -405,7 +416,7 @@ void Main::update() {
     auto endPoint = _endPoint.value();
     auto position = _model3DPhysics->getPosition();
     position.y -= _model3DPhysics->getSize().y / 2.f;
-    auto direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
+    glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
     // Cancel movement in opposite direction of normal when touching something we can't walk up
     auto normal = _model3DPhysics->getGroundNormal();
     if (normal) {
@@ -425,7 +436,9 @@ void Main::update() {
     }
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
-  _modelSimple->setModel(_model3DPhysics->getModel());
+  auto model = glm::translate(glm::mat4(1.f), _model3DPhysics->getPosition());
+  model = model * glm::mat4_cast(_rotation);
+  _modelSimple->setModel(model);
   _boundingBox->setModel(_model3DPhysics->getModel());
 
   // Step the world

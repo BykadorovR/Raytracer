@@ -24,6 +24,11 @@ void Model3DPhysics::setPosition(glm::vec3 position) {
       _character->GetBodyID(), JPH::RVec3(position.x, position.y, position.z), JPH::EActivation::Activate);
 }
 
+void Model3DPhysics::setRotation(glm::quat rotation) {
+  _physicsManager->getBodyInterface().SetRotation(
+      _character->GetBodyID(), JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), JPH::EActivation::Activate);
+}
+
 glm::vec3 Model3DPhysics::getPosition() {
   auto position = _physicsManager->getBodyInterface().GetPosition(_character->GetBodyID());
   return glm::vec3(position.GetX(), position.GetY(), position.GetZ());

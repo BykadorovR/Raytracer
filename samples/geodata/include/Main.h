@@ -3,6 +3,7 @@
 #include "Primitive/Shape3D.h"
 #include "Primitive/Terrain.h"
 #include "Graphic/CameraRTS.h"
+#include <glm/glm.hpp>
 
 class InputHandler : public InputSubscriber {
  private:
@@ -55,6 +56,9 @@ class Main {
   std::optional<float> _stripeLeft, _stripeRight, _stripeTop, _stripeBot;
   std::vector<int> _patchTextures;
   std::vector<int> _patchRotationsIndex;
+  glm::vec3 _direction = {0.f, 0.f, 1.f};
+  float _angle = 0.f;
+  glm::quat _rotation = glm::identity<glm::quat>();
 
   void _loadTerrain(std::string path);
 
