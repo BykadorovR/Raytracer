@@ -98,8 +98,8 @@ void Main::_loadTerrain(std::string path) {
 
 void Main::_createTerrainColor() {
   _core->removeDrawable(_terrain);
-  _loadTerrain("../assets/test.json");
-  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/test.png"));
+  //_loadTerrain("../assets/test.json");
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../assets/heightmap.png"));
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->setPatchRotations(_patchRotationsIndex);
   _terrain->setPatchTextures(_patchTextures);
@@ -184,7 +184,7 @@ Main::Main() {
   }
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto heightmapCPU = _core->loadImageCPU("../assets/test.png");
+  auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
@@ -456,13 +456,17 @@ void Main::update() {
       _model3DPhysics->setLinearVelocity(newVelocity);
 
       // rotate
-      auto currentRotation = _model3DPhysics->getRotation();
-      glm::vec3 flatDirection = glm::normalize(glm::vec3(newVelocity.x, 0.0f, newVelocity.z));
-      _angle = glm::atan(flatDirection.x, flatDirection.z);
-      glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), _angle, glm::vec3(0.0f, 1.0f, 0.0f));
-      auto rotationSpeed = 3.f;
-      glm::quat smoothedRotation = glm::slerp(currentRotation, rotation, (1.f / (float)FPSLimited) * rotationSpeed);
-      _model3DPhysics->setRotation(glm::normalize(smoothedRotation));
+      auto flatDirection = glm::vec3(endPoint.x, 0.f, endPoint.z) -
+                           glm::vec3(_model3DPhysics->getPosition().x, 0.f, _model3DPhysics->getPosition().z);
+      if (glm::length(flatDirection) > 0.1f) {
+        flatDirection = glm::normalize(flatDirection);
+        auto currentRotation = _model3DPhysics->getRotation();
+        _angle = glm::atan(flatDirection.x, flatDirection.z);
+        glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), _angle, glm::vec3(0.0f, 1.0f, 0.0f));
+        auto rotationSpeed = 3.f;
+        glm::quat smoothedRotation = glm::slerp(currentRotation, rotation, (1.f / (float)FPSLimited) * rotationSpeed);
+        _model3DPhysics->setRotation(glm::normalize(smoothedRotation));
+      }
     }
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
