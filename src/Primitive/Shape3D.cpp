@@ -77,24 +77,19 @@ Shape3D::Shape3D(ShapeType shapeType,
     _shadersTangentMesh[ShapeType::CUBE] = {"shaders/shape/cubeTangent_vertex.spv",
                                             "shaders/shape/cubeNormal_fragment.spv",
                                             "shaders/shape/cubeNormal_geometry.spv"};
-  }
-
-  if (shapeType == ShapeType::SPHERE) {
+  } else {
     _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
-    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
-                                                             "shaders/shape/sphereColor_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
-                                                             "shaders/shape/spherePhong_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
-                                                           "shaders/shape/spherePBR_fragment.spv"};
-    _shadersLight[ShapeType::SPHERE] = {"shaders/shape/sphereDepth_vertex.spv",
-                                        "shaders/shape/sphereDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/shape/cubeNormal_vertex.spv",
-                                              "shaders/shape/cubeNormal_fragment.spv",
-                                              "shaders/shape/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv",
-                                              "shaders/shape/cubeNormal_fragment.spv",
-                                              "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersColor[shapeType][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
+                                                     "shaders/shape/sphereColor_fragment.spv"};
+    _shadersColor[shapeType][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
+                                                     "shaders/shape/spherePhong_fragment.spv"};
+    _shadersColor[shapeType][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
+                                                   "shaders/shape/spherePBR_fragment.spv"};
+    _shadersLight[shapeType] = {"shaders/shape/sphereDepth_vertex.spv", "shaders/shape/sphereDepth_fragment.spv"};
+    _shadersNormalsMesh[shapeType] = {"shaders/shape/cubeNormal_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
+                                      "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[shapeType] = {"shaders/shape/cubeTangent_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
+                                      "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   _material = _defaultMaterialColor;
@@ -215,7 +210,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -292,7 +287,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
                       {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -406,7 +401,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
                       {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},

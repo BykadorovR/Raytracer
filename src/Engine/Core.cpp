@@ -1012,8 +1012,16 @@ std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlag
     case ShapeType::SPHERE:
       mesh = std::make_shared<MeshSphere>(_commandBufferApplication, _engineState);
       break;
+    case ShapeType::CAPSULE:
+      mesh = std::make_shared<MeshCapsule>(1, 1, _commandBufferApplication, _engineState);
   }
   return std::make_shared<Shape3D>(shapeType, mesh, cullMode, _commandBufferApplication, _gameState, _engineState);
+}
+
+std::shared_ptr<Shape3D> Core::createCapsule(float height, float radius, VkCullModeFlagBits cullMode) {
+  auto mesh = std::make_shared<MeshCapsule>(height, radius, _commandBufferApplication, _engineState);
+  return std::make_shared<Shape3D>(ShapeType::CAPSULE, mesh, cullMode, _commandBufferApplication, _gameState,
+                                   _engineState);
 }
 
 std::shared_ptr<Model3D> Core::createModel3D(std::shared_ptr<ModelGLTF> modelGLTF) {

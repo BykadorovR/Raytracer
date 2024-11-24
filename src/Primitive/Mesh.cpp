@@ -522,7 +522,7 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
     // add (sectorCount+1) vertices per stack
     // first and last vertices have same position and normal, but different tex coords
     for (int j = 0; j <= sectorCount; ++j) {
-      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 0 to 2pi
+      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 2pi to 0, very IMPORTANT for winding order
 
       // vertex position (x, y, z)
       x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
@@ -572,6 +572,136 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   }
   setVertices(vertices, commandBufferTransfer);
   setIndexes(indexes, commandBufferTransfer);
+  setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
+}
+
+MeshCapsule::MeshCapsule(float height,
+                         float radius,
+                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                         std::shared_ptr<EngineState> engineState)
+    : MeshStatic3D(engineState) {
+  int sectorCount = 20;
+  int stackCount = 10;
+
+  float sectorStep = 2 * M_PI / sectorCount;
+  float stackStep = M_PI / stackCount;
+  float halfHeight = height * 0.5f;
+
+  std::vector<Vertex3D> vertices;
+
+  // Top hemisphere
+  for (int i = 0; i <= stackCount; ++i) {
+    float stackAngle = M_PI / 2 - i * stackStep / 2.f;  // pi/2 - 0
+    float xz = radius * cosf(stackAngle);               // r * cos(u)
+    float y = radius * sinf(stackAngle) + halfHeight;   // r * sin(u) + half of the height
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = 2 * M_PI - j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
+      float z = xz * sinf(sectorAngle);  // r * cos(u) * sin(v)
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, y - halfHeight, z));  // normal of the top hemisphere
+      vertex.texCoord = glm::vec2((float)j / sectorCount, (float)i / stackCount);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // Cylinder part
+  for (int i = 0; i <= 1; ++i) {
+    float y = i == 0 ? halfHeight : -halfHeight;  // top and bottom
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = 2 * M_PI - j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = radius * cosf(sectorAngle);
+      float z = radius * sinf(sectorAngle);
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, 0.0f, z));  // cylinder normal
+      vertex.texCoord = glm::vec2((float)j / sectorCount, i);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // bottom hemisphere
+  for (int i = 0; i <= stackCount; ++i) {
+    float stackAngle = -M_PI / 2 + i * stackStep / 2.f;  // -pi/2 - 0
+    float xz = radius * cosf(stackAngle);                // r * cos(u)
+    float y = radius * sinf(stackAngle) - halfHeight;    // r * sin(u) - half of the height
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = xz * cosf(sectorAngle);
+      float z = xz * sinf(sectorAngle);
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, y + halfHeight, z));  // normal of the bottom hemisphere
+      vertex.texCoord = glm::vec2((float)j / sectorCount, (float)i / stackCount);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // generate indices
+  std::vector<uint32_t> indices;
+  // top hemisphere
+  int k1, k2;
+  for (int i = 0; i < stackCount; ++i) {
+    k1 = i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  // cylinder
+  int offset = (stackCount + 1) * (sectorCount + 1);
+  for (int i = 0; i < 1; ++i) {
+    k1 = offset + i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  // bottom hemisphere
+  offset += 2 * (sectorCount + 1);
+  for (int i = 0; i < stackCount; ++i) {
+    k1 = offset + i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  setVertices(vertices, commandBufferTransfer);
+  setIndexes(indices, commandBufferTransfer);
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 

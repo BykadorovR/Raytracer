@@ -1,16 +1,32 @@
 #include "Primitive/Model.h"
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <unordered_map>
 #undef far
 
 Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _size = size;
   JPH::CharacterSettings settings;
+  _size = size;
   settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x / 2.f, size.y / 2.f, size.z / 2.f));
   settings.mLayer = Layers::MOVING;
   settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
+  _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
+                                  &_physicsManager->getPhysicsSystem());
+  _character->AddToPhysicsSystem(JPH::EActivation::Activate);
+}
+
+Model3DPhysics::Model3DPhysics(glm::vec3 position,
+                               float height,
+                               float radius,
+                               std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  JPH::CharacterSettings settings;
+  _size = {radius * 2.f, height + radius * 2.f, radius * 2.f};
+  settings.mShape = new JPH::CapsuleShape(height / 2.f, radius);
+  settings.mLayer = Layers::MOVING;
+  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
   _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
                                   &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
@@ -27,6 +43,12 @@ void Model3DPhysics::setPosition(glm::vec3 position) {
 void Model3DPhysics::setRotation(glm::quat rotation) {
   _physicsManager->getBodyInterface().SetRotation(
       _character->GetBodyID(), JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), JPH::EActivation::Activate);
+}
+
+glm::quat Model3DPhysics::getRotation() {
+  auto rotation = _physicsManager->getBodyInterface().GetRotation(_character->GetBodyID());
+
+  return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
 }
 
 glm::vec3 Model3DPhysics::getPosition() {

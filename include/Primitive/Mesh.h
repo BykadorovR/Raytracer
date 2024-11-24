@@ -131,6 +131,14 @@ class MeshSphere : public MeshStatic3D {
   MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
 };
 
+class MeshCapsule : public MeshStatic3D {
+ public:
+  MeshCapsule(float height,
+              float radius,
+              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+              std::shared_ptr<EngineState> engineState);
+};
+
 class MeshStatic2D : public Mesh {
  private:
   std::mutex _accessVertexMutex, _accessIndexMutex;

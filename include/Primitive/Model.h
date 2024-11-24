@@ -37,9 +37,11 @@ class Model3DPhysics {
 
  public:
   Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  Model3DPhysics(glm::vec3 position, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
   void postUpdate();
   void setPosition(glm::vec3 position);
   void setRotation(glm::quat rotation);
+  glm::quat getRotation();
   glm::vec3 getPosition();
   void setLinearVelocity(glm::vec3 velocity);
   glm::vec3 getUp();

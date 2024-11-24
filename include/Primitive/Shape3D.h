@@ -11,7 +11,7 @@
 #include "Utility/PhysicsManager.h"
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
-enum class ShapeType { CUBE = 0, SPHERE = 1 };
+enum class ShapeType { CUBE = 0, SPHERE = 1, CAPSULE = 2 };
 
 class Shape3DPhysics {
  private:

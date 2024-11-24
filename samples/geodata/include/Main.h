@@ -30,7 +30,7 @@ class Main {
 
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
-  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer, _boundingBox;
+  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer, _boundingBox, _cylinder;
   std::shared_ptr<Model3D> _modelSimple;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;

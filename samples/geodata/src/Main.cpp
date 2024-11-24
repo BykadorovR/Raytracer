@@ -193,6 +193,7 @@ Main::Main() {
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
+
   _cubePlayer = _core->createShape3D(ShapeType::CUBE);
   _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -14.f, -10.f)));
   _cubePlayer->getMesh()->setColor(
@@ -201,6 +202,7 @@ Main::Main() {
   _core->addDrawable(_cubePlayer);
   auto callbackPosition = [&](glm::vec2 click) {
     _endPoint = _terrainPhysics->getHit(click);
+    /*
     if (_endPoint) {
       auto position = _model3DPhysics->getPosition();
       position.y -= _model3DPhysics->getSize().y / 2.f;
@@ -209,6 +211,7 @@ Main::Main() {
       _rotation = _rotation * glm::angleAxis(_angle, glm::vec3(0.0f, 1.0f, 0.0f));
       _model3DPhysics->setRotation(_rotation);
     }
+    */
   };
   _inputHandler->setMoveCallback(callbackPosition);
   {
@@ -277,8 +280,22 @@ Main::Main() {
       _boundingBox->setOrigin(origin);
     }
     _core->addDrawable(_boundingBox);
-    _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, 14.f, -10.f), maxBB - minBB, _physicsManager);
+    _model3DPhysics = std::make_shared<Model3DPhysics>(
+        glm::vec3(-4.f, 14.f, -10.f), (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _physicsManager);
     _model3DPhysics->setFriction(0.3f);
+
+    _cylinder = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
+    _cylinder->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f)));
+    _cylinder->setDrawType(DrawType::WIREFRAME);
+    _cylinder->getMesh()->setColor(std::vector{_cylinder->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+                                   _core->getCommandBufferApplication());
+    /*{
+      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
+      _cylinder->setModel(model);
+      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((maxBB - minBB) / 2.f).y, 0.f));
+      _cylinder->setOrigin(origin);
+    }*/
+    _core->addDrawable(_cylinder);
   }
 
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
@@ -334,26 +351,24 @@ void Main::update() {
   }
   auto currentCamera = _core->getCamera();
   auto eye = currentCamera->getEye();
-  auto direction = currentCamera->getDirection();
+  auto direction = _model3DPhysics->getLinearVelocity();
   auto up = currentCamera->getUp();
   if (_core->getGUI()->startTree("Coordinates")) {
     _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
                                std::string("eye y: ") + std::format("{:.2f}", eye.y),
                                std::string("eye z: ") + std::format("{:.2f}", eye.z)});
-    _core->getGUI()->drawText({std::string("direction x: ") + std::format("{:.2f}", direction.x),
-                               std::string("direction y: ") + std::format("{:.2f}", direction.y),
-                               std::string("direction z: ") + std::format("{:.2f}", direction.z)});
-    _core->getGUI()->drawText({std::string("up x: ") + std::format("{:.2f}", up.x),
-                               std::string("up y: ") + std::format("{:.2f}", up.y),
-                               std::string("up z: ") + std::format("{:.2f}", up.z)});
     auto model = _model3DPhysics->getPosition();
     _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model.x),
                                std::string("player y: ") + std::format("{:.6f}", model.y),
                                std::string("player z: ") + std::format("{:.6f}", model.z)});
+    _core->getGUI()->drawText({std::string("direction x: ") + std::format("{:.2f}", direction.x),
+                               std::string("direction y: ") + std::format("{:.2f}", direction.y),
+                               std::string("direction z: ") + std::format("{:.2f}", direction.z)});
     auto normal = _model3DPhysics->getGroundNormal();
     _core->getGUI()->drawText({std::string("normal x: ") + std::format("{:.6f}", normal.x),
                                std::string("normal y: ") + std::format("{:.6f}", normal.y),
                                std::string("normal z: ") + std::format("{:.6f}", normal.z)});
+    _core->getGUI()->drawText({std::string("angle: ") + std::format("{:.2f}", glm::degrees(_angle))});
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Camera")) {
@@ -413,36 +428,48 @@ void Main::update() {
     auto endPoint = _endPoint.value();
     auto position = _model3DPhysics->getPosition();
     position.y -= _model3DPhysics->getSize().y / 2.f;
-    glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
-    // Cancel movement in opposite direction of normal when touching something we can't walk up
-    if (_model3DPhysics->getGroundState() == GroundState::OnSteepGround ||
-        _model3DPhysics->getGroundState() == GroundState::NotSupported) {
-      auto normal = _model3DPhysics->getGroundNormal();
-      normal.y = 0.0f;
-      float dot = glm::dot(normal, direction);
-      if (dot < 0.0f) {
-        auto change = (dot * normal) / glm::length2(normal);
-        direction -= change;
-      }
-    }
-    // Update velocity
-    glm::vec3 currentVelocity = _model3DPhysics->getLinearVelocity();
-    glm::vec3 desiredVelocity = _speed * direction;
-    if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f) desiredVelocity.y = currentVelocity.y;
-    glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;
-
-    _model3DPhysics->setLinearVelocity(newVelocity);
-
     auto distance = glm::distance(endPoint, position);
     if (distance < 0.1f) {
       _model3DPhysics->setLinearVelocity({0.f, 0.f, 0.f});
+      _model3DPhysics->setPosition(glm::vec3(position.x, position.y + _model3DPhysics->getSize().y / 2.f, position.z));
       _endPoint.reset();
+    } else {
+      glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
+      // Cancel movement in opposite direction of normal when touching something we can't walk up
+      if (_model3DPhysics->getGroundState() == GroundState::OnSteepGround ||
+          _model3DPhysics->getGroundState() == GroundState::NotSupported) {
+        auto normal = _model3DPhysics->getGroundNormal();
+        normal.y = 0.0f;
+        float dot = glm::dot(normal, direction);
+        if (dot < 0.0f) {
+          auto change = (dot * normal) / glm::length2(normal);
+          direction -= change;
+        }
+      }
+      // Update velocity
+      glm::vec3 currentVelocity = _model3DPhysics->getLinearVelocity();
+      glm::vec3 desiredVelocity = _speed * direction;
+      if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f)
+        desiredVelocity.y = currentVelocity.y;
+      glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;
+
+      _model3DPhysics->setLinearVelocity(newVelocity);
+
+      // rotate
+      auto currentRotation = _model3DPhysics->getRotation();
+      glm::vec3 flatDirection = glm::normalize(glm::vec3(newVelocity.x, 0.0f, newVelocity.z));
+      _angle = glm::atan(flatDirection.x, flatDirection.z);
+      glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), _angle, glm::vec3(0.0f, 1.0f, 0.0f));
+      auto rotationSpeed = 3.f;
+      glm::quat smoothedRotation = glm::slerp(currentRotation, rotation, (1.f / (float)FPSLimited) * rotationSpeed);
+      _model3DPhysics->setRotation(glm::normalize(smoothedRotation));
     }
   }
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   auto model = glm::scale(_model3DPhysics->getModel(), glm::vec3(_modelScale, _modelScale, _modelScale));
   _modelSimple->setModel(model);
   _boundingBox->setModel(_model3DPhysics->getModel());
+  _cylinder->setModel(_model3DPhysics->getModel());
 
   // Step the world
   _physicsManager->update();
