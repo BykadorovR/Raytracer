@@ -30,7 +30,7 @@ class Main {
 
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
-  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer, _boundingBox, _cylinder;
+  std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal, _cubePlayer, _boundingBox, _capsule;
   std::shared_ptr<Model3D> _modelSimple;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
@@ -58,7 +58,7 @@ class Main {
   std::vector<int> _patchRotationsIndex;
   glm::vec3 _direction = {0.f, 0.f, 1.f};
   float _angle = 0.f;
-  float _modelScale = 3.f;
+  float _modelScale = 2.f;
   float _boundingBoxScale = 1.5f;
   glm::quat _rotation = glm::identity<glm::quat>();
 

@@ -200,19 +200,7 @@ Main::Main() {
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubePlayer);
-  auto callbackPosition = [&](glm::vec2 click) {
-    _endPoint = _terrainPhysics->getHit(click);
-    /*
-    if (_endPoint) {
-      auto position = _model3DPhysics->getPosition();
-      position.y -= _model3DPhysics->getSize().y / 2.f;
-      glm::vec3 direction = glm::normalize(_endPoint.value() - glm::vec3(position.x, position.y, position.z));
-      _angle = glm::orientedAngle(_rotation * _direction, direction, glm::vec3(0.f, 1.f, 0.f));
-      _rotation = _rotation * glm::angleAxis(_angle, glm::vec3(0.0f, 1.0f, 0.0f));
-      _model3DPhysics->setRotation(_rotation);
-    }
-    */
-  };
+  auto callbackPosition = [&](glm::vec2 click) { _endPoint = _terrainPhysics->getHit(click); };
   _inputHandler->setMoveCallback(callbackPosition);
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
@@ -271,36 +259,24 @@ Main::Main() {
     }
     _core->addDrawable(_modelSimple);
 
-    _boundingBox = _core->createBoundingBox(minBB, maxBB);
+    _boundingBox = _core->createShape3D(ShapeType::CUBE);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      _boundingBox->setModel(model);
-      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((maxBB - minBB) / 2.f).y, 0.f));
-      _boundingBox->setOrigin(origin);
-    }
     _core->addDrawable(_boundingBox);
     _model3DPhysics = std::make_shared<Model3DPhysics>(
         glm::vec3(-4.f, 14.f, -10.f), (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _physicsManager);
-    _model3DPhysics->setFriction(0.3f);
+    _model3DPhysics->setFriction(0.5f);
 
-    _cylinder = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
-    _cylinder->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f)));
-    _cylinder->setDrawType(DrawType::WIREFRAME);
-    _cylinder->getMesh()->setColor(std::vector{_cylinder->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-                                   _core->getCommandBufferApplication());
-    /*{
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      _cylinder->setModel(model);
-      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((maxBB - minBB) / 2.f).y, 0.f));
-      _cylinder->setOrigin(origin);
-    }*/
-    _core->addDrawable(_cylinder);
+    _capsule = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
+    _capsule->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f)));
+    _capsule->setDrawType(DrawType::WIREFRAME);
+    _capsule->getMesh()->setColor(std::vector{_capsule->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+                                  _core->getCommandBufferApplication());
+    _core->addDrawable(_capsule);
   }
 
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
   _cameraRTS->setProjectionParameters(60.f, 0.1f, 100.f);
-  _cameraRTS->setShift(glm::vec3(0.f, 15.f, 2.f));
+  _cameraRTS->setShift(glm::vec3(0.f, 10.f, 4.f));
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraRTS));
   _core->setCamera(_cameraRTS);
 
@@ -472,8 +448,17 @@ void Main::update() {
   _cubePlayer->setModel(_shape3DPhysics->getModel());
   auto model = glm::scale(_model3DPhysics->getModel(), glm::vec3(_modelScale, _modelScale, _modelScale));
   _modelSimple->setModel(model);
-  _boundingBox->setModel(_model3DPhysics->getModel());
-  _cylinder->setModel(_model3DPhysics->getModel());
+  _capsule->setModel(_model3DPhysics->getModel());
+  auto aabb = _modelSimple->getAABB();
+  auto min = aabb->getMin();
+  auto max = aabb->getMax();
+  auto center = (max + min) / 2.f;
+  glm::vec3 minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                    glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
+  glm::vec3 maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                    glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
+  model = glm::scale(_model3DPhysics->getModel(), maxBB - minBB);
+  _boundingBox->setModel(model);
 
   // Step the world
   _physicsManager->update();

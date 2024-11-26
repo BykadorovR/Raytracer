@@ -996,13 +996,6 @@ std::shared_ptr<MaterialPBR> Core::createMaterialPBR(MaterialTarget target) {
   return material;
 }
 
-std::shared_ptr<Shape3D> Core::createBoundingBox(glm::vec3 min, glm::vec3 max, VkCullModeFlagBits cullMode) {
-  std::shared_ptr<MeshStatic3D> mesh = std::make_shared<MeshBoundingBox>(min, max, _commandBufferApplication,
-                                                                         _engineState);
-  return std::make_shared<Shape3D>(ShapeType::CUBE, mesh, cullMode, _commandBufferApplication, _gameState,
-                                   _engineState);
-}
-
 std::shared_ptr<Shape3D> Core::createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode) {
   std::shared_ptr<MeshStatic3D> mesh;
   switch (shapeType) {

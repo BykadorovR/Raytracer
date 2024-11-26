@@ -20,20 +20,10 @@ void CameraRTS::setShift(glm::vec3 shift) { _shift = shift; }
 
 void CameraRTS::setThreshold(int threshold) { _threshold = threshold; }
 
-glm::mat4 CameraRTS::getView() {
-  if (_attached) {
-    auto model = _object->getModel() * _object->getOrigin();
-    _eye = glm::vec3(model[3][0], model[3][1], model[3][2]) + _shift;
-    _direction = glm::normalize(glm::vec3(model[3][0], model[3][1], model[3][2]) - _eye);
-  }
-  return glm::lookAt(_eye, _eye + _direction, _up);
-}
-
 void CameraRTS::cursorNotify(float xPos, float yPos) {
   auto [wW, wH] = _engineState->getSettings()->getResolution();
   _offset = {0, 0};
   if (xPos < _threshold || yPos < _threshold || xPos > wW - _threshold || yPos > wH - _threshold) {
-    _attached = false;
     // need to move camera only if cursor is near the end of the window
     if (xPos < _threshold)
       _offset.first = -(_threshold - xPos) / wW;
@@ -54,7 +44,9 @@ void CameraRTS::mouseNotify(int button, int action, int mods) {}
 void CameraRTS::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if (action == GLFW_PRESS && key == GLFW_KEY_F1) {
-    _attached = true;
+    auto model = _object->getModel() * _object->getOrigin();
+    _eye = glm::vec3(model[3][0], model[3][1], model[3][2]) + _shift;
+    _direction = glm::normalize(glm::vec3(model[3][0], model[3][1], model[3][2]) - _eye);
   }
 #endif
 }

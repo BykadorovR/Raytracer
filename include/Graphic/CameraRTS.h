@@ -10,7 +10,6 @@ class CameraRTS : public CameraPerspective, public InputSubscriber {
   glm::vec3 _shift = glm::vec3(0.f, 10.f, 0.f);
   int _threshold = 100;
   float _moveSpeed = 5.f;
-  bool _attached = true;
   std::pair<float, float> _offset;
 
  public:
@@ -18,8 +17,6 @@ class CameraRTS : public CameraPerspective, public InputSubscriber {
   void update() override;
   void setShift(glm::vec3 shift);
   void setThreshold(int threshold);
-
-  glm::mat4 getView() override;
 
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;
