@@ -1,4 +1,5 @@
 #include "DebugVisualization.h"
+#include <glm/gtx/matrix_decompose.hpp>
 
 DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core) {
   _camera = camera;
@@ -65,13 +66,10 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   // 1) we shift by x to right and by y to down, that's why -1.f + by Y axis
   // size of object is 1.0f, scale is 0.5f, so shift by X should be 0.25f so
   // right edge is on right edge of screen the same with Y
-  model = glm::translate(model, glm::vec3(1.f - (0.5f * scale.x), -1.f + (1.f * scale.y), 0.f));
-
-  // need to compensate aspect ratio, texture is square but screen resolution is
-  // not
-  model = glm::scale(model, scale);
+  // need to compensate aspect ratio, texture is square but screen resolution is not
   _spriteShadow = _core->createSprite();
-  _spriteShadow->setModel(model);
+  _spriteShadow->setScale(scale);
+  _spriteShadow->setTranslate(glm::vec3(1.f - (0.5f * scale.x), -1.f + (1.f * scale.y), 0.f));
   _spriteShadow->enableHUD(true);
   _materialShadow = _core->createMaterialColor(MaterialTarget::SIMPLE);
   _materialShadow->setBaseColor({core->getResourceManager()->getTextureOne()});
@@ -146,7 +144,6 @@ void DebugVisualization::_drawShadowMaps() {
             _core->getPointLights()[pointIndex]->getDepthCubemap()[currentFrame]->getTextureSeparate()[faceIndex][0];
       }
 
-      _spriteShadow->setModel(_spriteShadow->getModel());
       _materialShadow->setBaseColor({currentTexture});
 
       auto drawables = _core->getDrawables(AlphaType::OPAQUE);
@@ -183,16 +180,13 @@ void DebugVisualization::_drawFrustum() {
 void DebugVisualization::update() {
   if (_registerLights == false) {
     for (int i = 0; i < _core->getPointLights().size(); i++) {
-      {
-        auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
-        model = glm::scale(model, glm::vec3(0.2f, 0.2f, 0.2f));
-        _pointLightModels[i]->setModel(model);
-      }
+      _pointLightModels[i]->setTranslate(_core->getPointLights()[i]->getCamera()->getPosition());
+      _pointLightModels[i]->setScale(glm::vec3(0.2f, 0.2f, 0.2f));
     }
 
     for (int i = 0; i < _core->getDirectionalLights().size(); i++) {
-      auto model = glm::scale(_core->getDirectionalLights()[i]->getCamera()->getView(), glm::vec3(0.2f, 0.2f, 0.2f));
-      _directionalLightModels[i]->setModel(model);
+      _directionalLightModels[i]->setTranslate(_core->getDirectionalLights()[i]->getCamera()->getPosition());
+      _directionalLightModels[i]->setScale(glm::vec3(0.2f, 0.2f, 0.2f));
     }
   }
 }
@@ -268,9 +262,31 @@ void DebugVisualization::draw() {
         _drawFrustumLines(glm::vec3(width1, height1, camera->getNear()), glm::vec3(width2, height2, camera->getFar()));
         auto model = glm::scale(glm::mat4(1.f), glm::vec3(width2, height2, 1.f));
         model = glm::translate(model, glm::vec3(0.f, 0.f, -camera->getFar()));
-        _farPlaneCW->setModel(glm::inverse(camera->getView()) * model);
+        {
+          auto transform = glm::inverse(camera->getView()) * model;
+          glm::vec3 scale;
+          glm::quat rotation;
+          glm::vec3 translation;
+          glm::vec3 skew;
+          glm::vec4 perspective;
+          glm::decompose(transform, scale, rotation, translation, skew, perspective);
+          _farPlaneCW->setRotate(rotation);
+          _farPlaneCW->setTranslate(translation);
+          _farPlaneCW->setScale(scale);
+        }
         model = glm::rotate(model, glm::radians(180.f), glm::vec3(1, 0, 0));
-        _farPlaneCCW->setModel(glm::inverse(camera->getView()) * model);
+        {
+          auto transform = glm::inverse(camera->getView()) * model;
+          glm::vec3 scale;
+          glm::quat rotation;
+          glm::vec3 translation;
+          glm::vec3 skew;
+          glm::vec4 perspective;
+          glm::decompose(transform, scale, rotation, translation, skew, perspective);
+          _farPlaneCCW->setRotate(rotation);
+          _farPlaneCCW->setTranslate(translation);
+          _farPlaneCCW->setScale(scale);
+        }
         for (auto& line : _lineFrustum) {
           line->setModel(glm::inverse(camera->getView()));
         }
@@ -331,13 +347,12 @@ void DebugVisualization::draw() {
       for (int i = 0; i < _core->getPointLights().size(); i++) {
         if (_registerLights) _core->addDrawable(_pointLightModels[i]);
         {
-          auto model = glm::translate(glm::mat4(1.f), _core->getPointLights()[i]->getCamera()->getPosition());
           if (_enableSpheres) {
             if (_lightSpheresIndex < 0) _lightSpheresIndex = _core->getPointLights()[i]->getAttenuationIndex();
             _core->getPointLights()[i]->setAttenuationIndex(_lightSpheresIndex);
             int distance = _core->getPointLights()[i]->getDistance();
-            model = glm::scale(model, glm::vec3(distance, distance, distance));
-            _spheres[i]->setModel(model);
+            _spheres[i]->setTranslate(_core->getPointLights()[i]->getCamera()->getPosition());
+            _spheres[i]->setScale(glm::vec3(distance, distance, distance));
             _spheres[i]->setDrawType(DrawType::WIREFRAME);
             auto drawables = _core->getDrawables(AlphaType::OPAQUE);
             if (std::find(drawables.begin(), drawables.end(), _spheres[i]) == drawables.end()) {

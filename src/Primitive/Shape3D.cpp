@@ -2,41 +2,32 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
 
-Shape3DPhysics::Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+Shape3DPhysics::Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _position = position;
   JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z)),
-                                        JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
+                                        JPH::RVec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
                                         JPH::EMotionType::Dynamic, Layers::MOVING);
   _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
   _physicsManager->getBodyInterface().AddBody(_shapeBody->GetID(), JPH::EActivation::Activate);
 }
 
-// TODO: position should substract half of the shape size?
-void Shape3DPhysics::setPosition(glm::vec3 position) {
-  _position = position;
-  _physicsManager->getBodyInterface().SetPosition(_shapeBody->GetID(), JPH::RVec3(position.x, position.y, position.z),
-                                                  JPH::EActivation::Activate);
+void Shape3DPhysics::setTranslate(glm::vec3 translate) {
+  _physicsManager->getBodyInterface().SetPosition(
+      _shapeBody->GetID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
-glm::vec3 Shape3DPhysics::getPosition() { return _position; }
+glm::vec3 Shape3DPhysics::getTranslate() {
+  auto position = _physicsManager->getBodyInterface().GetPosition(_shapeBody->GetID());
+  return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+}
+
+glm::quat Shape3DPhysics::getRotate() {
+  auto rotation = _physicsManager->getBodyInterface().GetRotation(_shapeBody->GetID());
+  return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
+}
 
 void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
   _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
-}
-
-glm::mat4 Shape3DPhysics::getModel() {
-  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_shapeBody->GetID());
-  glm::mat4 converted = glm::mat4(1.f);
-  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
-                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
-  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
-                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
-  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
-                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
-  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
-                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
-  return converted;
 }
 
 Shape3DPhysics::~Shape3DPhysics() {
@@ -726,7 +717,7 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     }
 
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model * _translateOrigin;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -897,7 +888,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model * _translateOrigin;
+  cameraMVP.model = getModel();
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 

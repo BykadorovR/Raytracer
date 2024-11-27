@@ -5,19 +5,19 @@
 #include <unordered_map>
 #undef far
 
-Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+Model3DPhysics::Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
   JPH::CharacterSettings settings;
   _size = size;
   settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x / 2.f, size.y / 2.f, size.z / 2.f));
   settings.mLayer = Layers::MOVING;
   settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
-  _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
-                                  &_physicsManager->getPhysicsSystem());
+  _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
+                                  0, &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
 }
 
-Model3DPhysics::Model3DPhysics(glm::vec3 position,
+Model3DPhysics::Model3DPhysics(glm::vec3 translate,
                                float height,
                                float radius,
                                std::shared_ptr<PhysicsManager> physicsManager) {
@@ -27,34 +27,32 @@ Model3DPhysics::Model3DPhysics(glm::vec3 position,
   settings.mShape = new JPH::CapsuleShape(height / 2.f, radius);
   settings.mLayer = Layers::MOVING;
   settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
-  _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
-                                  &_physicsManager->getPhysicsSystem());
+  _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
+                                  0, &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
 }
 
-glm::vec3 Model3DPhysics::getSize() { return _size; }
-
-// TODO: position should substract half of the shape size?
-void Model3DPhysics::setPosition(glm::vec3 position) {
+void Model3DPhysics::setTranslate(glm::vec3 translate) {
   _physicsManager->getBodyInterface().SetPosition(
-      _character->GetBodyID(), JPH::RVec3(position.x, position.y, position.z), JPH::EActivation::Activate);
+      _character->GetBodyID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
-void Model3DPhysics::setRotation(glm::quat rotation) {
+void Model3DPhysics::setRotate(glm::quat rotate) {
   _physicsManager->getBodyInterface().SetRotation(
-      _character->GetBodyID(), JPH::Quat(rotation.x, rotation.y, rotation.z, rotation.w), JPH::EActivation::Activate);
+      _character->GetBodyID(), JPH::Quat(rotate.x, rotate.y, rotate.z, rotate.w), JPH::EActivation::Activate);
 }
 
-glm::quat Model3DPhysics::getRotation() {
+glm::quat Model3DPhysics::getRotate() {
   auto rotation = _physicsManager->getBodyInterface().GetRotation(_character->GetBodyID());
-
   return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
 }
 
-glm::vec3 Model3DPhysics::getPosition() {
+glm::vec3 Model3DPhysics::getTranslate() {
   auto position = _physicsManager->getBodyInterface().GetPosition(_character->GetBodyID());
   return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
 }
+
+glm::vec3 Model3DPhysics::getSize() { return _size; }
 
 void Model3DPhysics::postUpdate() { _character->PostSimulation(_collisionTolerance); }
 
@@ -88,20 +86,6 @@ glm::vec3 Model3DPhysics::getUp() {
 glm::vec3 Model3DPhysics::getLinearVelocity() {
   auto velocity = _physicsManager->getBodyInterface().GetLinearVelocity(_character->GetBodyID());
   return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
-}
-
-glm::mat4 Model3DPhysics::getModel() {
-  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_character->GetBodyID());
-  glm::mat4 converted = glm::mat4(1.f);
-  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
-                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
-  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
-                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
-  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
-                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
-  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
-                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
-  return converted;
 }
 
 Model3DPhysics::~Model3DPhysics() {
@@ -902,7 +886,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     }
     // pass this matrix to uniforms
     BufferMVP cameraMVP{};
-    cameraMVP.model = _model * _translateOrigin * nodeMatrix;
+    cameraMVP.model = getModel() * nodeMatrix;
     cameraMVP.view = view;
     cameraMVP.projection = projection;
 

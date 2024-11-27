@@ -700,7 +700,7 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model * _translateOrigin;
+  cameraMVP.model = getModel();
   cameraMVP.view = glm::mat4(1.f);
   cameraMVP.projection = glm::mat4(1.f);
   if (_enableHUD == false) {
@@ -891,7 +891,7 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model * _translateOrigin;
+  cameraMVP.model = getModel();
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 

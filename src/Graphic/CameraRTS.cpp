@@ -3,7 +3,7 @@
 CameraRTS::CameraRTS(std::shared_ptr<Drawable> object, std::shared_ptr<EngineState> engineState) {
   _object = object;
   _engineState = engineState;
-  auto model = _object->getModel() * _object->getOrigin();
+  auto model = _object->getModel();
   _eye = glm::vec3(model[3][0], model[3][1], model[3][2]) + _shift;
   _direction = glm::normalize(glm::vec3(model[3][0], model[3][1], model[3][2]) - _eye);
   _up = glm::vec3(0.f, 0.f, -1.f);
@@ -44,7 +44,7 @@ void CameraRTS::mouseNotify(int button, int action, int mods) {}
 void CameraRTS::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if (action == GLFW_PRESS && key == GLFW_KEY_F1) {
-    auto model = _object->getModel() * _object->getOrigin();
+    auto model = _object->getModel();
     _eye = glm::vec3(model[3][0], model[3][1], model[3][2]) + _shift;
     _direction = glm::normalize(glm::vec3(model[3][0], model[3][1], model[3][2]) - _eye);
   }

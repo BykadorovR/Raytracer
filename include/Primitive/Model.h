@@ -36,13 +36,13 @@ class Model3DPhysics {
   float _collisionTolerance = 0.2f;
 
  public:
-  Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
-  Model3DPhysics(glm::vec3 position, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
+  Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  Model3DPhysics(glm::vec3 translate, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
   void postUpdate();
-  void setPosition(glm::vec3 position);
-  void setRotation(glm::quat rotation);
-  glm::quat getRotation();
-  glm::vec3 getPosition();
+  void setTranslate(glm::vec3 translate);
+  void setRotate(glm::quat rotate);
+  glm::quat getRotate();
+  glm::vec3 getTranslate();
   void setLinearVelocity(glm::vec3 velocity);
   glm::vec3 getUp();
   void setUp(glm::vec3 up);
@@ -51,7 +51,6 @@ class Model3DPhysics {
   GroundState getGroundState();
   glm::vec3 getGroundNormal();
   glm::vec3 getGroundVelocity();
-  glm::mat4 getModel();
   glm::vec3 getSize();
   ~Model3DPhysics();
 };

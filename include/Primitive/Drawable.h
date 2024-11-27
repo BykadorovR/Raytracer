@@ -18,15 +18,18 @@ class Named {
 
 class Drawable : virtual public Named {
  protected:
-  glm::mat4 _model = glm::mat4(1.f);
-  glm::mat4 _translateOrigin = glm::mat4(1.f);
+  glm::vec3 _originShift = glm::vec3{0.f, 0.f, 0.f};
+  glm::vec3 _translate = glm::vec3{0.f, 0.f, 0.f};
+  glm::quat _rotate = glm::identity<glm::quat>();
+  glm::vec3 _scale = glm::vec3{1.f, 1.f, 1.f};
 
  public:
   virtual void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
-  void setModel(glm::mat4 model);
-  void setOrigin(glm::mat4 translateOrigin);
+  void setOriginShift(glm::vec3 originShift);
+  void setTranslate(glm::vec3 translate);
+  void setRotate(glm::quat rotate);
+  void setScale(glm::vec3 scale);
   glm::mat4 getModel();
-  glm::mat4 getOrigin();
 };
 
 // Such objects can be influenced by shadow (shadows can appear on them and they can generate shadows)

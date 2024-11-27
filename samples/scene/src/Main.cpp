@@ -13,12 +13,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -35,12 +33,8 @@ void Main::_createTerrainPhong() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -57,12 +51,8 @@ void Main::_createTerrainPBR() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -79,12 +69,8 @@ void Main::_createTerrainColor() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -120,6 +106,7 @@ Main::Main() {
   auto commandBufferTransfer = _core->getCommandBufferApplication();
   commandBufferTransfer->beginCommands();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
@@ -174,64 +161,43 @@ Main::Main() {
 
     auto spriteForward = _core->createSprite();
     spriteForward->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
-      spriteForward->setModel(model);
-    }
+    spriteForward->setTranslate(glm::vec3(0.f, 0.f, 1.f));
     _core->addDrawable(spriteForward);
 
     auto spriteBackward = _core->createSprite();
     spriteBackward->setMaterial(material);
-    {
-      auto model = glm::rotate(glm::mat4(1.f), glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteBackward->setModel(model);
-    }
+    spriteBackward->setRotate(glm::vec3(0.f, glm::radians(180.f), 0.f));
     _core->addDrawable(spriteBackward);
 
     auto spriteLeft = _core->createSprite();
     spriteLeft->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteLeft->setModel(model);
-    }
+    spriteLeft->setTranslate(glm::vec3(-0.5f, 0.f, 0.5f));
+    spriteLeft->setRotate(glm::vec3(0.f, glm::radians(-90.f), 0.f));
     _core->addDrawable(spriteLeft);
 
     auto spriteRight = _core->createSprite();
     spriteRight->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteRight->setModel(model);
-    }
+    spriteRight->setTranslate(glm::vec3(0.5f, 0.f, 0.5f));
+    spriteRight->setRotate(glm::vec3(0.f, glm::radians(90.f), 0.f));
     _core->addDrawable(spriteRight);
 
     auto spriteTop = _core->createSprite();
     spriteTop->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteTop->setModel(model);
-    }
+    spriteTop->setTranslate(glm::vec3(0.f, 0.5f, 0.5f));
+    spriteTop->setRotate(glm::vec3(glm::radians(-90.f), 0.f, 0.f));
     _core->addDrawable(spriteTop);
 
     auto spriteBot = _core->createSprite();
     spriteBot->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteBot->setModel(model);
-    }
+    spriteBot->setTranslate(glm::vec3(0.f, -0.5f, 0.5f));
+    spriteBot->setRotate(glm::vec3(glm::radians(90.f), 0.f, 0.f));
     _core->addDrawable(spriteBot);
   }
   auto modelGLTF = _core->createModelGLTF("../../IBL/assets/DamagedHelmet/DamagedHelmet.gltf");
   auto modelGLTFPhong = _core->createModel3D(modelGLTF);
   modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPhong->setModel(model);
-  }
+  modelGLTFPhong->setScale(glm::vec3(1.f, 1.f, 1.f));
+  modelGLTFPhong->setTranslate(glm::vec3(-2.f, 2.f, -5.f));
   _core->addDrawable(modelGLTFPhong);
   _core->addShadowable(modelGLTFPhong);
 
@@ -241,11 +207,8 @@ Main::Main() {
     fillMaterialPBR(material);
   }
   modelGLTFPBR->setMaterial(pbrMaterial);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPBR->setModel(model);
-  }
+  modelGLTFPBR->setTranslate(glm::vec3(-2.f, 2.f, -3.f));
+  modelGLTFPBR->setScale(glm::vec3(1.f, 1.f, 1.f));
   _core->addDrawable(modelGLTFPBR);
   _core->addShadowable(modelGLTFPBR);
 
@@ -401,54 +364,31 @@ Main::Main() {
     particle.velocityDirection = glm::normalize(lightPositionHorizontal);
   }
   auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-  {
-    auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-    matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-    particleSystem->setModel(matrix);
-  }
+  particleSystem->setTranslate(glm::vec3(0.f, 0.f, 2.f));
+  particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
   _core->addParticleSystem(particleSystem);
 
   std::vector<std::shared_ptr<Shape3D>> spheres(6);
   // non HDR
   spheres[0] = _core->createShape3D(ShapeType::SPHERE);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
-    spheres[0]->setModel(model);
-  }
+  spheres[0]->setTranslate(glm::vec3(0.f, 5.f, 0.f));
   spheres[1] = _core->createShape3D(ShapeType::SPHERE);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
-    spheres[1]->setModel(model);
-  }
+  spheres[1]->setTranslate(glm::vec3(2.f, 5.f, 0.f));
   spheres[2] = _core->createShape3D(ShapeType::SPHERE);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
-    spheres[2]->setModel(model);
-  }
+  spheres[2]->setTranslate(glm::vec3(-2.f, 5.f, 0.f));
   // HDR
   spheres[3] = _core->createShape3D(ShapeType::SPHERE);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
-    spheres[3]->setModel(model);
-  }
+  spheres[3]->setTranslate(glm::vec3(0.f, 5.f, 2.f));
   spheres[4] = _core->createShape3D(ShapeType::SPHERE);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
-    spheres[4]->setModel(model);
-  }
+  spheres[4]->setTranslate(glm::vec3(-4.f, 7.f, -2.f));
   spheres[5] = _core->createShape3D(ShapeType::SPHERE);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
-    spheres[5]->setModel(model);
-  }
-
+  spheres[5]->setTranslate(glm::vec3(-4.f, 5.f, -2.f));
   for (auto& sphere : spheres) {
     _core->addDrawable(sphere);
   }
@@ -463,31 +403,19 @@ Main::Main() {
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
-    cube->setModel(model);
-  }
+  cube->setTranslate(glm::vec3(0.f, 3.f, 0.f));
   _core->addDrawable(cube);
 
   auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-    equiCube->setModel(model);
-  }
+  equiCube->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   _core->addDrawable(equiCube);
 
   auto diffuseCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
-    diffuseCube->setModel(model);
-  }
+  diffuseCube->setTranslate(glm::vec3(2.f, 3.f, -3.f));
   _core->addDrawable(diffuseCube);
 
   auto specularCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
-    specularCube->setModel(model);
-  }
+  specularCube->setTranslate(glm::vec3(4.f, 3.f, -3.f));
   _core->addDrawable(specularCube);
 
   _ibl = _core->createIBL();
@@ -534,10 +462,7 @@ Main::Main() {
   spriteBRDF->enableShadow(false);
   spriteBRDF->enableDepth(false);
   spriteBRDF->setMaterial(materialBRDF);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(5.f, 3.f, 1.f));
-    spriteBRDF->setModel(model);
-  }
+  spriteBRDF->setTranslate(glm::vec3(5.f, 3.f, 1.f));
   _core->addDrawable(spriteBRDF);
 
   _core->endRecording();

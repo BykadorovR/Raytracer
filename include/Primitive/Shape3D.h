@@ -18,14 +18,13 @@ class Shape3DPhysics {
   std::shared_ptr<PhysicsManager> _physicsManager;
   // destructor is private, can't use smart pointer
   JPH::Body* _shapeBody;
-  glm::vec3 _position;
 
  public:
-  Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
+  Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void setTranslate(glm::vec3 translate);
+  glm::vec3 getTranslate();
+  glm::quat getRotate();
   void setLinearVelocity(glm::vec3 velocity);
-  glm::mat4 getModel();
   ~Shape3DPhysics();
 };
 

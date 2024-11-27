@@ -7,16 +7,6 @@
 #include <nlohmann/json.hpp>
 #include "glm/gtx/vector_angle.hpp"
 
-glm::vec3 getPosition(std::shared_ptr<Drawable> drawable) {
-  glm::vec3 scale;
-  glm::quat rotation;
-  glm::vec3 translation;
-  glm::vec3 skew;
-  glm::vec4 perspective;
-  glm::decompose(drawable->getModel(), scale, rotation, translation, skew, perspective);
-  return translation;
-}
-
 float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> heightmap, glm::vec3 position) {
   auto [data, dimension] = heightmap;
   auto [width, height, channels] = dimension;
@@ -110,11 +100,8 @@ void Main::_createTerrainColor() {
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
-  {
-    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
-    model = glm::scale(model, _terrainScale);
-    _terrain->setModel(model);
-  }
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setScale(_terrainScale);
   _core->addDrawable(_terrain);
 }
 
@@ -177,11 +164,8 @@ Main::Main() {
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
@@ -195,7 +179,7 @@ Main::Main() {
                                                      _physicsManager);
 
   _cubePlayer = _core->createShape3D(ShapeType::CUBE);
-  _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -14.f, -10.f)));
+  _cubePlayer->setTranslate(glm::vec3(-4.f, -14.f, -10.f));
   _cubePlayer->getMesh()->setColor(
       std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
       _core->getCommandBufferApplication());
@@ -219,11 +203,8 @@ Main::Main() {
   //_terrainCPU = _core->createTerrainCPU(heightmapCPU, {_patchX, _patchY});
   auto heights = _terrainPhysics->getHeights();
   _terrainCPU = _core->createTerrainCPU(heights, _terrainPhysics->getResolution());
-  {
-    auto model = glm::translate(glm::mat4(1.f), _terrainPosition);
-    model = glm::scale(model, _terrainScale);
-    _terrainCPU->setModel(model);
-  }
+  _terrainCPU->setTranslate(_terrainPosition);
+  _terrainCPU->setScale(_terrainScale);
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
 
   _core->addDrawable(_terrainCPU);
@@ -250,24 +231,21 @@ Main::Main() {
                  glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
     auto maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
                  glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(_modelScale, _modelScale, _modelScale));
-      _modelSimple->setModel(model);
-      auto origin = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
-      _modelSimple->setOrigin(origin);
-    }
+    _modelSimple->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
+    _modelSimple->setScale(glm::vec3(_modelScale, _modelScale, _modelScale));
+    _modelSimple->setOriginShift(glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
     _core->addDrawable(_modelSimple);
 
     _boundingBox = _core->createShape3D(ShapeType::CUBE);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
+    _boundingBox->setScale(maxBB - minBB);
     _core->addDrawable(_boundingBox);
     _model3DPhysics = std::make_shared<Model3DPhysics>(
         glm::vec3(-4.f, 14.f, -10.f), (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _physicsManager);
     _model3DPhysics->setFriction(0.5f);
 
     _capsule = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
-    _capsule->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f)));
+    _capsule->setTranslate(glm::vec3(0.f, 0.f, 0.f));
     _capsule->setDrawType(DrawType::WIREFRAME);
     _capsule->getMesh()->setColor(std::vector{_capsule->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
                                   _core->getCommandBufferApplication());
@@ -299,17 +277,9 @@ void Main::update() {
                                               radius * cos(glm::radians(angleVertical)));
 
   _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
   _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;
@@ -333,7 +303,7 @@ void Main::update() {
     _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
                                std::string("eye y: ") + std::format("{:.2f}", eye.y),
                                std::string("eye z: ") + std::format("{:.2f}", eye.z)});
-    auto model = _model3DPhysics->getPosition();
+    auto model = _model3DPhysics->getTranslate();
     _core->getGUI()->drawText({std::string("player x: ") + std::format("{:.6f}", model.x),
                                std::string("player y: ") + std::format("{:.6f}", model.y),
                                std::string("player z: ") + std::format("{:.6f}", model.z)});
@@ -365,8 +335,8 @@ void Main::update() {
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->drawButton("Reset")) {
-    _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
-    _model3DPhysics->setPosition(glm::vec3(-4.f, 14.f, -10.f));
+    _shape3DPhysics->setTranslate(glm::vec3(0.f, 50.f, 0.f));
+    _model3DPhysics->setTranslate(glm::vec3(-4.f, 14.f, -10.f));
   }
   if (_core->getGUI()->startTree("Toggles")) {
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
@@ -402,12 +372,12 @@ void Main::update() {
 
   if (_endPoint) {
     auto endPoint = _endPoint.value();
-    auto position = _model3DPhysics->getPosition();
+    auto position = _model3DPhysics->getTranslate();
     position.y -= _model3DPhysics->getSize().y / 2.f;
     auto distance = glm::distance(endPoint, position);
     if (distance < 0.1f) {
       _model3DPhysics->setLinearVelocity({0.f, 0.f, 0.f});
-      _model3DPhysics->setPosition(glm::vec3(position.x, position.y + _model3DPhysics->getSize().y / 2.f, position.z));
+      _model3DPhysics->setTranslate(glm::vec3(position.x, position.y + _model3DPhysics->getSize().y / 2.f, position.z));
       _endPoint.reset();
     } else {
       glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
@@ -433,32 +403,29 @@ void Main::update() {
 
       // rotate
       auto flatDirection = glm::vec3(endPoint.x, 0.f, endPoint.z) -
-                           glm::vec3(_model3DPhysics->getPosition().x, 0.f, _model3DPhysics->getPosition().z);
+                           glm::vec3(_model3DPhysics->getTranslate().x, 0.f, _model3DPhysics->getTranslate().z);
       if (glm::length(flatDirection) > 0.1f) {
         flatDirection = glm::normalize(flatDirection);
-        auto currentRotation = _model3DPhysics->getRotation();
+        auto currentRotation = _model3DPhysics->getRotate();
         _angle = glm::atan(flatDirection.x, flatDirection.z);
         glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), _angle, glm::vec3(0.0f, 1.0f, 0.0f));
         auto rotationSpeed = 3.f;
         glm::quat smoothedRotation = glm::slerp(currentRotation, rotation, (1.f / (float)FPSLimited) * rotationSpeed);
-        _model3DPhysics->setRotation(glm::normalize(smoothedRotation));
+        _model3DPhysics->setRotate(glm::normalize(smoothedRotation));
       }
     }
   }
-  _cubePlayer->setModel(_shape3DPhysics->getModel());
-  auto model = glm::scale(_model3DPhysics->getModel(), glm::vec3(_modelScale, _modelScale, _modelScale));
-  _modelSimple->setModel(model);
-  _capsule->setModel(_model3DPhysics->getModel());
-  auto aabb = _modelSimple->getAABB();
-  auto min = aabb->getMin();
-  auto max = aabb->getMax();
-  auto center = (max + min) / 2.f;
-  glm::vec3 minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                    glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
-  glm::vec3 maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                    glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
-  model = glm::scale(_model3DPhysics->getModel(), maxBB - minBB);
-  _boundingBox->setModel(model);
+
+  _cubePlayer->setTranslate(_shape3DPhysics->getTranslate());
+  _cubePlayer->setRotate(_shape3DPhysics->getRotate());
+
+  _capsule->setTranslate(_model3DPhysics->getTranslate());
+  _capsule->setRotate(_model3DPhysics->getRotate());
+  _boundingBox->setTranslate(_model3DPhysics->getTranslate());
+  _boundingBox->setRotate(_model3DPhysics->getRotate());
+
+  _modelSimple->setTranslate(_model3DPhysics->getTranslate());
+  _modelSimple->setRotate(_model3DPhysics->getRotate());
 
   // Step the world
   _physicsManager->update();

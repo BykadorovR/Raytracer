@@ -352,7 +352,7 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -410,13 +410,13 @@ int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
       // define patch: 4 points (square)
       auto vertex1 = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1 = _model * glm::vec4(vertex1, 1.f);
+      vertex1 = getModel() * glm::vec4(vertex1, 1.f);
       auto vertex2 = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2 = _model * glm::vec4(vertex2, 1.f);
+      vertex2 = getModel() * glm::vec4(vertex2, 1.f);
       auto vertex3 = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3 = _model * glm::vec4(vertex3, 1.f);
+      vertex3 = getModel() * glm::vec4(vertex3, 1.f);
 
       if (position.x > vertex1.x && position.x < vertex2.x && position.z > vertex1.z && position.z < vertex3.z)
         return x + y * _patchNumber.first;
@@ -428,10 +428,10 @@ int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
 glm::ivec2 TerrainDebug::_calculatePixelByPosition(glm::vec3 position) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
 
-  auto leftTop = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
-  auto rightTop = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f, 1.f);
-  auto leftBot = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height, 1.f);
-  auto rightBot = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f + height, 1.f);
+  auto leftTop = getModel() * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
+  auto rightTop = getModel() * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f, 1.f);
+  auto leftBot = getModel() * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height, 1.f);
+  auto rightBot = getModel() * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f + height, 1.f);
   glm::vec3 terrainSize = rightBot - leftTop;
   glm::vec2 ratio = glm::vec2((glm::vec4(position, 1.f) - leftTop).x / terrainSize.x,
                               (glm::vec4(position, 1.f) - leftTop).z / terrainSize.z);

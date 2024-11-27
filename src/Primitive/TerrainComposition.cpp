@@ -531,7 +531,7 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -1579,7 +1579,7 @@ void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -1769,7 +1769,7 @@ void TerrainComposition::drawShadow(LightType lightType,
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
   BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
+  cameraUBO.model = getModel();
   cameraUBO.view = view;
   cameraUBO.projection = projection;
 

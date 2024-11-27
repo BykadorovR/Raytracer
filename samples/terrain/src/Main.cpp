@@ -46,12 +46,8 @@ void Main::_createTerrainPhong(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -76,12 +72,8 @@ void Main::_createTerrainPBR(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -106,12 +98,8 @@ void Main::_createTerrainColor(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
   _terrain->setDisplayDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
@@ -174,11 +162,8 @@ void Main::_createTerrainDebug(std::string path) {
   if (_showWireframe == false && _showNormals == false) {
     _terrainDebug->setDrawType(DrawType::FILL);
   }
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrainDebug->setModel(scaleMatrix);
-  }
+  _terrainDebug->setScale(_terrainScale);
+  _terrainDebug->setTranslate(_terrainPositionDebug);
 }
 
 Main::Main() {
@@ -222,12 +207,14 @@ Main::Main() {
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
@@ -375,12 +362,8 @@ Main::Main() {
   _createTerrainDebug("../assets/heightmap_flat.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
-  {
-    auto model = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
-    model = glm::scale(model, _terrainScale);
-    _terrainCPU->setModel(model);
-  }
-
+  _terrainCPU->setTranslate(_terrainPositionDebug);
+  _terrainCPU->setScale(_terrainScale);
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -400,17 +383,9 @@ void Main::update() {
                                               radius * cos(glm::radians(angleVertical)));
 
   _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
   _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;

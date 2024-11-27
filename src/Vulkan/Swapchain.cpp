@@ -56,7 +56,7 @@ void Swapchain::_initialize() {
   if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
     int width, height;
 #ifdef __ANDROID__
-    std::tie(width, height) = _engineState->getWindow()->getResolution();
+    std::tie(width, height) = _engineState->getSettings()->getResolution();
 #else
     glfwGetFramebufferSize((GLFWwindow*)(_engineState->getWindow()->getWindow()), &width, &height);
 #endif
