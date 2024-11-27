@@ -181,8 +181,7 @@ void CameraFly::update() {
 
 void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
   _once = false;
-  _eye = eye;
-  _direction = direction;
+  CameraPerspective::setViewParameters(eye, direction, up);
 }
 
 void CameraFly::setSpeed(float rotate, float translate) {

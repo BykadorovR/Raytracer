@@ -21,7 +21,7 @@ class Equirectangular {
   std::shared_ptr<MaterialColor> _material;
   std::shared_ptr<MeshStatic3D> _mesh3D;
   std::shared_ptr<Logger> _logger;
-  std::shared_ptr<CameraFly> _camera;
+  std::shared_ptr<CameraPerspective> _camera;
   std::shared_ptr<RenderPass> _renderPass;
   std::vector<std::shared_ptr<Framebuffer>> _frameBuffer;
 
