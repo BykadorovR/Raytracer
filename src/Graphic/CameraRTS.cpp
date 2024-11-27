@@ -1,6 +1,7 @@
 #include "Graphic/CameraRTS.h"
 
-CameraRTS::CameraRTS(std::shared_ptr<Drawable> object, std::shared_ptr<EngineState> engineState) {
+CameraRTS::CameraRTS(std::shared_ptr<Drawable> object, std::shared_ptr<EngineState> engineState)
+    : CameraPerspective(engineState) {
   _object = object;
   _engineState = engineState;
   auto model = _object->getModel();

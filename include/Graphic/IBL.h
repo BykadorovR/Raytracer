@@ -27,7 +27,7 @@ class IBL {
   std::shared_ptr<Cubemap> _cubemapDiffuse, _cubemapSpecular;
   std::shared_ptr<Texture> _textureSpecularBRDF;
   std::shared_ptr<CameraOrtho> _cameraSpecularBRDF;
-  std::shared_ptr<CameraFly> _camera;
+  std::shared_ptr<CameraPerspective> _camera;
 
   std::shared_ptr<RenderPass> _renderPass;
   // we do it once, so we don't need max frames in flight

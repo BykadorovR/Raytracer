@@ -96,8 +96,8 @@ class CameraPerspective : public Camera {
   float _aspect;
 
  public:
-  CameraPerspective();
-  void update() = 0;
+  CameraPerspective(std::shared_ptr<EngineState> engineState);
+  void update() override;
   void setProjectionParameters(float fov, float near, float far);
   void setAspect(float aspect);
   void setAngles(float yaw, float pitch, float roll);

@@ -74,8 +74,6 @@ void Camera::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up)
   _up = up;
 }
 
-glm::mat4 Camera::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
-
 glm::vec3 Camera::getEye() { return _eye; }
 
 glm::vec3 Camera::getDirection() { return _direction; }
@@ -101,17 +99,20 @@ glm::mat4 CameraOrtho::getProjection() {
 
 glm::mat4 CameraOrtho::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
 
-CameraPerspective::CameraPerspective() {
+CameraPerspective::CameraPerspective(std::shared_ptr<EngineState> engineState) {
   _yaw = -90.f;
   _pitch = 0.f;
   _roll = 0.f;
   _fov = 60.f;
-  _aspect = 1920.f / 1080.f;
+  _aspect = ((float)std::get<0>(engineState->getSettings()->getResolution()) /
+             (float)std::get<1>(engineState->getSettings()->getResolution()));
   _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
 }
+
+void CameraPerspective::update() { ; }
 
 void CameraPerspective::setAspect(float aspect) { _aspect = aspect; }
 
@@ -138,13 +139,11 @@ glm::mat4 CameraPerspective::getProjection() {
 
 float CameraPerspective::getFOV() { return _fov; }
 
-CameraFly::CameraFly(std::shared_ptr<EngineState> engineState) {
+CameraFly::CameraFly(std::shared_ptr<EngineState> engineState) : CameraPerspective(engineState) {
   _engineState = engineState;
   _once = false;
   _xLast = 0.f;
   _yLast = 0.f;
-  _aspect = ((float)std::get<0>(_engineState->getSettings()->getResolution()) /
-             (float)std::get<1>(_engineState->getSettings()->getResolution()));
 }
 
 void CameraFly::update() {
