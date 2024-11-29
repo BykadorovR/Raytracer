@@ -27,7 +27,6 @@ vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, float spec
     for (int i = 0; i < lightPointNumber; i++) {
         float distance = length(getLightPoint(i).position - fragPosition);
         if (distance > getLightPoint(i).distance) break;
-
         vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
         float shadow = 0.0;
         if (enableShadow > 0)

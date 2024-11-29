@@ -31,16 +31,50 @@ float calculateTextureShadowDirectionalPoisson(sampler2D shadowSampler, vec4 coo
     position.xy = position.xy * 0.5 + 0.5;
     float currentDepth = position.z;
     float bias = max(0.01 * (1.0 - dot(normal, lightDir)), minBias);
+    int sampleCount = 7;
+    float shadowRadius = 4000;
+
     float shadow = 0.0;
-    for (int i = 0; i < 4; i++) {
-        int index = i;
-        //int(16 * random(coords.xyz, i)) % 16;
-        float bufferDepth = texture(shadowSampler, vec2(position.x + poissonDisk[index].x / 700.0, 1.0 - (position.y + poissonDisk[index].y / 700.0))).r;
+    for (int i = 0; i < sampleCount; i++) {
+        int index = int(16 * random(coords.xyz, i)) % 16;
+        float bufferDepth = texture(shadowSampler, vec2(position.x + poissonDisk[index].x / shadowRadius, 1.0 - (position.y + poissonDisk[index].y / shadowRadius))).r;
         shadow += (currentDepth - bias) > bufferDepth ? 1.0 : 0.0;
     }
-    shadow /= 4.0;
+    shadow /= sampleCount;
     if(position.z > 1.0)
         shadow = 0.0;
+    return shadow;
+}
+
+float calculateTextureShadowDirectionalRefined(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
+    // Perform perspective divide
+    vec3 position = coords.xyz / coords.w;
+    // Transform to [0,1] range
+    position.xy = position.xy * 0.5 + 0.5;
+    float currentDepth = position.z;
+    float bias = max(0.01 * (1.0 - dot(normal, lightDir)), minBias);
+    
+    vec2 unitSize = 1.0 / textureSize(shadowSampler, 0); // Size of one texel in shadow map
+    int sampleCount = 3; // Number of PCF samples per axis
+    float filterRadius = 0.3; // Adjust this to control the softness of shadows
+
+    float shadow = 0.0;
+    // Iterate over a grid of samples around the current pixel
+    for (int y = -sampleCount; y <= sampleCount; y++) {
+        for (int x = -sampleCount; x <= sampleCount; x++) {
+            vec2 offset = vec2(x, y) * unitSize * filterRadius;
+            vec2 sampleCoord = vec2(position.x + offset.x, 1.0 - (position.y + offset.y)); // Flip Y
+            float bufferDepth = texture(shadowSampler, sampleCoord).r;
+            shadow += (currentDepth - bias) > bufferDepth ? 1.0 : 0.0;
+        }
+    }
+
+    int totalSamples = (2 * sampleCount + 1) * (2 * sampleCount + 1); // Total samples in the grid
+    shadow /= float(totalSamples); // Normalize the shadow value
+    // Discard shadows outside the far plane
+    if (position.z > 1.0) {
+        shadow = 0.0;
+    }
     return shadow;
 }
 
@@ -69,7 +103,7 @@ float calculateTextureShadowDirectionalSimple(sampler2D shadowSampler, vec4 coor
 }
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
-    return calculateTextureShadowDirectionalSimple(shadowSampler, coords, normal, lightDir, minBias);
+    return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
 }
 
 vec3 sampleOffsetDirections[20] = vec3[]
@@ -81,7 +115,27 @@ vec3 sampleOffsetDirections[20] = vec3[]
    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
 );   
 
-float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
+float calculateTextureShadowPointRefined(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
+    vec3 fragToLight = fragPosition - lightPosition;
+    float currentDepth = length(fragToLight);
+    float shadow = 0.0;
+
+    float viewDistance = length(push.cameraPosition - fragPosition);
+    float diskRadius = 0.01 + 0.1 * log(1.0 + viewDistance / far);
+    int dynamicSamples = int(clamp(16.0 + (viewDistance / far) * 16.0, 16.0, 64.0));
+    for (int i = 0; i < dynamicSamples; i++) {
+        // use constant shift
+        vec3 jitter = sampleOffsetDirections[(i + int(fragPosition.x * 10.0 + fragPosition.y * 10.0)) % 20] * diskRadius;
+        float closestDepth = texture(shadowSampler, fragToLight + jitter).r;
+        closestDepth *= far;
+        if (currentDepth - bias > closestDepth) shadow += 1.0;
+    }
+
+    shadow /= float(dynamicSamples);
+    return shadow;
+}
+
+float calculateTextureShadowPointSimple(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
     // perform perspective divide
     vec3 fragToLight = fragPosition - lightPosition;
     float currentDepth = length(fragToLight);
@@ -97,4 +151,8 @@ float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, 
     
     shadow /= float(samples); 
     return shadow;
+}
+
+float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
+    return calculateTextureShadowPointRefined(shadowSampler, fragPosition, lightPosition, far, bias);
 }

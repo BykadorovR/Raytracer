@@ -24,7 +24,7 @@ struct Settings {
  private:
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
-  std::tuple<int, int> _depthResolution = {512, 512};
+  std::tuple<int, int> _depthResolution = {2048, 2048};
   // used for irradiance diffuse cubemap generation
   std::tuple<int, int> _diffuseIBLResolution = {32, 32};
   std::tuple<int, int> _specularIBLResolution = {128, 128};
