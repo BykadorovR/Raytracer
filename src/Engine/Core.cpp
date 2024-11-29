@@ -229,7 +229,7 @@ void Core::_directionalLightCalculator(int index) {
   auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
       _frameBufferDirectionalLightDepth[index][frameInFlight]);
   VkClearValue clearDepth;
-  clearDepth.depthStencil = {1.0f, 0};
+  clearDepth.color = {1.f, 1.f, 1.f, 1.f};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -267,7 +267,7 @@ void Core::_pointLightCalculator(int index, int face) {
   auto renderPassInfo = _renderPassLightDepth->getRenderPassInfo(
       _frameBufferPointLightDepth[index][frameInFlight][face]);
   VkClearValue clearDepth;
-  clearDepth.depthStencil = {1.0f, 0};
+  clearDepth.color = {1.f, 1.f, 1.f, 1.f};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -452,16 +452,16 @@ void Core::_renderGraphic() {
   for (int i = 0; i < directionalNum; i++) {
     imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_GENERAL;
     imageMemoryBarrier[i].image = _gameState->getLightManager()
                                       ->getDirectionalLights()[i]
                                       ->getDepthTexture()[frameInFlight]
                                       ->getImageView()
                                       ->getImage()
                                       ->getImage();
-    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -471,8 +471,8 @@ void Core::_renderGraphic() {
     int id = directionalNum + i;
     imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     // We won't be changing the layout of the image
-    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_GENERAL;
     imageMemoryBarrier[id].image = _gameState->getLightManager()
                                        ->getPointLights()[i]
                                        ->getDepthCubemap()[frameInFlight]
@@ -480,16 +480,15 @@ void Core::_renderGraphic() {
                                        ->getImageView()
                                        ->getImage()
                                        ->getImage();
-    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   }
   vkCmdPipelineBarrier(_commandBufferRender->getCommandBuffer()[frameInFlight],
-                       VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                       VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, imageMemoryBarrier.size(),
-                       imageMemoryBarrier.data());
+                       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0,
+                       nullptr, 0, nullptr, imageMemoryBarrier.size(), imageMemoryBarrier.data());
 
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic

@@ -421,7 +421,9 @@ void Pipeline::createGraphicTerrainShadowGPU(
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
-  _colorBlending.attachmentCount = 0;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
   VkPipelineTessellationStateCreateInfo tessellationState{};
   tessellationState.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
@@ -585,7 +587,9 @@ void Pipeline::createGraphic3DShadow(
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
-  _colorBlending.attachmentCount = 0;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -734,7 +738,9 @@ void Pipeline::createGraphic2DShadow(
   _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
   _depthStencil.depthTestEnable = VK_TRUE;
   _depthStencil.depthWriteEnable = VK_TRUE;
-  _colorBlending.attachmentCount = 0;
+  std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
+  _colorBlending.attachmentCount = blendAttachments.size();
+  _colorBlending.pAttachments = blendAttachments.data();
 
   VkGraphicsPipelineCreateInfo pipelineInfo{};
   pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

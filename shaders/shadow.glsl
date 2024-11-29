@@ -102,6 +102,24 @@ float calculateTextureShadowDirectionalSimple(sampler2D shadowSampler, vec4 coor
     return shadow;
 }
 
+float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampler, vec4 coords, float minVariance) {
+  // perform perspective divide, 
+  vec3 position = coords.xyz / coords.w;
+  // transform to [0,1] range
+  position.xy = position.xy * 0.5 + 0.5;
+  float currentDepth = position.z;
+  vec2 moments = texture(shadowSampler, vec2(position.x, 1.0 - position.y)).rg;
+  // One-tailed inequality valid if currentDepth > moments.x
+  float p = float(currentDepth <= moments.x);
+  // Compute variance.
+  float variance = moments.y - (moments.x * moments.x);
+  variance = max(variance, minVariance);
+  // Compute probabilistic upper bound.
+  float d = currentDepth - moments.x;
+  float pMax = variance / (variance + d * d);
+  return 1 - max(p, pMax);
+}
+
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
     return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
 }

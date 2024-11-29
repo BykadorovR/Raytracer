@@ -61,7 +61,10 @@ Shape3D::Shape3D(ShapeType shapeType,
                                                            "shaders/shape/cubePhong_fragment.spv"};
     _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/shape/cubePhong_vertex.spv",
                                                          "shaders/shape/cubePBR_fragment.spv"};
-    _shadersLight[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv", "shaders/shape/cubeDepth_fragment.spv"};
+    _shadersLightDirectional[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv",
+                                                 "shaders/shape/cubeDepthDirectional_fragment.spv"};
+    _shadersLightPoint[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv",
+                                           "shaders/shape/cubeDepthPoint_fragment.spv"};
     _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/shape/cubeNormal_vertex.spv",
                                             "shaders/shape/cubeNormal_fragment.spv",
                                             "shaders/shape/cubeNormal_geometry.spv"};
@@ -76,7 +79,10 @@ Shape3D::Shape3D(ShapeType shapeType,
                                                      "shaders/shape/spherePhong_fragment.spv"};
     _shadersColor[shapeType][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
                                                    "shaders/shape/spherePBR_fragment.spv"};
-    _shadersLight[shapeType] = {"shaders/shape/sphereDepth_vertex.spv", "shaders/shape/sphereDepth_fragment.spv"};
+    _shadersLightDirectional[shapeType] = {"shaders/shape/sphereDepth_vertex.spv",
+                                           "shaders/shape/sphereDepthDirectional_fragment.spv"};
+    _shadersLightPoint[shapeType] = {"shaders/shape/sphereDepth_vertex.spv",
+                                     "shaders/shape/sphereDepthPoint_fragment.spv"};
     _shadersNormalsMesh[shapeType] = {"shaders/shape/cubeNormal_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
                                       "shaders/shape/cubeNormal_geometry.spv"};
     _shadersTangentMesh[shapeType] = {"shaders/shape/cubeTangent_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
@@ -466,11 +472,14 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize shadows directional
   {
     auto shader = std::make_shared<Shader>(_engineState);
-    shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightDirectional[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightDirectional[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"depth", layoutCamera}}, {},
-        _mesh->getBindingDescription(),
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"depth", layoutCamera}}, {}, _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
         _renderPassDepth);
   }
@@ -481,8 +490,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_engineState);
-    shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add(_shadersLight[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add(_shadersLightPoint[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightPoint[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelinePoint->createGraphic3DShadow(
         VK_CULL_MODE_NONE,

@@ -110,7 +110,7 @@ void RenderPass::initializeDebug() {
 
 void RenderPass::initializeLightDepth() {
   std::vector<VkAttachmentDescription> attachmentDescriptors(1);
-  attachmentDescriptors[0].format = _settings->getDepthFormat();
+  attachmentDescriptors[0].format = VK_FORMAT_R32G32_SFLOAT;
   attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
   attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -120,19 +120,17 @@ void RenderPass::initializeLightDepth() {
   // the same behaviour)
   attachmentDescriptors[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   // graphic render will read from it, so change back to read only
-  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-  _colorAttachmentNumber = 0;
-
-  VkAttachmentReference depthAttachmentRef{};
-  depthAttachmentRef.attachment = 0;
-  // inside shader it should be attachment because we wanna write to it
-  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  VkAttachmentReference colorAttachmentRef{};
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_GENERAL;
+  _colorAttachmentNumber = 1;
 
   VkSubpassDescription subpass{};
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = 0;
-  subpass.pDepthStencilAttachment = &depthAttachmentRef;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
 
   VkRenderPassCreateInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;

@@ -1,9 +1,10 @@
 #version 450
 layout(location = 0) in vec4 modelCoords;
+layout(location = 0) out vec4 outColor;
 
 layout( push_constant ) uniform constants {
     layout(offset = 32) vec3 lightPosition;
-    int far;
+    layout(offset = 48) int far;
 } PushConstants;
 
 void main() {
@@ -13,5 +14,5 @@ void main() {
     lightDistance = lightDistance / PushConstants.far;
     
     // write this as modified depth
-    gl_FragDepth = lightDistance;
+    outColor = vec4(lightDistance, lightDistance * lightDistance, 0.0, 1.0);
 }

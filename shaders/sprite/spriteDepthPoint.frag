@@ -4,6 +4,7 @@
 layout(location = 0) in vec3 fragColor;
 layout(location = 1) in vec2 texCoords;
 layout(location = 2) in vec4 modelCoords;
+layout(location = 0) out vec4 outColor;
 
 layout(set = 0, binding = 1) uniform sampler2D texSampler;
 
@@ -15,14 +16,13 @@ layout( push_constant ) uniform constants {
 void main() {
     vec4 color = texture(texSampler, texCoords) * vec4(fragColor, 1.0);
     if (color.a < epsilon) {
-        gl_FragDepth = 1.0;
+        outColor = vec4(1.0, 1.0, 0.0, 1.0);
     } else {
 	   float lightDistance = length(modelCoords.xyz - PushConstants.lightPosition);
         
        // map to [0;1] range by dividing by far_plane
        lightDistance = lightDistance / PushConstants.far;
         
-       // write this as modified depth
-       gl_FragDepth = lightDistance;
+       outColor = vec4(lightDistance, lightDistance * lightDistance, 0.0, 1.0);
     }
 }

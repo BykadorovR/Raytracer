@@ -872,6 +872,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+      shader->add("shaders/terrain/terrainDepthDirectional_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -890,7 +891,8 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
-           shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
+           shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayoutShadows, pushConstants, _mesh->getBindingDescription(),
           _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                  {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
@@ -903,7 +905,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      shader->add("shaders/terrain/terrainDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+      shader->add("shaders/terrain/terrainDepthPoint_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -918,7 +920,8 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       };
       pushConstants["fragmentDepth"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-          .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPushDepth),
+          .offset = sizeof(TesselationControlPush) +
+                    std::max(sizeof(TesselationEvaluationPushDepth), std::alignment_of<DepthConstants>::value),
           .size = sizeof(DepthConstants),
       };
       _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
@@ -1746,9 +1749,8 @@ void TerrainInterpolation::drawShadow(LightType lightType,
     // light camera
     pushConstants.far = 100.f;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT,
-                       sizeof(TesselationEvaluationPushDepth) + sizeof(TesselationControlPush), sizeof(DepthConstants),
-                       &pushConstants);
+                       VK_SHADER_STAGE_FRAGMENT_BIT, pipeline->getPushConstants()["fragmentDepth"].offset,
+                       pipeline->getPushConstants()["fragmentDepth"].size, &pushConstants);
   }
 
   glm::mat4 view(1.f);

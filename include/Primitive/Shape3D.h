@@ -34,7 +34,8 @@ class Shape3D : public Drawable, public Shadowable {
   std::shared_ptr<GameState> _gameState;
 
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
-  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
+  std::map<ShapeType, std::vector<std::string>> _shadersLightDirectional, _shadersLightPoint, _shadersNormalsMesh,
+      _shadersTangentMesh;
   ShapeType _shapeType;
   std::shared_ptr<MeshStatic3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>

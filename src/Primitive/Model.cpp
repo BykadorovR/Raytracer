@@ -551,9 +551,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   {
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelDepthDirectional_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
@@ -565,7 +568,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   {
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelDepthPoint_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
