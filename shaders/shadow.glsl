@@ -102,7 +102,8 @@ float calculateTextureShadowDirectionalSimple(sampler2D shadowSampler, vec4 coor
     return shadow;
 }
 
-float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampler, vec4 coords, float minVariance) {
+float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampler, vec4 coords) {
+  float minVariance = 0.0003;
   // perform perspective divide, 
   vec3 position = coords.xyz / coords.w;
   // transform to [0,1] range
@@ -122,6 +123,7 @@ float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampl
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
     return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
+    //return calculateTextureShadowDirectionalChebyshevUpperBound(shadowSampler, coords);
 }
 
 vec3 sampleOffsetDirections[20] = vec3[]
