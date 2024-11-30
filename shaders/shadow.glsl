@@ -102,6 +102,14 @@ float calculateTextureShadowDirectionalSimple(sampler2D shadowSampler, vec4 coor
     return shadow;
 }
 
+float linstep(float mi, float ma, float v) {
+    return clamp((v - mi)/(ma - mi), 0, 1);
+}
+
+float reduceLightBleeding(float pMax, float amount) {
+     return linstep(amount, 1, pMax); 
+} 
+
 float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampler, vec4 coords) {
   float minVariance = 0.0003;
   // perform perspective divide, 
@@ -111,19 +119,21 @@ float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampl
   float currentDepth = position.z;
   vec2 moments = texture(shadowSampler, vec2(position.x, 1.0 - position.y)).rg;
   // One-tailed inequality valid if currentDepth > moments.x
-  float p = float(currentDepth <= moments.x);
+  if (currentDepth <= moments.x) {
+    return 0.0;
+  }
   // Compute variance.
   float variance = moments.y - (moments.x * moments.x);
   variance = max(variance, minVariance);
   // Compute probabilistic upper bound.
   float d = currentDepth - moments.x;
   float pMax = variance / (variance + d * d);
-  return 1 - max(p, pMax);
+  return 1 - reduceLightBleeding(pMax, 1.0);
 }
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
-    return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
-    //return calculateTextureShadowDirectionalChebyshevUpperBound(shadowSampler, coords);
+    //return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
+    return calculateTextureShadowDirectionalChebyshevUpperBound(shadowSampler, coords);
 }
 
 vec3 sampleOffsetDirections[20] = vec3[]
@@ -173,6 +183,25 @@ float calculateTextureShadowPointSimple(samplerCube shadowSampler, vec3 fragPosi
     return shadow;
 }
 
+float calculateTextureShadowPointChebyshevUpperBound(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far) {
+  float minVariance = 0.0003;
+  vec3 fragToLight = fragPosition - lightPosition;
+  float currentDepth = length(fragToLight) / far;
+  vec2 moments = texture(shadowSampler, fragToLight).rg;
+  // One-tailed inequality valid if currentDepth > moments.x
+  if (currentDepth <= moments.x) {
+    return 0.0;
+  }
+  // Compute variance.
+  float variance = moments.y - (moments.x * moments.x);
+  variance = max(variance, minVariance);
+  // Compute probabilistic upper bound.
+  float d = currentDepth - moments.x;
+  float pMax = variance / (variance + d * d);
+  return 1 - reduceLightBleeding(pMax, 1.0);
+}
+
 float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
-    return calculateTextureShadowPointRefined(shadowSampler, fragPosition, lightPosition, far, bias);
+    //return calculateTextureShadowPointRefined(shadowSampler, fragPosition, lightPosition, far, bias);
+    return calculateTextureShadowPointChebyshevUpperBound(shadowSampler, fragPosition, lightPosition, far);
 }

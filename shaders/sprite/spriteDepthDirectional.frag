@@ -15,7 +15,9 @@ layout( push_constant ) uniform constants {
 
 void main() {
     vec4 color = texture(texSampler, texCoords) * vec4(fragColor, 1.0);
-    outColor = vec4(gl_FragCoord.z, gl_FragCoord.z * gl_FragCoord.z, 0.0, 1.0);
+    float dx = dFdx(gl_FragCoord.z);
+    float dy = dFdy(gl_FragCoord.z);
+    outColor = vec4(gl_FragCoord.z, gl_FragCoord.z * gl_FragCoord.z + 0.25 * (dx * dx + dy * dy), 0.0, 1.0);
     if (color.a < epsilon) {
         outColor = vec4(1.0, 1.0, 0.0, 1.0);
     }
