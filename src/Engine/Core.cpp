@@ -68,6 +68,8 @@ void Core::_initializeFramebuffer() {
                                                          _swapchain->getImageViews()[i]->getImage()->getResolution(),
                                                          _renderPassDebug, _engineState->getDevice());
   }
+  // input and output
+  _frameBufferBlur.resize(2);
 }
 
 #ifdef __ANDROID__
@@ -93,43 +95,63 @@ void Core::initialize() {
                           _engineState->getDevice()->getQueue(QueueType::PRESENT));
   _debuggerUtils->setName("Queue compute", VkObjectType::VK_OBJECT_TYPE_QUEUE,
                           _engineState->getDevice()->getQueue(QueueType::COMPUTE));
-
-  _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender,
+  {
+    _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender,
+                                                           _engineState);
+    _debuggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferRender->getCommandBuffer());
+  }
+  {
+    _commandPoolApplication = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    // frameInFlight != 0 can be used in reset
+    _commandBufferApplication = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                _commandPoolApplication, _engineState);
+    _debuggerUtils->setName("Command buffer for appplication", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferApplication->getCommandBuffer());
+  }
+  {
+    _commandPoolInitialize = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandBufferInitialize = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolInitialize,
+                                                               _engineState);
+    _debuggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferInitialize->getCommandBuffer());
+  }
+  {
+    _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                    _commandPoolEquirectangular, _engineState);
+    _debuggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferEquirectangular->getCommandBuffer());
+  }
+  {
+    _commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
+    _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                   _commandPoolParticleSystem, _engineState);
+    _debuggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferParticleSystem->getCommandBuffer());
+  }
+  {
+    _commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
+    _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                   _commandPoolPostprocessing, _engineState);
+    _debuggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferPostprocessing->getCommandBuffer());
+  }
+  {
+    _commandPoolBlur = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandBufferBlur = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolBlur,
                                                          _engineState);
-  _debuggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferRender->getCommandBuffer());
-  _commandPoolApplication = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  // frameInFlight != 0 can be used in reset
-  _commandBufferApplication = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolApplication,
-                                                              _engineState);
-  _debuggerUtils->setName("Command buffer for appplication", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferApplication->getCommandBuffer());
-  _commandPoolInitialize = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  _commandBufferInitialize = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolInitialize,
-                                                             _engineState);
-  _debuggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferInitialize->getCommandBuffer());
-
-  _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                  _commandPoolEquirectangular, _engineState);
-  _debuggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferEquirectangular->getCommandBuffer());
-  _commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
-  _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                 _commandPoolParticleSystem, _engineState);
-  _debuggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferParticleSystem->getCommandBuffer());
-  _commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
-  _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                 _commandPoolPostprocessing, _engineState);
-  _debuggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferPostprocessing->getCommandBuffer());
-  _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI, _engineState);
-  _debuggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                          _commandBufferGUI->getCommandBuffer());
+    _debuggerUtils->setName("Command buffer for blur", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferBlur->getCommandBuffer());
+  }
+  {
+    _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI,
+                                                        _engineState);
+    _debuggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                            _commandBufferGUI->getCommandBuffer());
+  }
 
   _frameSubmitInfoPreCompute.resize(settings->getMaxFramesInFlight());
   _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
@@ -142,12 +164,15 @@ void Core::initialize() {
   _renderPassLightDepth->initializeLightDepth();
   _renderPassDebug = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassDebug->initializeDebug();
+  _renderPassBlur = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
+  _renderPassBlur->initializeBlur();
 
   // start transfer command buffer
   _commandBufferInitialize->beginCommands();
 
   _logger = std::make_shared<Logger>(_engineState);
   _loggerPostprocessing = std::make_shared<Logger>(_engineState);
+  _loggerBlur = std::make_shared<Logger>(_engineState);
   _loggerParticles = std::make_shared<Logger>(_engineState);
   _loggerGUI = std::make_shared<Logger>(_engineState);
   _loggerDebug = std::make_shared<Logger>(_engineState);
@@ -320,6 +345,71 @@ void Core::_computeParticles() {
   }
   _loggerParticles->end(_commandBufferParticleSystem);
   _commandBufferParticleSystem->endCommands();
+}
+
+void Core::_drawBlur(int index) {
+  auto frameInFlight = _engineState->getFrameInFlight();
+  _commandBufferBlur->beginCommands();
+  _logger->begin("Blur " + std::to_string(_timer->getFrameCounter()), _commandBufferBlur);
+  auto renderPassInfo = _renderPassBlur->getRenderPassInfo(_frameBufferBlur[0][index][frameInFlight]);
+  VkClearValue clearDepth;
+  clearDepth.color = {0.f, 0.f, 0.f, 1.f};
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearDepth;
+
+  vkCmdBeginRenderPass(_commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
+                       VK_SUBPASS_CONTENTS_INLINE);
+  _logger->begin("Horizontal " + std::to_string(_timer->getFrameCounter()), _commandBufferBlur);
+  _blurGraphic[index]->draw(true, _commandBufferBlur);
+  _logger->end(_commandBufferBlur);
+  vkCmdEndRenderPass(_commandBufferBlur->getCommandBuffer()[frameInFlight]);
+  // wait blur image to be ready
+  {
+    VkImageMemoryBarrier imageMemoryBarrier{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+        .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+        .image = _textureBlurOutGraphic[index][frameInFlight]->getImageView()->getImage()->getImage(),
+        .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+    vkCmdPipelineBarrier(_commandBufferBlur->getCommandBuffer()[frameInFlight],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0,
+                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+  }
+
+  renderPassInfo = _renderPassBlur->getRenderPassInfo(_frameBufferBlur[1][index][frameInFlight]);
+  renderPassInfo.clearValueCount = 1;
+  renderPassInfo.pClearValues = &clearDepth;
+  vkCmdBeginRenderPass(_commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
+                       VK_SUBPASS_CONTENTS_INLINE);
+  _logger->begin("Vertical " + std::to_string(_timer->getFrameCounter()), _commandBufferBlur);
+  // Vertical blur
+  _blurGraphic[index]->draw(false, _commandBufferBlur);
+  _logger->end(_commandBufferBlur);
+  vkCmdEndRenderPass(_commandBufferBlur->getCommandBuffer()[frameInFlight]);
+
+  // wait blur image to be ready
+  // blurTextureIn stores result after blur (vertical part, out - in)
+  {
+    VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                            .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+                                            .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                            .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                            .image = _gameState->getLightManager()
+                                                         ->getDirectionalLights()[index]
+                                                         ->getDepthTexture()[frameInFlight]
+                                                         ->getImageView()
+                                                         ->getImage()
+                                                         ->getImage(),
+                                            .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+    vkCmdPipelineBarrier(_commandBufferBlur->getCommandBuffer()[frameInFlight],
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0,
+                         nullptr, 0, nullptr, 1, &imageMemoryBarrier);
+  }
+  _logger->end(_commandBufferBlur);
+  _commandBufferBlur->endCommands();
 }
 
 void Core::_computePostprocessing(int swapchainImageIndex) {
@@ -659,8 +749,10 @@ void Core::_drawFrame(int imageIndex) {
   // render to depth buffer
   /////////////////////////////////////////////////////////////////////////////////////////
   std::vector<std::future<void>> shadowFutures;
+  std::vector<std::future<void>> shadowBlurFutures;
   for (int i = 0; i < _gameState->getLightManager()->getDirectionalLights().size(); i++) {
     shadowFutures.push_back(_pool->submit(std::bind(&Core::_directionalLightCalculator, this, i)));
+    shadowBlurFutures.push_back(_pool->submit(std::bind(&Core::_drawBlur, this, i)));
   }
 
   for (int i = 0; i < _gameState->getLightManager()->getPointLights().size(); i++) {
@@ -681,6 +773,12 @@ void Core::_drawFrame(int imageIndex) {
   for (auto& shadowFuture : shadowFutures) {
     if (shadowFuture.valid()) {
       shadowFuture.get();
+    }
+  }
+
+  for (auto& shadowBlur : shadowBlurFutures) {
+    if (shadowBlur.valid()) {
+      shadowBlur.get();
     }
   }
 
@@ -727,6 +825,7 @@ void Core::_drawFrame(int imageIndex) {
     for (int i = 0; i < _gameState->getLightManager()->getDirectionalLightCommandBuffers().size(); i++) {
       shadowAndGraphicBuffers.push_back(
           _gameState->getLightManager()->getDirectionalLightCommandBuffers()[i]->getCommandBuffer()[frameInFlight]);
+      shadowAndGraphicBuffers.push_back(_commandBufferBlur->getCommandBuffer()[frameInFlight]);
     }
     for (int i = 0; i < _gameState->getLightManager()->getPointLightCommandBuffers().size(); i++) {
       for (int j = 0; j < _gameState->getLightManager()->getPointLightCommandBuffers()[i].size(); j++) {
@@ -1087,6 +1186,37 @@ std::shared_ptr<DirectionalLight> Core::createDirectionalLight(std::tuple<int, i
                                                              _renderPassLightDepth, _engineState->getDevice());
   }
   _frameBufferDirectionalLightDepth.push_back(directionalLightDepth);
+
+  std::vector<std::shared_ptr<Framebuffer>> blurLightOut(_engineState->getSettings()->getMaxFramesInFlight());
+  std::vector<std::shared_ptr<Framebuffer>> blurLightIn(_engineState->getSettings()->getMaxFramesInFlight());
+  std::vector<std::shared_ptr<Texture>> textureBlurOut(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    auto blurImage = std::make_shared<Image>(textures[i]->getImageView()->getImage()->getResolution(), 1, 1,
+                                             _engineState->getSettings()->getShadowFormat(), VK_IMAGE_TILING_OPTIMAL,
+                                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _engineState);
+    blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                            _commandBufferApplication);
+    auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                     VK_IMAGE_ASPECT_COLOR_BIT, _engineState);
+    textureBlurOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                                  blurImageView, _engineState);
+
+    blurLightIn[i] = std::make_shared<Framebuffer>(std::vector{textureBlurOut[i]->getImageView()},
+                                                   textureBlurOut[i]->getImageView()->getImage()->getResolution(),
+                                                   _renderPassBlur, _engineState->getDevice());
+    blurLightOut[i] = std::make_shared<Framebuffer>(std::vector{textures[i]->getImageView()},
+                                                    textures[i]->getImageView()->getImage()->getResolution(),
+                                                    _renderPassBlur, _engineState->getDevice());
+  }
+  _textureBlurOutGraphic.push_back(textureBlurOut);
+
+  _frameBufferBlur[0].push_back(blurLightIn);
+  _frameBufferBlur[1].push_back(blurLightOut);
+
+  _blurGraphic.push_back(
+      std::make_shared<BlurGraphic>(textures, textureBlurOut, _commandBufferApplication, _engineState));
+
   return light;
 }
 

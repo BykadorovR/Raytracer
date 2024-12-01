@@ -69,7 +69,7 @@ Main::Main() {
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
   _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
-  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 5.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
@@ -91,7 +91,7 @@ Main::Main() {
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+  cubeColoredLightDirectional->setTranslate(_directionalLight->getCamera()->getPosition());
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -376,6 +376,14 @@ void Main::update() {
     _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
   }
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+  auto eye = _camera->getEye();
+  auto direction = _camera->getDirection();
+  if (_core->getGUI()->startTree("Coordinates")) {
+    _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
+                               std::string("eye y: ") + std::format("{:.2f}", eye.y),
+                               std::string("eye z: ") + std::format("{:.2f}", eye.z)});
+    _core->getGUI()->endTree();
+  }
   _core->getGUI()->endWindow();
 }
 

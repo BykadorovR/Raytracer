@@ -16,6 +16,7 @@ class RenderPass {
   void initializeDebug();
   void initializeLightDepth();
   void initializeIBL();
+  void initializeBlur();
   VkRenderPassBeginInfo getRenderPassInfo(std::shared_ptr<Framebuffer> framebuffer);
   VkRenderPass& getRenderPass();
   int getColorAttachmentNumber();

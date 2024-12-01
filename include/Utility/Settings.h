@@ -38,6 +38,7 @@ struct Settings {
   VkFormat _loadTextureColorFormat;
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
+  VkFormat _shadowFormat = VK_FORMAT_R32G32_SFLOAT;
   // if changed have to be change in shaders too
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
@@ -85,6 +86,7 @@ struct Settings {
   VkFormat getLoadTextureColorFormat();
   VkFormat getLoadTextureAuxilaryFormat();
   VkFormat getDepthFormat();
+  VkFormat getShadowFormat();
   int getBloomPasses();
   VkClearColorValue getClearColor();
   int getAnisotropicSamples();

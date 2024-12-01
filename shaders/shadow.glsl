@@ -111,7 +111,7 @@ float reduceLightBleeding(float pMax, float amount) {
 } 
 
 float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampler, vec4 coords) {
-  float minVariance = 0.0003;
+  float minVariance = 0.0001;
   // perform perspective divide, 
   vec3 position = coords.xyz / coords.w;
   // transform to [0,1] range

@@ -37,21 +37,24 @@ class Core {
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
   // for compute render pass isn't needed
-  std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug;
+  std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
+  std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferBlur;
   // store for each light, number in flight frame buffers
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth;
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
 
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
-      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
+      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI,
+      _commandPoolBlur;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
-      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
+      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferBlur,
+      _commandBufferGUI;
 
   std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
   std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
-  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerDebug;
+  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerBlur, _loggerParticles, _loggerGUI, _loggerDebug;
   std::vector<std::shared_ptr<Logger>> _loggerDirectional;
   std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
 
@@ -63,6 +66,7 @@ class Core {
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
+  std::vector<std::vector<std::shared_ptr<Texture>>> _textureBlurOutGraphic;
   std::set<std::shared_ptr<Material>> _materials;
   std::shared_ptr<GUI> _gui;
 
@@ -82,6 +86,7 @@ class Core {
   std::shared_ptr<Postprocessing> _postprocessing;
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<Blur> _blur;
+  std::vector<std::shared_ptr<BlurGraphic>> _blurGraphic;
   std::shared_ptr<BS::thread_pool> _pool;
   std::function<void()> _callbackUpdate;
   std::function<void(int width, int height)> _callbackReset;
@@ -93,6 +98,7 @@ class Core {
   void _directionalLightCalculator(int index);
   void _pointLightCalculator(int index, int face);
   void _computeParticles();
+  void _drawBlur(int index);
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
   void _initializeTextures();

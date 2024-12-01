@@ -693,13 +693,13 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
   std::vector<std::shared_ptr<Cubemap>> depthCubemap;
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
 #ifdef __ANDROID__
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, VK_FORMAT_R32G32_SFLOAT, 1, VK_IMAGE_LAYOUT_GENERAL,
-                                                     VK_IMAGE_ASPECT_COLOR_BIT,
+    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _engineState->getSettings()->getShadowFormat(), 1,
+                                                     VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                                      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                                      VK_FILTER_NEAREST, commandBufferTransfer, _engineState));
 #else
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, VK_FORMAT_R32G32_SFLOAT, 1, VK_IMAGE_LAYOUT_GENERAL,
-                                                     VK_IMAGE_ASPECT_COLOR_BIT,
+    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _engineState->getSettings()->getShadowFormat(), 1,
+                                                     VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                                      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                                                      VK_FILTER_LINEAR, commandBufferTransfer, _engineState));
 #endif
@@ -782,7 +782,7 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
   std::vector<std::shared_ptr<Texture>> depthTexture;
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, 1, VK_FORMAT_R32G32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+        resolution, 1, 1, _engineState->getSettings()->getShadowFormat(), VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         _engineState);
     image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,

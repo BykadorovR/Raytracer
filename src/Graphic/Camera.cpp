@@ -6,9 +6,9 @@ CameraDirectionalLight::CameraDirectionalLight() {
   _direction = glm::vec3(0.f, -1.f, 0.f);
   _up = glm::vec3(0.f, 0.f, -1.f);
 
-  _rect = {-20.f, 20.f, -20.f, 20.f};
+  _rect = {-10.f, 10.f, -10.f, 10.f};
   _near = 0.1f;
-  _far = 40.f;
+  _far = 20.f;
 }
 
 void CameraDirectionalLight::setPosition(glm::vec3 position) { _eye = position; }

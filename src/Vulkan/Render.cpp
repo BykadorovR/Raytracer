@@ -110,7 +110,7 @@ void RenderPass::initializeDebug() {
 
 void RenderPass::initializeLightDepth() {
   std::vector<VkAttachmentDescription> attachmentDescriptors(1);
-  attachmentDescriptors[0].format = VK_FORMAT_R32G32_SFLOAT;
+  attachmentDescriptors[0].format = _settings->getShadowFormat();
   attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
   attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -163,6 +163,44 @@ void RenderPass::initializeIBL() {
   colorAttachmentRef.attachment = 0;
   // we want write to this attachments
   colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  _colorAttachmentNumber = 1;
+
+  VkSubpassDescription subpass{};
+  subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  subpass.colorAttachmentCount = 1;
+  subpass.pColorAttachments = &colorAttachmentRef;
+
+  VkRenderPassCreateInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptors.size());
+  renderPassInfo.pAttachments = attachmentDescriptors.data();
+  renderPassInfo.subpassCount = 1;
+  renderPassInfo.pSubpasses = &subpass;
+  renderPassInfo.dependencyCount = 0;
+  renderPassInfo.pDependencies = nullptr;
+
+  if (vkCreateRenderPass(_device->getLogicalDevice(), &renderPassInfo, nullptr, &_renderPass) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create render pass!");
+  }
+}
+
+void RenderPass::initializeBlur() {
+  std::vector<VkAttachmentDescription> attachmentDescriptors(1);
+  attachmentDescriptors[0].format = _settings->getShadowFormat();
+  attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachmentDescriptors[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachmentDescriptors[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  // we want read depth buffer in graphic render later, so after graphic render it's read only (initially also, so
+  // it's the same behaviour)
+  attachmentDescriptors[0].initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+  // graphic render will read from it, so change back to read only
+  attachmentDescriptors[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+  VkAttachmentReference colorAttachmentRef{};
+  colorAttachmentRef.attachment = 0;
+  colorAttachmentRef.layout = VK_IMAGE_LAYOUT_GENERAL;
   _colorAttachmentNumber = 1;
 
   VkSubpassDescription subpass{};
