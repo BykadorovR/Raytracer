@@ -36,7 +36,7 @@ CameraPointLight::CameraPointLight() {
          glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, -1.0, 0.0)};
 
   _near = 0.1f;
-  _far = 100.f;
+  _far = 40.f;
 }
 
 void CameraPointLight::setPosition(glm::vec3 position) { _eye = position; }
