@@ -4,7 +4,9 @@ void Settings::setName(std::string name) { _name = name; }
 
 void Settings::setResolution(std::tuple<int, int> resolution) { _resolution = resolution; }
 
-void Settings::setDepthResolution(std::tuple<int, int> depthResolution) { _depthResolution = depthResolution; }
+void Settings::setShadowMapResolution(std::tuple<int, int> shadowMapResolution) {
+  _shadowMapResolution = shadowMapResolution;
+}
 
 void Settings::setGraphicColorFormat(VkFormat format) { _graphicColorFormat = format; }
 
@@ -32,7 +34,7 @@ std::string Settings::getName() { return _name; }
 
 const std::tuple<int, int>& Settings::getResolution() { return _resolution; }
 
-const std::tuple<int, int>& Settings::getDepthResolution() { return _depthResolution; }
+const std::tuple<int, int>& Settings::getShadowMapResolution() { return _shadowMapResolution; }
 
 int Settings::getMaxFramesInFlight() { return _maxFramesInFlight; }
 
@@ -46,7 +48,7 @@ VkFormat Settings::getLoadTextureAuxilaryFormat() { return _loadTextureAuxilaryF
 
 VkFormat Settings::getDepthFormat() { return _depthFormat; }
 
-VkFormat Settings::getShadowFormat() { return _shadowFormat; }
+VkFormat Settings::getShadowMapFormat() { return _shadowMapFormat; }
 
 int Settings::getBloomPasses() { return _bloomPasses; }
 

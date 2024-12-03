@@ -146,7 +146,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   _lightAmbientSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
   {
-    auto lightTmp = std::make_shared<DirectionalLight>();
+    auto lightTmp = std::make_shared<DirectionalLight>(_engineState);
     _lightDirectionalSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
@@ -156,7 +156,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _lightDirectionalSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
-    auto lightTmp = std::make_shared<PointLight>(_engineState->getSettings());
+    auto lightTmp = std::make_shared<PointLight>(_engineState);
     _lightPointSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
@@ -218,9 +218,6 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   // stub texture
   _stubTexture = resourceManager->getTextureOne();
   _stubCubemap = resourceManager->getCubemapOne();
-
-  _directionalTextures.resize(engineState->getSettings()->getMaxDirectionalLights(), _stubTexture);
-  _pointTextures.resize(engineState->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
 
   _changed[LightType::DIRECTIONAL].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
   _changed[LightType::POINT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
@@ -307,21 +304,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[3] = bufferAmbientInfo;
     }
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
     }
@@ -367,21 +368,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[2] = bufferPointInfo;
     }
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
     }
@@ -439,21 +444,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[3] = bufferAmbientInfo;
     }
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
     }
@@ -499,21 +508,25 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferInfo[2] = bufferPointInfo;
     }
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
     }
@@ -616,11 +629,6 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
   }
 }
 
-void LightManager::_updateDirectionalTexture(int currentFrame) {
-  int currentIndex = _directionalLights.size() - 1;
-  _directionalTextures[currentIndex] = _directionalLights[currentIndex]->getDepthTexture()[currentFrame];
-}
-
 void LightManager::_reallocatePointBuffers(int currentFrame) {
   int size = 0;
   size += sizeof(glm::vec4);
@@ -683,30 +691,8 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
   }
 }
 
-void LightManager::_updatePointTexture(int currentFrame) {
-  for (int i = 0; i < _pointLights.size(); i++)
-    _pointTextures[i] = _pointLights[i]->getDepthCubemap()[currentFrame]->getTexture();
-}
-
-std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution,
-                                                           std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  std::vector<std::shared_ptr<Cubemap>> depthCubemap;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-#ifdef __ANDROID__
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _engineState->getSettings()->getShadowFormat(), 1,
-                                                     VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                     VK_FILTER_NEAREST, commandBufferTransfer, _engineState));
-#else
-    depthCubemap.push_back(std::make_shared<Cubemap>(resolution, _engineState->getSettings()->getShadowFormat(), 1,
-                                                     VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                     VK_FILTER_LINEAR, commandBufferTransfer, _engineState));
-#endif
-  }
-
-  auto light = std::make_shared<PointLight>(_engineState->getSettings());
-  light->setDepthCubemap(depthCubemap);
+std::shared_ptr<PointLight> LightManager::createPointLight() {
+  auto light = std::make_shared<PointLight>(_engineState);
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _pointLights.push_back(light);
@@ -715,25 +701,23 @@ std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> 
     _changed[LightType::POINT][i] = true;
   }
 
-  // should be unique command pool for every command buffer to work in parallel.
-  // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
-  std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
-  std::vector<std::shared_ptr<Logger>> logger(6);
-  for (int j = 0; j < commandBuffer.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-    commandBuffer[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _engineState);
-    _debuggerUtils->setName("Command buffer point " + std::to_string(_pointLights.size() - 1) + "x" + std::to_string(j),
-                            VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer[j]->getCommandBuffer());
-    logger[j] = std::make_shared<Logger>(_engineState);
-  }
-  _commandBufferPoint.push_back(commandBuffer);
-  _loggerPoint.push_back(logger);
-
   return light;
 }
 
-void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
+std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<RenderPass> renderPass,
+                                                             std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  _pointShadows.push_back(shadow);
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::POINT][i] = true;
+  }
+
+  return shadow;
+}
+
+void LightManager::removePointLight(std::shared_ptr<PointLight> pointLight) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   int index = -1;
   for (int i = 0; i < _pointLights.size(); i++) {
@@ -741,8 +725,20 @@ void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
   }
   if (index > 0) {
     _pointLights.erase(_pointLights.begin() + index);
-    _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
-    _loggerPoint.erase(_loggerPoint.begin() + index);
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::POINT][i] = true;
+    }
+  }
+}
+
+void LightManager::removePoinShadow(std::shared_ptr<PointShadow> pointShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  int index = -1;
+  for (int i = 0; i < _pointShadows.size(); i++) {
+    if (_pointShadows[i] == pointShadow) index = i;
+  }
+  if (index > 0) {
+    _pointShadows.erase(_pointShadows.begin() + index);
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
@@ -757,8 +753,20 @@ void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> dire
   }
   if (index > 0) {
     _directionalLights.erase(_directionalLights.begin() + index);
-    _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
-    _loggerDirectional.erase(_loggerDirectional.begin() + index);
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::DIRECTIONAL][i] = true;
+    }
+  }
+}
+
+void LightManager::removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  int index = -1;
+  for (int i = 0; i < _directionalShadows.size(); i++) {
+    if (_directionalShadows[i] == directionalShadow) index = i;
+  }
+  if (index > 0) {
+    _directionalShadows.erase(_directionalShadows.begin() + index);
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
@@ -770,37 +778,13 @@ const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   return _pointLights;
 }
 
-const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::getPointLightCommandBuffers() {
-  return _commandBufferPoint;
+const std::vector<std::shared_ptr<PointShadow>>& LightManager::getPointShadows() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _pointShadows;
 }
 
-const std::vector<std::vector<std::shared_ptr<Logger>>>& LightManager::getPointLightLoggers() { return _loggerPoint; }
-
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
-    std::tuple<int, int> resolution,
-    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  std::vector<std::shared_ptr<Texture>> depthTexture;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, 1, _engineState->getSettings()->getShadowFormat(), VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        _engineState);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
-                        commandBufferTransfer);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                 _engineState);
-// android doesn't support linear + d32 texture
-#ifdef __ANDROID__
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
-                                                     imageView, _engineState));
-#else
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
-                                                     imageView, _engineState));
-#endif
-  }
-
-  auto light = std::make_shared<DirectionalLight>();
-  light->setDepthTexture(depthTexture);
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
+  auto light = std::make_shared<DirectionalLight>(_engineState);
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _directionalLights.push_back(light);
@@ -809,15 +793,20 @@ std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
     _changed[LightType::DIRECTIONAL][i] = true;
   }
 
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  auto commandBuffer = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _engineState);
-  _debuggerUtils->setName("Command buffer directional " + std::to_string(_directionalLights.size() - 1),
-                          VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer->getCommandBuffer());
-  _commandBufferDirectional.push_back(commandBuffer);
-  _loggerDirectional.push_back(std::make_shared<Logger>(_engineState));
-
   return light;
+}
+
+std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
+    std::shared_ptr<RenderPass> renderPass,
+    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  _directionalShadows.push_back(shadow);
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+  return shadow;
 }
 
 const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {
@@ -825,11 +814,10 @@ const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirection
   return _directionalLights;
 }
 
-const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalLightCommandBuffers() {
-  return _commandBufferDirectional;
+const std::vector<std::shared_ptr<DirectionalShadow>>& LightManager::getDirectionalShadows() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _directionalShadows;
 }
-
-const std::vector<std::shared_ptr<Logger>>& LightManager::getDirectionalLightLoggers() { return _loggerDirectional; }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPBR() { return _descriptorSetLayoutGlobalPBR; }
@@ -868,14 +856,12 @@ void LightManager::draw(int currentFrame) {
   if (_changed[LightType::DIRECTIONAL][currentFrame]) {
     _changed[LightType::DIRECTIONAL][currentFrame] = false;
     _reallocateDirectionalBuffers(currentFrame);
-    _updateDirectionalTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
   if (_changed[LightType::POINT][currentFrame]) {
     _changed[LightType::POINT][currentFrame] = false;
     _reallocatePointBuffers(currentFrame);
-    _updatePointTexture(currentFrame);
     updateLightDescriptors = true;
   }
 

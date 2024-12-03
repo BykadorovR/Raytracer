@@ -820,25 +820,7 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());
-  std::tuple<int, int> resolution;
-  if (lightType == LightType::DIRECTIONAL) {
-    resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
-  if (lightType == LightType::POINT) {
-    resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
-                     ->getTexture()
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
-
+  std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
   // if we swap, we need to change shader as well, so swap there. But we can't do it there because we sample from

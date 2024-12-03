@@ -1099,16 +1099,16 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
     resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
+                     ->getDirectionalShadows()[lightIndex]
+                     ->getShadowMapTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
     resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
+                     ->getPointShadows()[lightIndex]
+                     ->getShadowMapCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
                      ->getImage()

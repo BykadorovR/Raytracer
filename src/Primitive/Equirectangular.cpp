@@ -146,7 +146,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
 }
 
 void Equirectangular::_convertToCubemap() {
-  _cubemap = std::make_shared<Cubemap>(_engineState->getSettings()->getDepthResolution(),
+  _cubemap = std::make_shared<Cubemap>(_engineState->getSettings()->getShadowMapResolution(),
                                        _engineState->getSettings()->getGraphicColorFormat(), 1,
                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
@@ -163,7 +163,7 @@ void Equirectangular::_convertToCubemap() {
   auto currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineEquirectangular->getPipeline());
-  auto [width, height] = _engineState->getSettings()->getDepthResolution();
+  auto [width, height] = _engineState->getSettings()->getShadowMapResolution();
   // render equirectangular to cubemap
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic

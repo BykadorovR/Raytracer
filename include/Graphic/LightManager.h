@@ -9,6 +9,7 @@
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Descriptor.h"
 #include "Vulkan/Debug.h"
+#include "Graphic/Shadow.h"
 #include <vector>
 #include <memory>
 
@@ -18,9 +19,11 @@ class LightManager {
  private:
   int _descriptorPoolSize = 100;
 
-  std::vector<std::shared_ptr<PointLight>> _pointLights;
   std::vector<std::shared_ptr<DirectionalLight>> _directionalLights;
+  std::vector<std::shared_ptr<PointLight>> _pointLights;
   std::vector<std::shared_ptr<AmbientLight>> _ambientLights;
+  std::vector<std::shared_ptr<DirectionalShadow>> _directionalShadows;
+  std::vector<std::shared_ptr<PointShadow>> _pointShadows;
 
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<DebuggerUtils> _debuggerUtils;
@@ -35,22 +38,15 @@ class LightManager {
       _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR,
       _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
-  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
-  std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
-  std::vector<std::shared_ptr<Logger>> _loggerDirectional;
-  std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
+
   // for 2 frames
   std::mutex _accessMutex;
 
   std::map<LightType, std::vector<bool>> _changed;
-  std::vector<std::shared_ptr<Texture>> _directionalTextures;
-  std::vector<std::shared_ptr<Texture>> _pointTextures;
   void _reallocateDirectionalBuffers(int currentFrame);
   void _updateDirectionalBuffers(int currentFrame);
-  void _updateDirectionalTexture(int currentFrame);
   void _reallocatePointBuffers(int currentFrame);
   void _updatePointDescriptors(int currentFrame);
-  void _updatePointTexture(int currentFrame);
   void _reallocateAmbientBuffers(int currentFrame);
   void _updateAmbientBuffers(int currentFrame);
   void _setLightDescriptors(int currentFrame);
@@ -61,19 +57,21 @@ class LightManager {
   // Lights can't be added AFTER draw for current frame, only before draw.
   std::shared_ptr<AmbientLight> createAmbientLight();
   std::vector<std::shared_ptr<AmbientLight>> getAmbientLights();
-  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution,
-                                               std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  std::shared_ptr<PointLight> createPointLight();
+  std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<RenderPass> renderPass,
+                                                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<PointLight>>& getPointLights();
-  void removePointLights(std::shared_ptr<PointLight> pointLight);
-  const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& getPointLightCommandBuffers();
-  const std::vector<std::vector<std::shared_ptr<Logger>>>& getPointLightLoggers();
+  const std::vector<std::shared_ptr<PointShadow>>& getPointShadows();
+  void removePointLight(std::shared_ptr<PointLight> pointLight);
+  void removePoinShadow(std::shared_ptr<PointShadow> pointShadow);
 
-  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution,
-                                                           std::shared_ptr<CommandBuffer> commandBufferTransfer);
+  std::shared_ptr<DirectionalLight> createDirectionalLight();
+  std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<RenderPass> renderPass,
+                                                             std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
+  const std::vector<std::shared_ptr<DirectionalShadow>>& getDirectionalShadows();
   void removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight);
-  const std::vector<std::shared_ptr<CommandBuffer>>& getDirectionalLightCommandBuffers();
-  const std::vector<std::shared_ptr<Logger>>& getDirectionalLightLoggers();
+  void removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow);
 
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPhong();
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPBR();

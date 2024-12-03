@@ -1681,24 +1681,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());
 
-  std::tuple<int, int> resolution;
-  if (lightType == LightType::DIRECTIONAL) {
-    resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
-  if (lightType == LightType::POINT) {
-    resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
-                     ->getTexture()
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
+  std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything

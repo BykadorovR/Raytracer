@@ -37,25 +37,21 @@ class Core {
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
   // for compute render pass isn't needed
-  std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
+  std::shared_ptr<RenderPass> _renderPassShadowMap, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
-  std::map<int, std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferBlurDirectional;
+  std::map<int, std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferShadowMapDirectionalBlur;
   // index of light
   // 0 - horizontal, 1 - vertical
   // face
   // frame in flight
-  std::map<int, std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>>> _frameBufferBlurPoint;
-  // store for each light, number in flight frame buffers
-  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth;
-  std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
-
+  std::map<int, std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>>> _frameBufferShadowMapPointBlur;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
       _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI,
       _commandPoolBlur;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
       _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
-  std::map<int, std::shared_ptr<CommandBuffer>> _commandBufferBlurDirectional;
-  std::map<int, std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferBlurPoint;
+  std::map<int, std::shared_ptr<CommandBuffer>> _commandBufferShadowMapDirectionalBlur;
+  std::map<int, std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferShadowMapPointBlur;
 
   std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerBlur, _loggerParticles, _loggerGUI, _loggerDebug;
   std::vector<std::shared_ptr<Logger>> _loggerDirectional;
@@ -100,11 +96,11 @@ class Core {
       _frameSubmitInfoGraphic, _frameSubmitInfoDebug;
   std::mutex _frameSubmitMutexGraphic;
 
-  void _directionalLightCalculator(int index);
-  void _pointLightCalculator(int index, int face);
+  void _drawShadowMapDirectional(int index);
+  void _drawShadowMapPoint(int index, int face);
   void _computeParticles();
-  void _drawBlurDirectional(int index);
-  void _drawBlurPoint(int index, int face);
+  void _drawShadowMapDirectionalBlur(int index);
+  void _drawShadowMapPointBlur(int index, int face);
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
   void _initializeTextures();
@@ -164,9 +160,11 @@ class Core {
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,
                                                        std::shared_ptr<Texture> particleTexture);
   std::shared_ptr<Skybox> createSkybox();
-  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution, bool blur = false);
-  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution, bool blur = true);
+  std::shared_ptr<PointLight> createPointLight();
+  std::shared_ptr<DirectionalLight> createDirectionalLight();
   std::shared_ptr<AmbientLight> createAmbientLight();
+  std::shared_ptr<PointShadow> createPointShadow(bool blur = false);
+  std::shared_ptr<DirectionalShadow> createDirectionalShadow(bool blur = true);
 
   std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();

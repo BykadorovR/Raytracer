@@ -155,7 +155,7 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR,
       commandBufferTransfer, engineState);
   auto brdfImage = std::make_shared<Image>(
-      _engineState->getSettings()->getDepthResolution(), 1, 1, _engineState->getSettings()->getGraphicColorFormat(),
+      _engineState->getSettings()->getShadowMapResolution(), 1, 1, _engineState->getSettings()->getGraphicColorFormat(),
       VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
   brdfImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

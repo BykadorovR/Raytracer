@@ -110,7 +110,7 @@ void RenderPass::initializeDebug() {
 
 void RenderPass::initializeLightDepth() {
   std::vector<VkAttachmentDescription> attachmentDescriptors(1);
-  attachmentDescriptors[0].format = _settings->getShadowFormat();
+  attachmentDescriptors[0].format = _settings->getShadowMapFormat();
   attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
   attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -186,7 +186,7 @@ void RenderPass::initializeIBL() {
 
 void RenderPass::initializeBlur() {
   std::vector<VkAttachmentDescription> attachmentDescriptors(1);
-  attachmentDescriptors[0].format = _settings->getShadowFormat();
+  attachmentDescriptors[0].format = _settings->getShadowMapFormat();
   attachmentDescriptors[0].samples = VK_SAMPLE_COUNT_1_BIT;
   attachmentDescriptors[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachmentDescriptors[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

@@ -63,13 +63,16 @@ Main::Main() {
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _core->createPointShadow();
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _core->createPointShadow();
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
-  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 5.f, 0.f));
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 10.f, 0.f));
+  _core->createDirectionalShadow();
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
