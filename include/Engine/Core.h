@@ -39,21 +39,11 @@ class Core {
   // for compute render pass isn't needed
   std::shared_ptr<RenderPass> _renderPassShadowMap, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
-  std::map<int, std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferShadowMapDirectionalBlur;
-  // index of light
-  // 0 - horizontal, 1 - vertical
-  // face
-  // frame in flight
-  std::map<int, std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>>> _frameBufferShadowMapPointBlur;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
-      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI,
-      _commandPoolBlur;
+      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
       _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
-  std::map<int, std::shared_ptr<CommandBuffer>> _commandBufferShadowMapDirectionalBlur;
-  std::map<int, std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferShadowMapPointBlur;
-
-  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerBlur, _loggerParticles, _loggerGUI, _loggerDebug;
+  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerDebug;
   std::vector<std::shared_ptr<Logger>> _loggerDirectional;
   std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
 
@@ -65,8 +55,6 @@ class Core {
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
   std::vector<std::shared_ptr<Texture>> _textureRender, _textureBlurIn, _textureBlurOut;
-  std::map<int, std::vector<std::shared_ptr<Texture>>> _textureBlurOutGraphicDirectional;
-  std::map<int, std::vector<std::shared_ptr<Cubemap>>> _cubemapBlurOutGraphicPoint;
   std::set<std::shared_ptr<Material>> _materials;
   std::shared_ptr<GUI> _gui;
 
@@ -86,8 +74,8 @@ class Core {
   std::shared_ptr<Postprocessing> _postprocessing;
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<BlurCompute> _blurCompute;
-  std::map<int, std::shared_ptr<BlurGraphic>> _blurGraphicDirectional;
-  std::map<int, std::vector<std::shared_ptr<BlurGraphic>>> _blurGraphicPoint;
+  std::map<int, std::shared_ptr<DirectionalShadowBlur>> _blurGraphicDirectional;
+  std::map<int, std::shared_ptr<PointShadowBlur>> _blurGraphicPoint;
   std::shared_ptr<BS::thread_pool> _pool;
   std::function<void()> _callbackUpdate;
   std::function<void(int width, int height)> _callbackReset;

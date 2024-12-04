@@ -102,3 +102,138 @@ std::vector<std::shared_ptr<Cubemap>> PointShadow::getShadowMapCubemap() { retur
 std::vector<std::vector<std::shared_ptr<Framebuffer>>> PointShadow::getShadowMapFramebuffer() {
   return _shadowMapFramebuffer;
 }
+
+DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture>> textureIn,
+                                             std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                                             std::shared_ptr<RenderPass> renderPass,
+                                             std::shared_ptr<DebuggerUtils> debuggerUtils,
+                                             std::shared_ptr<EngineState> engineState) {
+  auto resolution = engineState->getSettings()->getShadowMapResolution();
+  // create texture, frame buffers and blurs for directional lights shadow maps postprocessing
+  std::vector<std::shared_ptr<Framebuffer>> blurLightOut(engineState->getSettings()->getMaxFramesInFlight());
+  std::vector<std::shared_ptr<Framebuffer>> blurLightIn(engineState->getSettings()->getMaxFramesInFlight());
+  _textureOut.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    auto blurImage = std::make_shared<Image>(resolution, 1, 1, engineState->getSettings()->getShadowMapFormat(),
+                                             VK_IMAGE_TILING_OPTIMAL,
+                                             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
+    blurImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
+                            commandBufferTransfer);
+    auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
+                                                     VK_IMAGE_ASPECT_COLOR_BIT, engineState);
+    _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
+                                               blurImageView, engineState);
+
+    blurLightIn[i] = std::make_shared<Framebuffer>(std::vector{_textureOut[i]->getImageView()}, resolution, renderPass,
+                                                   engineState->getDevice());
+    blurLightOut[i] = std::make_shared<Framebuffer>(std::vector{textureIn[i]->getImageView()}, resolution, renderPass,
+                                                    engineState->getDevice());
+  }
+
+  _shadowMapFramebuffer.resize(2);
+  _shadowMapFramebuffer[0] = blurLightIn;
+  _shadowMapFramebuffer[1] = blurLightOut;
+
+  _blur = std::make_shared<BlurGraphic>(textureIn, _textureOut, commandBufferTransfer, engineState);
+  // create buffer pool and command buffer
+  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, engineState->getDevice());
+  _commandBufferDirectional = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                              commandPool, engineState);
+  debuggerUtils->setName("Command buffer blur directional", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                         _commandBufferDirectional->getCommandBuffer());
+  _loggerDirectional = std::make_shared<Logger>(engineState);
+}
+
+std::shared_ptr<CommandBuffer> DirectionalShadowBlur::getShadowMapBlurCommandBuffer() {
+  return _commandBufferDirectional;
+}
+
+std::shared_ptr<Logger> DirectionalShadowBlur::getShadowMapBlurLogger() { return _loggerDirectional; }
+
+std::vector<std::vector<std::shared_ptr<Framebuffer>>> DirectionalShadowBlur::getShadowMapBlurFramebuffer() {
+  return _shadowMapFramebuffer;
+}
+
+std::shared_ptr<BlurGraphic> DirectionalShadowBlur::getBlur() { return _blur; }
+
+std::vector<std::shared_ptr<Texture>> DirectionalShadowBlur::getShadowMapBlurTextureOut() { return _textureOut; }
+
+PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn,
+                                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                                 std::shared_ptr<RenderPass> renderPass,
+                                 std::shared_ptr<DebuggerUtils> debuggerUtils,
+                                 std::shared_ptr<EngineState> engineState) {
+  auto resolution = engineState->getSettings()->getShadowMapResolution();
+  // create texture, frame buffers and blurs for point lights shadow maps postprocessing
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> blurLightOut(
+      engineState->getSettings()->getMaxFramesInFlight());
+  std::vector<std::vector<std::shared_ptr<Framebuffer>>> blurLightIn(
+      engineState->getSettings()->getMaxFramesInFlight());
+  _cubemapOut.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    std::vector<std::shared_ptr<Framebuffer>> blurLightOutFaces(6);
+    std::vector<std::shared_ptr<Framebuffer>> blurLightInFaces(6);
+    std::shared_ptr<Cubemap> cubemapBlurOutFaces;
+#ifdef __ANDROID__
+    cubemapBlurOutFaces = std::make_shared<Cubemap>(resolution, engineState->getSettings()->getShadowMapFormat(), 1,
+                                                    VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                    VK_FILTER_NEAREST, commandBufferTransfer, engineState);
+#else
+    cubemapBlurOutFaces = std::make_shared<Cubemap>(resolution, engineState->getSettings()->getShadowMapFormat(), 1,
+                                                    VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                                    VK_FILTER_LINEAR, commandBufferTransfer, engineState);
+#endif
+    for (int j = 0; j < 6; j++) {
+      blurLightInFaces[j] = std::make_shared<Framebuffer>(
+          std::vector{cubemapBlurOutFaces->getTextureSeparate()[j][0]->getImageView()}, resolution, renderPass,
+          engineState->getDevice());
+      blurLightOutFaces[j] = std::make_shared<Framebuffer>(
+          std::vector{cubemapIn[i]->getTextureSeparate()[j][0]->getImageView()}, resolution, renderPass,
+          engineState->getDevice());
+    }
+    blurLightOut[i] = blurLightOutFaces;
+    blurLightIn[i] = blurLightInFaces;
+    _cubemapOut[i] = cubemapBlurOutFaces;
+  }
+
+  _shadowMapFramebuffer.resize(2);
+  _shadowMapFramebuffer[0] = blurLightIn;
+  _shadowMapFramebuffer[1] = blurLightOut;
+
+  for (int j = 0; j < 6; j++) {
+    std::vector<std::shared_ptr<Texture>> texturesIn, texturesOut;
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      texturesIn.push_back(cubemapIn[i]->getTextureSeparate()[j][0]);
+      texturesOut.push_back(_cubemapOut[i]->getTextureSeparate()[j][0]);
+    }
+    _blur.push_back(std::make_shared<BlurGraphic>(texturesIn, texturesOut, commandBufferTransfer, engineState));
+  }
+
+  // create buffer pool and command buffer
+  _commandBufferPoint.resize(6);
+  for (int i = 0; i < 6; i++) {
+    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, engineState->getDevice());
+    auto commandBuffer = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                         commandPool, engineState);
+    debuggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           commandBuffer->getCommandBuffer());
+    _commandBufferPoint[i] = commandBuffer;
+  }
+}
+
+std::vector<std::shared_ptr<CommandBuffer>> PointShadowBlur::getShadowMapBlurCommandBuffer() {
+  return _commandBufferPoint;
+}
+
+std::vector<std::shared_ptr<Logger>> PointShadowBlur::getShadowMapBlurLogger() { return _loggerPoint; }
+
+std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> PointShadowBlur::getShadowMapBlurFramebuffer() {
+  return _shadowMapFramebuffer;
+}
+
+std::vector<std::shared_ptr<BlurGraphic>> PointShadowBlur::getBlur() { return _blur; }
+
+std::vector<std::shared_ptr<Cubemap>> PointShadowBlur::getShadowMapBlurCubemapOut() { return _cubemapOut; }
