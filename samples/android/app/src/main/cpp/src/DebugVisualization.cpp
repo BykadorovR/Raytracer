@@ -134,14 +134,15 @@ void DebugVisualization::_drawShadowMaps() {
       // check if directional
       std::shared_ptr<DescriptorSet> shadowDescriptorSet;
       if (_shadowMapIndex < _core->getDirectionalLights().size()) {
-        currentTexture = _core->getDirectionalLights()[_shadowMapIndex]->getDepthTexture()[currentFrame];
+        currentTexture = _core->getDirectionalShadows()[_shadowMapIndex]->getShadowMapTexture()[currentFrame];
       } else {
         int pointIndex = _shadowMapIndex - _core->getDirectionalLights().size();
         int faceIndex = pointIndex % 6;
         // find index of point light
         pointIndex /= 6;
-        currentTexture =
-            _core->getPointLights()[pointIndex]->getDepthCubemap()[currentFrame]->getTextureSeparate()[faceIndex][0];
+        currentTexture = _core->getPointShadows()[pointIndex]
+                             ->getShadowMapCubemap()[currentFrame]
+                             ->getTextureSeparate()[faceIndex][0];
       }
 
       _materialShadow->setBaseColor({currentTexture});
@@ -300,10 +301,11 @@ void DebugVisualization::draw() {
     if (_core->getGUI()->drawInputFloat({{"gamma", &gamma}})) _core->getPostprocessing()->setGamma(gamma);
     float exposure = _core->getPostprocessing()->getExposure();
     if (_core->getGUI()->drawInputFloat({{"exposure", &exposure}})) _core->getPostprocessing()->setExposure(exposure);
-    int blurKernelSize = _core->getBlur()->getKernelSize();
-    if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}})) _core->getBlur()->setKernelSize(blurKernelSize);
-    int blurSigma = _core->getBlur()->getSigma();
-    if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) _core->getBlur()->setSigma(blurSigma);
+    int blurKernelSize = _core->getBloomBlur()->getKernelSize();
+    if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}}))
+      _core->getBloomBlur()->setKernelSize(blurKernelSize);
+    int blurSigma = _core->getBloomBlur()->getSigma();
+    if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) _core->getBloomBlur()->setSigma(blurSigma);
     int bloomPasses = _core->getEngineState()->getSettings()->getBloomPasses();
     if (_core->getGUI()->drawInputInt({{"Passes", &bloomPasses}}))
       _core->getEngineState()->getSettings()->setBloomPasses(bloomPasses);

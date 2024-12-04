@@ -1292,6 +1292,16 @@ std::vector<std::shared_ptr<DirectionalLight>> Core::getDirectionalLights() {
   return _gameState->getLightManager()->getDirectionalLights();
 }
 
+std::vector<std::shared_ptr<PointShadow>> Core::getPointShadows() {
+  return _gameState->getLightManager()->getPointShadows();
+}
+
+std::vector<std::shared_ptr<DirectionalShadow>> Core::getDirectionalShadows() {
+  return _gameState->getLightManager()->getDirectionalShadows();
+}
+
+std::shared_ptr<BlurCompute> Core::getBloomBlur() { return _blurCompute; }
+
 std::shared_ptr<Postprocessing> Core::getPostprocessing() { return _postprocessing; }
 
 std::shared_ptr<EngineState> Core::getEngineState() { return _engineState; }

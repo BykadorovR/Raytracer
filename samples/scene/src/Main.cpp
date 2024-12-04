@@ -133,7 +133,8 @@ Main::Main() {
 
   auto postprocessing = _core->getPostprocessing();
 
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
+  _core->createPointShadow();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
@@ -142,7 +143,8 @@ Main::Main() {
   float ambientColor = std::pow(0.05f, postprocessing->getGamma());
   ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
 
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
+  _core->createDirectionalShadow();
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->getCamera()->setArea({-20.f, 20.f, -20.f, 20.f}, 0.1f, 60.f);
   _directionalLight->getCamera()->setPosition({0.f, 35.f, 0.f});

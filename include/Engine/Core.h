@@ -159,7 +159,11 @@ class Core {
   const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
   std::vector<std::shared_ptr<PointLight>> getPointLights();
   std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
+  std::vector<std::shared_ptr<PointShadow>> getPointShadows();
+  std::vector<std::shared_ptr<DirectionalShadow>> getDirectionalShadows();
   std::shared_ptr<Postprocessing> getPostprocessing();
+  std::shared_ptr<BlurCompute> getBloomBlur();
+
   std::shared_ptr<EngineState> getEngineState();
   std::shared_ptr<GameState> getGameState();
   std::shared_ptr<Camera> getCamera();

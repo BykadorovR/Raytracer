@@ -56,7 +56,7 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
 #ifdef __ANDROID__
     _shadowMapCubemap.push_back(std::make_shared<Cubemap>(
-        engineState->getSettings()->getShadowMapResolution(), _engineState->getSettings()->getShadowFormat(), 1,
+        engineState->getSettings()->getShadowMapResolution(), _engineState->getSettings()->getShadowMapFormat(), 1,
         VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_NEAREST, commandBufferTransfer,
         _engineState));
@@ -122,9 +122,13 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
                             commandBufferTransfer);
     auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, engineState);
+#ifdef __ANDROID__
+    _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
+                                               blurImageView, engineState);
+#else
     _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
                                                blurImageView, engineState);
-
+#endif
     blurLightIn[i] = std::make_shared<Framebuffer>(std::vector{_textureOut[i]->getImageView()}, resolution, renderPass,
                                                    engineState->getDevice());
     blurLightOut[i] = std::make_shared<Framebuffer>(std::vector{textureIn[i]->getImageView()}, resolution, renderPass,
