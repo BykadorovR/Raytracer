@@ -47,8 +47,6 @@ class Device {
   std::optional<uint32_t> getSupportedFamilyIndex(QueueType type);
   VkQueue getQueue(QueueType type);
   VkPhysicalDeviceLimits getDeviceLimits();
-  VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
-                                          VkImageTiling tiling,
-                                          VkFormatFeatureFlags features);
+  bool isFeatureSupported(VkFormat format, VkImageTiling tiling, VkFormatFeatureFlagBits feature);
   ~Device();
 };

@@ -179,21 +179,17 @@ void Device::_createLogicalDevice() {
   }
 }
 
-VkFormat Device::findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
-                                                VkImageTiling tiling,
-                                                VkFormatFeatureFlags features) {
-  for (VkFormat format : candidates) {
-    VkFormatProperties props;
-    vkGetPhysicalDeviceFormatProperties(_physicalDevice, format, &props);
+bool Device::isFeatureSupported(VkFormat format, VkImageTiling tiling, VkFormatFeatureFlagBits featureFlagBit) {
+  VkFormatProperties props;
+  vkGetPhysicalDeviceFormatProperties(_physicalDevice, format, &props);
 
-    if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-      return format;
-    } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
-      return format;
-    }
+  if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & featureFlagBit) == featureFlagBit) {
+    return true;
+  } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & featureFlagBit) == featureFlagBit) {
+    return true;
   }
 
-  throw std::runtime_error("failed to find supported format!");
+  return false;
 }
 
 Device::Device(std::shared_ptr<Surface> surface, std::shared_ptr<Instance> instance) {

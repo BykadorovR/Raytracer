@@ -30,14 +30,13 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                            engineState);
-#ifdef __ANDROID__
-  // on Android VK_FORMAT_R32G32B32A32_SFLOAT doesn't support linear filtering
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_NEAREST, _imageView,
-                                       engineState);
-#else
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR, _imageView,
-                                       engineState);
-#endif
+  auto filter = VK_FILTER_NEAREST;
+  if (_engineState->getDevice()->isFeatureSupported(VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+                                                    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    filter = VK_FILTER_LINEAR;
+  }
+
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, filter, _imageView, engineState);
   // convert to cubemap
   _mesh3D = std::make_shared<MeshStatic3D>(engineState);
 

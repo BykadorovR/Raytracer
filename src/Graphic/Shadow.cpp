@@ -15,14 +15,16 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
                         commandBufferTransfer);
     auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                                  _engineState);
-// android doesn't support linear + d32 texture
-#ifdef __ANDROID__
-    _shadowMapTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
-                                                          imageView, _engineState));
-#else
-    _shadowMapTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
-                                                          imageView, _engineState));
-#endif
+    // android doesn't support linear + d32 texture
+    auto filter = VK_FILTER_NEAREST;
+    if (_engineState->getDevice()->isFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
+                                                      VK_IMAGE_TILING_OPTIMAL,
+                                                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+      filter = VK_FILTER_LINEAR;
+    }
+
+    _shadowMapTexture.push_back(
+        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, filter, imageView, _engineState));
   }
   // create command buffer for rendering to shadow map
   auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
@@ -54,19 +56,16 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _engineState = engineState;
   // create shadow map cubemap texture
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-#ifdef __ANDROID__
+    auto filter = VK_FILTER_NEAREST;
+    if (_engineState->getDevice()->isFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
+                                                      VK_IMAGE_TILING_OPTIMAL,
+                                                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+      filter = VK_FILTER_LINEAR;
+    }
     _shadowMapCubemap.push_back(std::make_shared<Cubemap>(
         engineState->getSettings()->getShadowMapResolution(), _engineState->getSettings()->getShadowMapFormat(), 1,
         VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_NEAREST, commandBufferTransfer,
-        _engineState));
-#else
-    _shadowMapCubemap.push_back(std::make_shared<Cubemap>(
-        engineState->getSettings()->getShadowMapResolution(), _engineState->getSettings()->getShadowMapFormat(), 1,
-        VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer,
-        _engineState));
-#endif
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, filter, commandBufferTransfer, _engineState));
   }
   // should be unique command pool for every command buffer to work in parallel.
   // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
@@ -122,13 +121,14 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
                             commandBufferTransfer);
     auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, engineState);
-#ifdef __ANDROID__
-    _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
-                                               blurImageView, engineState);
-#else
-    _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
-                                               blurImageView, engineState);
-#endif
+    auto filter = VK_FILTER_NEAREST;
+    if (engineState->getDevice()->isFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
+                                                     VK_IMAGE_TILING_OPTIMAL,
+                                                     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+      filter = VK_FILTER_LINEAR;
+    }
+    _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, filter, blurImageView,
+                                               engineState);
     blurLightIn[i] = std::make_shared<Framebuffer>(std::vector{_textureOut[i]->getImageView()}, resolution, renderPass,
                                                    engineState->getDevice());
     blurLightOut[i] = std::make_shared<Framebuffer>(std::vector{textureIn[i]->getImageView()}, resolution, renderPass,
@@ -179,17 +179,17 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
     std::vector<std::shared_ptr<Framebuffer>> blurLightOutFaces(6);
     std::vector<std::shared_ptr<Framebuffer>> blurLightInFaces(6);
     std::shared_ptr<Cubemap> cubemapBlurOutFaces;
-#ifdef __ANDROID__
+    auto filter = VK_FILTER_NEAREST;
+    if (engineState->getDevice()->isFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
+                                                     VK_IMAGE_TILING_OPTIMAL,
+                                                     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+      filter = VK_FILTER_LINEAR;
+    }
+
     cubemapBlurOutFaces = std::make_shared<Cubemap>(resolution, engineState->getSettings()->getShadowMapFormat(), 1,
                                                     VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
                                                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                    VK_FILTER_NEAREST, commandBufferTransfer, engineState);
-#else
-    cubemapBlurOutFaces = std::make_shared<Cubemap>(resolution, engineState->getSettings()->getShadowMapFormat(), 1,
-                                                    VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT,
-                                                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                                                    VK_FILTER_LINEAR, commandBufferTransfer, engineState);
-#endif
+                                                    filter, commandBufferTransfer, engineState);
     for (int j = 0; j < 6; j++) {
       blurLightInFaces[j] = std::make_shared<Framebuffer>(
           std::vector{cubemapBlurOutFaces->getTextureSeparate()[j][0]->getImageView()}, resolution, renderPass,

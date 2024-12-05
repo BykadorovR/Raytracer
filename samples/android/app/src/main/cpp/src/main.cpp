@@ -66,7 +66,7 @@ float _heightShift = 16.f;
 std::array<float, 4> _heightLevels = {16, 128, 192, 256};
 int _minTessellationLevel = 4, _maxTessellationLevel = 32;
 float _minDistance = 30, _maxDistance = 100;
-glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
+glm::vec3 _terrainPosition = glm::vec3(2.f, 0.f, 0.f);
 glm::vec3 _terrainScale = glm::vec3(1.f);
 
 void _createTerrainPhong() {
@@ -141,14 +141,14 @@ void update() {
           _createTerrainColor();
           break;
         case 1:
-          _core->removeShadowable(_terrain);
+          //_core->removeShadowable(_terrain);
           _createTerrainPhong();
-          _core->addShadowable(_terrain);
+          //_core->addShadowable(_terrain);
           break;
         case 2:
-          _core->removeShadowable(_terrain);
+          //_core->removeShadowable(_terrain);
           _createTerrainPBR();
-          _core->addShadowable(_terrain);
+          //_core->addShadowable(_terrain);
           break;
       }
       _core->addDrawable(_terrain);
@@ -190,6 +190,7 @@ void initialize() {
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
   settings->setResolution(_resolution);
+  settings->setShadowMapResolution({512, 512});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range
   // (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
@@ -249,9 +250,9 @@ void initialize() {
 
   _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
-  _directionalLight->getCamera()->setArea({-20.f, 20.f, -20.f, 20.f}, 0.1f, 60.f);
-  _directionalLight->getCamera()->setPosition({0.f, 35.f, 0.f});
-  _core->createDirectionalShadow(false);
+  _directionalLight->getCamera()->setArea({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
+  _directionalLight->getCamera()->setPosition({0.f, 10.f, 0.f});
+  _core->createDirectionalShadow();
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
   {
@@ -424,7 +425,7 @@ void initialize() {
 
   _createTerrainColor();
   _core->addDrawable(_terrain);
-  _core->addShadowable(_terrain);
+  //_core->addShadowable(_terrain);
 
   auto particleTexture = _core->createTexture("gradient.png", settings->getLoadTextureAuxilaryFormat(), 1);
 
@@ -730,6 +731,7 @@ void android_main(android_app* app) {
     switch (cmd) {
       case APP_CMD_INIT_WINDOW:
         // The window is being shown, get it ready.
+        _resolution = {ANativeWindow_getWidth(app->window), ANativeWindow_getHeight(app->window)};
         initialize();
         break;
       case APP_CMD_TERM_WINDOW:
