@@ -65,14 +65,14 @@ Main::Main() {
 
   _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _core->createPointShadow();
+  _core->createPointShadow(_pointLightVertical);
   _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _core->createPointShadow();
+  _core->createPointShadow(_pointLightHorizontal);
   _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 10.f, 0.f));
-  _core->createDirectionalShadow();
+  _core->createDirectionalShadow(_directionalLight, false);
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);

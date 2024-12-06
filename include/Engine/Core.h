@@ -74,8 +74,8 @@ class Core {
   std::shared_ptr<Postprocessing> _postprocessing;
   std::shared_ptr<Skybox> _skybox = nullptr;
   std::shared_ptr<BlurCompute> _blurCompute;
-  std::map<int, std::shared_ptr<DirectionalShadowBlur>> _blurGraphicDirectional;
-  std::map<int, std::shared_ptr<PointShadowBlur>> _blurGraphicPoint;
+  std::map<std::shared_ptr<DirectionalShadow>, std::shared_ptr<DirectionalShadowBlur>> _blurGraphicDirectional;
+  std::map<std::shared_ptr<PointShadow>, std::shared_ptr<PointShadowBlur>> _blurGraphicPoint;
   std::shared_ptr<BS::thread_pool> _pool;
   std::function<void()> _callbackUpdate;
   std::function<void(int width, int height)> _callbackReset;
@@ -87,8 +87,8 @@ class Core {
   void _drawShadowMapDirectional(int index);
   void _drawShadowMapPoint(int index, int face);
   void _computeParticles();
-  void _drawShadowMapDirectionalBlur(int index);
-  void _drawShadowMapPointBlur(int index, int face);
+  void _drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> directionalShadow);
+  void _drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int face);
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
   void _initializeTextures();
@@ -151,8 +151,9 @@ class Core {
   std::shared_ptr<PointLight> createPointLight();
   std::shared_ptr<DirectionalLight> createDirectionalLight();
   std::shared_ptr<AmbientLight> createAmbientLight();
-  std::shared_ptr<PointShadow> createPointShadow(bool blur = false);
-  std::shared_ptr<DirectionalShadow> createDirectionalShadow(bool blur = true);
+  std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<PointLight> pointLight, bool blur = false);
+  std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
+                                                             bool blur = true);
 
   std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();

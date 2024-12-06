@@ -32,7 +32,8 @@ class Drawable : virtual public Named {
   glm::mat4 getModel();
 };
 
-// Such objects can be influenced by shadow (shadows can appear on them and they can generate shadows)
+// Such objects are being rendered on the shadow map, it doesn't mean that such objects will be shadowed.
+// It means that such objects can cast a shadow.
 class Shadowable : virtual public Named {
  public:
   virtual void drawShadow(LightType lightType,

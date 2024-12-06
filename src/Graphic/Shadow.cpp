@@ -218,6 +218,7 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
 
   // create buffer pool and command buffer
   _commandBufferPoint.resize(6);
+  _loggerPoint.resize(6);
   for (int i = 0; i < 6; i++) {
     auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, engineState->getDevice());
     auto commandBuffer = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
@@ -225,6 +226,8 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
     debuggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                            commandBuffer->getCommandBuffer());
     _commandBufferPoint[i] = commandBuffer;
+
+    _loggerPoint[i] = std::make_shared<Logger>(engineState);
   }
 }
 

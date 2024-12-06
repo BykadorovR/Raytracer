@@ -265,8 +265,6 @@ void Core::_drawShadowMapDirectional(int index) {
   commandBuffer->beginCommands();
   loggerGPU->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   //
-  auto directionalLights = _gameState->getLightManager()->getDirectionalLights();
-
   auto renderPassInfo = _renderPassShadowMap->getRenderPassInfo(shadow->getShadowMapFramebuffer()[frameInFlight]);
   VkClearValue clearDepth;
   clearDepth.color = {1.f, 1.f, 1.f, 1.f};
@@ -337,15 +335,15 @@ void Core::_drawShadowMapPoint(int index, int face) {
   commandBuffer->endCommands();
 }
 
-void Core::_drawShadowMapPointBlur(int index, int face) {
+void Core::_drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int face) {
   auto frameInFlight = _engineState->getFrameInFlight();
-  auto commandBufferBlur = _blurGraphicPoint[index]->getShadowMapBlurCommandBuffer()[face];
-  auto loggerGPU = _blurGraphicPoint[index]->getShadowMapBlurLogger()[face];
+  auto commandBufferBlur = _blurGraphicPoint[pointShadow]->getShadowMapBlurCommandBuffer()[face];
+  auto loggerGPU = _blurGraphicPoint[pointShadow]->getShadowMapBlurLogger()[face];
 
   commandBufferBlur->beginCommands();
   loggerGPU->begin("Blur point " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicPoint[index]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]);
+      _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]);
   VkClearValue clearDepth;
   clearDepth.color = {0.f, 0.f, 0.f, 1.f};
   renderPassInfo.clearValueCount = 1;
@@ -354,7 +352,7 @@ void Core::_drawShadowMapPointBlur(int index, int face) {
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Horizontal " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
-  _blurGraphicPoint[index]->getBlur()[face]->draw(true, commandBufferBlur);
+  _blurGraphicPoint[pointShadow]->getBlur()[face]->draw(true, commandBufferBlur);
   loggerGPU->end(commandBufferBlur);
   vkCmdEndRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight]);
   // wait blur image to be ready
@@ -364,7 +362,7 @@ void Core::_drawShadowMapPointBlur(int index, int face) {
                                             .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                             .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                            .image = _blurGraphicPoint[index]
+                                            .image = _blurGraphicPoint[pointShadow]
                                                          ->getShadowMapBlurCubemapOut()[frameInFlight]
                                                          ->getTextureSeparate()[face][0]
                                                          ->getImageView()
@@ -377,27 +375,29 @@ void Core::_drawShadowMapPointBlur(int index, int face) {
   }
 
   renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicPoint[index]->getShadowMapBlurFramebuffer()[1][frameInFlight][face]);
+      _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight][face]);
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Vertical " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   // Vertical blur
-  _blurGraphicPoint[index]->getBlur()[face]->draw(false, commandBufferBlur);
+  _blurGraphicPoint[pointShadow]->getBlur()[face]->draw(false, commandBufferBlur);
   loggerGPU->end(commandBufferBlur);
   vkCmdEndRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight]);
 
   // wait blur image to be ready
   // blurTextureIn stores result after blur (vertical part, out - in)
   {
+    auto pointShadows = _gameState->getLightManager()->getPointShadows();
+    int indexShadow = std::distance(pointShadows.begin(), find(pointShadows.begin(), pointShadows.end(), pointShadow));
     VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                             .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                             .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                             .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .newLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .image = _gameState->getLightManager()
-                                                         ->getPointShadows()[index]
+                                                         ->getPointShadows()[indexShadow]
                                                          ->getShadowMapCubemap()[frameInFlight]
                                                          ->getTextureSeparate()[face][0]
                                                          ->getImageView()
@@ -412,15 +412,15 @@ void Core::_drawShadowMapPointBlur(int index, int face) {
   commandBufferBlur->endCommands();
 }
 
-void Core::_drawShadowMapDirectionalBlur(int index) {
+void Core::_drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> directionalShadow) {
   auto frameInFlight = _engineState->getFrameInFlight();
-  auto commandBufferBlur = _blurGraphicDirectional[index]->getShadowMapBlurCommandBuffer();
-  auto loggerGPU = _blurGraphicDirectional[index]->getShadowMapBlurLogger();
+  auto commandBufferBlur = _blurGraphicDirectional[directionalShadow]->getShadowMapBlurCommandBuffer();
+  auto loggerGPU = _blurGraphicDirectional[directionalShadow]->getShadowMapBlurLogger();
 
   commandBufferBlur->beginCommands();
   loggerGPU->begin("Blur directional " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicDirectional[index]->getShadowMapBlurFramebuffer()[0][frameInFlight]);
+      _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight]);
   VkClearValue clearDepth;
   clearDepth.color = {0.f, 0.f, 0.f, 1.f};
   renderPassInfo.clearValueCount = 1;
@@ -429,7 +429,7 @@ void Core::_drawShadowMapDirectionalBlur(int index) {
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Horizontal " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
-  _blurGraphicDirectional[index]->getBlur()->draw(true, commandBufferBlur);
+  _blurGraphicDirectional[directionalShadow]->getBlur()->draw(true, commandBufferBlur);
   loggerGPU->end(commandBufferBlur);
   vkCmdEndRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight]);
   // wait blur image to be ready
@@ -439,7 +439,7 @@ void Core::_drawShadowMapDirectionalBlur(int index) {
                                             .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                             .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .newLayout = VK_IMAGE_LAYOUT_GENERAL,
-                                            .image = _blurGraphicDirectional[index]
+                                            .image = _blurGraphicDirectional[directionalShadow]
                                                          ->getShadowMapBlurTextureOut()[frameInFlight]
                                                          ->getImageView()
                                                          ->getImage()
@@ -451,27 +451,30 @@ void Core::_drawShadowMapDirectionalBlur(int index) {
   }
 
   renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicDirectional[index]->getShadowMapBlurFramebuffer()[1][frameInFlight]);
+      _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight]);
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Vertical " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   // Vertical blur
-  _blurGraphicDirectional[index]->getBlur()->draw(false, commandBufferBlur);
+  _blurGraphicDirectional[directionalShadow]->getBlur()->draw(false, commandBufferBlur);
   loggerGPU->end(commandBufferBlur);
   vkCmdEndRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight]);
 
   // wait blur image to be ready
   // blurTextureIn stores result after blur (vertical part, out - in)
   {
+    auto directionalShadows = _gameState->getLightManager()->getDirectionalShadows();
+    int indexShadow = std::distance(directionalShadows.begin(),
+                                    find(directionalShadows.begin(), directionalShadows.end(), directionalShadow));
     VkImageMemoryBarrier imageMemoryBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                             .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                                             .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
                                             .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .newLayout = VK_IMAGE_LAYOUT_GENERAL,
                                             .image = _gameState->getLightManager()
-                                                         ->getDirectionalShadows()[index]
+                                                         ->getDirectionalShadows()[indexShadow]
                                                          ->getShadowMapTexture()[frameInFlight]
                                                          ->getImageView()
                                                          ->getImage()
@@ -611,43 +614,50 @@ void Core::_renderGraphic() {
   // Image memory barrier to make sure that writes are finished before sampling from the texture
   int directionalNum = _gameState->getLightManager()->getDirectionalLights().size();
   int pointNum = _gameState->getLightManager()->getPointLights().size();
-  std::vector<VkImageMemoryBarrier> imageMemoryBarrier(directionalNum + pointNum);
+  std::vector<VkImageMemoryBarrier> imageMemoryBarrier;
   for (int i = 0; i < directionalNum; i++) {
-    imageMemoryBarrier[i].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[i].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-    imageMemoryBarrier[i].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    imageMemoryBarrier[i].image = _gameState->getLightManager()
-                                      ->getDirectionalShadows()[i]
-                                      ->getShadowMapTexture()[frameInFlight]
-                                      ->getImageView()
-                                      ->getImage()
-                                      ->getImage();
-    imageMemoryBarrier[i].subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[i].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[i].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    if (_gameState->getLightManager()->getDirectionalShadows()[i]) {
+      VkImageMemoryBarrier barrier{};
+      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      // We won't be changing the layout of the image
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.image = _gameState->getLightManager()
+                          ->getDirectionalShadows()[i]
+                          ->getShadowMapTexture()[frameInFlight]
+                          ->getImageView()
+                          ->getImage()
+                          ->getImage();
+      barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      imageMemoryBarrier.push_back(barrier);
+    }
   }
 
   for (int i = 0; i < pointNum; i++) {
-    int id = directionalNum + i;
-    imageMemoryBarrier[id].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    // We won't be changing the layout of the image
-    imageMemoryBarrier[id].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-    imageMemoryBarrier[id].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    imageMemoryBarrier[id].image = _gameState->getLightManager()
-                                       ->getPointShadows()[i]
-                                       ->getShadowMapCubemap()[frameInFlight]
-                                       ->getTexture()
-                                       ->getImageView()
-                                       ->getImage()
-                                       ->getImage();
-    imageMemoryBarrier[id].subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    imageMemoryBarrier[id].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    imageMemoryBarrier[id].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    imageMemoryBarrier[id].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier[id].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    if (_gameState->getLightManager()->getPointShadows()[i]) {
+      VkImageMemoryBarrier barrier{};
+      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+      // We won't be changing the layout of the image
+      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+      barrier.image = _gameState->getLightManager()
+                          ->getPointShadows()[i]
+                          ->getShadowMapCubemap()[frameInFlight]
+                          ->getTexture()
+                          ->getImageView()
+                          ->getImage()
+                          ->getImage();
+      barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      imageMemoryBarrier.push_back(barrier);
+    }
   }
   vkCmdPipelineBarrier(_commandBufferRender->getCommandBuffer()[frameInFlight],
                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0,
@@ -823,17 +833,26 @@ void Core::_drawFrame(int imageIndex) {
   /////////////////////////////////////////////////////////////////////////////////////////
   std::vector<std::future<void>> shadowFutures;
   std::vector<std::future<void>> shadowBlurFutures;
-  for (int i = 0; i < _gameState->getLightManager()->getDirectionalShadows().size(); i++) {
-    shadowFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapDirectional, this, i)));
-    if (_blurGraphicDirectional.find(i) != _blurGraphicDirectional.end())
-      shadowBlurFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapDirectionalBlur, this, i)));
+  {
+    auto shadows = _gameState->getLightManager()->getDirectionalShadows();
+    for (int i = 0; i < shadows.size(); i++) {
+      if (shadows[i]) {
+        shadowFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapDirectional, this, i)));
+        if (_blurGraphicDirectional.find(shadows[i]) != _blurGraphicDirectional.end())
+          shadowBlurFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapDirectionalBlur, this, shadows[i])));
+      }
+    }
   }
-
-  for (int i = 0; i < _gameState->getLightManager()->getPointShadows().size(); i++) {
-    for (int j = 0; j < 6; j++) {
-      shadowFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapPoint, this, i, j)));
-      if (_blurGraphicPoint.find(i) != _blurGraphicPoint.end())
-        shadowBlurFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapPointBlur, this, i, j)));
+  {
+    auto shadows = _gameState->getLightManager()->getPointShadows();
+    for (int i = 0; i < shadows.size(); i++) {
+      if (shadows[i]) {
+        for (int j = 0; j < 6; j++) {
+          shadowFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapPoint, this, i, j)));
+          if (_blurGraphicPoint.find(shadows[i]) != _blurGraphicPoint.end())
+            shadowBlurFutures.push_back(_pool->submit(std::bind(&Core::_drawShadowMapPointBlur, this, shadows[i], j)));
+        }
+      }
     }
   }
 
@@ -898,22 +917,33 @@ void Core::_drawFrame(int imageIndex) {
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore();
     submitInfo.pWaitDstStageMask = waitStages;
-    for (int i = 0; i < _gameState->getLightManager()->getDirectionalShadows().size(); i++) {
-      shadowAndGraphicBuffers.push_back(_gameState->getLightManager()
-                                            ->getDirectionalShadows()[i]
-                                            ->getShadowMapCommandBuffer()
-                                            ->getCommandBuffer()[frameInFlight]);
-      if (_blurGraphicDirectional.find(i) != _blurGraphicDirectional.end())
-        shadowAndGraphicBuffers.push_back(
-            _blurGraphicDirectional[i]->getShadowMapBlurCommandBuffer()->getCommandBuffer()[frameInFlight]);
+    {
+      auto shadows = _gameState->getLightManager()->getDirectionalShadows();
+      for (int i = 0; i < shadows.size(); i++) {
+        if (shadows[i]) {
+          shadowAndGraphicBuffers.push_back(_gameState->getLightManager()
+                                                ->getDirectionalShadows()[i]
+                                                ->getShadowMapCommandBuffer()
+                                                ->getCommandBuffer()[frameInFlight]);
+          if (_blurGraphicDirectional.find(shadows[i]) != _blurGraphicDirectional.end())
+            shadowAndGraphicBuffers.push_back(_blurGraphicDirectional[shadows[i]]
+                                                  ->getShadowMapBlurCommandBuffer()
+                                                  ->getCommandBuffer()[frameInFlight]);
+        }
+      }
     }
-    for (int i = 0; i < _gameState->getLightManager()->getPointShadows().size(); i++) {
-      auto shadowMap = _gameState->getLightManager()->getPointShadows()[i]->getShadowMapCommandBuffer();
-      for (int j = 0; j < shadowMap.size(); j++) {
-        shadowAndGraphicBuffers.push_back(shadowMap[j]->getCommandBuffer()[frameInFlight]);
-        if (_blurGraphicPoint.find(i) != _blurGraphicPoint.end())
-          shadowAndGraphicBuffers.push_back(
-              _blurGraphicPoint[i]->getShadowMapBlurCommandBuffer()[j]->getCommandBuffer()[frameInFlight]);
+    {
+      auto shadows = _gameState->getLightManager()->getPointShadows();
+      for (int i = 0; i < shadows.size(); i++) {
+        if (shadows[i]) {
+          auto shadowMap = shadows[i]->getShadowMapCommandBuffer();
+          for (int j = 0; j < shadowMap.size(); j++) {
+            shadowAndGraphicBuffers.push_back(shadowMap[j]->getCommandBuffer()[frameInFlight]);
+            if (_blurGraphicPoint.find(shadows[i]) != _blurGraphicPoint.end())
+              shadowAndGraphicBuffers.push_back(
+                  _blurGraphicPoint[shadows[i]]->getShadowMapBlurCommandBuffer()[j]->getCommandBuffer()[frameInFlight]);
+          }
+        }
       }
     }
     shadowAndGraphicBuffers.push_back(_commandBufferRender->getCommandBuffer()[frameInFlight]);
@@ -1241,25 +1271,25 @@ std::shared_ptr<Skybox> Core::createSkybox() {
   return std::make_shared<Skybox>(_commandBufferApplication, _gameState, _engineState);
 }
 
-std::shared_ptr<PointShadow> Core::createPointShadow(bool blur) {
-  auto shadow = _gameState->getLightManager()->createPointShadow(_renderPassShadowMap, _commandBufferApplication);
+std::shared_ptr<PointShadow> Core::createPointShadow(std::shared_ptr<PointLight> pointLight, bool blur) {
+  auto shadow = _gameState->getLightManager()->createPointShadow(pointLight, _renderPassShadowMap,
+                                                                 _commandBufferApplication);
 
   if (blur) {
-    // TODO: index light should be somehow more smarter obtained
-    int indexLight = _gameState->getLightManager()->getPointLights().size() - 1;
-    _blurGraphicPoint[indexLight] = std::make_shared<PointShadowBlur>(
+    _blurGraphicPoint[shadow] = std::make_shared<PointShadowBlur>(
         shadow->getShadowMapCubemap(), _commandBufferApplication, _renderPassShadowMap, _debuggerUtils, _engineState);
   }
 
   return shadow;
 }
 
-std::shared_ptr<DirectionalShadow> Core::createDirectionalShadow(bool blur) {
-  auto shadow = _gameState->getLightManager()->createDirectionalShadow(_renderPassShadowMap, _commandBufferApplication);
+std::shared_ptr<DirectionalShadow> Core::createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
+                                                                 bool blur) {
+  auto shadow = _gameState->getLightManager()->createDirectionalShadow(directionalLight, _renderPassShadowMap,
+                                                                       _commandBufferApplication);
 
   if (blur) {
-    int indexLight = _gameState->getLightManager()->getDirectionalLights().size() - 1;
-    _blurGraphicDirectional[indexLight] = std::make_shared<DirectionalShadowBlur>(
+    _blurGraphicDirectional[shadow] = std::make_shared<DirectionalShadowBlur>(
         shadow->getShadowMapTexture(), _commandBufferApplication, _renderPassShadowMap, _debuggerUtils, _engineState);
   }
 

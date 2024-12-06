@@ -307,7 +307,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
         auto texture = _stubTexture;
-        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
         directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
         directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
         directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
@@ -317,7 +318,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
         auto cubemap = _stubCubemap;
-        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
 
@@ -371,7 +373,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
         auto texture = _stubTexture;
-        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
         directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
         directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
         directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
@@ -381,7 +384,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
         auto cubemap = _stubCubemap;
-        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
 
@@ -447,7 +451,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
         auto texture = _stubTexture;
-        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
         directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
         directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
         directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
@@ -457,7 +462,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
         auto cubemap = _stubCubemap;
-        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
 
@@ -511,7 +517,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
         auto texture = _stubTexture;
-        if (j < _directionalShadows.size()) texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
         directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
         directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
         directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
@@ -521,7 +528,8 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
         auto cubemap = _stubCubemap;
-        if (j < _pointShadows.size()) cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
 
@@ -696,6 +704,7 @@ std::shared_ptr<PointLight> LightManager::createPointLight() {
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _pointLights.push_back(light);
+  _pointShadows.push_back(nullptr);
 
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::POINT][i] = true;
@@ -704,11 +713,13 @@ std::shared_ptr<PointLight> LightManager::createPointLight() {
   return light;
 }
 
-std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<RenderPass> renderPass,
+std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<PointLight> pointLight,
+                                                             std::shared_ptr<RenderPass> renderPass,
                                                              std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
-  _pointShadows.push_back(shadow);
+  int indexLight = std::distance(_pointLights.begin(), find(_pointLights.begin(), _pointLights.end(), pointLight));
+  _pointShadows[indexLight] = shadow;
 
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::POINT][i] = true;
@@ -719,12 +730,9 @@ std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<Ren
 
 void LightManager::removePointLight(std::shared_ptr<PointLight> pointLight) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _pointLights.size(); i++) {
-    if (_pointLights[i] == pointLight) index = i;
-  }
-  if (index > 0) {
-    _pointLights.erase(_pointLights.begin() + index);
+  auto erased = _pointLights.erase(std::remove(_pointLights.begin(), _pointLights.end(), pointLight),
+                                   _pointLights.end());
+  if (erased != _pointLights.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
@@ -733,26 +741,50 @@ void LightManager::removePointLight(std::shared_ptr<PointLight> pointLight) {
 
 void LightManager::removePoinShadow(std::shared_ptr<PointShadow> pointShadow) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _pointShadows.size(); i++) {
-    if (_pointShadows[i] == pointShadow) index = i;
-  }
-  if (index > 0) {
-    _pointShadows.erase(_pointShadows.begin() + index);
+  auto erased = _pointShadows.erase(std::remove(_pointShadows.begin(), _pointShadows.end(), pointShadow),
+                                    _pointShadows.end());
+  if (erased != _pointShadows.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
   }
 }
 
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
+  auto light = std::make_shared<DirectionalLight>(_engineState);
+
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _directionalLights.push_back(light);
+  _directionalShadows.push_back(nullptr);
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+
+  return light;
+}
+
+std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
+    std::shared_ptr<DirectionalLight> directionalLight,
+    std::shared_ptr<RenderPass> renderPass,
+    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  int indexLight = std::distance(_directionalLights.begin(),
+                                 find(_directionalLights.begin(), _directionalLights.end(), directionalLight));
+  _directionalShadows[indexLight] = shadow;
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+  return shadow;
+}
+
 void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _directionalLights.size(); i++) {
-    if (_directionalLights[i] == directionalLight) index = i;
-  }
-  if (index > 0) {
-    _directionalLights.erase(_directionalLights.begin() + index);
+  auto erased = _directionalLights.erase(
+      std::remove(_directionalLights.begin(), _directionalLights.end(), directionalLight), _directionalLights.end());
+  if (erased != _directionalLights.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
@@ -761,12 +793,10 @@ void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> dire
 
 void LightManager::removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _directionalShadows.size(); i++) {
-    if (_directionalShadows[i] == directionalShadow) index = i;
-  }
-  if (index > 0) {
-    _directionalShadows.erase(_directionalShadows.begin() + index);
+  auto erased = _directionalShadows.erase(
+      std::remove(_directionalShadows.begin(), _directionalShadows.end(), directionalShadow),
+      _directionalShadows.end());
+  if (erased != _directionalShadows.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
@@ -781,32 +811,6 @@ const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
 const std::vector<std::shared_ptr<PointShadow>>& LightManager::getPointShadows() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   return _pointShadows;
-}
-
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
-  auto light = std::make_shared<DirectionalLight>(_engineState);
-
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  _directionalLights.push_back(light);
-
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _changed[LightType::DIRECTIONAL][i] = true;
-  }
-
-  return light;
-}
-
-std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
-    std::shared_ptr<RenderPass> renderPass,
-    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  std::unique_lock<std::mutex> accessLock(_accessMutex);
-  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
-  _directionalShadows.push_back(shadow);
-
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _changed[LightType::DIRECTIONAL][i] = true;
-  }
-  return shadow;
 }
 
 const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {

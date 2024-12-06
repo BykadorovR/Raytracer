@@ -58,7 +58,8 @@ class LightManager {
   std::shared_ptr<AmbientLight> createAmbientLight();
   std::vector<std::shared_ptr<AmbientLight>> getAmbientLights();
   std::shared_ptr<PointLight> createPointLight();
-  std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<RenderPass> renderPass,
+  std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<PointLight> pointLight,
+                                                 std::shared_ptr<RenderPass> renderPass,
                                                  std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<PointLight>>& getPointLights();
   const std::vector<std::shared_ptr<PointShadow>>& getPointShadows();
@@ -66,7 +67,8 @@ class LightManager {
   void removePoinShadow(std::shared_ptr<PointShadow> pointShadow);
 
   std::shared_ptr<DirectionalLight> createDirectionalLight();
-  std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<RenderPass> renderPass,
+  std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
+                                                             std::shared_ptr<RenderPass> renderPass,
                                                              std::shared_ptr<CommandBuffer> commandBufferTransfer);
   const std::vector<std::shared_ptr<DirectionalLight>>& getDirectionalLights();
   const std::vector<std::shared_ptr<DirectionalShadow>>& getDirectionalShadows();
