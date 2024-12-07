@@ -132,8 +132,10 @@ float calculateTextureShadowDirectionalChebyshevUpperBound(sampler2D shadowSampl
 }
 
 float calculateTextureShadowDirectional(sampler2D shadowSampler, vec4 coords, vec3 normal, vec3 lightDir, float minBias) {
-    //return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
-    return calculateTextureShadowDirectionalChebyshevUpperBound(shadowSampler, coords);
+    if (getShadowParameters().algorithmDirectional == 0)
+        return calculateTextureShadowDirectionalRefined(shadowSampler, coords, normal, lightDir, minBias);
+    else if (getShadowParameters().algorithmDirectional == 1)
+        return calculateTextureShadowDirectionalChebyshevUpperBound(shadowSampler, coords);
 }
 
 vec3 sampleOffsetDirections[20] = vec3[]
@@ -202,6 +204,8 @@ float calculateTextureShadowPointChebyshevUpperBound(samplerCube shadowSampler, 
 }
 
 float calculateTextureShadowPoint(samplerCube shadowSampler, vec3 fragPosition, vec3 lightPosition, float far, float bias) {
-    //return calculateTextureShadowPointRefined(shadowSampler, fragPosition, lightPosition, far, bias);
-    return calculateTextureShadowPointChebyshevUpperBound(shadowSampler, fragPosition, lightPosition, far);
+    if (getShadowParameters().algorithmPoint == 0)
+        return calculateTextureShadowPointRefined(shadowSampler, fragPosition, lightPosition, far, bias);
+    else if (getShadowParameters().algorithmPoint == 1)
+        return calculateTextureShadowPointChebyshevUpperBound(shadowSampler, fragPosition, lightPosition, far);
 }

@@ -4,7 +4,7 @@ vec3 directionalLight(int lightDirectionalNumber, vec3 fragPosition, vec3 normal
     for (int i = 0; i < lightDirectionalNumber; i++) {
         vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
         float shadow = 0.0;
-        if (enableShadow > 0)
+        if (enableShadow > 0 && getShadowParameters().enabledDirectional[i] > 0)
             shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, bias); 
         //dot product between normal and light ray
         vec3 diffuseFactor = max(dot(lightDir, normal), 0) * getMaterial().diffuse;
@@ -29,7 +29,7 @@ vec3 pointLight(int lightPointNumber, vec3 fragPosition, vec3 normal, float spec
         if (distance > getLightPoint(i).distance) break;
         vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
         float shadow = 0.0;
-        if (enableShadow > 0)
+        if (enableShadow > 0 && getShadowParameters().enabledPoint[i] > 0)
             shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, bias); 
         float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
         //dot product between normal and light ray

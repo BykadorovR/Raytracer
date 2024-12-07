@@ -56,6 +56,13 @@ layout(set = 0, binding = 10) uniform AlphaMask {
 
 layout(set = 2, binding = 3) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 2, binding = 4) uniform samplerCube shadowPointSampler[4];
+layout(set = 2, binding = 5) uniform ShadowParameters {
+    int enabledDirectional[2];
+    int enabledPoint[4];
+    //0 - simple, 1 - vsm
+    int algorithmDirectional;
+    int algorithmPoint;
+} shadowParameters;
 
 //coefficients from base color
 layout(set = 0, binding = 11) uniform Material {
@@ -78,6 +85,7 @@ layout( push_constant ) uniform constants {
 #define getSpecularIBLSampler() specularIBLSampler
 #define getSpecularBRDFSampler() specularBRDFSampler
 #define getMaterial() material
+#define getShadowParameters() shadowParameters
 #include "../shadow.glsl"
 #include "../pbr.glsl"
 
@@ -120,7 +128,7 @@ void main() {
                 vec3 inRadiance = getLightDir(i).color;
                 vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
                 float shadow = 0.0;
-                if (push.enableShadow > 0)
+                if (push.enableShadow > 0 && getShadowParameters().enabledDirectional[i] > 0)
                     shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
                 Lr += directional * (1 - shadow);
             }
@@ -133,7 +141,7 @@ void main() {
                 vec3 inRadiance = getLightPoint(i).color * attenuation;
                 vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoTexture.rgb);
                 float shadow = 0.0;
-                if (push.enableShadow > 0)
+                if (push.enableShadow > 0 && getShadowParameters().enabledPoint[i] > 0)
                     shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
                 Lr += point * (1 - shadow);
             }
