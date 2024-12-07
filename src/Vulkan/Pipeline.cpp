@@ -416,11 +416,9 @@ void Pipeline::createGraphicTerrainShadowGPU(
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.polygonMode = polygonMode;
-
   _rasterizer.depthBiasEnable = VK_TRUE;
-  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-  _depthStencil.depthTestEnable = VK_TRUE;
-  _depthStencil.depthWriteEnable = VK_TRUE;
+  // needed to not overwrite "depth" texture by objects that are drawn later
+  _blendAttachmentState.colorBlendOp = VK_BLEND_OP_MIN;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();
@@ -584,9 +582,8 @@ void Pipeline::createGraphic3DShadow(
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.depthBiasEnable = VK_TRUE;
-  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-  _depthStencil.depthTestEnable = VK_TRUE;
-  _depthStencil.depthWriteEnable = VK_TRUE;
+  // needed to not overwrite "depth" texture by objects that are drawn later
+  _blendAttachmentState.colorBlendOp = VK_BLEND_OP_MIN;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();
@@ -735,9 +732,8 @@ void Pipeline::createGraphic2DShadow(
 
   _rasterizer.cullMode = cullMode;
   _rasterizer.depthBiasEnable = VK_TRUE;
-  _depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-  _depthStencil.depthTestEnable = VK_TRUE;
-  _depthStencil.depthWriteEnable = VK_TRUE;
+  // needed to not overwrite "depth" texture by objects that are drawn later
+  _blendAttachmentState.colorBlendOp = VK_BLEND_OP_MIN;
   std::vector<VkPipelineColorBlendAttachmentState> blendAttachments(1, _blendAttachmentState);
   _colorBlending.attachmentCount = blendAttachments.size();
   _colorBlending.pAttachments = blendAttachments.data();
