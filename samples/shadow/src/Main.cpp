@@ -72,7 +72,7 @@ Main::Main() {
   _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 10.f, 0.f));
-  _core->createDirectionalShadow(_directionalLight, false);
+  _core->createDirectionalShadow(_directionalLight, true);
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);

@@ -14,6 +14,7 @@
 #include <memory>
 
 enum class LightType { DIRECTIONAL = 0, POINT = 1, AMBIENT = 2 };
+enum class ShadowAlgorithm { PCF = 0, VSM = 1 };
 
 class LightManager {
  private:
@@ -38,7 +39,9 @@ class LightManager {
       _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR,
       _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
-
+  std::shared_ptr<UniformBuffer> _shadowParametersBuffer;
+  std::map<LightType, ShadowAlgorithm> _shadowAlgorithm = {{LightType::DIRECTIONAL, ShadowAlgorithm::VSM},
+                                                           {LightType::POINT, ShadowAlgorithm::PCF}};
   // for 2 frames
   std::mutex _accessMutex;
 
@@ -46,10 +49,11 @@ class LightManager {
   void _reallocateDirectionalBuffers(int currentFrame);
   void _updateDirectionalBuffers(int currentFrame);
   void _reallocatePointBuffers(int currentFrame);
-  void _updatePointDescriptors(int currentFrame);
+  void _updatePointBuffers(int currentFrame);
   void _reallocateAmbientBuffers(int currentFrame);
   void _updateAmbientBuffers(int currentFrame);
   void _setLightDescriptors(int currentFrame);
+  void _updateShadowParametersBuffer(int currentFrame);
 
  public:
   LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState);
@@ -74,6 +78,7 @@ class LightManager {
   const std::vector<std::shared_ptr<DirectionalShadow>>& getDirectionalShadows();
   void removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight);
   void removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow);
+  void setShadowAlgorithm(LightType lightType, ShadowAlgorithm shadowAlgorithm);
 
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPhong();
   std::shared_ptr<DescriptorSetLayout> getDSLGlobalPBR();
