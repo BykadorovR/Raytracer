@@ -156,8 +156,7 @@ float calculateTextureShadowPointRefined(samplerCube shadowSampler, vec3 fragPos
     float diskRadius = 0.01 + 0.1 * log(1.0 + viewDistance / far);
     int dynamicSamples = int(clamp(16.0 + (viewDistance / far) * 16.0, 16.0, 64.0));
     for (int i = 0; i < dynamicSamples; i++) {
-        // use constant shift
-        vec3 jitter = sampleOffsetDirections[(i + int(fragPosition.x * 10.0 + fragPosition.y * 10.0)) % 20] * diskRadius;
+        vec3 jitter = sampleOffsetDirections[(i + uint(fragPosition.x * 10.0 + fragPosition.y * 10.0)) % 20] * diskRadius;
         float closestDepth = texture(shadowSampler, fragToLight + jitter).r;
         closestDepth *= far;
         if (currentDepth - bias > closestDepth) shadow += 1.0;

@@ -32,8 +32,7 @@ layout(set = 0, binding = 7) uniform Material {
 } material;
 
 layout(push_constant) uniform constants {
-    layout(offset = 32) float heightLevels[4];
-    int enableShadow;
+    layout(offset = 32) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;
     float stripeLeft;

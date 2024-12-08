@@ -30,7 +30,6 @@ struct TesselationEvaluationPushDepth {
 };
 
 struct FragmentPushDebug {
-  alignas(16) float heightLevels[4];
   alignas(16) int patchEdge;
   int showLOD;
   int enableShadow;
@@ -43,7 +42,6 @@ struct FragmentPushDebug {
 };
 
 struct FragmentPush {
-  alignas(16) float heightLevels[4];
   int enableShadow;
   int enableLighting;
   alignas(16) glm::vec3 cameraPosition;
@@ -502,7 +500,6 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
       FragmentPushDebug pushConstants;
-      std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.patchEdge = _enableEdge;
       pushConstants.showLOD = _showLoD;
       pushConstants.tile = _pickedTile;
@@ -1565,7 +1562,6 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
       FragmentPush pushConstants;
-      std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
       pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();

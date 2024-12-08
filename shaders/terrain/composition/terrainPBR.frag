@@ -36,8 +36,7 @@ layout(set = 0, binding = 14) uniform AlphaMask {
 
 
 layout(push_constant) uniform constants {
-    layout(offset = 40) float heightLevels[4];
-    int enableShadow;
+    layout(offset = 40) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;
 } push;
