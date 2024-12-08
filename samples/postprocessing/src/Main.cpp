@@ -59,11 +59,11 @@ Main::Main() {
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
@@ -229,13 +229,13 @@ void Main::update() {
   if (_core->getGUI()->drawInputFloat({{"gamma", &gamma}})) _core->getPostprocessing()->setGamma(gamma);
   float exposure = _core->getPostprocessing()->getExposure();
   if (_core->getGUI()->drawInputFloat({{"exposure", &exposure}})) _core->getPostprocessing()->setExposure(exposure);
-  int blurKernelSize = _core->getBlur()->getKernelSize();
+  int blurKernelSize = _core->getBloomBlur()->getKernelSize();
   if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}})) {
-    _core->getBlur()->setKernelSize(blurKernelSize);
+    _core->getBloomBlur()->setKernelSize(blurKernelSize);
   }
-  int blurSigma = _core->getBlur()->getSigma();
+  int blurSigma = _core->getBloomBlur()->getSigma();
   if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) {
-    _core->getBlur()->setSigma(blurSigma);
+    _core->getBloomBlur()->setSigma(blurSigma);
   }
   int bloomPasses = _core->getEngineState()->getSettings()->getBloomPasses();
   if (_core->getGUI()->drawInputInt({{"Passes", &bloomPasses}})) {

@@ -282,7 +282,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
       pushConstants["fragment"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
           .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPushDepth),
-          .size = sizeof(FragmentPush),
+          .size = sizeof(FragmentPushDebug),
       };
       _pipeline->createGraphicTerrain(
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,

@@ -97,7 +97,7 @@ void Main::_createTerrainColor() {
   _terrain->setMaterial(_materialColor);
 
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
   _terrain->setTranslate(_terrainPosition);
@@ -136,11 +136,11 @@ Main::Main() {
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 

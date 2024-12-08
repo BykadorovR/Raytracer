@@ -77,7 +77,7 @@ void _createTerrainPhong() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -90,7 +90,7 @@ void _createTerrainPBR() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -103,7 +103,7 @@ void _createTerrainColor() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -239,7 +239,7 @@ void initialize() {
   auto postprocessing = _core->getPostprocessing();
 
   _pointLightHorizontal = _core->createPointLight();
-  _core->createPointShadow(false);
+  _core->createPointShadow(_pointLightHorizontal);
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
@@ -252,7 +252,7 @@ void initialize() {
   _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
   _directionalLight->getCamera()->setArea({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
   _directionalLight->getCamera()->setPosition({0.f, 10.f, 0.f});
-  _core->createDirectionalShadow();
+  _core->createDirectionalShadow(_directionalLight);
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
   {

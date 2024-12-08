@@ -49,7 +49,7 @@ void Main::_createTerrainPhong(std::string path) {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -75,7 +75,7 @@ void Main::_createTerrainPBR(std::string path) {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -101,7 +101,7 @@ void Main::_createTerrainColor(std::string path) {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -148,7 +148,7 @@ void Main::_createTerrainDebug(std::string path) {
   _terrainDebug->setMaterial(_materialColor);
 
   _terrainDebug->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrainDebug->setDisplayDistance(_minDistance, _maxDistance);
+  _terrainDebug->setTesselationDistance(_minDistance, _maxDistance);
   _terrainDebug->setColorHeightLevels(_heightLevels);
   _terrainDebug->setHeight(_heightScale, _heightShift);
   _terrainDebug->patchEdge(_showPatches);
@@ -198,9 +198,9 @@ Main::Main() {
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
 
   auto ambientLight = _core->createAmbientLight();
@@ -339,27 +339,27 @@ Main::Main() {
 
   switch (_typeIndex) {
     case 0:
-      _createTerrainColor("../assets/heightmap_flat.png");
+      _createTerrainColor("../assets/heightmap.png");
       break;
     case 1:
-      _createTerrainPhong("../assets/heightmap_flat.png");
+      _createTerrainPhong("../assets/heightmap.png");
       break;
     case 2:
-      _createTerrainPBR("../assets/heightmap_flat.png");
+      _createTerrainPBR("../assets/heightmap.png");
       break;
   }
   _core->addDrawable(_terrain);
 
-  auto terrainCPU = _core->loadImageCPU("../assets/heightmap_flat.png");
+  auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
   _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x, _terrainPositionDebug.y, _terrainPositionDebug.z);
 
   _physicsManager = std::make_shared<PhysicsManager>();
-  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap_flat.png"),
+  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
 
-  _createTerrainDebug("../assets/heightmap_flat.png");
+  _createTerrainDebug("../assets/heightmap.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
   _terrainCPU->setTranslate(_terrainPositionDebug);
@@ -425,13 +425,13 @@ void Main::update() {
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor("../assets/heightmap_flat.png");
+          _createTerrainColor("../assets/heightmap.png");
           break;
         case 1:
-          _createTerrainPhong("../assets/heightmap_flat.png");
+          _createTerrainPhong("../assets/heightmap.png");
           break;
         case 2:
-          _createTerrainPBR("../assets/heightmap_flat.png");
+          _createTerrainPBR("../assets/heightmap.png");
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
@@ -459,19 +459,19 @@ void Main::update() {
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor("../assets/heightmap_flat.png");
+          _createTerrainColor("../assets/heightmap.png");
           break;
         case 1:
-          _createTerrainPhong("../assets/heightmap_flat.png");
+          _createTerrainPhong("../assets/heightmap.png");
           break;
         case 2:
-          _createTerrainPBR("../assets/heightmap_flat.png");
+          _createTerrainPBR("../assets/heightmap.png");
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
 
       if (_showDebug) _core->removeDrawable(_terrainDebug);
-      _createTerrainDebug("../assets/heightmap_flat.png");
+      _createTerrainDebug("../assets/heightmap.png");
       if (_showDebug) _core->addDrawable(_terrainDebug);
 
       _core->endRecording();

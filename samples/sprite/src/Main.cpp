@@ -58,11 +58,11 @@ Main::Main() {
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
