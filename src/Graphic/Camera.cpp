@@ -19,6 +19,10 @@ void CameraDirectionalLight::setArea(std::array<float, 4> rect, float near, floa
   _far = far;
 }
 
+float CameraDirectionalLight::getNear() { return _near; }
+
+float CameraDirectionalLight::getFar() { return _far; }
+
 glm::vec3 CameraDirectionalLight::getPosition() { return _eye; }
 
 glm::mat4 CameraDirectionalLight::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
@@ -45,6 +49,8 @@ void CameraPointLight::setArea(float near, float far) {
   _near = near;
   _far = far;
 }
+
+float CameraPointLight::getNear() { return _near; }
 
 float CameraPointLight::getFar() { return _far; }
 

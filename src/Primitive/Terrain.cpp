@@ -515,9 +515,9 @@ void TerrainDebug::setTessellationLevel(int min, int max) {
   _maxTessellationLevel = max;
 }
 
-void TerrainDebug::setDisplayDistance(int min, int max) {
-  _minDistance = min;
-  _maxDistance = max;
+void TerrainDebug::setTesselationDistance(int min, int max) {
+  _minTesselationDistance = min;
+  _maxTesselationDistance = max;
 }
 
 void TerrainDebug::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }
@@ -618,9 +618,9 @@ void TerrainGPU::setTessellationLevel(int min, int max) {
   _maxTessellationLevel = max;
 }
 
-void TerrainGPU::setDisplayDistance(int min, int max) {
-  _minDistance = min;
-  _maxDistance = max;
+void TerrainGPU::setTesselationDistance(int min, int max) {
+  _minTesselationDistance = min;
+  _maxTesselationDistance = max;
 }
 
 void TerrainGPU::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }

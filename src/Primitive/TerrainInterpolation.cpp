@@ -13,8 +13,8 @@
 struct TesselationControlPush {
   int minTessellationLevel;
   int maxTessellationLevel;
-  float near;
-  float far;
+  float minTesselationDistance;
+  float maxTesselationDistance;
 };
 
 struct TesselationEvaluationPush {
@@ -481,8 +481,8 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants;
-      pushConstants.near = _minDistance;
-      pushConstants.far = _maxDistance;
+      pushConstants.minTesselationDistance = _minTesselationDistance;
+      pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1544,8 +1544,8 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants;
-      pushConstants.near = _minDistance;
-      pushConstants.far = _maxDistance;
+      pushConstants.minTesselationDistance = _minTesselationDistance;
+      pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1706,10 +1706,26 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  glm::mat4 view(1.f);
+  glm::mat4 projection(1.f);
+  float far;
+  int lightIndexTotal = lightIndex;
+  if (lightType == LightType::DIRECTIONAL) {
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
+    far = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getFar();
+  }
+  if (lightType == LightType::POINT) {
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
+    far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
+  }
+
   if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
     TesselationControlPush pushConstants;
-    pushConstants.near = _minDistance;
-    pushConstants.far = _maxDistance;
+    pushConstants.minTesselationDistance = _minTesselationDistance;
+    pushConstants.maxTesselationDistance = _maxTesselationDistance;
     pushConstants.minTessellationLevel = _minTessellationLevel;
     pushConstants.maxTessellationLevel = _maxTessellationLevel;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1730,23 +1746,10 @@ void TerrainInterpolation::drawShadow(LightType lightType,
     pushConstants.lightPosition =
         _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
     // light camera
-    pushConstants.far = 100.f;
+    pushConstants.far = far;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                        VK_SHADER_STAGE_FRAGMENT_BIT, pipeline->getPushConstants()["fragmentDepth"].offset,
                        pipeline->getPushConstants()["fragmentDepth"].size, &pushConstants);
-  }
-
-  glm::mat4 view(1.f);
-  glm::mat4 projection(1.f);
-  int lightIndexTotal = lightIndex;
-  if (lightType == LightType::DIRECTIONAL) {
-    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
-    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
-  }
-  if (lightType == LightType::POINT) {
-    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
-    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
-    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages

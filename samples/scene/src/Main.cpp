@@ -36,7 +36,7 @@ void Main::_createTerrainPhong() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 
@@ -54,7 +54,7 @@ void Main::_createTerrainPBR() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 
@@ -72,7 +72,7 @@ void Main::_createTerrainColor() {
   _terrain->setScale(_terrainScale);
   _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 

@@ -26,6 +26,8 @@ class CameraDirectionalLight {
   CameraDirectionalLight();
   void setPosition(glm::vec3 position);
   void setArea(std::array<float, 4> rect, float near, float far);
+  float getNear();
+  float getFar();
   glm::vec3 getPosition();
   glm::mat4 getView();
   glm::mat4 getProjection();
@@ -45,6 +47,7 @@ class CameraPointLight {
   CameraPointLight();
   void setPosition(glm::vec3 position);
   void setArea(float near, float far);
+  float getNear();
   float getFar();
   glm::vec3 getPosition();
   glm::mat4 getView(int face);

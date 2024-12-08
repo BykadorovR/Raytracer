@@ -119,7 +119,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
-  float _minDistance = 30, _maxDistance = 100;
+  float _minTesselationDistance = 30, _maxTesselationDistance = 100;
   bool _enableEdge = false;
   bool _showLoD = false;
   bool _enableLighting = true;
@@ -140,7 +140,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
  public:
   void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
   void setTessellationLevel(int min, int max);
-  void setDisplayDistance(int min, int max);
+  void setTesselationDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
   void setHeight(float scale, float shift);
 
@@ -183,7 +183,7 @@ class TerrainGPU : public Drawable, public Shadowable {
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
-  float _minDistance = 30, _maxDistance = 100;
+  float _minTesselationDistance = 30, _maxTesselationDistance = 100;
   bool _enableLighting = true;
   bool _enableShadow = true;
   std::vector<int> _patchTextures;
@@ -198,7 +198,7 @@ class TerrainGPU : public Drawable, public Shadowable {
   void setPatchRotations(std::vector<int> patchRotationsIndex);
   void setPatchTextures(std::vector<int> patchTextures);
   void setTessellationLevel(int min, int max);
-  void setDisplayDistance(int min, int max);
+  void setTesselationDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
   void setHeight(float scale, float shift);
 
