@@ -129,6 +129,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<bool> _changedHeightmap;
   std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
   std::pair<int, int> _patchNumber;
+  std::optional<glm::vec3> _hitCoords;
 
   int _calculateTileByPosition(glm::vec3 position);
   glm::ivec2 _calculatePixelByPosition(glm::vec3 position);
@@ -154,6 +155,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void showLoD(bool enable);
   bool heightmapChanged();
   std::shared_ptr<ImageCPU<uint8_t>> getHeightmap();
+  std::optional<glm::vec3> getHitCoords();
 
   void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;

@@ -120,6 +120,8 @@ std::optional<glm::vec3> TerrainPhysics::getHit(glm::vec2 cursorPosition) {
       if (hit.mBodyID == _terrainID) {
         auto outPosition = rray.GetPointOnRay(hit.mFraction);
         _hitCoords = glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+        // the first intersection is the closest one
+        break;
       }
     }
   }
@@ -562,6 +564,8 @@ bool TerrainDebug::heightmapChanged() {
 }
 
 std::shared_ptr<ImageCPU<uint8_t>> TerrainDebug::getHeightmap() { return _heightMapCPU; }
+
+std::optional<glm::vec3> TerrainDebug::getHitCoords() { return _hitCoords; }
 
 void TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
   _heightMap->copyFrom(_heightMapGPU, commandBuffer);

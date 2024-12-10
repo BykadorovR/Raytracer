@@ -35,8 +35,6 @@ class TerrainCompositionDebug : public TerrainDebug {
   int _angleIndex = -1, _textureIndex = -1;
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   char _terrainPath[256] = "";
-  std::optional<glm::vec3> _hitCoords;
-
   void _updateColorDescriptor();
   void _reallocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);

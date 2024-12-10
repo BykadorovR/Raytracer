@@ -220,6 +220,9 @@ Main::Main() {
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
+  _sphereClickDebug = _core->createShape3D(ShapeType::SPHERE);
+  _sphereClickDebug->setScale(glm::vec3(0.005f, 0.005f, 0.005f));
+
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
       material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
@@ -523,6 +526,12 @@ void Main::update() {
     }
   }
   _core->getGUI()->endWindow();
+
+  auto hitPosition = _terrainDebug->getHitCoords();
+  if (hitPosition) {
+    _sphereClickDebug->setTranslate(hitPosition.value());
+    _core->addDrawable(_sphereClickDebug);
+  }
 
   if (_showCPU || _showDebug) {
     _core->getGUI()->startWindow("Editor");

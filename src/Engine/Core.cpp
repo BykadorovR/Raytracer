@@ -1105,7 +1105,13 @@ void Core::endRecording() {
 
 void Core::setCamera(std::shared_ptr<Camera> camera) { _gameState->getCameraManager()->setCurrentCamera(camera); }
 
-void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) { _drawables[type].push_back(drawable); }
+void Core::addDrawable(std::shared_ptr<Drawable> drawable, AlphaType type) {
+  if (drawable == nullptr) return;
+
+  auto position = std::find(_drawables[type].begin(), _drawables[type].end(), drawable);
+  // add only if doesn't exist already
+  if (position == _drawables[type].end()) _drawables[type].push_back(drawable);
+}
 
 void Core::addShadowable(std::shared_ptr<Shadowable> shadowable) { _shadowables.push_back(shadowable); }
 
