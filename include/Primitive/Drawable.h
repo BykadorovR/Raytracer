@@ -29,6 +29,10 @@ class Drawable : virtual public Named {
   void setTranslate(glm::vec3 translate);
   void setRotate(glm::quat rotate);
   void setScale(glm::vec3 scale);
+  glm::vec3 getOriginShift();
+  glm::vec3 getTranslate();
+  glm::quat getRotate();
+  glm::vec3 getScale();
   glm::mat4 getModel();
 };
 

@@ -112,7 +112,7 @@ Main::Main() {
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
-  settings->setResolution(std::tuple{1280, 720});
+  settings->setResolution(std::tuple{1920, 1080});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
@@ -129,10 +129,6 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _cameraFly = std::make_shared<CameraFly>(_core->getEngineState());
-  _cameraFly->setSpeed(0.05f, 0.5f);
-  _cameraFly->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraFly));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
 
@@ -233,6 +229,7 @@ Main::Main() {
                  glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
     _modelSimple->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
     _modelSimple->setScale(glm::vec3(_modelScale, _modelScale, _modelScale));
+    // model itself is buggy and it's origin between the foots
     _modelSimple->setOriginShift(glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
     _core->addDrawable(_modelSimple);
 
@@ -240,6 +237,7 @@ Main::Main() {
     _boundingBox->setDrawType(DrawType::WIREFRAME);
     _boundingBox->setScale(maxBB - minBB);
     _core->addDrawable(_boundingBox);
+    // height of middle part of capsule + radius
     _model3DPhysics = std::make_shared<Model3DPhysics>(
         glm::vec3(-4.f, 14.f, -10.f), (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _physicsManager);
     _model3DPhysics->setFriction(0.5f);
@@ -252,6 +250,10 @@ Main::Main() {
     _core->addDrawable(_capsule);
   }
 
+  _cameraFly = std::make_shared<CameraFly>(_core->getEngineState());
+  _cameraFly->setSpeed(0.05f, 0.5f);
+  _cameraFly->setProjectionParameters(60.f, 0.1f, 100.f);
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_cameraFly));
   _cameraRTS = std::make_shared<CameraRTS>(_modelSimple, _core->getEngineState());
   _cameraRTS->setProjectionParameters(60.f, 0.1f, 100.f);
   _cameraRTS->setShift(glm::vec3(0.f, 10.f, 4.f));
@@ -327,7 +329,7 @@ void Main::update() {
           _core->setCamera(_cameraRTS);
           break;
         case 1:
-          _cameraFly->setViewParameters(currentCamera->getEye(), currentCamera->getDirection(), currentCamera->getUp());
+          _cameraFly->setViewParameters(currentCamera->getEye(), currentCamera->getDirection(), _cameraFly->getUp());
           _core->setCamera(_cameraFly);
           break;
       };

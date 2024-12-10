@@ -12,6 +12,14 @@ void Drawable::setRotate(glm::quat rotate) { _rotate = rotate; }
 
 void Drawable::setScale(glm::vec3 scale) { _scale = scale; }
 
+glm::vec3 Drawable::getOriginShift() { return _originShift; }
+
+glm::vec3 Drawable::getTranslate() { return _translate; }
+
+glm::quat Drawable::getRotate() { return _rotate; }
+
+glm::vec3 Drawable::getScale() { return _scale; }
+
 glm::mat4 Drawable::getModel() {
   // goal is receive transformation matrix in form of translate * rotate * scale * originTranslate * position;
   // to achieve this we have to apply matrices in this order: translate -> rotate -> scale -> originTranslate

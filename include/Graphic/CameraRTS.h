@@ -11,6 +11,7 @@ class CameraRTS : public CameraPerspective, public InputSubscriber {
   int _threshold = 100;
   float _moveSpeed = 5.f;
   std::pair<float, float> _offset;
+  std::optional<glm::vec3> _zoomPoint;
 
  public:
   CameraRTS(std::shared_ptr<Drawable> object, std::shared_ptr<EngineState> engineState);
