@@ -113,14 +113,6 @@ class MeshStatic3D : public Mesh {
   std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 };
 
-class MeshBoundingBox : public MeshStatic3D {
- public:
-  MeshBoundingBox(glm::vec3 minPoint,
-                  glm::vec3 maxPoint,
-                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                  std::shared_ptr<EngineState> engineState);
-};
-
 class MeshCube : public MeshStatic3D {
  public:
   MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
@@ -129,6 +121,14 @@ class MeshCube : public MeshStatic3D {
 class MeshSphere : public MeshStatic3D {
  public:
   MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
+};
+
+class MeshCapsule : public MeshStatic3D {
+ public:
+  MeshCapsule(float height,
+              float radius,
+              std::shared_ptr<CommandBuffer> commandBufferTransfer,
+              std::shared_ptr<EngineState> engineState);
 };
 
 class MeshStatic2D : public Mesh {

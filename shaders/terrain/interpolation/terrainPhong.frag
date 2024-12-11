@@ -32,8 +32,7 @@ layout(set = 0, binding = 7) uniform Material {
 } material;
 
 layout(push_constant) uniform constants {
-    layout(offset = 32) float heightLevels[4];
-    int enableShadow;
+    layout(offset = 32) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;
     float stripeLeft;
@@ -80,7 +79,13 @@ layout(std140, set = 1, binding = 3) readonly buffer LightBufferAmbient {
 
 layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
-
+layout(set = 1, binding = 6) uniform ShadowParameters {
+    int enabledDirectional[2];
+    int enabledPoint[4];
+    //0 - simple, 1 - vsm
+    int algorithmDirectional;
+    int algorithmPoint;
+} shadowParameters;
 
 mat2 rotate(float a) {
     float s = sin(radians(a));
@@ -132,6 +137,7 @@ vec4 getColorSide(sampler2D inSampler[4], ivec2 index1, ivec2 index2, float coor
 #define getLightPoint(index) lightPoint[index]
 #define getLightAmbient(index) lightAmbient[index]
 #define getMaterial() material
+#define getShadowParameters() shadowParameters
 #include "../../shadow.glsl"
 #include "../../phong.glsl"
 

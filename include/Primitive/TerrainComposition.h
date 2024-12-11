@@ -29,15 +29,12 @@ class TerrainCompositionDebug : public TerrainDebug {
   std::shared_ptr<RenderPass> _renderPass;
   int _pickedTile = -1;
   glm::ivec2 _pickedPixel = glm::ivec2(-1, -1);
-  glm::vec3 _rayOrigin, _rayDirection;
   bool _showWireframe = false, _showNormals = false, _showPatches = false;
   glm::vec2 _cursorPosition = glm::vec2(-1.f);
   glm::vec2 _clickPosition = glm::vec2(-1.f);
   int _angleIndex = -1, _textureIndex = -1;
   std::vector<std::shared_ptr<Buffer>> _patchDescriptionSSBO;
   char _terrainPath[256] = "";
-  std::optional<glm::vec3> _hitCoords;
-
   void _updateColorDescriptor();
   void _reallocatePatchDescription(int currentFrame);
   void _updatePatchDescription(int currentFrame);

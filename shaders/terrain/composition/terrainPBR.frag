@@ -36,8 +36,7 @@ layout(set = 0, binding = 14) uniform AlphaMask {
 
 
 layout(push_constant) uniform constants {
-    layout(offset = 40) float heightLevels[4];
-    int enableShadow;
+    layout(offset = 40) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;
 } push;
@@ -71,7 +70,13 @@ layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
 
 layout(set = 1, binding = 3) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 1, binding = 4) uniform samplerCube shadowPointSampler[4];
-
+layout(set = 1, binding = 5) uniform ShadowParameters {
+    int enabledDirectional[2];
+    int enabledPoint[4];
+    //0 - simple, 1 - vsm
+    int algorithmDirectional;
+    int algorithmPoint;
+} shadowParameters;
 
 mat2 rotate(float a) {
     float s = sin(radians(a));
@@ -104,6 +109,7 @@ vec4 blendFourColors(vec4 color1, vec4 color2, vec4 color3, vec4 color4) {
 #define getSpecularIBLSampler() specularIBLSampler
 #define getSpecularBRDFSampler() specularBRDFSampler
 #define getMaterial() material
+#define getShadowParameters() shadowParameters
 #include "../../shadow.glsl"
 #include "../../pbr.glsl"
 
@@ -183,7 +189,7 @@ void main() {
                 vec3 inRadiance = getLightDir(i).color;
                 vec3 directional = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoColor.rgb);
                 float shadow = 0.0;
-                if (push.enableShadow > 0)
+                if (push.enableShadow > 0 && getShadowParameters().enabledDirectional[i] > 0)
                     shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, 0.05);
                 Lr += directional * (1 - shadow);
             }
@@ -196,7 +202,7 @@ void main() {
                 vec3 inRadiance = getLightPoint(i).color * attenuation;
                 vec3 point = calculateOutRadiance(lightDir, normal, viewDir, inRadiance, metallicValue, roughnessValue, albedoColor.rgb);
                 float shadow = 0.0;
-                if (push.enableShadow > 0)
+                if (push.enableShadow > 0 && getShadowParameters().enabledPoint[i] > 0)
                     shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, 0.15);
                 Lr += point * (1 - shadow);
             }

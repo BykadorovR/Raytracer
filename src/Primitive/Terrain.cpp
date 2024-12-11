@@ -13,8 +13,12 @@ TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
                                glm::vec3 position,
                                glm::vec3 scale,
                                std::tuple<int, int> heightScaleOffset,
-                               std::shared_ptr<PhysicsManager> physicsManager) {
+                               std::shared_ptr<PhysicsManager> physicsManager,
+                               std::shared_ptr<GameState> gameState,
+                               std::shared_ptr<EngineState> engineState) {
   _physicsManager = physicsManager;
+  _gameState = gameState;
+  _engineState = engineState;
   _resolution = heightmap->getResolution();
   _heightScaleOffset = heightScaleOffset;
   _scale = scale;
@@ -22,6 +26,10 @@ TerrainPhysics::TerrainPhysics(std::shared_ptr<ImageCPU<uint8_t>> heightmap,
   _heightmap = heightmap;
 
   _initialize();
+}
+
+void TerrainPhysics::setFriction(float friction) {
+  _physicsManager->getBodyInterface().SetFriction(_terrainID, friction);
 }
 
 void TerrainPhysics::reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap) {
@@ -59,6 +67,7 @@ void TerrainPhysics::_initialize() {
   auto terrainBody = _physicsManager->getBodyInterface().CreateBody(
       JPH::BodyCreationSettings(_terrainShape, JPH::Vec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
                                 JPH::EMotionType::Static, Layers::NON_MOVING));
+
   _terrainID = terrainBody->GetID();
   _physicsManager->getBodyInterface().AddBody(_terrainID, JPH::EActivation::DontActivate);
 }
@@ -72,20 +81,51 @@ void TerrainPhysics::setPosition(glm::vec3 position) {
                                                   JPH::EActivation::DontActivate);
 }
 
-std::optional<glm::vec3> TerrainPhysics::hit(glm::vec3 origin, glm::vec3 direction) {
+std::optional<glm::vec3> TerrainPhysics::getHit(glm::vec2 cursorPosition) {
+  auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
+  // forward transformation
+  // x, y, z, 1 * MVP -> clip?
+  // clip / w -> NDC [-1, 1]
+  //(NDC + 1) / 2 -> normalized screen [0, 1]
+  // normalized screen * screen size -> screen
+
+  // backward transformation
+  // x, y
+  glm::vec2 normalizedScreen = glm::vec2(
+      (2.0f * cursorPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
+      1.0f - (2.0f * cursorPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
+  glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
+
+  // Convert to camera (view) space
+  glm::vec4 viewSpacePos = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getProjection()) *
+                           clipSpacePos;
+  viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
+
+  // Convert to world space
+  glm::vec4 worldSpaceRay = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView()) * viewSpacePos;
+
+  // normalize
+  _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
+  _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
+
+  auto origin = _rayOrigin;
+  auto direction = _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection;
   JPH::RRayCast rray{JPH::RVec3(origin.x, origin.y, origin.z), JPH::Vec3(direction.x, direction.y, direction.z)};
   JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
   _physicsManager->getPhysicsSystem().GetNarrowPhaseQuery().CastRay(rray, JPH::RayCastSettings(), collector);
+
+  _hitCoords = std::nullopt;
   if (collector.HadHit()) {
     for (auto& hit : collector.mHits) {
       if (hit.mBodyID == _terrainID) {
         auto outPosition = rray.GetPointOnRay(hit.mFraction);
-        return glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+        _hitCoords = glm::vec3(outPosition.GetX(), outPosition.GetY(), outPosition.GetZ());
+        // the first intersection is the closest one
+        break;
       }
     }
   }
-
-  return std::nullopt;
+  return _hitCoords;
 }
 
 std::tuple<int, int> TerrainPhysics::getResolution() { return _resolution; }
@@ -314,7 +354,7 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -372,13 +412,13 @@ int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
       // define patch: 4 points (square)
       auto vertex1 = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1 = _model * glm::vec4(vertex1, 1.f);
+      vertex1 = getModel() * glm::vec4(vertex1, 1.f);
       auto vertex2 = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2 = _model * glm::vec4(vertex2, 1.f);
+      vertex2 = getModel() * glm::vec4(vertex2, 1.f);
       auto vertex3 = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
                                -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3 = _model * glm::vec4(vertex3, 1.f);
+      vertex3 = getModel() * glm::vec4(vertex3, 1.f);
 
       if (position.x > vertex1.x && position.x < vertex2.x && position.z > vertex1.z && position.z < vertex3.z)
         return x + y * _patchNumber.first;
@@ -390,10 +430,10 @@ int TerrainDebug::_calculateTileByPosition(glm::vec3 position) {
 glm::ivec2 TerrainDebug::_calculatePixelByPosition(glm::vec3 position) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();
 
-  auto leftTop = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
-  auto rightTop = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f, 1.f);
-  auto leftBot = _model * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height, 1.f);
-  auto rightBot = _model * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f + height, 1.f);
+  auto leftTop = getModel() * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f, 1.f);
+  auto rightTop = getModel() * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f, 1.f);
+  auto leftBot = getModel() * glm::vec4(-width / 2.0f, 0.f, -height / 2.0f + height, 1.f);
+  auto rightBot = getModel() * glm::vec4(-width / 2.0f + width, 0.f, -height / 2.0f + height, 1.f);
   glm::vec3 terrainSize = rightBot - leftTop;
   glm::vec2 ratio = glm::vec2((glm::vec4(position, 1.f) - leftTop).x / terrainSize.x,
                               (glm::vec4(position, 1.f) - leftTop).z / terrainSize.z);
@@ -477,9 +517,9 @@ void TerrainDebug::setTessellationLevel(int min, int max) {
   _maxTessellationLevel = max;
 }
 
-void TerrainDebug::setDisplayDistance(int min, int max) {
-  _minDistance = min;
-  _maxDistance = max;
+void TerrainDebug::setTesselationDistance(int min, int max) {
+  _minTesselationDistance = min;
+  _maxTesselationDistance = max;
 }
 
 void TerrainDebug::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }
@@ -524,6 +564,8 @@ bool TerrainDebug::heightmapChanged() {
 }
 
 std::shared_ptr<ImageCPU<uint8_t>> TerrainDebug::getHeightmap() { return _heightMapCPU; }
+
+std::optional<glm::vec3> TerrainDebug::getHitCoords() { return _hitCoords; }
 
 void TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
   _heightMap->copyFrom(_heightMapGPU, commandBuffer);
@@ -580,9 +622,9 @@ void TerrainGPU::setTessellationLevel(int min, int max) {
   _maxTessellationLevel = max;
 }
 
-void TerrainGPU::setDisplayDistance(int min, int max) {
-  _minDistance = min;
-  _maxDistance = max;
+void TerrainGPU::setTesselationDistance(int min, int max) {
+  _minTesselationDistance = min;
+  _maxTesselationDistance = max;
 }
 
 void TerrainGPU::setColorHeightLevels(std::array<float, 4> levels) { _heightLevels = levels; }

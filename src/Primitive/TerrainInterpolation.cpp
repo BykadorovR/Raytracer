@@ -13,8 +13,8 @@
 struct TesselationControlPush {
   int minTessellationLevel;
   int maxTessellationLevel;
-  float near;
-  float far;
+  float minTesselationDistance;
+  float maxTesselationDistance;
 };
 
 struct TesselationEvaluationPush {
@@ -30,7 +30,6 @@ struct TesselationEvaluationPushDepth {
 };
 
 struct FragmentPushDebug {
-  alignas(16) float heightLevels[4];
   alignas(16) int patchEdge;
   int showLOD;
   int enableShadow;
@@ -43,7 +42,6 @@ struct FragmentPushDebug {
 };
 
 struct FragmentPush {
-  alignas(16) float heightLevels[4];
   int enableShadow;
   int enableLighting;
   alignas(16) glm::vec3 cameraPosition;
@@ -481,8 +479,8 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants;
-      pushConstants.near = _minDistance;
-      pushConstants.far = _maxDistance;
+      pushConstants.minTesselationDistance = _minTesselationDistance;
+      pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -502,7 +500,6 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
       FragmentPushDebug pushConstants;
-      std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.patchEdge = _enableEdge;
       pushConstants.showLOD = _showLoD;
       pushConstants.tile = _pickedTile;
@@ -518,7 +515,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -707,35 +704,7 @@ void TerrainInterpolationDebug::mouseNotify(int button, int action, int mods) {
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 #endif
     _clickPosition = _cursorPosition;
-    auto projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
-    // forward transformation
-    // x, y, z, 1 * MVP -> clip?
-    // clip / w -> NDC [-1, 1]
-    //(NDC + 1) / 2 -> normalized screen [0, 1]
-    // normalized screen * screen size -> screen
-
-    // backward transformation
-    // x, y
-    glm::vec2 normalizedScreen = glm::vec2(
-        (2.0f * _clickPosition.x) / std::get<0>(_engineState->getSettings()->getResolution()) - 1.0f,
-        1.0f - (2.0f * _clickPosition.y) / std::get<1>(_engineState->getSettings()->getResolution()));
-    glm::vec4 clipSpacePos = glm::vec4(normalizedScreen, -1.0f, 1.0f);  // Z = -1 to specify the near plane
-
-    // Convert to camera (view) space
-    glm::vec4 viewSpacePos = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getProjection()) *
-                             clipSpacePos;
-    viewSpacePos = glm::vec4(viewSpacePos.x, viewSpacePos.y, -1.0f, 0.0f);
-
-    // Convert to world space
-    glm::vec4 worldSpaceRay = glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView()) *
-                              viewSpacePos;
-
-    // normalize
-    _rayDirection = glm::normalize(glm::vec3(worldSpaceRay));
-    _rayOrigin = glm::vec3(glm::inverse(_gameState->getCameraManager()->getCurrentCamera()->getView())[3]);
-
-    _hitCoords = _terrainPhysics->hit(_rayOrigin,
-                                      _gameState->getCameraManager()->getCurrentCamera()->getFar() * _rayDirection);
+    _hitCoords = _terrainPhysics->getHit(_cursorPosition);
     if (_hitCoords) {
       // find the corresponding patch number
       _pickedTile = _calculateTileByPosition(_hitCoords.value());
@@ -900,6 +869,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
+      shader->add("shaders/terrain/terrainDepthDirectional_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -918,7 +888,8 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
           VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
-           shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
+           shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
+           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayoutShadows, pushConstants, _mesh->getBindingDescription(),
           _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                  {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
@@ -931,7 +902,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/terrainDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainDepth_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/terrainDepth_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      shader->add("shaders/terrain/terrainDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+      shader->add("shaders/terrain/terrainDepthPoint_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -946,7 +917,8 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       };
       pushConstants["fragmentDepth"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-          .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPushDepth),
+          .offset = sizeof(TesselationControlPush) +
+                    std::max(sizeof(TesselationEvaluationPushDepth), std::alignment_of<DepthConstants>::value),
           .size = sizeof(DepthConstants),
       };
       _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
@@ -1569,8 +1541,8 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants;
-      pushConstants.near = _minDistance;
-      pushConstants.far = _maxDistance;
+      pushConstants.minTesselationDistance = _minTesselationDistance;
+      pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1590,7 +1562,6 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
       FragmentPush pushConstants;
-      std::copy(std::begin(_heightLevels), std::end(_heightLevels), std::begin(pushConstants.heightLevels));
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
       pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
@@ -1605,7 +1576,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -1706,24 +1677,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());
 
-  std::tuple<int, int> resolution;
-  if (lightType == LightType::DIRECTIONAL) {
-    resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
-  if (lightType == LightType::POINT) {
-    resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
-                     ->getTexture()
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
+  std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
@@ -1748,10 +1702,26 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
+  glm::mat4 view(1.f);
+  glm::mat4 projection(1.f);
+  float far;
+  int lightIndexTotal = lightIndex;
+  if (lightType == LightType::DIRECTIONAL) {
+    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
+    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
+    far = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getFar();
+  }
+  if (lightType == LightType::POINT) {
+    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
+    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
+    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
+    far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
+  }
+
   if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
     TesselationControlPush pushConstants;
-    pushConstants.near = _minDistance;
-    pushConstants.far = _maxDistance;
+    pushConstants.minTesselationDistance = _minTesselationDistance;
+    pushConstants.maxTesselationDistance = _maxTesselationDistance;
     pushConstants.minTessellationLevel = _minTessellationLevel;
     pushConstants.maxTessellationLevel = _maxTessellationLevel;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
@@ -1772,29 +1742,15 @@ void TerrainInterpolation::drawShadow(LightType lightType,
     pushConstants.lightPosition =
         _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
     // light camera
-    pushConstants.far = 100.f;
+    pushConstants.far = far;
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT,
-                       sizeof(TesselationEvaluationPushDepth) + sizeof(TesselationControlPush), sizeof(DepthConstants),
-                       &pushConstants);
-  }
-
-  glm::mat4 view(1.f);
-  glm::mat4 projection(1.f);
-  int lightIndexTotal = lightIndex;
-  if (lightType == LightType::DIRECTIONAL) {
-    view = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getView();
-    projection = _gameState->getLightManager()->getDirectionalLights()[lightIndex]->getCamera()->getProjection();
-  }
-  if (lightType == LightType::POINT) {
-    lightIndexTotal += _engineState->getSettings()->getMaxDirectionalLights();
-    view = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getView(face);
-    projection = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getProjection();
+                       VK_SHADER_STAGE_FRAGMENT_BIT, pipeline->getPushConstants()["fragmentDepth"].offset,
+                       pipeline->getPushConstants()["fragmentDepth"].size, &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
   BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
+  cameraUBO.model = getModel();
   cameraUBO.view = view;
   cameraUBO.projection = projection;
 

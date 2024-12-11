@@ -2,9 +2,9 @@
 
 int PointLight::getSize() { return sizeof(LightFields); }
 
-PointLight::PointLight(std::shared_ptr<Settings> settings) {
+PointLight::PointLight(std::shared_ptr<EngineState> engineState) {
   _light = std::make_shared<LightFields>();
-  _settings = settings;
+  _engineState = engineState;
   _camera = std::make_shared<CameraPointLight>();
 
   setAttenuationIndex(_attenuationIndex);
@@ -22,21 +22,17 @@ glm::vec3 PointLight::getColor() { return _light->color; }
 
 std::shared_ptr<CameraPointLight> PointLight::getCamera() { return _camera; }
 
-void PointLight::setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap) { _depthCubemap = depthCubemap; }
-
-std::vector<std::shared_ptr<Cubemap>> PointLight::getDepthCubemap() { return _depthCubemap; }
-
 int PointLight::getAttenuationIndex() { return _attenuationIndex; }
 
 void PointLight::setAttenuationIndex(int index) {
   _attenuationIndex = index;
-  _light->distance = std::get<0>(_settings->getAttenuations()[index]);
-  _light->quadratic = std::get<1>(_settings->getAttenuations()[index]);
+  _light->distance = std::get<0>(_engineState->getSettings()->getAttenuations()[index]);
+  _light->quadratic = std::get<1>(_engineState->getSettings()->getAttenuations()[index]);
 }
 
 int PointLight::getDistance() { return _light->distance; }
 
-DirectionalLight::DirectionalLight() {
+DirectionalLight::DirectionalLight(std::shared_ptr<EngineState> engineState) {
   _light = std::make_shared<LightFields>();
   _camera = std::make_shared<CameraDirectionalLight>();
 }
@@ -51,12 +47,6 @@ void* DirectionalLight::getData() {
 void DirectionalLight::setColor(glm::vec3 color) { _light->color = color; }
 
 glm::vec3 DirectionalLight::getColor() { return _light->color; }
-
-void DirectionalLight::setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture) {
-  _depthTexture = depthTexture;
-}
-
-std::vector<std::shared_ptr<Texture>> DirectionalLight::getDepthTexture() { return _depthTexture; }
 
 std::shared_ptr<CameraDirectionalLight> DirectionalLight::getCamera() { return _camera; }
 

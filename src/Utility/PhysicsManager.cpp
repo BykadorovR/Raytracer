@@ -54,7 +54,14 @@ JPH::BodyInterface& PhysicsManager::getBodyInterface() { return _physicsSystem.G
 
 JPH::PhysicsSystem& PhysicsManager::getPhysicsSystem() { return _physicsSystem; }
 
-void PhysicsManager::step() {
+glm::vec3 PhysicsManager::getGravity() {
+  auto gravity = _physicsSystem.GetGravity();
+  return {gravity.GetX(), gravity.GetY(), gravity.GetZ()};
+}
+
+float PhysicsManager::getDeltaTime() { return _deltaTime; }
+
+void PhysicsManager::update() {
   _physicsSystem.Update(_deltaTime, _collisionSteps, _tempAllocator.get(), _jobSystem.get());
 }
 

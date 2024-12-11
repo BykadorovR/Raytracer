@@ -1,49 +1,91 @@
 #include "Primitive/Model.h"
 #include <Jolt/Physics/Character/CharacterVirtual.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <unordered_map>
 #undef far
 
-Model3DPhysics::Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+Model3DPhysics::Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _position = position;
-
   JPH::CharacterSettings settings;
-  settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z));
+  _size = size;
+  settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x / 2.f, size.y / 2.f, size.z / 2.f));
   settings.mLayer = Layers::MOVING;
-  /*settings.mSupportingVolume = JPH::Plane::sFromPointsCCW(JPH::Vec3(position.x, position.y, position.z),
-                                                          JPH::Vec3(position.x + size.x, position.y, position.z +
-     size.z), JPH::Vec3(position.x + size.x, position.y, position.z + size.z));*/
-  _character = new JPH::Character(&settings, JPH::Vec3(position.x, position.y, position.z), JPH::Quat::sIdentity(), 0,
-                                  &_physicsManager->getPhysicsSystem());
+  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
+  _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
+                                  0, &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
 }
 
-// TODO: position should substract half of the shape size?
-void Model3DPhysics::setPosition(glm::vec3 position) {
-  _position = position;
-  _physicsManager->getBodyInterface().SetPosition(
-      _character->GetBodyID(), JPH::RVec3(position.x, position.y, position.z), JPH::EActivation::Activate);
+Model3DPhysics::Model3DPhysics(glm::vec3 translate,
+                               float height,
+                               float radius,
+                               std::shared_ptr<PhysicsManager> physicsManager) {
+  _physicsManager = physicsManager;
+  JPH::CharacterSettings settings;
+  _size = {radius * 2.f, height + radius * 2.f, radius * 2.f};
+  settings.mShape = new JPH::CapsuleShape(height / 2.f, radius);
+  settings.mLayer = Layers::MOVING;
+  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
+  _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
+                                  0, &_physicsManager->getPhysicsSystem());
+  _character->AddToPhysicsSystem(JPH::EActivation::Activate);
 }
 
-glm::vec3 Model3DPhysics::getPosition() { return _position; }
+void Model3DPhysics::setTranslate(glm::vec3 translate) {
+  _physicsManager->getBodyInterface().SetPosition(
+      _character->GetBodyID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
+}
+
+void Model3DPhysics::setRotate(glm::quat rotate) {
+  _physicsManager->getBodyInterface().SetRotation(
+      _character->GetBodyID(), JPH::Quat(rotate.x, rotate.y, rotate.z, rotate.w), JPH::EActivation::Activate);
+}
+
+glm::quat Model3DPhysics::getRotate() {
+  auto rotation = _physicsManager->getBodyInterface().GetRotation(_character->GetBodyID());
+  return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
+}
+
+glm::vec3 Model3DPhysics::getTranslate() {
+  auto position = _physicsManager->getBodyInterface().GetPosition(_character->GetBodyID());
+  return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+}
+
+glm::vec3 Model3DPhysics::getSize() { return _size; }
+
+void Model3DPhysics::postUpdate() { _character->PostSimulation(_collisionTolerance); }
+
+void Model3DPhysics::setFriction(float friction) {
+  _physicsManager->getBodyInterface().SetFriction(_character->GetBodyID(), friction);
+}
+
+GroundState Model3DPhysics::getGroundState() { return (GroundState)_character->GetGroundState(); }
+
+glm::vec3 Model3DPhysics::getGroundNormal() {
+  JPH::Vec3 normal = _character->GetGroundNormal();
+  return glm::vec3{normal.GetX(), normal.GetY(), normal.GetZ()};
+}
+
+void Model3DPhysics::setUp(glm::vec3 up) { _character->SetUp({up.x, up.y, up.z}); }
+
+glm::vec3 Model3DPhysics::getGroundVelocity() {
+  auto velocity = _character->GetGroundVelocity();
+  return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
+}
 
 void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
   _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});
 }
 
-glm::mat4 Model3DPhysics::getModel() {
-  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_character->GetBodyID());
-  glm::mat4 converted = glm::mat4(1.f);
-  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
-                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
-  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
-                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
-  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
-                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
-  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
-                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
-  return converted;
+glm::vec3 Model3DPhysics::getUp() {
+  auto up = _character->GetUp();
+  return {up.GetX(), up.GetY(), up.GetZ()};
+}
+
+glm::vec3 Model3DPhysics::getLinearVelocity() {
+  auto velocity = _physicsManager->getBodyInterface().GetLinearVelocity(_character->GetBodyID());
+  return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
 }
 
 Model3DPhysics::~Model3DPhysics() {
@@ -509,9 +551,12 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   {
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add("shaders/model/modelDepthDirectional_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)},
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
@@ -523,7 +568,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   {
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/model/modelDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add("shaders/model/modelDepth_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add("shaders/model/modelDepthPoint_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
@@ -844,7 +889,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     }
     // pass this matrix to uniforms
     BufferMVP cameraMVP{};
-    cameraMVP.model = _model * _translateOrigin * nodeMatrix;
+    cameraMVP.model = getModel() * nodeMatrix;
     cameraMVP.view = view;
     cameraMVP.projection = projection;
 
@@ -1054,16 +1099,16 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
     resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
+                     ->getDirectionalShadows()[lightIndex]
+                     ->getShadowMapTexture()[currentFrame]
                      ->getImageView()
                      ->getImage()
                      ->getResolution();
   }
   if (lightType == LightType::POINT) {
     resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
+                     ->getPointShadows()[lightIndex]
+                     ->getShadowMapCubemap()[currentFrame]
                      ->getTexture()
                      ->getImageView()
                      ->getImage()

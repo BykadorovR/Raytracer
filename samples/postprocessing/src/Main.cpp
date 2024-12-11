@@ -14,12 +14,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -55,27 +53,30 @@ Main::Main() {
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _camera->setSpeed(0.05f, 0.01f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
@@ -85,11 +86,8 @@ Main::Main() {
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -115,13 +113,10 @@ Main::Main() {
 
   // cube colored
   auto cubeColored = _core->createShape3D(ShapeType::CUBE);
+  cubeColored->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
       _core->getCommandBufferApplication());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-    cubeColored->setModel(model);
-  }
   _core->addDrawable(cubeColored);
 
   // TODO: color is not so bright in comparison with cube
@@ -148,10 +143,7 @@ Main::Main() {
 
   auto sphereTexturedPBR = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPBR->setMaterial(materialSpherePBR);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, 3.f, -3.f));
-    sphereTexturedPBR->setModel(model);
-  }
+  sphereTexturedPBR->setTranslate(glm::vec3(-3.f, 3.f, -3.f));
   _core->addDrawable(sphereTexturedPBR);
 
   // draw skeletal dancing model with one animation
@@ -166,11 +158,8 @@ Main::Main() {
     auto animationDancing = _core->createAnimation(gltfModelDancing);
     // set animation to model, so joints will be passed to shader
     modelDancing->setAnimation(animationDancing);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelDancing->setModel(model);
-    }
+    modelDancing->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
+    modelDancing->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(modelDancing);
   }
 
@@ -183,17 +172,15 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto terrainPhong = _core->createTerrain(_core->loadImageCPU("../../terrain/assets/heightmap.png"),
-                                             std::pair{12, 12});
+    auto terrainPhong = _core->createTerrainInterpolation(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+    terrainPhong->setPatchNumber(12, 12);
+    terrainPhong->initialize(_core->getCommandBufferApplication());
     auto materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
     materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialPhong(materialPhong);
     terrainPhong->setMaterial(materialPhong);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -5.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.3f, 0.3f, 0.3f));
-      terrainPhong->setModel(scaleMatrix);
-    }
+    terrainPhong->setTranslate(glm::vec3(0.f, -5.f, 0.f));
+    terrainPhong->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
 
     _core->addDrawable(terrainPhong);
   }
@@ -216,17 +203,9 @@ void Main::update() {
                                               radius * cos(glm::radians(angleVertical)));
 
   _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
   _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
@@ -250,13 +229,13 @@ void Main::update() {
   if (_core->getGUI()->drawInputFloat({{"gamma", &gamma}})) _core->getPostprocessing()->setGamma(gamma);
   float exposure = _core->getPostprocessing()->getExposure();
   if (_core->getGUI()->drawInputFloat({{"exposure", &exposure}})) _core->getPostprocessing()->setExposure(exposure);
-  int blurKernelSize = _core->getBlur()->getKernelSize();
+  int blurKernelSize = _core->getBloomBlur()->getKernelSize();
   if (_core->getGUI()->drawInputInt({{"Kernel", &blurKernelSize}})) {
-    _core->getBlur()->setKernelSize(blurKernelSize);
+    _core->getBloomBlur()->setKernelSize(blurKernelSize);
   }
-  int blurSigma = _core->getBlur()->getSigma();
+  int blurSigma = _core->getBloomBlur()->getSigma();
   if (_core->getGUI()->drawInputInt({{"Sigma", &blurSigma}})) {
-    _core->getBlur()->setSigma(blurSigma);
+    _core->getBloomBlur()->setSigma(blurSigma);
   }
   int bloomPasses = _core->getEngineState()->getSettings()->getBloomPasses();
   if (_core->getGUI()->drawInputInt({{"Passes", &bloomPasses}})) {

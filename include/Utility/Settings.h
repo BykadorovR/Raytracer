@@ -24,7 +24,7 @@ struct Settings {
  private:
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
-  std::tuple<int, int> _depthResolution = {512, 512};
+  std::tuple<int, int> _shadowMapResolution = {2048, 2048};
   // used for irradiance diffuse cubemap generation
   std::tuple<int, int> _diffuseIBLResolution = {32, 32};
   std::tuple<int, int> _specularIBLResolution = {128, 128};
@@ -38,6 +38,7 @@ struct Settings {
   VkFormat _loadTextureColorFormat;
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
+  VkFormat _shadowMapFormat = VK_FORMAT_R32G32_SFLOAT;
   // if changed have to be change in shaders too
   int _threadsInPool = 6;
   int _maxDirectionalLights = 2;
@@ -59,7 +60,7 @@ struct Settings {
   // setters
   void setName(std::string name);
   void setResolution(std::tuple<int, int> resolution);
-  void setDepthResolution(std::tuple<int, int> depthResolution);
+  void setShadowMapResolution(std::tuple<int, int> shadowMapResolution);
   void setLoadTextureColorFormat(VkFormat format);
   void setLoadTextureAuxilaryFormat(VkFormat format);
   void setGraphicColorFormat(VkFormat format);
@@ -73,7 +74,7 @@ struct Settings {
   void setDesiredFPS(int fps);
   // getters
   const std::tuple<int, int>& getResolution();
-  const std::tuple<int, int>& getDepthResolution();
+  const std::tuple<int, int>& getShadowMapResolution();
   std::string getName();
   int getMaxFramesInFlight();
   int getMaxDirectionalLights();
@@ -85,6 +86,7 @@ struct Settings {
   VkFormat getLoadTextureColorFormat();
   VkFormat getLoadTextureAuxilaryFormat();
   VkFormat getDepthFormat();
+  VkFormat getShadowMapFormat();
   int getBloomPasses();
   VkClearColorValue getClearColor();
   int getAnisotropicSamples();

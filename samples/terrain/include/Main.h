@@ -5,7 +5,6 @@
 
 class InputHandler : public InputSubscriber {
  private:
-  bool _cursorEnabled = false;
   std::shared_ptr<Core> _core;
 
  public:
@@ -29,6 +28,7 @@ class Main {
   std::shared_ptr<PointLight> _pointLightVertical, _pointLightHorizontal;
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
+  std::shared_ptr<Shape3D> _sphereClickDebug;
   std::shared_ptr<TerrainGPU> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
   std::shared_ptr<TerrainCPU> _terrainCPU;

@@ -1,6 +1,16 @@
 #include "Graphic/LightManager.h"
 #include "Vulkan/Buffer.h"
 
+struct ShadowParameters {
+  int enabledDirectional[2];
+  int enabledPoint[4];
+  // 0 - simple, 1 - vsm
+  int algorithmDirectional;
+  int algorithmPoint;
+
+  static int getSize() { return 2 * 16 + 4 * 16 + 4 + 4; }
+};
+
 LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
   _debuggerUtils = std::make_shared<DebuggerUtils>(engineState->getInstance(), engineState->getDevice());
@@ -10,7 +20,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   // update global descriptor for Phong and PBR (2 separate)
   {
     _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
     layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -41,11 +51,16 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPhong[5].pImmutableSamplers = nullptr;
     layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[6].binding = 6;
+    layoutPhong[6].descriptorCount = 1;
+    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPhong[6].pImmutableSamplers = nullptr;
+    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
   }
   {
     _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
     layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -71,11 +86,16 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[4].pImmutableSamplers = nullptr;
     layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[5].binding = 5;
+    layoutPBR[5].descriptorCount = 1;
+    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPBR[5].pImmutableSamplers = nullptr;
+    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
   {
     _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
     layoutPhong[0].binding = 0;
     layoutPhong[0].descriptorCount = 1;
     layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -106,11 +126,16 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPhong[5].pImmutableSamplers = nullptr;
     layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPhong[6].binding = 6;
+    layoutPhong[6].descriptorCount = 1;
+    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPhong[6].pImmutableSamplers = nullptr;
+    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalTerrainPhong->createCustom(layoutPhong);
   }
   {
     _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
     layoutPBR[0].binding = 0;
     layoutPBR[0].descriptorCount = 1;
     layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -136,6 +161,11 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     layoutPBR[4].pImmutableSamplers = nullptr;
     layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    layoutPBR[5].binding = 5;
+    layoutPBR[5].descriptorCount = 1;
+    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    layoutPBR[5].pImmutableSamplers = nullptr;
+    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     _descriptorSetLayoutGlobalTerrainPBR->createCustom(layoutPBR);
   }
 
@@ -146,7 +176,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   _lightAmbientSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
   {
-    auto lightTmp = std::make_shared<DirectionalLight>();
+    auto lightTmp = std::make_shared<DirectionalLight>(_engineState);
     _lightDirectionalSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
@@ -156,7 +186,7 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _lightDirectionalSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
-    auto lightTmp = std::make_shared<PointLight>(_engineState->getSettings());
+    auto lightTmp = std::make_shared<PointLight>(_engineState);
     _lightPointSSBOStub = std::make_shared<Buffer>(
         sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
@@ -194,6 +224,9 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _lightPointSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
 
+  _shadowParametersBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                            ShadowParameters::getSize(), _engineState);
+
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _descriptorPool,
                                                               _engineState->getDevice());
@@ -219,9 +252,6 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   _stubTexture = resourceManager->getTextureOne();
   _stubCubemap = resourceManager->getCubemapOne();
 
-  _directionalTextures.resize(engineState->getSettings()->getMaxDirectionalLights(), _stubTexture);
-  _pointTextures.resize(engineState->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
-
   _changed[LightType::DIRECTIONAL].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
   _changed[LightType::POINT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
   _changed[LightType::AMBIENT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
@@ -231,9 +261,10 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _reallocatePointBuffers(i);
     _reallocateAmbientBuffers(i);
     _updateDirectionalBuffers(i);
-    _updatePointDescriptors(i);
+    _updatePointBuffers(i);
     _updateAmbientBuffers(i);
     _setLightDescriptors(i);
+    _updateShadowParametersBuffer(i);
   }
 }
 
@@ -306,24 +337,39 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[3] = bufferAmbientInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[6] = bufferShadowParameters;
     }
     _descriptorSetGlobalPhong->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -366,24 +412,39 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[2] = bufferPointInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[5] = bufferShadowParameters;
     }
     _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -438,24 +499,39 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[3] = bufferAmbientInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[6] = bufferShadowParameters;
     }
     _descriptorSetGlobalTerrainPhong->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -498,24 +574,39 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[2] = bufferPointInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[5] = bufferShadowParameters;
     }
     _descriptorSetGlobalTerrainPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -616,11 +707,6 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
   }
 }
 
-void LightManager::_updateDirectionalTexture(int currentFrame) {
-  int currentIndex = _directionalLights.size() - 1;
-  _directionalTextures[currentIndex] = _directionalLights[currentIndex]->getDepthTexture()[currentFrame];
-}
-
 void LightManager::_reallocatePointBuffers(int currentFrame) {
   int size = 0;
   size += sizeof(glm::vec4);
@@ -647,7 +733,7 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
   }
 }
 
-void LightManager::_updatePointDescriptors(int currentFrame) {
+void LightManager::_updatePointBuffers(int currentFrame) {
   int pointNumber = _pointLights.size();
   if (_pointLights.size() > 0) {
     _lightPointSSBO[currentFrame]->map();
@@ -683,86 +769,139 @@ void LightManager::_updatePointDescriptors(int currentFrame) {
   }
 }
 
-void LightManager::_updatePointTexture(int currentFrame) {
-  for (int i = 0; i < _pointLights.size(); i++)
-    _pointTextures[i] = _pointLights[i]->getDepthCubemap()[currentFrame]->getTexture();
+void LightManager::_updateShadowParametersBuffer(int currentFrame) {
+  ShadowParameters shadowParameters{};
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    if (i < _directionalShadows.size() && _directionalShadows[i]) shadowParameters.enabledDirectional[i] = true;
+  }
+  std::vector<int> pointEnabled{_engineState->getSettings()->getMaxPointLights(), false};
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
+    if (i < _pointShadows.size() && _pointShadows[i]) shadowParameters.enabledPoint[i] = true;
+  }
+  shadowParameters.algorithmDirectional = static_cast<int>(_shadowAlgorithm[LightType::DIRECTIONAL]);
+  shadowParameters.algorithmPoint = static_cast<int>(_shadowAlgorithm[LightType::POINT]);
+  std::vector<uint8_t> buffer(ShadowParameters::getSize());
+  int offset = 0;
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    memcpy(buffer.data() + offset, &shadowParameters.enabledDirectional[i], 16);
+    offset += 16;
+  }
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
+    memcpy(buffer.data() + offset, &shadowParameters.enabledPoint[i], 16);
+    offset += 16;
+  }
+  memcpy(buffer.data() + offset, &shadowParameters.algorithmDirectional, sizeof(shadowParameters.algorithmDirectional));
+  offset += sizeof(shadowParameters.algorithmDirectional);
+  memcpy(buffer.data() + offset, &shadowParameters.algorithmPoint, sizeof(shadowParameters.algorithmPoint));
+  _shadowParametersBuffer->getBuffer()[currentFrame]->setData(buffer.data());
 }
 
-std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution,
-                                                           std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  std::vector<std::shared_ptr<Cubemap>> depthCubemap;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-#ifdef __ANDROID__
-    depthCubemap.push_back(std::make_shared<Cubemap>(
-        resolution, _engineState->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_FILTER_NEAREST, commandBufferTransfer, _engineState));
-#else
-    depthCubemap.push_back(std::make_shared<Cubemap>(
-        resolution, _engineState->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_FILTER_LINEAR, commandBufferTransfer, _engineState));
-#endif
-  }
-
-  auto light = std::make_shared<PointLight>(_engineState->getSettings());
-  light->setDepthCubemap(depthCubemap);
+std::shared_ptr<PointLight> LightManager::createPointLight() {
+  auto light = std::make_shared<PointLight>(_engineState);
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _pointLights.push_back(light);
+  _pointShadows.push_back(nullptr);
 
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::POINT][i] = true;
   }
 
-  // should be unique command pool for every command buffer to work in parallel.
-  // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
-  std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
-  std::vector<std::shared_ptr<Logger>> logger(6);
-  for (int j = 0; j < commandBuffer.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-    commandBuffer[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _engineState);
-    _debuggerUtils->setName("Command buffer point " + std::to_string(_pointLights.size() - 1) + "x" + std::to_string(j),
-                            VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer[j]->getCommandBuffer());
-    logger[j] = std::make_shared<Logger>(_engineState);
-  }
-  _commandBufferPoint.push_back(commandBuffer);
-  _loggerPoint.push_back(logger);
-
   return light;
 }
 
-void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
+std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<PointLight> pointLight,
+                                                             std::shared_ptr<RenderPass> renderPass,
+                                                             std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _pointLights.size(); i++) {
-    if (_pointLights[i] == pointLight) index = i;
+  auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  int indexLight = std::distance(_pointLights.begin(), find(_pointLights.begin(), _pointLights.end(), pointLight));
+  _pointShadows[indexLight] = shadow;
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::POINT][i] = true;
   }
-  if (index > 0) {
-    _pointLights.erase(_pointLights.begin() + index);
-    _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
-    _loggerPoint.erase(_loggerPoint.begin() + index);
+
+  return shadow;
+}
+
+void LightManager::removePointLight(std::shared_ptr<PointLight> pointLight) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _pointLights.erase(std::remove(_pointLights.begin(), _pointLights.end(), pointLight),
+                                   _pointLights.end());
+  if (erased != _pointLights.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
   }
 }
 
+void LightManager::removePoinShadow(std::shared_ptr<PointShadow> pointShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _pointShadows.erase(std::remove(_pointShadows.begin(), _pointShadows.end(), pointShadow),
+                                    _pointShadows.end());
+  if (erased != _pointShadows.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::POINT][i] = true;
+    }
+  }
+}
+
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
+  auto light = std::make_shared<DirectionalLight>(_engineState);
+
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _directionalLights.push_back(light);
+  _directionalShadows.push_back(nullptr);
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+
+  return light;
+}
+
+std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
+    std::shared_ptr<DirectionalLight> directionalLight,
+    std::shared_ptr<RenderPass> renderPass,
+    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  int indexLight = std::distance(_directionalLights.begin(),
+                                 find(_directionalLights.begin(), _directionalLights.end(), directionalLight));
+  _directionalShadows[indexLight] = shadow;
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+  return shadow;
+}
+
 void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _directionalLights.size(); i++) {
-    if (_directionalLights[i] == directionalLight) index = i;
-  }
-  if (index > 0) {
-    _directionalLights.erase(_directionalLights.begin() + index);
-    _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
-    _loggerDirectional.erase(_loggerDirectional.begin() + index);
+  auto erased = _directionalLights.erase(
+      std::remove(_directionalLights.begin(), _directionalLights.end(), directionalLight), _directionalLights.end());
+  if (erased != _directionalLights.end()) {
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
   }
+}
+
+void LightManager::removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _directionalShadows.erase(
+      std::remove(_directionalShadows.begin(), _directionalShadows.end(), directionalShadow),
+      _directionalShadows.end());
+  if (erased != _directionalShadows.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::DIRECTIONAL][i] = true;
+    }
+  }
+}
+
+void LightManager::setShadowAlgorithm(LightType lightType, ShadowAlgorithm shadowAlgorithm) {
+  _shadowAlgorithm[lightType] = shadowAlgorithm;
 }
 
 const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
@@ -770,54 +909,9 @@ const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   return _pointLights;
 }
 
-const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::getPointLightCommandBuffers() {
-  return _commandBufferPoint;
-}
-
-const std::vector<std::vector<std::shared_ptr<Logger>>>& LightManager::getPointLightLoggers() { return _loggerPoint; }
-
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(
-    std::tuple<int, int> resolution,
-    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
-  std::vector<std::shared_ptr<Texture>> depthTexture;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, 1, _engineState->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        _engineState);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                        VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, commandBufferTransfer);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                 _engineState);
-// android doesn't support linear + d32 texture
-#ifdef __ANDROID__
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_NEAREST,
-                                                     imageView, _engineState));
-#else
-    depthTexture.push_back(std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR,
-                                                     imageView, _engineState));
-#endif
-  }
-
-  auto light = std::make_shared<DirectionalLight>();
-  light->setDepthTexture(depthTexture);
-
+const std::vector<std::shared_ptr<PointShadow>>& LightManager::getPointShadows() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  _directionalLights.push_back(light);
-
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _changed[LightType::DIRECTIONAL][i] = true;
-  }
-
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
-  auto commandBuffer = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _engineState);
-  _debuggerUtils->setName("Command buffer directional " + std::to_string(_directionalLights.size() - 1),
-                          VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER, commandBuffer->getCommandBuffer());
-  _commandBufferDirectional.push_back(commandBuffer);
-  _loggerDirectional.push_back(std::make_shared<Logger>(_engineState));
-
-  return light;
+  return _pointShadows;
 }
 
 const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {
@@ -825,11 +919,10 @@ const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirection
   return _directionalLights;
 }
 
-const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalLightCommandBuffers() {
-  return _commandBufferDirectional;
+const std::vector<std::shared_ptr<DirectionalShadow>>& LightManager::getDirectionalShadows() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _directionalShadows;
 }
-
-const std::vector<std::shared_ptr<Logger>>& LightManager::getDirectionalLightLoggers() { return _loggerDirectional; }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPBR() { return _descriptorSetLayoutGlobalPBR; }
@@ -868,14 +961,12 @@ void LightManager::draw(int currentFrame) {
   if (_changed[LightType::DIRECTIONAL][currentFrame]) {
     _changed[LightType::DIRECTIONAL][currentFrame] = false;
     _reallocateDirectionalBuffers(currentFrame);
-    _updateDirectionalTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
   if (_changed[LightType::POINT][currentFrame]) {
     _changed[LightType::POINT][currentFrame] = false;
     _reallocatePointBuffers(currentFrame);
-    _updatePointTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
@@ -887,8 +978,13 @@ void LightManager::draw(int currentFrame) {
 
   // light parameters can be changed on per-frame basis
   _updateDirectionalBuffers(currentFrame);
-  _updatePointDescriptors(currentFrame);
+  _updatePointBuffers(currentFrame);
   _updateAmbientBuffers(currentFrame);
 
-  if (updateLightDescriptors) _setLightDescriptors(currentFrame);
+  if (updateLightDescriptors) {
+    // specifies whether shadows are enabled for some specific light or not + algorithm for shadowing.
+    // changes when shadows/lights are changed
+    _updateShadowParametersBuffer(currentFrame);
+    _setLightDescriptors(currentFrame);
+  }
 }

@@ -17,8 +17,7 @@ layout(location = 1) out vec4 outColorBloom;
 layout(set = 0, binding = 4) uniform sampler2D texSampler[4];
 
 layout(push_constant) uniform constants {
-    layout(offset = 32) float heightLevels[4];
-    int enableShadow;
+    layout(offset = 32) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;
     float stripeLeft;

@@ -13,12 +13,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -54,28 +52,30 @@ Main::Main() {
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _camera->setSpeed(0.05f, 0.01f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_BACK_BIT);
-  ;
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
@@ -85,11 +85,8 @@ Main::Main() {
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -117,10 +114,7 @@ Main::Main() {
       fillMaterialPBR(material);
     }
     modelBox->setMaterial(materialModelBox);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-      modelBox->setModel(model);
-    }
+    modelBox->setTranslate(glm::vec3(0.f, 3.f, -3.f));
 
     _core->addDrawable(modelBox);
   }
@@ -134,12 +128,8 @@ Main::Main() {
       fillMaterialPhong(material);
     }
     modelAvocado->setMaterial(materialModelAvocado);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-      modelAvocado->setModel(model);
-    }
-
+    modelAvocado->setTranslate(glm::vec3(0.f, 0.f, -3.f));
+    modelAvocado->setScale(glm::vec3(15.f, 15.f, 15.f));
     _core->addDrawable(modelAvocado);
   }
   // draw simple textured model PBR
@@ -150,11 +140,8 @@ Main::Main() {
       fillMaterialPBR(material);
     }
     modelAvocado->setMaterial(materialModelAvocado);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(15.f, 15.f, 15.f));
-      modelAvocado->setModel(model);
-    }
+    modelAvocado->setScale(glm::vec3(15.f, 15.f, 15.f));
+    modelAvocado->setTranslate(glm::vec3(0.f, -1.f, -3.f));
     _core->addDrawable(modelAvocado);
   }
 
@@ -167,11 +154,8 @@ Main::Main() {
       fillMaterialPhong(material);
     }
     _modelBottle->setMaterial(_materialModelBottlePhong);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      _modelBottle->setModel(model);
-    }
+    _modelBottle->setTranslate(glm::vec3(2.f, 0.f, -3.f));
+    _modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(_modelBottle);
   }
 
@@ -183,11 +167,8 @@ Main::Main() {
       fillMaterialPBR(material);
     }
     modelBottle->setMaterial(_materialModelBottlePBR);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
+    modelBottle->setTranslate(glm::vec3(2.f, -1.f, -3.f));
+    modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(modelBottle);
   }
   // draw textured model without lighting model
@@ -195,43 +176,31 @@ Main::Main() {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
     _materialModelBottleColor = gltfModelBottle->getMaterialsColor();
     modelBottle->setMaterial(_materialModelBottleColor);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, -2.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
+    modelBottle->setTranslate(glm::vec3(2.f, -2.f, -3.f));
+    modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(modelBottle);
   }
   // draw model without material
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
+    modelBottle->setTranslate(glm::vec3(2.f, 1.f, -3.f));
+    modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(modelBottle);
   }
   // draw material normal
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
     modelBottle->setDrawType(DrawType::NORMAL);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 1.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
+    modelBottle->setTranslate(glm::vec3(3.f, 1.f, -3.f));
+    modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(modelBottle);
   }
   // draw wireframe
   {
     auto modelBottle = _core->createModel3D(gltfModelBottle);
     modelBottle->setDrawType(DrawType::WIREFRAME);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(3.f, 3.f, 3.f));
-      modelBottle->setModel(model);
-    }
+    modelBottle->setTranslate(glm::vec3(3.f, 0.f, -3.f));
+    modelBottle->setScale(glm::vec3(3.f, 3.f, 3.f));
     _core->addDrawable(modelBottle);
   }
   // draw skeletal textured model with multiple animations
@@ -249,11 +218,8 @@ Main::Main() {
     modelFish->setAnimation(_animationFish);
     // register to play animation, if don't call, there will not be any animation,
     // even model can disappear because of zero start weights
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
-      modelFish->setModel(model);
-    }
+    modelFish->setTranslate(glm::vec3(-2.f, -1.f, -3.f));
+    modelFish->setScale(glm::vec3(5.f, 5.f, 5.f));
     _core->addDrawable(modelFish);
   }
 
@@ -269,11 +235,8 @@ Main::Main() {
     auto animationDancing = _core->createAnimation(gltfModelDancing);
     // set animation to model, so joints will be passed to shader
     modelDancing->setAnimation(animationDancing);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelDancing->setModel(model);
-    }
+    modelDancing->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
+    modelDancing->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(modelDancing);
   }
 
@@ -289,11 +252,8 @@ Main::Main() {
     auto animationWalking = _core->createAnimation(gltfModelWalking);
     // set animation to model, so joints will be passed to shader
     modelWalking->setAnimation(animationWalking);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelWalking->setModel(model);
-    }
+    modelWalking->setTranslate(glm::vec3(-2.f, 0.f, -3.f));
+    modelWalking->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(modelWalking);
   }
 
@@ -316,17 +276,9 @@ void Main::update() {
                                               radius * cos(glm::radians(angleVertical)));
 
   _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
   _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;

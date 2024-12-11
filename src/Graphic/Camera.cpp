@@ -1,15 +1,14 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "Graphic/Camera.h"
-#include "glm/gtc/matrix_transform.hpp"
 
 CameraDirectionalLight::CameraDirectionalLight() {
   _eye = glm::vec3(0.f, 15.f, 0.f);
   _direction = glm::vec3(0.f, -1.f, 0.f);
   _up = glm::vec3(0.f, 0.f, -1.f);
 
-  _rect = {-20.f, 20.f, -20.f, 20.f};
+  _rect = {-10.f, 10.f, -10.f, 10.f};
   _near = 0.1f;
-  _far = 40.f;
+  _far = 20.f;
 }
 
 void CameraDirectionalLight::setPosition(glm::vec3 position) { _eye = position; }
@@ -19,6 +18,10 @@ void CameraDirectionalLight::setArea(std::array<float, 4> rect, float near, floa
   _near = near;
   _far = far;
 }
+
+float CameraDirectionalLight::getNear() { return _near; }
+
+float CameraDirectionalLight::getFar() { return _far; }
 
 glm::vec3 CameraDirectionalLight::getPosition() { return _eye; }
 
@@ -37,7 +40,7 @@ CameraPointLight::CameraPointLight() {
          glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, -1.0, 0.0)};
 
   _near = 0.1f;
-  _far = 100.f;
+  _far = 40.f;
 }
 
 void CameraPointLight::setPosition(glm::vec3 position) { _eye = position; }
@@ -46,6 +49,8 @@ void CameraPointLight::setArea(float near, float far) {
   _near = near;
   _far = far;
 }
+
+float CameraPointLight::getNear() { return _near; }
 
 float CameraPointLight::getFar() { return _far; }
 
@@ -75,8 +80,6 @@ void Camera::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up)
   _up = up;
 }
 
-glm::mat4 Camera::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
-
 glm::vec3 Camera::getEye() { return _eye; }
 
 glm::vec3 Camera::getDirection() { return _direction; }
@@ -86,6 +89,8 @@ glm::vec3 Camera::getUp() { return _up; }
 float Camera::getFar() { return _far; }
 
 float Camera::getNear() { return _near; }
+
+void CameraOrtho::update() { ; }
 
 void CameraOrtho::setProjectionParameters(std::array<float, 4> rect, float near, float far) {
   _rect = rect;
@@ -98,54 +103,97 @@ glm::mat4 CameraOrtho::getProjection() {
   return projection;
 }
 
-CameraFly::CameraFly(std::shared_ptr<EngineState> engineState) : Camera() {
-  _engineState = engineState;
-  _once = false;
-  _xLast = 0.f;
-  _yLast = 0.f;
+glm::mat4 CameraOrtho::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
+
+CameraPerspective::CameraPerspective(std::shared_ptr<EngineState> engineState) {
   _yaw = -90.f;
   _pitch = 0.f;
   _roll = 0.f;
   _fov = 60.f;
+  _aspect = ((float)std::get<0>(engineState->getSettings()->getResolution()) /
+             (float)std::get<1>(engineState->getSettings()->getResolution()));
   _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction = glm::normalize(_direction);
-  _aspect = (float)std::get<0>(_engineState->getSettings()->getResolution()) /
-            (float)std::get<1>(_engineState->getSettings()->getResolution());
 }
 
-void CameraFly::setAspect(float aspect) { _aspect = aspect; }
+void CameraPerspective::update() { ; }
 
-glm::vec3 CameraFly::getAngles() { return glm::vec3(_yaw, _pitch, _roll); }
+void CameraPerspective::setAspect(float aspect) { _aspect = aspect; }
 
-void CameraFly::setAngles(float yaw, float pitch, float roll) {
+glm::vec3 CameraPerspective::getAngles() { return glm::vec3(_yaw, _pitch, _roll); }
+
+void CameraPerspective::setAngles(float yaw, float pitch, float roll) {
   _yaw = yaw;
   _pitch = pitch;
   _roll = roll;
+}
+
+void CameraPerspective::setProjectionParameters(float fov, float near, float far) {
+  _fov = fov;
+  _near = near;
+  _far = far;
+}
+
+glm::mat4 CameraPerspective::getView() { return glm::lookAt(_eye, _eye + _direction, _up); }
+
+glm::mat4 CameraPerspective::getProjection() {
+  auto projection = glm::perspective(glm::radians(_fov), _aspect, _near, _far);
+  return projection;
+}
+
+float CameraPerspective::getFOV() { return _fov; }
+
+CameraFly::CameraFly(std::shared_ptr<EngineState> engineState) : CameraPerspective(engineState) {
+  _engineState = engineState;
+  _once = false;
+  _xLast = 0.f;
+  _yLast = 0.f;
+}
+
+void CameraFly::update() {
+  _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
+  _direction.y = sin(glm::radians(_pitch));
+  _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
+  _direction = glm::normalize(_direction);
+
+#ifdef __ANDROID__
+  if (_keyStatus[87]) {
+    _eye += _moveSpeed * _direction;
+  }
+#else
+  if (_keyStatus[GLFW_KEY_W]) {
+    _eye += _moveSpeed * _direction;
+  }
+
+  if (_keyStatus[GLFW_KEY_S]) {
+    _eye -= _moveSpeed * _direction;
+  }
+
+  if (_keyStatus[GLFW_KEY_A]) {
+    _eye -= _moveSpeed * glm::normalize(glm::cross(_direction, _up));
+  }
+
+  if (_keyStatus[GLFW_KEY_D]) {
+    _eye += _moveSpeed * glm::normalize(glm::cross(_direction, _up));
+  }
+
+  if (_keyStatus[GLFW_KEY_SPACE]) {
+    _eye += _moveSpeed * _up;
+  }
+#endif
+}
+
+void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
+  _once = false;
+  CameraPerspective::setViewParameters(eye, direction, up);
 }
 
 void CameraFly::setSpeed(float rotate, float translate) {
   _sensitivity = rotate;
   _moveSpeed = translate;
 }
-
-void CameraFly::setViewParameters(glm::vec3 eye, glm::vec3 direction, glm::vec3 up) {
-  Camera::setViewParameters(eye, direction, up);
-}
-
-void CameraFly::setProjectionParameters(float fov, float near, float far) {
-  _fov = fov;
-  _near = near;
-  _far = far;
-}
-
-glm::mat4 CameraFly::getProjection() {
-  auto projection = glm::perspective(glm::radians(_fov), _aspect, _near, _far);
-  return projection;
-}
-
-float CameraFly::getFOV() { return _fov; }
 
 void CameraFly::cursorNotify(float xPos, float yPos) {
 #ifndef __ANDROID__
@@ -173,11 +221,6 @@ void CameraFly::cursorNotify(float xPos, float yPos) {
 
   if (_pitch > 89.0f) _pitch = 89.0f;
   if (_pitch < -89.0f) _pitch = -89.0f;
-
-  _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
-  _direction.y = sin(glm::radians(_pitch));
-  _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));
-  _direction = glm::normalize(_direction);
 }
 
 void CameraFly::mouseNotify(int button, int action, int mods) {
@@ -188,41 +231,11 @@ void CameraFly::mouseNotify(int button, int action, int mods) {
 
 void CameraFly::keyNotify(int key, int scancode, int action, int mods) {
 #ifdef __ANDROID__
-  _keyStatus[key] = true;
-
-  if (action == 0) {
-    _keyStatus[key] = false;
-  }
-
-  if ((action == 1 && key == 87) || _keyStatus[87]) {
-    _eye += _moveSpeed * _direction;
-  }
+  if (action == 1) _keyStatus[key] = true;
+  if (action == 0) _keyStatus[key] = false;
 #else
-  _keyStatus[key] = true;
-
-  if (action == GLFW_RELEASE) {
-    _keyStatus[key] = false;
-  }
-
-  if ((action == GLFW_PRESS && key == GLFW_KEY_W) || _keyStatus[GLFW_KEY_W]) {
-    _eye += _moveSpeed * _direction;
-  }
-
-  if ((action == GLFW_PRESS && key == GLFW_KEY_S) || _keyStatus[GLFW_KEY_S]) {
-    _eye -= _moveSpeed * _direction;
-  }
-
-  if ((action == GLFW_PRESS && key == GLFW_KEY_A) || _keyStatus[GLFW_KEY_A]) {
-    _eye -= _moveSpeed * glm::normalize(glm::cross(_direction, _up));
-  }
-
-  if ((action == GLFW_PRESS && key == GLFW_KEY_D) || _keyStatus[GLFW_KEY_D]) {
-    _eye += _moveSpeed * glm::normalize(glm::cross(_direction, _up));
-  }
-
-  if ((action == GLFW_PRESS && key == GLFW_KEY_SPACE) || _keyStatus[GLFW_KEY_SPACE]) {
-    _eye += _moveSpeed * _up;
-  }
+  if (action == GLFW_PRESS) _keyStatus[key] = true;
+  if (action == GLFW_RELEASE) _keyStatus[key] = false;
 #endif
 }
 

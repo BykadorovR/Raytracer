@@ -2,41 +2,32 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
 
-Shape3DPhysics::Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
+Shape3DPhysics::Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
-  _position = position;
   JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z)),
-                                        JPH::RVec3(_position.x, _position.y, _position.z), JPH::Quat::sIdentity(),
+                                        JPH::RVec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
                                         JPH::EMotionType::Dynamic, Layers::MOVING);
   _shapeBody = _physicsManager->getBodyInterface().CreateBody(boxSettings);
   _physicsManager->getBodyInterface().AddBody(_shapeBody->GetID(), JPH::EActivation::Activate);
 }
 
-// TODO: position should substract half of the shape size?
-void Shape3DPhysics::setPosition(glm::vec3 position) {
-  _position = position;
-  _physicsManager->getBodyInterface().SetPosition(_shapeBody->GetID(), JPH::RVec3(position.x, position.y, position.z),
-                                                  JPH::EActivation::Activate);
+void Shape3DPhysics::setTranslate(glm::vec3 translate) {
+  _physicsManager->getBodyInterface().SetPosition(
+      _shapeBody->GetID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
-glm::vec3 Shape3DPhysics::getPosition() { return _position; }
+glm::vec3 Shape3DPhysics::getTranslate() {
+  auto position = _physicsManager->getBodyInterface().GetPosition(_shapeBody->GetID());
+  return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
+}
+
+glm::quat Shape3DPhysics::getRotate() {
+  auto rotation = _physicsManager->getBodyInterface().GetRotation(_shapeBody->GetID());
+  return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
+}
 
 void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
   _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
-}
-
-glm::mat4 Shape3DPhysics::getModel() {
-  JPH::RMat44 transform = _physicsManager->getBodyInterface().GetWorldTransform(_shapeBody->GetID());
-  glm::mat4 converted = glm::mat4(1.f);
-  converted[0] = glm::vec4(transform.GetColumn4(0).GetX(), transform.GetColumn4(0).GetY(),
-                           transform.GetColumn4(0).GetZ(), transform.GetColumn4(0).GetW());
-  converted[1] = glm::vec4(transform.GetColumn4(1).GetX(), transform.GetColumn4(1).GetY(),
-                           transform.GetColumn4(1).GetZ(), transform.GetColumn4(1).GetW());
-  converted[2] = glm::vec4(transform.GetColumn4(2).GetX(), transform.GetColumn4(2).GetY(),
-                           transform.GetColumn4(2).GetZ(), transform.GetColumn4(2).GetW());
-  converted[3] = glm::vec4(transform.GetColumn4(3).GetX(), transform.GetColumn4(3).GetY(),
-                           transform.GetColumn4(3).GetZ(), transform.GetColumn4(3).GetW());
-  return converted;
 }
 
 Shape3DPhysics::~Shape3DPhysics() {
@@ -70,31 +61,32 @@ Shape3D::Shape3D(ShapeType shapeType,
                                                            "shaders/shape/cubePhong_fragment.spv"};
     _shadersColor[ShapeType::CUBE][MaterialType::PBR] = {"shaders/shape/cubePhong_vertex.spv",
                                                          "shaders/shape/cubePBR_fragment.spv"};
-    _shadersLight[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv", "shaders/shape/cubeDepth_fragment.spv"};
+    _shadersLightDirectional[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv",
+                                                 "shaders/shape/cubeDepthDirectional_fragment.spv"};
+    _shadersLightPoint[ShapeType::CUBE] = {"shaders/shape/cubeDepth_vertex.spv",
+                                           "shaders/shape/cubeDepthPoint_fragment.spv"};
     _shadersNormalsMesh[ShapeType::CUBE] = {"shaders/shape/cubeNormal_vertex.spv",
                                             "shaders/shape/cubeNormal_fragment.spv",
                                             "shaders/shape/cubeNormal_geometry.spv"};
     _shadersTangentMesh[ShapeType::CUBE] = {"shaders/shape/cubeTangent_vertex.spv",
                                             "shaders/shape/cubeNormal_fragment.spv",
                                             "shaders/shape/cubeNormal_geometry.spv"};
-  }
-
-  if (shapeType == ShapeType::SPHERE) {
+  } else {
     _defaultMaterialColor->setBaseColor({_gameState->getResourceManager()->getTextureOne()});
-    _shadersColor[ShapeType::SPHERE][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
-                                                             "shaders/shape/sphereColor_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
-                                                             "shaders/shape/spherePhong_fragment.spv"};
-    _shadersColor[ShapeType::SPHERE][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
-                                                           "shaders/shape/spherePBR_fragment.spv"};
-    _shadersLight[ShapeType::SPHERE] = {"shaders/shape/sphereDepth_vertex.spv",
-                                        "shaders/shape/sphereDepth_fragment.spv"};
-    _shadersNormalsMesh[ShapeType::SPHERE] = {"shaders/shape/cubeNormal_vertex.spv",
-                                              "shaders/shape/cubeNormal_fragment.spv",
-                                              "shaders/shape/cubeNormal_geometry.spv"};
-    _shadersTangentMesh[ShapeType::SPHERE] = {"shaders/shape/cubeTangent_vertex.spv",
-                                              "shaders/shape/cubeNormal_fragment.spv",
-                                              "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersColor[shapeType][MaterialType::COLOR] = {"shaders/shape/sphereColor_vertex.spv",
+                                                     "shaders/shape/sphereColor_fragment.spv"};
+    _shadersColor[shapeType][MaterialType::PHONG] = {"shaders/shape/spherePhong_vertex.spv",
+                                                     "shaders/shape/spherePhong_fragment.spv"};
+    _shadersColor[shapeType][MaterialType::PBR] = {"shaders/shape/spherePhong_vertex.spv",
+                                                   "shaders/shape/spherePBR_fragment.spv"};
+    _shadersLightDirectional[shapeType] = {"shaders/shape/sphereDepth_vertex.spv",
+                                           "shaders/shape/sphereDepthDirectional_fragment.spv"};
+    _shadersLightPoint[shapeType] = {"shaders/shape/sphereDepth_vertex.spv",
+                                     "shaders/shape/sphereDepthPoint_fragment.spv"};
+    _shadersNormalsMesh[shapeType] = {"shaders/shape/cubeNormal_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
+                                      "shaders/shape/cubeNormal_geometry.spv"};
+    _shadersTangentMesh[shapeType] = {"shaders/shape/cubeTangent_vertex.spv", "shaders/shape/cubeNormal_fragment.spv",
+                                      "shaders/shape/cubeNormal_geometry.spv"};
   }
 
   _material = _defaultMaterialColor;
@@ -215,7 +207,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -292,7 +284,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
                       {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -406,7 +398,7 @@ Shape3D::Shape3D(ShapeType shapeType,
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
                       {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}};
-      } else if (_shapeType == ShapeType::SPHERE) {
+      } else {
         attributes = {{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
                       {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
@@ -480,11 +472,14 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize shadows directional
   {
     auto shader = std::make_shared<Shader>(_engineState);
-    shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightDirectional[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightDirectional[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelineDirectional->createGraphic3DShadow(
-        VK_CULL_MODE_NONE, {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT)}, {{"depth", layoutCamera}}, {},
-        _mesh->getBindingDescription(),
+        VK_CULL_MODE_NONE,
+        {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+         shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+        {{"depth", layoutCamera}}, {}, _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
         _renderPassDepth);
   }
@@ -495,8 +490,8 @@ Shape3D::Shape3D(ShapeType shapeType,
     defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
 
     auto shader = std::make_shared<Shader>(_engineState);
-    shader->add(_shadersLight[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
-    shader->add(_shadersLight[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
+    shader->add(_shadersLightPoint[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
+    shader->add(_shadersLightPoint[_shapeType][1], VK_SHADER_STAGE_FRAGMENT_BIT);
     _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
     _pipelinePoint->createGraphic3DShadow(
         VK_CULL_MODE_NONE,
@@ -731,7 +726,7 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     }
 
     BufferMVP cameraUBO{};
-    cameraUBO.model = _model * _translateOrigin;
+    cameraUBO.model = getModel();
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
@@ -831,24 +826,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipeline->getPipeline());
-  std::tuple<int, int> resolution;
-  if (lightType == LightType::DIRECTIONAL) {
-    resolution = _gameState->getLightManager()
-                     ->getDirectionalLights()[lightIndex]
-                     ->getDepthTexture()[currentFrame]
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
-  if (lightType == LightType::POINT) {
-    resolution = _gameState->getLightManager()
-                     ->getPointLights()[lightIndex]
-                     ->getDepthCubemap()[currentFrame]
-                     ->getTexture()
-                     ->getImageView()
-                     ->getImage()
-                     ->getResolution();
-  }
+  std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
@@ -902,7 +880,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
 
   BufferMVP cameraMVP{};
-  cameraMVP.model = _model * _translateOrigin;
+  cameraMVP.model = getModel();
   cameraMVP.view = view;
   cameraMVP.projection = projection;
 

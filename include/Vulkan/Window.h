@@ -23,6 +23,5 @@ class Window {
   void* getWindow();
   bool getResized();
   void setResized(bool resized);
-  std::tuple<int, int> getResolution();
   ~Window();
 };

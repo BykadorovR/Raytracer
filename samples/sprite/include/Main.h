@@ -4,7 +4,6 @@
 
 class InputHandler : public InputSubscriber {
  private:
-  bool _cursorEnabled = false;
   std::shared_ptr<Core> _core;
 
  public:
@@ -29,7 +28,6 @@ class Main {
   std::shared_ptr<MaterialColor> _materialColor;
   std::shared_ptr<MaterialPhong> _materialPhong;
   std::shared_ptr<MaterialPBR> _materialPBR;
-
   int _typeIndex = 0;
 
  public:

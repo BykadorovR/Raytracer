@@ -14,12 +14,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -54,6 +52,7 @@ Main::Main() {
   _core->initialize();
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
@@ -91,12 +90,8 @@ Main::Main() {
 
     auto particleTexture = _core->createTexture("../assets/gradient.png", settings->getLoadTextureColorFormat(), 1);
     auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-    {
-      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-      particleSystem->setModel(matrix);
-    }
+    particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
+    particleSystem->setTranslate(glm::vec3(0.f, 0.f, 2.f));
     _core->addParticleSystem(particleSystem);
   }
   {
@@ -130,12 +125,8 @@ Main::Main() {
 
     auto particleTexture = _core->createTexture("../assets/circle.png", settings->getLoadTextureColorFormat(), 1);
     auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-    {
-      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));
-      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-      particleSystem->setModel(matrix);
-    }
+    particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
+    particleSystem->setTranslate(glm::vec3(0.5f, 0.f, 2.f));
     _core->addParticleSystem(particleSystem);
   }
   _core->endRecording();

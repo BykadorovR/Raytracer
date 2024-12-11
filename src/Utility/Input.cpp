@@ -5,7 +5,7 @@ Input::Input(std::shared_ptr<Window> window) {
 #ifndef __ANDROID__
   _window = window;
   glfwSetWindowUserPointer((GLFWwindow*)(window->getWindow()), this);
-  glfwSetInputMode((GLFWwindow*)(window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode((GLFWwindow*)(window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   glfwSetCursorPosCallback((GLFWwindow*)(window->getWindow()), [](GLFWwindow* window, double xpos, double ypos) {
     reinterpret_cast<Input*>(glfwGetWindowUserPointer(window))->cursorHandler(xpos, ypos);
   });
@@ -45,9 +45,7 @@ void Input::charHandler(unsigned int code) {
 }
 
 void Input::scrollHandler(double xOffset, double yOffset) {
-#ifndef __ANDROID__
   if (_showCursor == true)
-#endif
     for (auto& sub : _subscribersExclusive)
       if (sub->scrollNotify(xOffset, yOffset)) return;
 
@@ -57,9 +55,7 @@ void Input::scrollHandler(double xOffset, double yOffset) {
 }
 
 void Input::cursorHandler(double xpos, double ypos) {
-#ifndef __ANDROID__
   if (_showCursor == true)
-#endif
     for (auto& sub : _subscribersExclusive) sub->cursorNotify(xpos, ypos);
 
   for (auto& sub : _subscribers) {
@@ -68,9 +64,7 @@ void Input::cursorHandler(double xpos, double ypos) {
 }
 
 void Input::mouseHandler(int button, int action, int mods) {
-#ifndef __ANDROID__
   if (_showCursor == true)
-#endif
     for (auto& sub : _subscribersExclusive)
       if (sub->mouseNotify(button, action, mods)) return;
 
@@ -83,13 +77,14 @@ void Input::subscribe(std::shared_ptr<InputSubscriber> sub) { _subscribers.push_
 
 void Input::subscribe(std::shared_ptr<InputSubscriberExclusive> sub) { _subscribersExclusive.push_back(sub); }
 
-#ifndef __ANDROID__
 void Input::showCursor(bool show) {
   _showCursor = show;
-
+#ifndef __ANDROID__
   if (show)
     glfwSetInputMode((GLFWwindow*)(_window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   else
     glfwSetInputMode((GLFWwindow*)(_window->getWindow()), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-}
 #endif
+}
+
+bool Input::cursorEnabled() { return _showCursor; }

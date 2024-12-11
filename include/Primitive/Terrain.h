@@ -17,6 +17,8 @@
 class TerrainPhysics {
  private:
   std::shared_ptr<PhysicsManager> _physicsManager;
+  std::shared_ptr<GameState> _gameState;
+  std::shared_ptr<EngineState> _engineState;
   std::vector<float> _terrainPhysic;
   std::tuple<int, int> _resolution;
   std::vector<float> _heights;
@@ -26,6 +28,8 @@ class TerrainPhysics {
   JPH::Ref<JPH::ScaledShape> _terrainShape;
   std::tuple<int, int> _heightScaleOffset;
   std::shared_ptr<ImageCPU<uint8_t>> _heightmap;
+  std::optional<glm::vec3> _hitCoords;
+  glm::vec3 _rayOrigin, _rayDirection;
   void _initialize();
 
  public:
@@ -33,13 +37,16 @@ class TerrainPhysics {
                  glm::vec3 position,
                  glm::vec3 scale,
                  std::tuple<int, int> heightScaleOffset,
-                 std::shared_ptr<PhysicsManager> physicsManager);
+                 std::shared_ptr<PhysicsManager> physicsManager,
+                 std::shared_ptr<GameState> gameState,
+                 std::shared_ptr<EngineState> engineState);
   void reset(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
   void setPosition(glm::vec3 position);
+  void setFriction(float friction);
   glm::vec3 getPosition();
   std::tuple<int, int> getResolution();
   std::vector<float> getHeights();
-  std::optional<glm::vec3> hit(glm::vec3 origin, glm::vec3 direction);
+  std::optional<glm::vec3> getHit(glm::vec2 _cursorPosition);
   ~TerrainPhysics();
 };
 
@@ -112,7 +119,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
-  float _minDistance = 30, _maxDistance = 100;
+  float _minTesselationDistance = 30, _maxTesselationDistance = 100;
   bool _enableEdge = false;
   bool _showLoD = false;
   bool _enableLighting = true;
@@ -122,6 +129,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::vector<bool> _changedHeightmap;
   std::vector<bool> _changeMesh, _reallocatePatch, _changePatch;
   std::pair<int, int> _patchNumber;
+  std::optional<glm::vec3> _hitCoords;
 
   int _calculateTileByPosition(glm::vec3 position);
   glm::ivec2 _calculatePixelByPosition(glm::vec3 position);
@@ -133,7 +141,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
  public:
   void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
   void setTessellationLevel(int min, int max);
-  void setDisplayDistance(int min, int max);
+  void setTesselationDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
   void setHeight(float scale, float shift);
 
@@ -147,6 +155,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void showLoD(bool enable);
   bool heightmapChanged();
   std::shared_ptr<ImageCPU<uint8_t>> getHeightmap();
+  std::optional<glm::vec3> getHitCoords();
 
   void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
@@ -176,7 +185,7 @@ class TerrainGPU : public Drawable, public Shadowable {
   float _heightShift = 16.f;
   std::array<float, 4> _heightLevels = {16, 128, 192, 256};
   int _minTessellationLevel = 4, _maxTessellationLevel = 32;
-  float _minDistance = 30, _maxDistance = 100;
+  float _minTesselationDistance = 30, _maxTesselationDistance = 100;
   bool _enableLighting = true;
   bool _enableShadow = true;
   std::vector<int> _patchTextures;
@@ -191,7 +200,7 @@ class TerrainGPU : public Drawable, public Shadowable {
   void setPatchRotations(std::vector<int> patchRotationsIndex);
   void setPatchTextures(std::vector<int> patchTextures);
   void setTessellationLevel(int min, int max);
-  void setDisplayDistance(int min, int max);
+  void setTesselationDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
   void setHeight(float scale, float shift);
 

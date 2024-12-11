@@ -18,19 +18,40 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Character/Character.h>
 
+enum class GroundState {
+  OnGround,       ///< Character is on the ground and can move freely.
+  OnSteepGround,  ///< Character is on a slope that is too steep and can't climb up any further. The caller should start
+                  ///< applying downward velocity if sliding from the slope is desired.
+  NotSupported,   ///< Character is touching an object, but is not supported by it and should fall. The GetGroundXXX
+                  ///< functions will return information about the touched object.
+  InAir,          ///< Character is in the air and is not touching anything
+};
+
 class Model3DPhysics {
  private:
   std::shared_ptr<PhysicsManager> _physicsManager;
   // destructor is private, can't use smart pointer
   JPH::Ref<JPH::Character> _character;
-  glm::vec3 _position;
+  glm::vec3 _size;
+  float _collisionTolerance = 0.2f;
 
  public:
-  Model3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
+  Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  Model3DPhysics(glm::vec3 translate, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
+  void postUpdate();
+  void setTranslate(glm::vec3 translate);
+  void setRotate(glm::quat rotate);
+  glm::quat getRotate();
+  glm::vec3 getTranslate();
   void setLinearVelocity(glm::vec3 velocity);
-  glm::mat4 getModel();
+  glm::vec3 getUp();
+  void setUp(glm::vec3 up);
+  glm::vec3 getLinearVelocity();
+  void setFriction(float friction);
+  GroundState getGroundState();
+  glm::vec3 getGroundNormal();
+  glm::vec3 getGroundVelocity();
+  glm::vec3 getSize();
   ~Model3DPhysics();
 };
 

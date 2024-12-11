@@ -37,20 +37,12 @@ class Core {
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
   // for compute render pass isn't needed
-  std::shared_ptr<RenderPass> _renderPassLightDepth, _renderPassGraphic, _renderPassDebug;
+  std::shared_ptr<RenderPass> _renderPassShadowMap, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
-  // store for each light, number in flight frame buffers
-  std::vector<std::vector<std::shared_ptr<Framebuffer>>> _frameBufferDirectionalLightDepth;
-  std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _frameBufferPointLightDepth;
-
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
       _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
   std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
       _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
-
-  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
-  std::vector<std::shared_ptr<CommandPool>> _commandPoolDirectional;
-  std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
   std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerDebug;
   std::vector<std::shared_ptr<Logger>> _loggerDirectional;
   std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
@@ -81,7 +73,9 @@ class Core {
   std::vector<std::shared_ptr<ParticleSystem>> _particleSystem;
   std::shared_ptr<Postprocessing> _postprocessing;
   std::shared_ptr<Skybox> _skybox = nullptr;
-  std::shared_ptr<Blur> _blur;
+  std::shared_ptr<BlurCompute> _blurCompute;
+  std::map<std::shared_ptr<DirectionalShadow>, std::shared_ptr<DirectionalShadowBlur>> _blurGraphicDirectional;
+  std::map<std::shared_ptr<PointShadow>, std::shared_ptr<PointShadowBlur>> _blurGraphicPoint;
   std::shared_ptr<BS::thread_pool> _pool;
   std::function<void()> _callbackUpdate;
   std::function<void(int width, int height)> _callbackReset;
@@ -90,9 +84,11 @@ class Core {
       _frameSubmitInfoGraphic, _frameSubmitInfoDebug;
   std::mutex _frameSubmitMutexGraphic;
 
-  void _directionalLightCalculator(int index);
-  void _pointLightCalculator(int index, int face);
+  void _drawShadowMapDirectional(int index);
+  void _drawShadowMapPoint(int index, int face);
   void _computeParticles();
+  void _drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> directionalShadow);
+  void _drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int face);
   void _computePostprocessing(int swapchainImageIndex);
   void _debugVisualizations(int swapchainImageIndex);
   void _initializeTextures();
@@ -137,10 +133,10 @@ class Core {
   std::shared_ptr<MaterialColor> createMaterialColor(MaterialTarget target);
   std::shared_ptr<MaterialPhong> createMaterialPhong(MaterialTarget target);
   std::shared_ptr<MaterialPBR> createMaterialPBR(MaterialTarget target);
-  std::shared_ptr<Shape3D> createBoundingBox(glm::vec3 min,
-                                             glm::vec3 max,
-                                             VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Shape3D> createShape3D(ShapeType shapeType, VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
+  std::shared_ptr<Shape3D> createCapsule(float height,
+                                         float radius,
+                                         VkCullModeFlagBits cullMode = VK_CULL_MODE_BACK_BIT);
   std::shared_ptr<Model3D> createModel3D(std::shared_ptr<ModelGLTF> modelGLTF);
   std::shared_ptr<Sprite> createSprite();
   std::shared_ptr<TerrainGPU> createTerrainInterpolation(std::shared_ptr<ImageCPU<uint8_t>> heightmap);
@@ -152,19 +148,26 @@ class Core {
   std::shared_ptr<ParticleSystem> createParticleSystem(std::vector<Particle> particles,
                                                        std::shared_ptr<Texture> particleTexture);
   std::shared_ptr<Skybox> createSkybox();
-  std::shared_ptr<PointLight> createPointLight(std::tuple<int, int> resolution);
-  std::shared_ptr<DirectionalLight> createDirectionalLight(std::tuple<int, int> resolution);
+  std::shared_ptr<PointLight> createPointLight();
+  std::shared_ptr<DirectionalLight> createDirectionalLight();
   std::shared_ptr<AmbientLight> createAmbientLight();
+  std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<PointLight> pointLight, bool blur = false);
+  std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
+                                                             bool blur = true);
 
   std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();
   const std::vector<std::shared_ptr<Drawable>>& getDrawables(AlphaType type);
   std::vector<std::shared_ptr<PointLight>> getPointLights();
   std::vector<std::shared_ptr<DirectionalLight>> getDirectionalLights();
+  std::vector<std::shared_ptr<PointShadow>> getPointShadows();
+  std::vector<std::shared_ptr<DirectionalShadow>> getDirectionalShadows();
   std::shared_ptr<Postprocessing> getPostprocessing();
-  std::shared_ptr<Blur> getBlur();
+  std::shared_ptr<BlurCompute> getBloomBlur();
+
   std::shared_ptr<EngineState> getEngineState();
   std::shared_ptr<GameState> getGameState();
+  std::shared_ptr<Camera> getCamera();
   std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();
 };

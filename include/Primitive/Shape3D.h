@@ -11,21 +11,20 @@
 #include "Utility/PhysicsManager.h"
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
-enum class ShapeType { CUBE = 0, SPHERE = 1 };
+enum class ShapeType { CUBE = 0, SPHERE = 1, CAPSULE = 2 };
 
 class Shape3DPhysics {
  private:
   std::shared_ptr<PhysicsManager> _physicsManager;
   // destructor is private, can't use smart pointer
   JPH::Body* _shapeBody;
-  glm::vec3 _position;
 
  public:
-  Shape3DPhysics(glm::vec3 position, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
+  Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void setTranslate(glm::vec3 translate);
+  glm::vec3 getTranslate();
+  glm::quat getRotate();
   void setLinearVelocity(glm::vec3 velocity);
-  glm::mat4 getModel();
   ~Shape3DPhysics();
 };
 
@@ -35,7 +34,8 @@ class Shape3D : public Drawable, public Shadowable {
   std::shared_ptr<GameState> _gameState;
 
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
-  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
+  std::map<ShapeType, std::vector<std::string>> _shadersLightDirectional, _shadersLightPoint, _shadersNormalsMesh,
+      _shadersTangentMesh;
   ShapeType _shapeType;
   std::shared_ptr<MeshStatic3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>

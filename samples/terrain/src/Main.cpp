@@ -15,12 +15,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
       _core->getEngineState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
     } else {
       _core->getEngineState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
     }
   }
 #endif
@@ -48,14 +46,10 @@ void Main::_createTerrainPhong(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -78,14 +72,10 @@ void Main::_createTerrainPBR(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -108,14 +98,10 @@ void Main::_createTerrainColor(std::string path) {
   _terrain->setPatchTextures(_patchTextures);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrain->setModel(scaleMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -162,7 +148,7 @@ void Main::_createTerrainDebug(std::string path) {
   _terrainDebug->setMaterial(_materialColor);
 
   _terrainDebug->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrainDebug->setDisplayDistance(_minDistance, _maxDistance);
+  _terrainDebug->setTesselationDistance(_minDistance, _maxDistance);
   _terrainDebug->setColorHeightLevels(_heightLevels);
   _terrainDebug->setHeight(_heightScale, _heightShift);
   _terrainDebug->patchEdge(_showPatches);
@@ -176,11 +162,8 @@ void Main::_createTerrainDebug(std::string path) {
   if (_showWireframe == false && _showNormals == false) {
     _terrainDebug->setDrawType(DrawType::FILL);
   }
-  {
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
-    auto scaleMatrix = glm::scale(translateMatrix, _terrainScale);
-    _terrainDebug->setModel(scaleMatrix);
-  }
+  _terrainDebug->setScale(_terrainScale);
+  _terrainDebug->setTranslate(_terrainPositionDebug);
 }
 
 Main::Main() {
@@ -209,30 +192,36 @@ Main::Main() {
   _core->startRecording();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
+  _camera->setSpeed(0.05f, 0.01f);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
 
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
+
+  _sphereClickDebug = _core->createShape3D(ShapeType::SPHERE);
+  _sphereClickDebug->setScale(glm::vec3(0.005f, 0.005f, 0.005f));
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
@@ -371,17 +360,13 @@ Main::Main() {
   _physicsManager = std::make_shared<PhysicsManager>();
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
-                                                     _physicsManager);
+                                                     _physicsManager, _core->getGameState(), _core->getEngineState());
 
   _createTerrainDebug("../assets/heightmap.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
-  {
-    auto model = glm::translate(glm::mat4(1.f), _terrainPositionDebug);
-    model = glm::scale(model, _terrainScale);
-    _terrainCPU->setModel(model);
-  }
-
+  _terrainCPU->setTranslate(_terrainPositionDebug);
+  _terrainCPU->setScale(_terrainScale);
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -401,17 +386,9 @@ void Main::update() {
                                               radius * cos(glm::radians(angleVertical)));
 
   _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
   _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;
@@ -549,6 +526,12 @@ void Main::update() {
     }
   }
   _core->getGUI()->endWindow();
+
+  auto hitPosition = _terrainDebug->getHitCoords();
+  if (hitPosition) {
+    _sphereClickDebug->setTranslate(hitPosition.value());
+    _core->addDrawable(_sphereClickDebug);
+  }
 
   if (_showCPU || _showDebug) {
     _core->getGUI()->startWindow("Editor");

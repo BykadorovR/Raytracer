@@ -291,111 +291,6 @@ std::vector<VkVertexInputAttributeDescription> MeshDynamic3D::getAttributeDescri
   return attributeDescriptions;
 }
 
-MeshBoundingBox::MeshBoundingBox(glm::vec3 minPoint,
-                                 glm::vec3 maxPoint,
-                                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                 std::shared_ptr<EngineState> engineState)
-    : MeshStatic3D(engineState) {
-  std::vector<Vertex3D> vertices(24);
-  // normal - z, tangent - y, bitangent - x
-  // 0
-  vertices[0].pos = glm::vec3(minPoint.x, minPoint.y, maxPoint.z);
-  vertices[0].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[0].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[1].pos = glm::vec3(minPoint.x, minPoint.y, maxPoint.z);
-  vertices[1].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[1].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[2].pos = glm::vec3(minPoint.x, minPoint.y, maxPoint.z);
-  vertices[2].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[2].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 1
-  vertices[3].pos = glm::vec3(maxPoint.x, minPoint.y, maxPoint.z);
-  vertices[3].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[3].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[4].pos = glm::vec3(maxPoint.x, minPoint.y, maxPoint.z);
-  vertices[4].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[4].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[5].pos = glm::vec3(maxPoint.x, minPoint.y, maxPoint.z);
-  vertices[5].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[5].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 2
-  vertices[6].pos = glm::vec3(minPoint.x, maxPoint.y, maxPoint.z);
-  vertices[6].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[6].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[7].pos = glm::vec3(minPoint.x, maxPoint.y, maxPoint.z);
-  vertices[7].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[7].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[8].pos = glm::vec3(minPoint.x, maxPoint.y, maxPoint.z);
-  vertices[8].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[8].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 3
-  vertices[9].pos = glm::vec3(maxPoint.x, maxPoint.y, maxPoint.z);
-  vertices[9].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[9].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[10].pos = glm::vec3(maxPoint.x, maxPoint.y, maxPoint.z);
-  vertices[10].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[10].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[11].pos = glm::vec3(maxPoint.x, maxPoint.y, maxPoint.z);
-  vertices[11].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[11].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 4
-  vertices[12].pos = glm::vec3(minPoint.x, minPoint.y, minPoint.z);
-  vertices[12].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[12].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[13].pos = glm::vec3(minPoint.x, minPoint.y, minPoint.z);
-  vertices[13].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[13].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[14].pos = glm::vec3(minPoint.x, minPoint.y, minPoint.z);
-  vertices[14].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[14].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 5
-  vertices[15].pos = glm::vec3(maxPoint.x, minPoint.y, minPoint.z);
-  vertices[15].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[15].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[16].pos = glm::vec3(maxPoint.x, minPoint.y, minPoint.z);
-  vertices[16].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[16].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[17].pos = glm::vec3(maxPoint.x, minPoint.y, minPoint.z);
-  vertices[17].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[17].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 6
-  vertices[18].pos = glm::vec3(minPoint.x, maxPoint.y, minPoint.z);
-  vertices[18].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[18].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[19].pos = glm::vec3(minPoint.x, maxPoint.y, minPoint.z);
-  vertices[19].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[19].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[20].pos = glm::vec3(minPoint.x, maxPoint.y, minPoint.z);
-  vertices[20].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[20].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 7
-  vertices[21].pos = glm::vec3(maxPoint.x, maxPoint.y, minPoint.z);
-  vertices[21].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[21].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[22].pos = glm::vec3(maxPoint.x, maxPoint.y, minPoint.z);
-  vertices[22].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[22].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[23].pos = glm::vec3(maxPoint.x, maxPoint.y, minPoint.z);
-  vertices[23].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[23].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-
-  std::vector<uint32_t> indices{                          // Bottom
-                                0, 12, 15, 15, 3, 0,      // ccw if look to this face from down
-                                                          //  Top
-                                6, 9, 21, 21, 18, 6,      // ccw if look to this face from up
-                                                          //  Left
-                                2, 8, 20, 20, 14, 2,      // ccw if look to this face from left
-                                                          //  Right
-                                5, 17, 23, 23, 11, 5,     // ccw if look to this face from right
-                                                          //  Front
-                                4, 10, 7, 7, 1, 4,        // ccw if look to this face from front
-                                                          //  Back
-                                16, 13, 19, 19, 22, 16};  // ccw if look to this face from back
-  setVertices(vertices, commandBufferTransfer);
-  setIndexes(indices, commandBufferTransfer);
-  setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
-}
-
 MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState)
     : MeshStatic3D(engineState) {
   std::vector<Vertex3D> vertices(24);
@@ -522,7 +417,7 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
     // add (sectorCount+1) vertices per stack
     // first and last vertices have same position and normal, but different tex coords
     for (int j = 0; j <= sectorCount; ++j) {
-      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 0 to 2pi
+      sectorAngle = 2 * M_PI - j * sectorStep;  // starting from 2pi to 0, very IMPORTANT for winding order
 
       // vertex position (x, y, z)
       x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
@@ -572,6 +467,136 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
   }
   setVertices(vertices, commandBufferTransfer);
   setIndexes(indexes, commandBufferTransfer);
+  setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
+}
+
+MeshCapsule::MeshCapsule(float height,
+                         float radius,
+                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
+                         std::shared_ptr<EngineState> engineState)
+    : MeshStatic3D(engineState) {
+  int sectorCount = 20;
+  int stackCount = 10;
+
+  float sectorStep = 2 * M_PI / sectorCount;
+  float stackStep = M_PI / stackCount;
+  float halfHeight = height * 0.5f;
+
+  std::vector<Vertex3D> vertices;
+
+  // Top hemisphere
+  for (int i = 0; i <= stackCount; ++i) {
+    float stackAngle = M_PI / 2 - i * stackStep / 2.f;  // pi/2 - 0
+    float xz = radius * cosf(stackAngle);               // r * cos(u)
+    float y = radius * sinf(stackAngle) + halfHeight;   // r * sin(u) + half of the height
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = 2 * M_PI - j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = xz * cosf(sectorAngle);  // r * cos(u) * cos(v)
+      float z = xz * sinf(sectorAngle);  // r * cos(u) * sin(v)
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, y - halfHeight, z));  // normal of the top hemisphere
+      vertex.texCoord = glm::vec2((float)j / sectorCount, (float)i / stackCount);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // Cylinder part
+  for (int i = 0; i <= 1; ++i) {
+    float y = i == 0 ? halfHeight : -halfHeight;  // top and bottom
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = 2 * M_PI - j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = radius * cosf(sectorAngle);
+      float z = radius * sinf(sectorAngle);
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, 0.0f, z));  // cylinder normal
+      vertex.texCoord = glm::vec2((float)j / sectorCount, i);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // bottom hemisphere
+  for (int i = 0; i <= stackCount; ++i) {
+    float stackAngle = -M_PI / 2 + i * stackStep / 2.f;  // -pi/2 - 0
+    float xz = radius * cosf(stackAngle);                // r * cos(u)
+    float y = radius * sinf(stackAngle) - halfHeight;    // r * sin(u) - half of the height
+
+    for (int j = 0; j <= sectorCount; ++j) {
+      Vertex3D vertex;
+      float sectorAngle = j * sectorStep;  // very IMPORTANT for winding order
+
+      float x = xz * cosf(sectorAngle);
+      float z = xz * sinf(sectorAngle);
+
+      vertex.pos = glm::vec3(x, y, z);
+      vertex.normal = glm::normalize(glm::vec3(x, y + halfHeight, z));  // normal of the bottom hemisphere
+      vertex.texCoord = glm::vec2((float)j / sectorCount, (float)i / stackCount);
+      vertices.push_back(vertex);
+    }
+  }
+
+  // generate indices
+  std::vector<uint32_t> indices;
+  // top hemisphere
+  int k1, k2;
+  for (int i = 0; i < stackCount; ++i) {
+    k1 = i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  // cylinder
+  int offset = (stackCount + 1) * (sectorCount + 1);
+  for (int i = 0; i < 1; ++i) {
+    k1 = offset + i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  // bottom hemisphere
+  offset += 2 * (sectorCount + 1);
+  for (int i = 0; i < stackCount; ++i) {
+    k1 = offset + i * (sectorCount + 1);
+    k2 = k1 + sectorCount + 1;
+
+    for (int j = 0; j < sectorCount; ++j, ++k1, ++k2) {
+      indices.push_back(k1);
+      indices.push_back(k2);
+      indices.push_back(k1 + 1);
+
+      indices.push_back(k1 + 1);
+      indices.push_back(k2);
+      indices.push_back(k2 + 1);
+    }
+  }
+
+  setVertices(vertices, commandBufferTransfer);
+  setIndexes(indices, commandBufferTransfer);
   setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
 }
 

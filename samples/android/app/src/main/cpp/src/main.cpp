@@ -56,6 +56,8 @@ std::shared_ptr<Model3DPhysics> _model3DPhysics;
 std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
 std::shared_ptr<PhysicsManager> _physicsManager;
 std::shared_ptr<TerrainPhysics> _terrainPhysics;
+float _modelScale = 2.f;
+float _boundingBoxScale = 1.5f;
 
 int _typeIndex = 0;
 int _patchX = 12, _patchY = 12;
@@ -64,7 +66,7 @@ float _heightShift = 16.f;
 std::array<float, 4> _heightLevels = {16, 128, 192, 256};
 int _minTessellationLevel = 4, _maxTessellationLevel = 32;
 float _minDistance = 30, _maxDistance = 100;
-glm::vec3 _terrainPosition = glm::vec3(2.f, -6.f, 0.f);
+glm::vec3 _terrainPosition = glm::vec3(2.f, 0.f, 0.f);
 glm::vec3 _terrainScale = glm::vec3(1.f);
 
 void _createTerrainPhong() {
@@ -72,14 +74,10 @@ void _createTerrainPhong() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPhong);
-  {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    _terrain->setModel(translateMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -89,14 +87,10 @@ void _createTerrainPBR() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialPBR);
-  {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    _terrain->setModel(translateMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -106,14 +100,10 @@ void _createTerrainColor() {
   _terrain->setPatchNumber(_patchX, _patchY);
   _terrain->initialize(_core->getCommandBufferApplication());
   _terrain->setMaterial(_materialColor);
-  {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), _terrainScale);
-    auto translateMatrix = glm::translate(glm::mat4(1.f), _terrainPosition);
-    _terrain->setModel(translateMatrix);
-  }
-
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
   _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
-  _terrain->setDisplayDistance(_minDistance, _maxDistance);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
   _terrain->setColorHeightLevels(_heightLevels);
   _terrain->setHeight(_heightScale, _heightShift);
 }
@@ -135,8 +125,8 @@ void update() {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
     if (_core->getGUI()->drawButton("Reset")) {
-      _shape3DPhysics->setPosition(glm::vec3(0.f, 50.f, 0.f));
-      _model3DPhysics->setPosition(glm::vec3(-4.f, -1.f, -3.f));
+      _shape3DPhysics->setTranslate(glm::vec3(0.f, 50.f, 0.f));
+      _model3DPhysics->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
     }
     _core->getGUI()->endTree();
   }
@@ -151,14 +141,14 @@ void update() {
           _createTerrainColor();
           break;
         case 1:
-          _core->removeShadowable(_terrain);
+          //_core->removeShadowable(_terrain);
           _createTerrainPhong();
-          _core->addShadowable(_terrain);
+          //_core->addShadowable(_terrain);
           break;
         case 2:
-          _core->removeShadowable(_terrain);
+          //_core->removeShadowable(_terrain);
           _createTerrainPBR();
-          _core->addShadowable(_terrain);
+          //_core->addShadowable(_terrain);
           break;
       }
       _core->addDrawable(_terrain);
@@ -174,12 +164,18 @@ void update() {
   }
   _core->getGUI()->endWindow();
 
-  _cubePlayer->setModel(_shape3DPhysics->getModel());
-  _modelSimple->setModel(_model3DPhysics->getModel());
-  _boundingBox->setModel(_model3DPhysics->getModel());
+  _cubePlayer->setTranslate(_shape3DPhysics->getTranslate());
+  _cubePlayer->setRotate(_shape3DPhysics->getRotate());
+
+  _boundingBox->setTranslate(_model3DPhysics->getTranslate());
+  _boundingBox->setRotate(_model3DPhysics->getRotate());
+
+  _modelSimple->setTranslate(_model3DPhysics->getTranslate());
+  _modelSimple->setRotate(_model3DPhysics->getRotate());
 
   // Step the world
-  _physicsManager->step();
+  _physicsManager->update();
+  _model3DPhysics->postUpdate();
 }
 
 void initialize() {
@@ -194,6 +190,7 @@ void initialize() {
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
   settings->setResolution(_resolution);
+  settings->setShadowMapResolution({512, 512});
   // for HDR, linear 16 bit per channel to represent values outside of 0-1 range
   // (UNORM - float [0, 1], SFLOAT - float)
   // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
@@ -241,7 +238,8 @@ void initialize() {
 
   auto postprocessing = _core->getPostprocessing();
 
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
+  _core->createPointShadow(_pointLightHorizontal);
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
   _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
@@ -250,11 +248,11 @@ void initialize() {
   float ambientColor = std::pow(0.05f, postprocessing->getGamma());
   ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
 
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(0.1f, 0.1f, 0.1f));
-  _directionalLight->getCamera()->setArea({-20.f, 20.f, -20.f, 20.f}, 0.1f, 60.f);
-  _directionalLight->getCamera()->setPosition({0.f, 35.f, 0.f});
-
+  _directionalLight->getCamera()->setArea({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
+  _directionalLight->getCamera()->setPosition({0.f, 10.f, 0.f});
+  _core->createDirectionalShadow(_directionalLight);
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
   {
@@ -268,54 +266,36 @@ void initialize() {
 
     auto spriteForward = _core->createSprite();
     spriteForward->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
-      spriteForward->setModel(model);
-    }
+    spriteForward->setTranslate(glm::vec3(0.f, 0.f, 1.f));
     _core->addDrawable(spriteForward);
 
     auto spriteBackward = _core->createSprite();
     spriteBackward->setMaterial(material);
-    {
-      auto model = glm::rotate(glm::mat4(1.f), glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteBackward->setModel(model);
-    }
+    spriteBackward->setRotate(glm::vec3(0.f, glm::radians(180.f), 0.f));
     _core->addDrawable(spriteBackward);
 
     auto spriteLeft = _core->createSprite();
     spriteLeft->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteLeft->setModel(model);
-    }
+    spriteLeft->setTranslate(glm::vec3(-0.5f, 0.f, 0.5f));
+    spriteLeft->setRotate(glm::vec3(0.f, glm::radians(-90.f), 0.f));
     _core->addDrawable(spriteLeft);
 
     auto spriteRight = _core->createSprite();
     spriteRight->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteRight->setModel(model);
-    }
+    spriteRight->setTranslate(glm::vec3(0.5f, 0.f, 0.5f));
+    spriteRight->setRotate(glm::vec3(0.f, glm::radians(90.f), 0.f));
     _core->addDrawable(spriteRight);
 
     auto spriteTop = _core->createSprite();
     spriteTop->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteTop->setModel(model);
-    }
+    spriteTop->setTranslate(glm::vec3(0.0f, 0.5f, 0.5f));
+    spriteTop->setRotate(glm::vec3(glm::radians(-90.f), 0.f, 0.f));
     _core->addDrawable(spriteTop);
 
     auto spriteBot = _core->createSprite();
     spriteBot->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteBot->setModel(model);
-    }
+    spriteBot->setTranslate(glm::vec3(0.0f, -0.5f, 0.5f));
+    spriteBot->setRotate(glm::vec3(glm::radians(90.f), 0.f, 0.f));
     _core->addDrawable(spriteBot);
   }
   auto modelGLTF = _core->createModelGLTF("BrainStem.gltf");
@@ -328,11 +308,8 @@ void initialize() {
   auto animationDancing = _core->createAnimation(modelGLTF);
   // set animation to model, so joints will be passed to shader
   modelGLTFPhong->setAnimation(animationDancing);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPhong->setModel(model);
-  }
+  modelGLTFPhong->setScale(glm::vec3(1.f, 1.f, 1.f));
+  modelGLTFPhong->setTranslate(glm::vec3(-2.f, 2.f, -5.f));
   _core->addDrawable(modelGLTFPhong);
   _core->addShadowable(modelGLTFPhong);
 
@@ -343,11 +320,8 @@ void initialize() {
     fillMaterialPBR(material);
   }
   modelGLTFPBR->setMaterial(pbrMaterial);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPBR->setModel(model);
-  }
+  modelGLTFPBR->setTranslate(glm::vec3(-2.f, 2.f, -3.f));
+  modelGLTFPBR->setScale(glm::vec3(1.f, 1.f, 1.f));
   _core->addDrawable(modelGLTFPBR);
   _core->addShadowable(modelGLTFPBR);
   // terrain
@@ -451,7 +425,7 @@ void initialize() {
 
   _createTerrainColor();
   _core->addDrawable(_terrain);
-  _core->addShadowable(_terrain);
+  //_core->addShadowable(_terrain);
 
   auto particleTexture = _core->createTexture("gradient.png", settings->getLoadTextureAuxilaryFormat(), 1);
 
@@ -484,53 +458,31 @@ void initialize() {
     particle.velocityDirection = glm::normalize(lightPositionHorizontal);
   }
   auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-  {
-    auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-    matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-    particleSystem->setModel(matrix);
-  }
+  particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
+  particleSystem->setTranslate(glm::vec3(0.f, 0.f, 2.f));
   _core->addParticleSystem(particleSystem);
 
   std::vector<std::shared_ptr<Shape3D>> spheres(6);
   // non HDR
   spheres[0] = _core->createShape3D(ShapeType::SPHERE);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
-    spheres[0]->setModel(model);
-  }
+  spheres[0]->setTranslate(glm::vec3(0.f, 5.f, 0.f));
   spheres[1] = _core->createShape3D(ShapeType::SPHERE);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
-    spheres[1]->setModel(model);
-  }
+  spheres[1]->setTranslate(glm::vec3(2.f, 5.f, 0.f));
   spheres[2] = _core->createShape3D(ShapeType::SPHERE);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
-    spheres[2]->setModel(model);
-  }
+  spheres[2]->setTranslate(glm::vec3(-2.f, 5.f, 0.f));
   // HDR
   spheres[3] = _core->createShape3D(ShapeType::SPHERE);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
-    spheres[3]->setModel(model);
-  }
+  spheres[3]->setTranslate(glm::vec3(0.f, 5.f, 2.f));
   spheres[4] = _core->createShape3D(ShapeType::SPHERE);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
-    spheres[4]->setModel(model);
-  }
+  spheres[4]->setTranslate(glm::vec3(-4.f, 7.f, -2.f));
   spheres[5] = _core->createShape3D(ShapeType::SPHERE);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
-    spheres[5]->setModel(model);
-  }
+  spheres[5]->setTranslate(glm::vec3(-4.f, 5.f, -2.f));
 
   for (auto& sphere : spheres) {
     _core->addDrawable(sphere);
@@ -544,31 +496,19 @@ void initialize() {
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
-    cube->setModel(model);
-  }
+  cube->setTranslate(glm::vec3(0.f, 3.f, 0.f));
   _core->addDrawable(cube);
 
   auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-    equiCube->setModel(model);
-  }
+  equiCube->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   _core->addDrawable(equiCube);
 
   auto diffuseCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
-    diffuseCube->setModel(model);
-  }
+  diffuseCube->setTranslate(glm::vec3(2.f, 3.f, -3.f));
   _core->addDrawable(diffuseCube);
 
   auto specularCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
-    specularCube->setModel(model);
-  }
+  specularCube->setTranslate(glm::vec3(4.f, 3.f, -3.f));
   _core->addDrawable(specularCube);
 
   _ibl = _core->createIBL();
@@ -615,10 +555,7 @@ void initialize() {
   spriteBRDF->enableShadow(false);
   spriteBRDF->enableDepth(false);
   spriteBRDF->setMaterial(materialBRDF);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(5.f, 3.f, 1.f));
-    spriteBRDF->setModel(model);
-  }
+  spriteBRDF->setTranslate(glm::vec3(5.f, 3.f, 1.f));
   _core->addDrawable(spriteBRDF);
 
   {
@@ -626,10 +563,11 @@ void initialize() {
 
     _physicsManager = std::make_shared<PhysicsManager>();
     _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale,
-                                                       std::tuple{64, 16}, _physicsManager);
+                                                       std::tuple{64, 16}, _physicsManager, _core->getGameState(),
+                                                       _core->getEngineState());
 
     _cubePlayer = _core->createShape3D(ShapeType::CUBE);
-    _cubePlayer->setModel(glm::translate(glm::mat4(1.f), glm::vec3(0.f, 2.f, 0.f)));
+    _cubePlayer->setTranslate(glm::vec3(0.f, 2.f, 0.f));
     _cubePlayer->getMesh()->setColor(
         std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
         _core->getCommandBufferApplication());
@@ -653,22 +591,19 @@ void initialize() {
     auto aabb = _modelSimple->getAABB();
     auto min = aabb->getMin();
     auto max = aabb->getMax();
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      _modelSimple->setModel(model);
-      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
-      _modelSimple->setOrigin(model);
-    }
+    auto center = (max + min) / 2.f;
+    auto minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                 glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
+    auto maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
+                 glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
+
+    _modelSimple->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
+    _modelSimple->setOriginShift(glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
     _core->addDrawable(_modelSimple);
 
-    _boundingBox = _core->createBoundingBox(min, max);
+    _boundingBox = _core->createShape3D(ShapeType::CUBE);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, -1.f, -3.f));
-      _boundingBox->setModel(model);
-      model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
-      _boundingBox->setOrigin(model);
-    }
+    _boundingBox->setScale(maxBB - minBB);
     _core->addDrawable(_boundingBox);
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (max - min) / 2.f, _physicsManager);
   }
@@ -796,6 +731,7 @@ void android_main(android_app* app) {
     switch (cmd) {
       case APP_CMD_INIT_WINDOW:
         // The window is being shown, get it ready.
+        _resolution = {ANativeWindow_getWidth(app->window), ANativeWindow_getHeight(app->window)};
         initialize();
         break;
       case APP_CMD_TERM_WINDOW:

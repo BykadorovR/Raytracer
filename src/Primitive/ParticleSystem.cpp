@@ -173,7 +173,7 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   }
 
   BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
+  cameraUBO.model = getModel();
   cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
   cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
