@@ -351,6 +351,12 @@ ImageView::ImageView(std::shared_ptr<Image> image,
   }
 }
 
+ImageView::ImageView(std::shared_ptr<Image> image, VkImageView& imageView, std::shared_ptr<EngineState> engineState) {
+  _image = image;
+  _imageView = imageView;
+  _engineState = engineState;
+}
+
 VkImageView& ImageView::getImageView() { return _imageView; }
 
 std::shared_ptr<Image> ImageView::getImage() { return _image; }

@@ -68,6 +68,7 @@ class ImageView {
             int mipMapNumber,
             VkImageAspectFlags aspectFlags,
             std::shared_ptr<EngineState> engineState);
+  ImageView(std::shared_ptr<Image> image, VkImageView& imageView, std::shared_ptr<EngineState> engineState);
   VkImageView& getImageView();
   std::shared_ptr<Image> getImage();
 

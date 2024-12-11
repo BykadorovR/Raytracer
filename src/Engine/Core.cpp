@@ -82,26 +82,26 @@ void Core::initialize() {
 #endif
   _engineState->initialize();
   auto settings = _engineState->getSettings();
-  _swapchain = std::make_shared<Swapchain>(settings->getSwapchainColorFormat(), _engineState);
+  _swapchain = std::make_shared<Swapchain>(_engineState);
   _timer = std::make_shared<Timer>();
   _timerFPSReal = std::make_shared<TimerFPS>();
   _timerFPSLimited = std::make_shared<TimerFPS>();
   _debuggerUtils = std::make_shared<DebuggerUtils>(_engineState->getInstance(), _engineState->getDevice());
   _debuggerUtils->setName("Queue graphic", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                          _engineState->getDevice()->getQueue(QueueType::GRAPHIC));
+                          _engineState->getDevice()->getQueue(vkb::QueueType::graphics));
   _debuggerUtils->setName("Queue present", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                          _engineState->getDevice()->getQueue(QueueType::PRESENT));
+                          _engineState->getDevice()->getQueue(vkb::QueueType::present));
   _debuggerUtils->setName("Queue compute", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                          _engineState->getDevice()->getQueue(QueueType::COMPUTE));
+                          _engineState->getDevice()->getQueue(vkb::QueueType::compute));
   {
-    _commandPoolRender = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandPoolRender = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender,
                                                            _engineState);
     _debuggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                             _commandBufferRender->getCommandBuffer());
   }
   {
-    _commandPoolApplication = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandPoolApplication = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     // frameInFlight != 0 can be used in reset
     _commandBufferApplication = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                 _commandPoolApplication, _engineState);
@@ -109,35 +109,35 @@ void Core::initialize() {
                             _commandBufferApplication->getCommandBuffer());
   }
   {
-    _commandPoolInitialize = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandPoolInitialize = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferInitialize = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolInitialize,
                                                                _engineState);
     _debuggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                             _commandBufferInitialize->getCommandBuffer());
   }
   {
-    _commandPoolEquirectangular = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandPoolEquirectangular = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                     _commandPoolEquirectangular, _engineState);
     _debuggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                             _commandBufferEquirectangular->getCommandBuffer());
   }
   {
-    _commandPoolParticleSystem = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
+    _commandPoolParticleSystem = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
     _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                    _commandPoolParticleSystem, _engineState);
     _debuggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                             _commandBufferParticleSystem->getCommandBuffer());
   }
   {
-    _commandPoolPostprocessing = std::make_shared<CommandPool>(QueueType::COMPUTE, _engineState->getDevice());
+    _commandPoolPostprocessing = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
     _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
                                                                    _commandPoolPostprocessing, _engineState);
     _debuggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                             _commandBufferPostprocessing->getCommandBuffer());
   }
   {
-    _commandPoolGUI = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    _commandPoolGUI = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI,
                                                         _engineState);
     _debuggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
@@ -199,11 +199,14 @@ void Core::initialize() {
 
   _blurCompute = std::make_shared<BlurCompute>(_textureBlurIn, _textureBlurOut, _engineState);
   // for postprocessing descriptors GENERAL is needed
-  _swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
+  for (auto& imageView : _swapchain->getImageViews()) imageView->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
+
   _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn, _swapchain->getImageViews(),
                                                      _engineState);
   // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
-  _swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferInitialize);
+  for (auto& imageView : _swapchain->getImageViews())
+    imageView->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, _commandBufferInitialize);
   _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriberExclusive>(_gui));
 
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
@@ -224,7 +227,7 @@ void Core::initialize() {
     _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()];
-    auto queue = _engineState->getDevice()->getQueue(QueueType::GRAPHIC);
+    auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
   }
 }
@@ -766,17 +769,9 @@ VkResult Core::_getImageIndex(uint32_t* imageIndex) {
 }
 
 void Core::_reset() {
-  auto surfaceCapabilities = _engineState->getDevice()->getSupportedSurfaceCapabilities();
-  VkExtent2D extent = surfaceCapabilities.currentExtent;
-  while (extent.width == 0 || extent.height == 0) {
-    surfaceCapabilities = _engineState->getDevice()->getSupportedSurfaceCapabilities();
-    extent = surfaceCapabilities.currentExtent;
-#ifndef __ANDROID__
-    glfwWaitEvents();
-#endif
-  }
   _swapchain->reset();
-  _engineState->getSettings()->setResolution({extent.width, extent.height});
+  _engineState->getSettings()->setResolution(
+      {_swapchain->getSwapchain().extent.width, _swapchain->getSwapchain().extent.height});
   _textureRender.clear();
   _textureBlurIn.clear();
   _textureBlurOut.clear();
@@ -784,9 +779,11 @@ void Core::_reset() {
   _commandBufferInitialize->beginCommands();
 
   _initializeTextures();
-  _swapchain->overrideImageLayout(VK_IMAGE_LAYOUT_GENERAL);
+  for (auto& imageView : _swapchain->getImageViews()) imageView->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
   _postprocessing->reset(_textureRender, _textureBlurIn, _swapchain->getImageViews());
-  _swapchain->changeImageLayout(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _commandBufferInitialize);
+  for (auto& imageView : _swapchain->getImageViews())
+    imageView->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, _commandBufferInitialize);
   _gui->reset();
   _blurCompute->reset(_textureBlurIn, _textureBlurOut);
 
@@ -803,11 +800,11 @@ void Core::_reset() {
     _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()];
-    auto queue = _engineState->getDevice()->getQueue(QueueType::GRAPHIC);
+    auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
   }
 
-  _callbackReset(extent.width, extent.height);
+  _callbackReset(_swapchain->getSwapchain().extent.width, _swapchain->getSwapchain().extent.height);
 }
 
 void Core::_clearUnusedData() {
@@ -1001,18 +998,20 @@ void Core::_drawFrame(int imageIndex) {
 
   // because of binary semaphores, we can't submit task with semaphore wait BEFORE task with semaphore signal.
   // that's why we have to split submit pipeline.
-  vkQueueSubmit(_engineState->getDevice()->getQueue(QueueType::COMPUTE),
+  vkQueueSubmit(_engineState->getDevice()->getQueue(vkb::QueueType::compute),
                 _frameSubmitInfoPreCompute[frameInFlight].size(), _frameSubmitInfoPreCompute[frameInFlight].data(),
                 VK_NULL_HANDLE);
-  vkQueueSubmit(_engineState->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoGraphic[frameInFlight].size(),
-                _frameSubmitInfoGraphic[frameInFlight].data(), VK_NULL_HANDLE);
-  vkQueueSubmit(_engineState->getDevice()->getQueue(QueueType::COMPUTE),
+  vkQueueSubmit(_engineState->getDevice()->getQueue(vkb::QueueType::graphics),
+                _frameSubmitInfoGraphic[frameInFlight].size(), _frameSubmitInfoGraphic[frameInFlight].data(),
+                VK_NULL_HANDLE);
+  vkQueueSubmit(_engineState->getDevice()->getQueue(vkb::QueueType::compute),
                 _frameSubmitInfoPostCompute[frameInFlight].size(), _frameSubmitInfoPostCompute[frameInFlight].data(),
                 VK_NULL_HANDLE);
   // latest graphic job should signal fence about completion, otherwise render signal that it's done, but debug still in
   // progress (for 0 frame) and we submit new frame with 0 index
-  vkQueueSubmit(_engineState->getDevice()->getQueue(QueueType::GRAPHIC), _frameSubmitInfoDebug[frameInFlight].size(),
-                _frameSubmitInfoDebug[frameInFlight].data(), _fenceInFlight[frameInFlight]->getFence());
+  vkQueueSubmit(_engineState->getDevice()->getQueue(vkb::QueueType::graphics),
+                _frameSubmitInfoDebug[frameInFlight].size(), _frameSubmitInfoDebug[frameInFlight].data(),
+                _fenceInFlight[frameInFlight]->getFence());
 }
 
 void Core::_displayFrame(uint32_t* imageIndex) {
@@ -1033,7 +1032,7 @@ void Core::_displayFrame(uint32_t* imageIndex) {
   presentInfo.pImageIndices = imageIndex;
 
   // TODO: change to own present queue
-  auto result = vkQueuePresentKHR(_engineState->getDevice()->getQueue(QueueType::PRESENT), &presentInfo);
+  auto result = vkQueuePresentKHR(_engineState->getDevice()->getQueue(vkb::QueueType::present), &presentInfo);
 
   // getResized() can be valid only here, we can get inconsistencies in semaphores if VK_ERROR_OUT_OF_DATE_KHR is not
   // reported by Vulkan
@@ -1098,7 +1097,7 @@ void Core::endRecording() {
     _waitSemaphoreApplicationReady[_engineState->getFrameInFlight()] = true;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_commandBufferApplication->getCommandBuffer()[_engineState->getFrameInFlight()];
-    auto queue = _engineState->getDevice()->getQueue(QueueType::GRAPHIC);
+    auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
   }
 }

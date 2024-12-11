@@ -106,7 +106,17 @@ FetchContent_Declare(
   SOURCE_SUBDIR  Build
 )
 
-FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json)
+FetchContent_Declare(
+    vk-bootstrap
+    GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap
+    GIT_TAG        v1.3.302
+)
+
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap)
+if (ANDROID)
+  set_target_properties(vk-bootstrap PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 if (NOT ANDROID)
   FetchContent_MakeAvailable(glfw)
 endif()
@@ -189,6 +199,7 @@ find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
 
+# copy includes so they are visible for applications
 file(COPY ${glm_SOURCE_DIR}/glm DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${imgui_SOURCE_DIR}/imgui.h ${imgui_SOURCE_DIR}/imconfig.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${tinygltf_SOURCE_DIR}/tiny_gltf.h ${tinygltf_SOURCE_DIR}/stb_image.h ${tinygltf_SOURCE_DIR}/stb_image_write.h ${tinygltf_SOURCE_DIR}/json.hpp DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -200,12 +211,14 @@ if (NOT ANDROID)
 endif()
 #TODO: how to copy only headers?
 file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrap.h ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrapDispatch.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+
 
 #Jolt should start with capital J
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap)
 endif()

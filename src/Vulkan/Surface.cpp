@@ -8,12 +8,12 @@ Surface::Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> insta
                                            .flags = 0,
                                            .window = (ANativeWindow*)(window->getWindow())};
 
-  if (vkCreateAndroidSurfaceKHR(instance->getInstance(), &createInfo, nullptr, &_surface) != VK_SUCCESS) {
+  if (vkCreateAndroidSurfaceKHR(instance->getInstance().instance, &createInfo, nullptr, &_surface) != VK_SUCCESS) {
     throw std::runtime_error("failed to create window surface!");
   }
 #else
-  if (glfwCreateWindowSurface(instance->getInstance(), (GLFWwindow*)(window->getWindow()), nullptr, &_surface) !=
-      VK_SUCCESS) {
+  if (glfwCreateWindowSurface(instance->getInstance().instance, (GLFWwindow*)(window->getWindow()), nullptr,
+                              &_surface) != VK_SUCCESS) {
     throw std::runtime_error("failed to create window surface!");
   }
 #endif
@@ -21,4 +21,4 @@ Surface::Surface(std::shared_ptr<Window> window, std::shared_ptr<Instance> insta
 
 const VkSurfaceKHR& Surface::getSurface() { return _surface; }
 
-Surface::~Surface() { vkDestroySurfaceKHR(_instance->getInstance(), _surface, nullptr); }
+Surface::~Surface() { vkDestroySurfaceKHR(_instance->getInstance().instance, _surface, nullptr); }

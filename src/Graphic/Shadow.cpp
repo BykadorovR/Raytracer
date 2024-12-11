@@ -17,9 +17,9 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
                                                  _engineState);
     // android doesn't support linear + d32 texture
     auto filter = VK_FILTER_NEAREST;
-    if (_engineState->getDevice()->isFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
-                                                      VK_IMAGE_TILING_OPTIMAL,
-                                                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    if (_engineState->getDevice()->isFormatFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
+                                                            VK_IMAGE_TILING_OPTIMAL,
+                                                            VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
       filter = VK_FILTER_LINEAR;
     }
 
@@ -27,7 +27,7 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
         std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, filter, imageView, _engineState));
   }
   // create command buffer for rendering to shadow map
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+  auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
   _commandBufferDirectional = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               commandPool, _engineState);
   debuggerUtils->setName("Command buffer directional ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
@@ -57,9 +57,9 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // create shadow map cubemap texture
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     auto filter = VK_FILTER_NEAREST;
-    if (_engineState->getDevice()->isFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
-                                                      VK_IMAGE_TILING_OPTIMAL,
-                                                      VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    if (_engineState->getDevice()->isFormatFeatureSupported(_engineState->getSettings()->getShadowMapFormat(),
+                                                            VK_IMAGE_TILING_OPTIMAL,
+                                                            VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
       filter = VK_FILTER_LINEAR;
     }
     _shadowMapCubemap.push_back(std::make_shared<Cubemap>(
@@ -72,7 +72,7 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _commandBufferPoint.resize(6);
   _loggerPoint.resize(6);
   for (int j = 0; j < _commandBufferPoint.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _engineState->getDevice());
+    auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferPoint[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                              commandPool, _engineState);
     debuggerUtils->setName("Command buffer point " + std::to_string(j), VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
@@ -122,9 +122,9 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
     auto blurImageView = std::make_shared<ImageView>(blurImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, engineState);
     auto filter = VK_FILTER_NEAREST;
-    if (engineState->getDevice()->isFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
-                                                     VK_IMAGE_TILING_OPTIMAL,
-                                                     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    if (engineState->getDevice()->isFormatFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
+                                                           VK_IMAGE_TILING_OPTIMAL,
+                                                           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
       filter = VK_FILTER_LINEAR;
     }
     _textureOut[i] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, filter, blurImageView,
@@ -141,7 +141,7 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
 
   _blur = std::make_shared<BlurGraphic>(textureIn, _textureOut, commandBufferTransfer, engineState);
   // create buffer pool and command buffer
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, engineState->getDevice());
+  auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
   _commandBufferDirectional = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
                                                               commandPool, engineState);
   debuggerUtils->setName("Command buffer blur directional", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
@@ -180,9 +180,9 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
     std::vector<std::shared_ptr<Framebuffer>> blurLightInFaces(6);
     std::shared_ptr<Cubemap> cubemapBlurOutFaces;
     auto filter = VK_FILTER_NEAREST;
-    if (engineState->getDevice()->isFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
-                                                     VK_IMAGE_TILING_OPTIMAL,
-                                                     VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    if (engineState->getDevice()->isFormatFeatureSupported(engineState->getSettings()->getShadowMapFormat(),
+                                                           VK_IMAGE_TILING_OPTIMAL,
+                                                           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
       filter = VK_FILTER_LINEAR;
     }
 
@@ -220,7 +220,7 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
   _commandBufferPoint.resize(6);
   _loggerPoint.resize(6);
   for (int i = 0; i < 6; i++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, engineState->getDevice());
+    auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
     auto commandBuffer = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
                                                          commandPool, engineState);
     debuggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,

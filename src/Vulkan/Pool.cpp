@@ -1,19 +1,19 @@
 #include "Vulkan/Descriptor.h"
 
-CommandPool::CommandPool(QueueType type, std::shared_ptr<Device> device) {
+CommandPool::CommandPool(vkb::QueueType type, std::shared_ptr<Device> device) {
   _device = device;
   _type = type;
   VkCommandPoolCreateInfo poolInfo{};
   poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = device->getSupportedFamilyIndex(type).value();
+  poolInfo.queueFamilyIndex = device->getQueueIndex(type);
 
   if (vkCreateCommandPool(device->getLogicalDevice(), &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics command pool!");
   }
 }
 
-QueueType CommandPool::getType() { return _type; }
+vkb::QueueType CommandPool::getType() { return _type; }
 
 VkCommandPool& CommandPool::getCommandPool() { return _commandPool; }
 

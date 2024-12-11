@@ -31,8 +31,8 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
                                            engineState);
   auto filter = VK_FILTER_NEAREST;
-  if (_engineState->getDevice()->isFeatureSupported(VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
-                                                    VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+  if (_engineState->getDevice()->isFormatFeatureSupported(VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+                                                          VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
     filter = VK_FILTER_LINEAR;
   }
 
