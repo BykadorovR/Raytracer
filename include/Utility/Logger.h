@@ -11,12 +11,27 @@ class LoggerAndroid {
 
 class LoggerUtils {
  private:
-  PFN_vkCmdBeginDebugUtilsLabelEXT _cmdBeginDebugUtilsLabelEXT;
-  PFN_vkCmdEndDebugUtilsLabelEXT _cmdEndDebugUtilsLabelEXT;
   std::shared_ptr<EngineState> _engineState;
 
  public:
   LoggerUtils(std::shared_ptr<EngineState> engineState);
+  template <class T>
+  void setName(std::string name, VkObjectType type, T handler) {
+    VkDebugUtilsObjectNameInfoEXT nameInfo = {VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT};
+    nameInfo.objectType = type;
+    nameInfo.objectHandle = (uint64_t)handler;
+    nameInfo.pObjectName = name.c_str();
+    vkSetDebugUtilsObjectNameEXT(_engineState->getDevice()->getLogicalDevice(), &nameInfo);
+  }
+
+  template <class T>
+  void setName(std::string name, VkObjectType type, std::vector<T> handlers) {
+    for (int i = 0; i < handlers.size(); i++) {
+      std::string modified = name + " " + std::to_string(i);
+      setName(modified, type, handlers[i]);
+    }
+  }
+
   void begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color);
   void end(std::shared_ptr<CommandBuffer> buffer);
 };

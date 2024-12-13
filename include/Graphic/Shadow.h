@@ -6,7 +6,6 @@
 #include "Utility/Settings.h"
 #include "Graphic/Camera.h"
 #include "Utility/Logger.h"
-#include "Vulkan/Debug.h"
 #include "Vulkan/Render.h"
 #include "Graphic/Blur.h"
 
@@ -21,7 +20,6 @@ class DirectionalShadow {
  public:
   DirectionalShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                     std::shared_ptr<RenderPass> renderPass,
-                    std::shared_ptr<DebuggerUtils> debuggerUtils,
                     std::shared_ptr<EngineState> engineState);
   std::vector<std::shared_ptr<Texture>> getShadowMapTexture();
 
@@ -42,7 +40,6 @@ class DirectionalShadowBlur {
   DirectionalShadowBlur(std::vector<std::shared_ptr<Texture>> textureIn,
                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
                         std::shared_ptr<RenderPass> renderPass,
-                        std::shared_ptr<DebuggerUtils> debuggerUtils,
                         std::shared_ptr<EngineState> engineState);
   std::shared_ptr<CommandBuffer> getShadowMapBlurCommandBuffer();
   std::shared_ptr<Logger> getShadowMapBlurLogger();
@@ -63,7 +60,6 @@ class PointShadow {
  public:
   PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
               std::shared_ptr<RenderPass> renderPass,
-              std::shared_ptr<DebuggerUtils> debuggerUtils,
               std::shared_ptr<EngineState> engineState);
   std::vector<std::shared_ptr<Cubemap>> getShadowMapCubemap();
   std::vector<std::shared_ptr<CommandBuffer>> getShadowMapCommandBuffer();
@@ -83,7 +79,6 @@ class PointShadowBlur {
   PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn,
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
                   std::shared_ptr<RenderPass> renderPass,
-                  std::shared_ptr<DebuggerUtils> debuggerUtils,
                   std::shared_ptr<EngineState> engineState);
   std::vector<std::shared_ptr<CommandBuffer>> getShadowMapBlurCommandBuffer();
   std::vector<std::shared_ptr<Logger>> getShadowMapBlurLogger();

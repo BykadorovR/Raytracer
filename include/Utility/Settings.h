@@ -1,9 +1,5 @@
 #pragma once
-#ifdef __ANDROID__
-#include <Platform/Android/VulkanWrapper.h>
-#else
-#include <vulkan/vulkan.h>
-#endif
+#include "volk.h"
 #include <tuple>
 #include <string>
 #include <vector>

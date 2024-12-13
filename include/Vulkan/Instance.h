@@ -1,7 +1,5 @@
 #pragma once
-#ifdef __ANDROID__
-#include <Platform/Android/VulkanWrapper.h>
-#endif
+#include "volk.h"
 #include <string>
 #include <vector>
 #include "VkBootstrap.h"

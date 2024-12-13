@@ -13,7 +13,6 @@ struct ShadowParameters {
 
 LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
-  _debuggerUtils = std::make_shared<DebuggerUtils>(engineState->getInstance(), engineState->getDevice());
 
   _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _engineState->getDevice());
 
@@ -230,23 +229,24 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _descriptorPool,
                                                               _engineState->getDevice());
-  _debuggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                          _descriptorSetGlobalPhong->getDescriptorSets());
+  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
+  loggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalPhong->getDescriptorSets());
   _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                             _descriptorSetLayoutGlobalPBR, _descriptorPool,
                                                             _engineState->getDevice());
-  _debuggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                          _descriptorSetGlobalPBR->getDescriptorSets());
+  loggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalPBR->getDescriptorSets());
   _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
       _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _descriptorPool,
       _engineState->getDevice());
-  _debuggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                          _descriptorSetGlobalTerrainPhong->getDescriptorSets());
+  loggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalTerrainPhong->getDescriptorSets());
   _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                                    _descriptorSetLayoutGlobalTerrainPBR,
                                                                    _descriptorPool, _engineState->getDevice());
-  _debuggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                          _descriptorSetGlobalTerrainPBR->getDescriptorSets());
+  loggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
   // stub texture
   _stubTexture = resourceManager->getTextureOne();
@@ -814,7 +814,7 @@ std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<Poi
                                                              std::shared_ptr<RenderPass> renderPass,
                                                              std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _engineState);
   int indexLight = std::distance(_pointLights.begin(), find(_pointLights.begin(), _pointLights.end(), pointLight));
   _pointShadows[indexLight] = shadow;
 
@@ -866,7 +866,7 @@ std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
     std::shared_ptr<RenderPass> renderPass,
     std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _debuggerUtils, _engineState);
+  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _engineState);
   int indexLight = std::distance(_directionalLights.begin(),
                                  find(_directionalLights.begin(), _directionalLights.end(), directionalLight));
   _directionalShadows[indexLight] = shadow;

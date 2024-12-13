@@ -8,7 +8,6 @@
 #include "Vulkan/Command.h"
 #include "Vulkan/Pipeline.h"
 #include "Vulkan/Descriptor.h"
-#include "Vulkan/Debug.h"
 #include "Graphic/Shadow.h"
 #include <vector>
 #include <memory>
@@ -27,7 +26,6 @@ class LightManager {
   std::vector<std::shared_ptr<PointShadow>> _pointShadows;
 
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<DebuggerUtils> _debuggerUtils;
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;
   std::shared_ptr<Buffer> _lightDirectionalSSBOStub, _lightPointSSBOStub, _lightAmbientSSBOStub;

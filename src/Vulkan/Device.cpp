@@ -22,6 +22,7 @@ Device::Device(std::shared_ptr<Surface> surface, std::shared_ptr<Instance> insta
     throw std::runtime_error(builderResult.error().message());
   }
   _device = builderResult.value();
+  volkLoadDevice(_device.device);
 
   VkPhysicalDeviceProperties props;
   vkGetPhysicalDeviceProperties(getPhysicalDevice(), &props);

@@ -10,7 +10,6 @@
 #include "Utility/GameState.h"
 #include "Vulkan/Render.h"
 #include "Vulkan/Swapchain.h"
-#include "Vulkan/Debug.h"
 #include "Graphic/Postprocessing.h"
 #include "Graphic/Camera.h"
 #include "Graphic/LightManager.h"
@@ -58,7 +57,6 @@ class Core {
   std::set<std::shared_ptr<Material>> _materials;
   std::shared_ptr<GUI> _gui;
 
-  std::shared_ptr<DebuggerUtils> _debuggerUtils;
   std::shared_ptr<Timer> _timer;
   std::shared_ptr<TimerFPS> _timerFPSReal;
   std::shared_ptr<TimerFPS> _timerFPSLimited;

@@ -17,6 +17,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallbackUtils(VkDebugUtilsMessageSeverityFla
 }
 
 Instance::Instance(std::string name, bool validation) {
+  auto sts = volkInitialize();
+  if (sts != VK_SUCCESS) throw std::runtime_error("Can't initialize Vulkan Loader");
   // VK_KHR_win32_surface || VK_KHR_android_surface as well as VK_KHR_surface
   // are automatically added by vkb
   vkb::InstanceBuilder builder;
@@ -37,6 +39,7 @@ Instance::Instance(std::string name, bool validation) {
     throw std::runtime_error("Failed to create Vulkan instance. Error: " + instanceResult.error().message());
 
   _instance = instanceResult.value();
+  volkLoadInstance(_instance.instance);
 }
 
 bool Instance::isDebug() { return _debugUtils; }

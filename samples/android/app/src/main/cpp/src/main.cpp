@@ -179,9 +179,6 @@ void update() {
 }
 
 void initialize() {
-  if (!InitVulkan()) {
-    LOGE("Vulkan is unavailable, install vulkan and re-start");
-  }
   int mipMapLevels = 4;
 
   auto settings = std::make_shared<Settings>();

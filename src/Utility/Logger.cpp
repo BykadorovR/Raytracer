@@ -16,13 +16,7 @@ void LoggerAndroid::end() {
 #endif
 }
 
-LoggerUtils::LoggerUtils(std::shared_ptr<EngineState> engineState) {
-  _engineState = engineState;
-  _cmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(
-      engineState->getInstance()->getInstance(), "vkCmdBeginDebugUtilsLabelEXT");
-  _cmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(
-      engineState->getInstance()->getInstance(), "vkCmdEndDebugUtilsLabelEXT");
-}
+LoggerUtils::LoggerUtils(std::shared_ptr<EngineState> engineState) { _engineState = engineState; }
 
 void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color) {
   auto frameInFlight = _engineState->getFrameInFlight();
@@ -30,12 +24,12 @@ void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffe
   markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
   markerInfo.pLabelName = marker.c_str();
   std::copy(color.begin(), color.end(), markerInfo.color);
-  _cmdBeginDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight], &markerInfo);
+  vkCmdBeginDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight], &markerInfo);
 }
 
 void LoggerUtils::end(std::shared_ptr<CommandBuffer> buffer) {
   auto frameInFlight = _engineState->getFrameInFlight();
-  _cmdEndDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight]);
+  vkCmdEndDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight]);
 }
 
 void LoggerNVTX::begin(std::string name) { nvtxRangePush(name.c_str()); }

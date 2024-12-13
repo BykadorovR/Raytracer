@@ -6,7 +6,6 @@
 #include "Utility/Settings.h"
 #include "Graphic/Camera.h"
 #include "Utility/Logger.h"
-#include "Vulkan/Debug.h"
 
 class AmbientLight {
  private:

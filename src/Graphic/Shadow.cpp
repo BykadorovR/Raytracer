@@ -2,7 +2,6 @@
 
 DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                      std::shared_ptr<RenderPass> renderPass,
-                                     std::shared_ptr<DebuggerUtils> debuggerUtils,
                                      std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
   // create shadow map texture
@@ -30,8 +29,9 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
   auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
   _commandBufferDirectional = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               commandPool, _engineState);
-  debuggerUtils->setName("Command buffer directional ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferDirectional->getCommandBuffer());
+  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
+  loggerUtils->setName("Command buffer directional ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                       _commandBufferDirectional->getCommandBuffer());
   _loggerDirectional = std::make_shared<Logger>(_engineState);
   // create framebuffer to render shadow map to
   _shadowMapFramebuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
@@ -51,7 +51,6 @@ std::vector<std::shared_ptr<Framebuffer>> DirectionalShadow::getShadowMapFramebu
 
 PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                          std::shared_ptr<RenderPass> renderPass,
-                         std::shared_ptr<DebuggerUtils> debuggerUtils,
                          std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
   // create shadow map cubemap texture
@@ -69,14 +68,15 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
   // should be unique command pool for every command buffer to work in parallel.
   // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
+  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
   _commandBufferPoint.resize(6);
   _loggerPoint.resize(6);
   for (int j = 0; j < _commandBufferPoint.size(); j++) {
     auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
     _commandBufferPoint[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                              commandPool, _engineState);
-    debuggerUtils->setName("Command buffer point " + std::to_string(j), VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                           _commandBufferPoint[j]->getCommandBuffer());
+    loggerUtils->setName("Command buffer point " + std::to_string(j), VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                         _commandBufferPoint[j]->getCommandBuffer());
     _loggerPoint[j] = std::make_shared<Logger>(_engineState);
   };
   // create framebuffer to render shadow map to
@@ -105,7 +105,6 @@ std::vector<std::vector<std::shared_ptr<Framebuffer>>> PointShadow::getShadowMap
 DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture>> textureIn,
                                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                              std::shared_ptr<RenderPass> renderPass,
-                                             std::shared_ptr<DebuggerUtils> debuggerUtils,
                                              std::shared_ptr<EngineState> engineState) {
   auto resolution = engineState->getSettings()->getShadowMapResolution();
   // create texture, frame buffers and blurs for directional lights shadow maps postprocessing
@@ -144,8 +143,9 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
   auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
   _commandBufferDirectional = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
                                                               commandPool, engineState);
-  debuggerUtils->setName("Command buffer blur directional", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferDirectional->getCommandBuffer());
+  auto loggerUtils = std::make_shared<LoggerUtils>(engineState);
+  loggerUtils->setName("Command buffer blur directional", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                       _commandBufferDirectional->getCommandBuffer());
   _loggerDirectional = std::make_shared<Logger>(engineState);
 }
 
@@ -166,7 +166,6 @@ std::vector<std::shared_ptr<Texture>> DirectionalShadowBlur::getShadowMapBlurTex
 PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                  std::shared_ptr<RenderPass> renderPass,
-                                 std::shared_ptr<DebuggerUtils> debuggerUtils,
                                  std::shared_ptr<EngineState> engineState) {
   auto resolution = engineState->getSettings()->getShadowMapResolution();
   // create texture, frame buffers and blurs for point lights shadow maps postprocessing
@@ -217,14 +216,15 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
   }
 
   // create buffer pool and command buffer
+  auto loggerUtils = std::make_shared<LoggerUtils>(engineState);
   _commandBufferPoint.resize(6);
   _loggerPoint.resize(6);
   for (int i = 0; i < 6; i++) {
     auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
     auto commandBuffer = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
                                                          commandPool, engineState);
-    debuggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                           commandBuffer->getCommandBuffer());
+    loggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                         commandBuffer->getCommandBuffer());
     _commandBufferPoint[i] = commandBuffer;
 
     _loggerPoint[i] = std::make_shared<Logger>(engineState);

@@ -7,7 +7,7 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   setName("Sprite");
   _engineState = engineState;
   _gameState = gameState;
-  auto debuggerUtils = std::make_shared<DebuggerUtils>(engineState->getInstance(), engineState->getDevice());
+  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
   auto settings = engineState->getSettings();
   // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
@@ -59,8 +59,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
         engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
         engineState->getDescriptorPool(), engineState->getDevice());
-    debuggerUtils->setName("Descriptor set sprite normals mesh", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                           _descriptorSetNormalsMesh->getDescriptorSets());
+    loggerUtils->setName("Descriptor set sprite normals mesh", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                         _descriptorSetNormalsMesh->getDescriptorSets());
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
@@ -141,8 +141,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState->getDescriptorPool(),
                                                           engineState->getDevice());
-    debuggerUtils->setName("Descriptor set sprite color", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                           _descriptorSetColor->getDescriptorSets());
+    loggerUtils->setName("Descriptor set sprite color", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                         _descriptorSetColor->getDescriptorSets());
 
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
@@ -188,8 +188,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                      _descriptorSetLayoutDepth, _engineState->getDescriptorPool(),
                                                      _engineState->getDevice());
-    debuggerUtils->setName("Descriptor set sprite directional camera " + std::to_string(i),
-                           VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, cameraSet->getDescriptorSets());
+    loggerUtils->setName("Descriptor set sprite directional camera " + std::to_string(i),
+                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, cameraSet->getDescriptorSets());
     _descriptorSetCameraDepth.push_back({cameraSet});
   }
 
@@ -202,8 +202,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                     _descriptorSetLayoutDepth, _engineState->getDescriptorPool(),
                                                     _engineState->getDevice());
-      debuggerUtils->setName("Descriptor set sprite point camera " + std::to_string(i) + "x" + std::to_string(j),
-                             VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, facesSet[j]->getDescriptorSets());
+      loggerUtils->setName("Descriptor set sprite point camera " + std::to_string(i) + "x" + std::to_string(j),
+                           VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, facesSet[j]->getDescriptorSets());
     }
     _cameraUBODepth.push_back(facesBuffer);
     _descriptorSetCameraDepth.push_back(facesSet);
@@ -246,8 +246,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetPhong = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState->getDescriptorPool(),
                                                           engineState->getDevice());
-    debuggerUtils->setName("Descriptor set sprite Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                           _descriptorSetPhong->getDescriptorSets());
+    loggerUtils->setName("Descriptor set sprite Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                         _descriptorSetPhong->getDescriptorSets());
 
     setMaterial(_defaultMaterialPhong);
 
@@ -345,8 +345,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _descriptorSetPBR = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                         descriptorSetLayout, engineState->getDescriptorPool(),
                                                         engineState->getDevice());
-    debuggerUtils->setName("Descriptor set sprite PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                           _descriptorSetPBR->getDescriptorSets());
+    loggerUtils->setName("Descriptor set sprite PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                         _descriptorSetPBR->getDescriptorSets());
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
 
