@@ -16,6 +16,12 @@ class Named {
   std::string getName();
 };
 
+struct BufferMVP {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 projection;
+};
+
 class Drawable : virtual public Named {
  protected:
   glm::vec3 _originShift = glm::vec3{0.f, 0.f, 0.f};

@@ -10,6 +10,11 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 
+struct FragmentPointLightPushDepth {
+  alignas(16) glm::vec3 lightPosition;
+  alignas(16) int far;
+};
+
 struct TesselationControlPush {
   int minTessellationLevel;
   int maxTessellationLevel;
@@ -487,8 +492,9 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
       pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
+      auto info = pipeline->getPushConstants()["control"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(TesselationControlPush), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
@@ -497,9 +503,9 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
       pushConstants.patchDimY = _patchNumber.second;
       pushConstants.heightScale = _heightScale;
       pushConstants.heightShift = _heightShift;
+      auto info = pipeline->getPushConstants()["evaluate"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(TesselationControlPush),
-                         sizeof(TesselationEvaluationPush), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
@@ -511,10 +517,9 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
       pushConstants.stripeRight = _stripeRight;
       pushConstants.stripeTop = _stripeTop;
       pushConstants.stripeBot = _stripeBot;
+      auto info = pipeline->getPushConstants()["fragment"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_FRAGMENT_BIT,
-                         sizeof(TesselationEvaluationPush) + sizeof(TesselationControlPush), sizeof(FragmentPushDebug),
-                         &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
@@ -928,9 +933,9 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       };
       pushConstants["fragmentDepth"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-          .offset = sizeof(TesselationControlPush) +
-                    std::max(sizeof(TesselationEvaluationPushDepth), std::alignment_of<DepthConstants>::value),
-          .size = sizeof(DepthConstants),
+          .offset = sizeof(TesselationControlPush) + std::max(sizeof(TesselationEvaluationPushDepth),
+                                                              std::alignment_of<FragmentPointLightPushDepth>::value),
+          .size = sizeof(FragmentPointLightPushDepth),
       };
       _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
       // we use different culling here because camera looks upside down for lighting because of some specific cubemap Y
@@ -1556,8 +1561,9 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.maxTesselationDistance = _maxTesselationDistance;
       pushConstants.minTessellationLevel = _minTessellationLevel;
       pushConstants.maxTessellationLevel = _maxTessellationLevel;
+      auto info = pipeline->getPushConstants()["control"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(TesselationControlPush), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
@@ -1566,9 +1572,9 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.patchDimY = _patchNumber.second;
       pushConstants.heightScale = _heightScale;
       pushConstants.heightShift = _heightShift;
+      auto info = pipeline->getPushConstants()["evaluate"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(TesselationControlPush),
-                         sizeof(TesselationEvaluationPush), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
@@ -1580,9 +1586,9 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
       pushConstants.stripeRight = _stripeRight;
       pushConstants.stripeTop = _stripeTop;
       pushConstants.stripeBot = _stripeBot;
-      vkCmdPushConstants(
-          commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT,
-          sizeof(TesselationEvaluationPush) + sizeof(TesselationControlPush), sizeof(FragmentPush), &pushConstants);
+      auto info = pipeline->getPushConstants()["fragment"];
+      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
@@ -1735,28 +1741,29 @@ void TerrainInterpolation::drawShadow(LightType lightType,
     pushConstants.maxTesselationDistance = _maxTesselationDistance;
     pushConstants.minTessellationLevel = _minTessellationLevel;
     pushConstants.maxTessellationLevel = _maxTessellationLevel;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT, 0, sizeof(TesselationControlPush), &pushConstants);
+    auto info = pipeline->getPushConstants()["control"];
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
     TesselationEvaluationPushDepth pushConstants;
     pushConstants.heightScale = _heightScale;
     pushConstants.heightShift = _heightShift;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT, sizeof(TesselationControlPush),
-                       sizeof(TesselationEvaluationPushDepth), &pushConstants);
+    auto info = pipeline->getPushConstants()["evaluateDepth"];
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("fragmentDepth") != pipeline->getPushConstants().end()) {
-    DepthConstants pushConstants;
+    FragmentPointLightPushDepth pushConstants;
     pushConstants.lightPosition =
         _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
     // light camera
     pushConstants.far = far;
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, pipeline->getPushConstants()["fragmentDepth"].offset,
-                       pipeline->getPushConstants()["fragmentDepth"].size, &pushConstants);
+    auto info = pipeline->getPushConstants()["fragmentDepth"];
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages

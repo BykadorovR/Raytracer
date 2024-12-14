@@ -1,5 +1,9 @@
 #include "Graphic/IBL.h"
 
+struct FragmentPush {
+  float roughness;
+};
+
 IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
          std::shared_ptr<GameState> gameState,
          std::shared_ptr<EngineState> engineState) {
@@ -132,7 +136,8 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     }
     {
       std::map<std::string, VkPushConstantRange> defaultPushConstants;
-      defaultPushConstants["fragment"] = RoughnessConstants::getPushConstant(0);
+      defaultPushConstants["fragment"] =
+          VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT, .offset = 0, .size = sizeof(FragmentPush)};
 
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -352,12 +357,13 @@ void IBL::drawSpecular() {
       vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
       if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
-        RoughnessConstants pushConstants;
+        FragmentPush pushConstants;
         float roughness = (float)j / (float)(_engineState->getSettings()->getSpecularMipMap() - 1);
         pushConstants.roughness = roughness;
+        auto info = _pipelineSpecular->getPushConstants()["fragment"];
         vkCmdPushConstants(_commandBufferTransfer->getCommandBuffer()[currentFrame],
-                           _pipelineSpecular->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                           sizeof(RoughnessConstants), &pushConstants);
+                           _pipelineSpecular->getPipelineLayout(), info.stageFlags, info.offset, info.size,
+                           &pushConstants);
       }
 
       _draw(i, _camera, _commandBufferTransfer, _pipelineSpecular);

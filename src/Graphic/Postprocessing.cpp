@@ -1,16 +1,9 @@
 #include "Graphic/Postprocessing.h"
 
-struct ComputeConstants {
+struct ComputePush {
   float gamma;
   float exposure;
   int enableBloom;
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant;
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(ComputeConstants);
-    pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    return pushConstant;
-  }
 };
 
 void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
@@ -42,7 +35,9 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
   _computePipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipeline->createParticleSystemCompute(
       shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), _textureLayout}},
-      std::map<std::string, VkPushConstantRange>{{std::string("compute"), ComputeConstants::getPushConstant()}});
+      std::map<std::string, VkPushConstantRange>{
+          {std::string("compute"),
+           VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .offset = 0, .size = sizeof(ComputePush)}}});
 }
 
 void Postprocessing::reset(std::vector<std::shared_ptr<Texture>> src,
@@ -64,12 +59,13 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                     _computePipeline->getPipeline());
 
   if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
-    ComputeConstants pushConstants;
+    ComputePush pushConstants;
     pushConstants.gamma = _gamma;
     pushConstants.exposure = _exposure;
     pushConstants.enableBloom = _engineState->getSettings()->getBloomPasses();
+    auto info = _computePipeline->getPushConstants()["compute"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
+                       info.stageFlags, info.offset, info.size, &pushConstants);
   }
 
   auto pipelineLayout = _computePipeline->getDescriptorSetLayout();

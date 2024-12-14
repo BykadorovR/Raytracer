@@ -1,6 +1,17 @@
 #include "Primitive/Sprite.h"
 #undef far
 
+struct FragmentPointLightPushDepth {
+  alignas(16) glm::vec3 lightPosition;
+  alignas(16) int far;
+};
+
+struct FragmentPush {
+  int enableShadow;
+  int enableLighting;
+  alignas(16) glm::vec3 cameraPosition;
+};
+
 Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                std::shared_ptr<GameState> gameState,
                std::shared_ptr<EngineState> engineState) {
@@ -274,7 +285,10 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
       _pipelineWireframe[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
@@ -284,7 +298,10 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
@@ -372,7 +389,10 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
       // wireframe one
       _pipelineWireframe[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
@@ -382,7 +402,10 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->getAttributeDescriptions(), _renderPass);
     }
   }
@@ -407,7 +430,11 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // initialize depth point
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
+    defaultPushConstants["constants"] = VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = sizeof(FragmentPointLightPushDepth),
+    };
 
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add("shaders/sprite/spriteDepth_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -700,13 +727,13 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
-    LightPush pushConstants;
+    FragmentPush pushConstants;
     pushConstants.enableShadow = _enableShadow;
     pushConstants.enableLighting = _enableLighting;
     pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
-
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+    auto info = pipeline->getPushConstants()["constants"];
+    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   BufferMVP cameraMVP{};
@@ -859,13 +886,14 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
-      DepthConstants pushConstants;
+      FragmentPointLightPushDepth pushConstants;
       pushConstants.lightPosition =
           _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
       pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
+      auto info = pipeline->getPushConstants()["constants"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
   }
 

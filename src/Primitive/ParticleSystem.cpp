@@ -1,14 +1,7 @@
 #include "Primitive/ParticleSystem.h"
 
-struct VertexConstants {
+struct VertexPush {
   float pointScale;  // nominator of gl_PointSize
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant;
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(VertexConstants);
-    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    return pushConstant;
-  }
 };
 
 ParticleSystem::ParticleSystem(std::vector<Particle> particles,
@@ -84,7 +77,9 @@ void ParticleSystem::_initializeGraphic() {
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("graphic"), descriptorSetLayoutGraphic}},
-      std::map<std::string, VkPushConstantRange>{{std::string("vertex"), VertexConstants::getPushConstant()}},
+      std::map<std::string, VkPushConstantRange>{
+          {std::string("vertex"),
+           VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(VertexPush)}}},
       Particle::getBindingDescription(), Particle::getAttributeDescriptions(), _renderPass);
 }
 
@@ -172,10 +167,11 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_graphicPipeline->getPushConstants().find("vertex") != _graphicPipeline->getPushConstants().end()) {
-    VertexConstants pushConstants;
+    VertexPush pushConstants;
     pushConstants.pointScale = _pointScale;
+    auto info = _graphicPipeline->getPushConstants()["vertex"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _graphicPipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexConstants), &pushConstants);
+                       info.stageFlags, info.offset, info.size, &pushConstants);
   }
 
   BufferMVP cameraUBO{};

@@ -2,6 +2,17 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #undef far
 
+struct FragmentPointLightPushDepth {
+  alignas(16) glm::vec3 lightPosition;
+  alignas(16) int far;
+};
+
+struct FragmentPush {
+  int enableShadow;
+  int enableLighting;
+  alignas(16) glm::vec3 cameraPosition;
+};
+
 Shape3DPhysics::Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
   JPH::BodyCreationSettings boxSettings(new JPH::BoxShape(JPH::Vec3(size.x, size.y, size.z)),
@@ -299,7 +310,10 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
       _pipelineWireframe[_shapeType][MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
@@ -309,7 +323,10 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PHONG],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
     }
   }
@@ -413,7 +430,10 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
       _pipelineWireframe[_shapeType][MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(),
@@ -423,7 +443,10 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::PBR],
-          std::map<std::string, VkPushConstantRange>{{std::string("constants"), LightPush::getPushConstant()}},
+          std::map<std::string, VkPushConstantRange>{
+              {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                             .offset = 0,
+                                                             .size = sizeof(FragmentPush)}}},
           _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
     }
   }
@@ -497,7 +520,11 @@ Shape3D::Shape3D(ShapeType shapeType,
   // initialize shadows point
   {
     std::map<std::string, VkPushConstantRange> defaultPushConstants;
-    defaultPushConstants["constants"] = DepthConstants::getPushConstant(0);
+    defaultPushConstants["constants"] = VkPushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        .offset = 0,
+        .size = sizeof(FragmentPointLightPushDepth),
+    };
 
     auto shader = std::make_shared<Shader>(_engineState);
     shader->add(_shadersLightPoint[_shapeType][0], VK_SHADER_STAGE_VERTEX_BIT);
@@ -726,13 +753,13 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     // light push constants
     if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
-      LightPush pushConstants;
+      FragmentPush pushConstants;
       pushConstants.enableShadow = _enableShadow;
       pushConstants.enableLighting = _enableLighting;
       pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
-
+      auto info = pipeline->getPushConstants()["constants"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(LightPush), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     BufferMVP cameraUBO{};
@@ -866,13 +893,14 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
-      DepthConstants pushConstants;
+      FragmentPointLightPushDepth pushConstants;
       pushConstants.lightPosition =
           _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
       // light camera
       pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
+      auto info = pipeline->getPushConstants()["constants"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(DepthConstants), &pushConstants);
+                         info.stageFlags, info.offset, info.size, &pushConstants);
     }
   }
 
