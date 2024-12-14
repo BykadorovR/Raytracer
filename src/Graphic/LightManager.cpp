@@ -223,8 +223,11 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
     _lightPointSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
 
-  _shadowParametersBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                            ShadowParameters::getSize(), _engineState);
+  _shadowParametersBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _shadowParametersBuffer[i] = std::make_shared<Buffer>(
+        ShadowParameters::getSize(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _descriptorPool,
@@ -366,7 +369,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
     // shadow parameters
     {
       std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
-      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
       bufferShadowParameters[0].offset = 0;
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[6] = bufferShadowParameters;
@@ -441,7 +444,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
     // shadow parameters
     {
       std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
-      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
       bufferShadowParameters[0].offset = 0;
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[5] = bufferShadowParameters;
@@ -528,7 +531,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
     // shadow parameters
     {
       std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
-      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
       bufferShadowParameters[0].offset = 0;
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[6] = bufferShadowParameters;
@@ -603,7 +606,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
     // shadow parameters
     {
       std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
-      bufferShadowParameters[0].buffer = _shadowParametersBuffer->getBuffer()[currentFrame]->getData();
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
       bufferShadowParameters[0].offset = 0;
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[5] = bufferShadowParameters;
@@ -793,7 +796,7 @@ void LightManager::_updateShadowParametersBuffer(int currentFrame) {
   memcpy(buffer.data() + offset, &shadowParameters.algorithmDirectional, sizeof(shadowParameters.algorithmDirectional));
   offset += sizeof(shadowParameters.algorithmDirectional);
   memcpy(buffer.data() + offset, &shadowParameters.algorithmPoint, sizeof(shadowParameters.algorithmPoint));
-  _shadowParametersBuffer->getBuffer()[currentFrame]->setData(buffer.data());
+  _shadowParametersBuffer[currentFrame]->setData(buffer.data());
 }
 
 std::shared_ptr<PointLight> LightManager::createPointLight() {

@@ -178,7 +178,7 @@ void TerrainCPU::_updateColorDescriptor() {
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    bufferInfoCamera[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
+    bufferInfoCamera[0].buffer = _cameraBuffer[i]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -263,8 +263,11 @@ void TerrainCPU::_loadTerrain() {
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
 
-  _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), _engineState);
+  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _cameraBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   // layout for Color
   {
@@ -358,7 +361,7 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
-    _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
+    _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh[currentFrame]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};

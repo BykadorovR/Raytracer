@@ -37,8 +37,11 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _renderPass->initializeGraphic();
   _changedMaterial.resize(engineState->getSettings()->getMaxFramesInFlight());
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   sizeof(BufferMVP), engineState);
+  _uniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _uniformBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
 
   // setup color
   {
@@ -86,7 +89,7 @@ void Skybox::_updateColorDescriptor() {
   std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
   std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
   // write to binding = 0 for vertex shader
-  bufferInfoCamera[0].buffer = _uniformBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCamera[0].buffer = _uniformBuffer[currentFrame]->getData();
   bufferInfoCamera[0].offset = 0;
   bufferInfoCamera[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCamera;
@@ -147,7 +150,7 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   cameraUBO.view = glm::mat4(glm::mat3(_gameState->getCameraManager()->getCurrentCamera()->getView()));
   cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
-  _uniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
+  _uniformBuffer[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

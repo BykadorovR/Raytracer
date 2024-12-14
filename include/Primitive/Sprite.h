@@ -35,8 +35,8 @@ class Sprite : public Drawable, public Shadowable {
   bool _enableLighting = true;
   bool _enableDepth = true;
   bool _enableHUD = false;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
-  std::shared_ptr<UniformBuffer> _cameraUBOFull;
+  std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
+  std::vector<std::shared_ptr<Buffer>> _cameraUBOFull;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
@@ -58,7 +58,7 @@ class Sprite : public Drawable, public Shadowable {
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
       // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBODepth[d][0]->getBuffer()[currentFrame]->getData();
+      bufferInfoCamera[0].buffer = _cameraUBODepth[d][0][currentFrame]->getData();
       bufferInfoCamera[0].offset = 0;
       bufferInfoCamera[0].range = sizeof(BufferMVP);
       bufferInfoColor[0] = bufferInfoCamera;
@@ -78,9 +78,8 @@ class Sprite : public Drawable, public Shadowable {
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
         std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
         // write to binding = 0 for vertex shader
-        bufferInfoCamera[0].buffer = _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]
-                                         ->getBuffer()[currentFrame]
-                                         ->getData();
+        bufferInfoCamera[0].buffer =
+            _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]->getData();
         bufferInfoCamera[0].offset = 0;
         bufferInfoCamera[0].range = sizeof(BufferMVP);
         bufferInfoColor[0] = bufferInfoCamera;

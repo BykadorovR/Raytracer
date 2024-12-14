@@ -1,7 +1,7 @@
 #include "Graphic/Material.h"
 
 void Material::_updateAlphaCutoffDescriptors(int currentFrame) {
-  _uniformBufferAlphaCutoff->getBuffer()[currentFrame]->setData(&_alphaCutoff);
+  _uniformBufferAlphaCutoff[currentFrame]->setData(&_alphaCutoff);
 }
 
 void Material::_updateDescriptor(int currentFrame, MaterialTexture type) {
@@ -43,8 +43,11 @@ void Material::update(int currentFrame) {
 Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
 
-  _uniformBufferAlphaCutoff = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                              sizeof(AlphaCutoff), engineState);
+  _uniformBufferAlphaCutoff.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _uniformBufferAlphaCutoff[i] = std::make_shared<Buffer>(
+        sizeof(AlphaCutoff), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   _changedAlpha.resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
 }
 
@@ -66,9 +69,9 @@ void Material::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
 
 bool Material::getDoubleSided() { return _doubleSided; }
 
-std::shared_ptr<UniformBuffer> Material::getBufferCoefficients() { return _uniformBufferCoefficients; }
+std::vector<std::shared_ptr<Buffer>> Material::getBufferCoefficients() { return _uniformBufferCoefficients; }
 
-std::shared_ptr<UniformBuffer> Material::getBufferAlphaCutoff() { return _uniformBufferAlphaCutoff; }
+std::vector<std::shared_ptr<Buffer>> Material::getBufferAlphaCutoff() { return _uniformBufferAlphaCutoff; }
 
 MaterialPBR::MaterialPBR(MaterialTarget target,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer,
@@ -76,8 +79,11 @@ MaterialPBR::MaterialPBR(MaterialTarget target,
     : Material(commandBufferTransfer, engineState) {
   _target = target;
   // define coefficients
-  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), engineState);
+  _uniformBufferCoefficients.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _uniformBufferCoefficients[i] = std::make_shared<Buffer>(
+        sizeof(Coefficients), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   _changedTextures[MaterialTexture::COLOR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   _changedTextures[MaterialTexture::NORMAL].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   _changedTextures[MaterialTexture::METALLIC].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
@@ -95,7 +101,7 @@ MaterialPBR::MaterialPBR(MaterialTarget target,
 }
 
 void MaterialPBR::_updateCoefficientBuffer(int currentFrame) {
-  _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
+  _uniformBufferCoefficients[currentFrame]->setData(&_coefficients);
 }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPBR::getBaseColor() { return _textures[MaterialTexture::COLOR]; }
@@ -216,8 +222,11 @@ MaterialPhong::MaterialPhong(MaterialTarget target,
     : Material(commandBufferTransfer, engineState) {
   _target = target;
 
-  _uniformBufferCoefficients = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(Coefficients), engineState);
+  _uniformBufferCoefficients.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _uniformBufferCoefficients[i] = std::make_shared<Buffer>(
+        sizeof(Coefficients), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   _changedTextures[MaterialTexture::COLOR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   _changedTextures[MaterialTexture::NORMAL].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
   _changedTextures[MaterialTexture::SPECULAR].resize(_engineState->getSettings()->getMaxFramesInFlight(), false);
@@ -229,7 +238,7 @@ MaterialPhong::MaterialPhong(MaterialTarget target,
 }
 
 void MaterialPhong::_updateCoefficientBuffer(int currentFrame) {
-  _uniformBufferCoefficients->getBuffer()[currentFrame]->setData(&_coefficients);
+  _uniformBufferCoefficients[currentFrame]->setData(&_coefficients);
 }
 
 const std::vector<std::shared_ptr<Texture>> MaterialPhong::getBaseColor() { return _textures[MaterialTexture::COLOR]; }

@@ -15,7 +15,7 @@ class Equirectangular {
   std::shared_ptr<Buffer> _stagingBuffer;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
-  std::vector<std::shared_ptr<UniformBuffer>> _bufferCubemap;
+  std::vector<std::vector<std::shared_ptr<Buffer>>> _bufferCubemap;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCubemap;
   std::shared_ptr<Pipeline> _pipelineEquirectangular;
   std::shared_ptr<MaterialColor> _material;

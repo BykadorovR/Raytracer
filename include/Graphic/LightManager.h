@@ -37,7 +37,7 @@ class LightManager {
       _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR,
       _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
-  std::shared_ptr<UniformBuffer> _shadowParametersBuffer;
+  std::vector<std::shared_ptr<Buffer>> _shadowParametersBuffer;
   std::map<LightType, ShadowAlgorithm> _shadowAlgorithm = {{LightType::DIRECTIONAL, ShadowAlgorithm::VSM},
                                                            {LightType::POINT, ShadowAlgorithm::PCF}};
   // for 2 frames

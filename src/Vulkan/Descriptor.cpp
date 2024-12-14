@@ -250,14 +250,14 @@ void DescriptorSet::createBlur(std::vector<std::shared_ptr<Texture>> src, std::v
   }
 }
 
-void DescriptorSet::createParticleComputeBuffer(std::shared_ptr<UniformBuffer> uniformBuffer,
+void DescriptorSet::createParticleComputeBuffer(std::vector<std::shared_ptr<Buffer>> uniformBuffer,
                                                 std::shared_ptr<Buffer> bufferIn,
                                                 std::shared_ptr<Buffer> bufferOut) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferUniformInfo{};
-    bufferUniformInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferUniformInfo.buffer = uniformBuffer[i]->getData();
     bufferUniformInfo.offset = 0;
-    bufferUniformInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+    bufferUniformInfo.range = uniformBuffer[i]->getSize();
 
     VkDescriptorBufferInfo bufferInInfo{};
     bufferInInfo.buffer = bufferIn->getData();
@@ -364,12 +364,12 @@ void DescriptorSet::updateImages(int currentFrame, std::map<int, std::vector<VkD
   vkUpdateDescriptorSets(_device->getLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
-void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createUniformBuffer(std::vector<std::shared_ptr<Buffer>> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.buffer = uniformBuffer[i]->getData();
     bufferInfo.offset = 0;
-    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+    bufferInfo.range = uniformBuffer[i]->getSize();
 
     VkWriteDescriptorSet descriptorWrites{};
     descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -384,12 +384,12 @@ void DescriptorSet::createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBu
   }
 }
 
-void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer) {
+void DescriptorSet::createGUI(std::shared_ptr<Texture> texture, std::vector<std::shared_ptr<Buffer>> uniformBuffer) {
   for (size_t i = 0; i < _descriptorSets.size(); i++) {
     VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = uniformBuffer->getBuffer()[i]->getData();
+    bufferInfo.buffer = uniformBuffer[i]->getData();
     bufferInfo.offset = 0;
-    bufferInfo.range = uniformBuffer->getBuffer()[i]->getSize();
+    bufferInfo.range = uniformBuffer[i]->getSize();
 
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = texture->getImageView()->getImage()->getImageLayout();

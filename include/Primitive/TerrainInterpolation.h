@@ -19,7 +19,7 @@ class TerrainInterpolationDebug : public TerrainDebug {
  private:
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<GUI> _gui;
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
+  std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormalsMesh;
   std::shared_ptr<DescriptorSet> _descriptorSetNormal;
@@ -68,8 +68,8 @@ class TerrainInterpolation : public TerrainGPU {
 
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
 
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
+  std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
+  std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraBufferDepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;

@@ -116,15 +116,3 @@ std::tuple<int, int> BufferImage::getResolution() { return _resolution; }
 int BufferImage::getChannels() { return _channels; }
 
 int BufferImage::getNumber() { return _number; }
-
-UniformBuffer::UniformBuffer(int number, int size, std::shared_ptr<EngineState> engineState) {
-  _buffer.resize(number);
-  VkDeviceSize bufferSize = size;
-
-  for (int i = 0; i < number; i++)
-    _buffer[i] = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                          engineState);
-}
-
-std::vector<std::shared_ptr<Buffer>>& UniformBuffer::getBuffer() { return _buffer; }

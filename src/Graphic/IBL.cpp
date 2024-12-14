@@ -50,8 +50,12 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       {_gameState->getResourceManager()->getCubemapOne()->getTexture()});
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeIBL();
-  _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), engineState);
+
+  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _cameraBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   // setup BRDF
   {
     auto cameraLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
@@ -81,8 +85,11 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // initialize UBO
   _cameraBufferCubemap.resize(6);
   for (int i = 0; i < 6; i++) {
-    _cameraBufferCubemap[i] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                              sizeof(BufferMVP), engineState);
+    _cameraBufferCubemap[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
+      _cameraBufferCubemap[i][j] = std::make_shared<Buffer>(
+          sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   }
 
   // setup diffuse and specular
@@ -215,7 +222,7 @@ void IBL::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
       // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraBufferCubemap[f]->getBuffer()[i]->getData();
+      bufferInfoCamera[0].buffer = _cameraBufferCubemap[f][i]->getData();
       bufferInfoCamera[0].offset = 0;
       bufferInfoCamera[0].range = sizeof(BufferMVP);
       bufferInfoColor[0] = bufferInfoCamera;
@@ -251,7 +258,7 @@ void IBL::_draw(int face,
   cameraUBO.view = camera->getView();
   cameraUBO.projection = camera->getProjection();
 
-  _cameraBufferCubemap[face]->getBuffer()[currentFrame]->setData(&cameraUBO);
+  _cameraBufferCubemap[face][currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -468,7 +475,7 @@ void IBL::drawSpecularBRDF() {
   cameraMVP.view = _cameraSpecularBRDF->getView();
   cameraMVP.projection = _cameraSpecularBRDF->getProjection();
 
-  _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraMVP);
+  _cameraBuffer[currentFrame]->setData(&cameraMVP);
 
   VkBuffer vertexBuffers[] = {_mesh2D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

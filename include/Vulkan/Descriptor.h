@@ -40,8 +40,8 @@ class DescriptorSet {
                     std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
                     std::map<int, std::vector<VkDescriptorImageInfo>> images);
   void updateImages(int currentFrame, std::map<int, std::vector<VkDescriptorImageInfo>> images);
-  void createUniformBuffer(std::shared_ptr<UniformBuffer> uniformBuffer);
-  void createParticleComputeBuffer(std::shared_ptr<UniformBuffer> uniformBuffer,
+  void createUniformBuffer(std::vector<std::shared_ptr<Buffer>> uniformBuffer);
+  void createParticleComputeBuffer(std::vector<std::shared_ptr<Buffer>> uniformBuffer,
                                    std::shared_ptr<Buffer> bufferIn,
                                    std::shared_ptr<Buffer> bufferOut);
   void createShaderStorageBuffer(int currentFrame,
@@ -51,7 +51,7 @@ class DescriptorSet {
                             std::shared_ptr<ImageView> blur,
                             std::shared_ptr<ImageView> dst);
   void createBlur(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst);
-  void createGUI(std::shared_ptr<Texture> texture, std::shared_ptr<UniformBuffer> uniformBuffer);
+  void createGUI(std::shared_ptr<Texture> texture, std::vector<std::shared_ptr<Buffer>> uniformBuffer);
   std::vector<VkDescriptorSet>& getDescriptorSets();
   ~DescriptorSet();
 };

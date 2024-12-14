@@ -84,8 +84,12 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
 
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeGraphic();
-  _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), engineState);
+
+  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _cameraBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
 
   // layout for Normal
   {
@@ -120,13 +124,13 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
       std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
-      bufferInfoTesControl[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
+      bufferInfoTesControl[0].buffer = _cameraBuffer[i]->getData();
       bufferInfoTesControl[0].offset = 0;
       bufferInfoTesControl[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[0] = bufferInfoTesControl;
 
       std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
-      bufferInfoTesEval[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
+      bufferInfoTesEval[0].buffer = _cameraBuffer[i]->getData();
       bufferInfoTesEval[0].offset = 0;
       bufferInfoTesEval[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[1] = bufferInfoTesEval;
@@ -139,7 +143,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
 
       // write for binding = 1 for geometry shader
       std::vector<VkDescriptorBufferInfo> bufferInfoGeometry(1);
-      bufferInfoGeometry[0].buffer = _cameraBuffer->getBuffer()[i]->getData();
+      bufferInfoGeometry[0].buffer = _cameraBuffer[i]->getData();
       bufferInfoGeometry[0].offset = 0;
       bufferInfoGeometry[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[3] = bufferInfoGeometry;
@@ -370,7 +374,7 @@ void TerrainCompositionDebug::_updateColorDescriptor() {
   std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
   std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraControl[0].offset = 0;
   bufferInfoCameraControl[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCameraControl;
@@ -382,7 +386,7 @@ void TerrainCompositionDebug::_updateColorDescriptor() {
   bufferInfoColor[1] = bufferPatchInfo;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraEval[0].offset = 0;
   bufferInfoCameraEval[0].range = sizeof(BufferMVP);
   bufferInfoColor[2] = bufferInfoCameraEval;
@@ -532,7 +536,7 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
-    _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
+    _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh[currentFrame]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -745,18 +749,29 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   _renderPassShadow = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPassShadow->initializeLightDepth();
 
-  _cameraBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                  sizeof(BufferMVP), _engineState);
+  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _cameraBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+
   for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraBufferDepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                  sizeof(BufferMVP), _engineState)});
+    std::vector<std::shared_ptr<Buffer>> buffer(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
+      buffer[j] = std::make_shared<Buffer>(sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                           _engineState);
+    _cameraBufferDepth.push_back({buffer});
   }
 
   for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
-    std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
+    std::vector<std::vector<std::shared_ptr<Buffer>>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                       sizeof(BufferMVP), _engineState);
+      facesBuffer[j].resize(_engineState->getSettings()->getMaxFramesInFlight());
+      for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++)
+        facesBuffer[j][k] = std::make_shared<Buffer>(
+            sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
     }
     _cameraBufferDepth.push_back(facesBuffer);
   }
@@ -791,13 +806,13 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
         std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
-        bufferInfoTesControl[0].buffer = _cameraBufferDepth[d][0]->getBuffer()[i]->getData();
+        bufferInfoTesControl[0].buffer = _cameraBufferDepth[d][0][i]->getData();
         bufferInfoTesControl[0].offset = 0;
         bufferInfoTesControl[0].range = sizeof(BufferMVP);
         bufferInfoNormalsMesh[0] = bufferInfoTesControl;
 
         std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
-        bufferInfoTesEval[0].buffer = _cameraBufferDepth[d][0]->getBuffer()[i]->getData();
+        bufferInfoTesEval[0].buffer = _cameraBufferDepth[d][0][i]->getData();
         bufferInfoTesEval[0].offset = 0;
         bufferInfoTesEval[0].range = sizeof(BufferMVP);
         bufferInfoNormalsMesh[1] = bufferInfoTesEval;
@@ -823,18 +838,14 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
           std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
           bufferInfoTesControl[0].buffer =
-              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f]
-                  ->getBuffer()[i]
-                  ->getData();
+              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData();
           bufferInfoTesControl[0].offset = 0;
           bufferInfoTesControl[0].range = sizeof(BufferMVP);
           bufferInfoNormalsMesh[0] = bufferInfoTesControl;
 
           std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
           bufferInfoTesEval[0].buffer =
-              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f]
-                  ->getBuffer()[i]
-                  ->getData();
+              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData();
           bufferInfoTesEval[0].offset = 0;
           bufferInfoTesEval[0].range = sizeof(BufferMVP);
           bufferInfoNormalsMesh[1] = bufferInfoTesEval;
@@ -1292,7 +1303,7 @@ void TerrainComposition::_updateColorDescriptor() {
   std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
   std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraControl[0].offset = 0;
   bufferInfoCameraControl[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCameraControl;
@@ -1304,7 +1315,7 @@ void TerrainComposition::_updateColorDescriptor() {
   bufferInfoColor[1] = bufferPatchInfo;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraEval[0].offset = 0;
   bufferInfoCameraEval[0].range = sizeof(BufferMVP);
   bufferInfoColor[2] = bufferInfoCameraEval;
@@ -1332,7 +1343,7 @@ void TerrainComposition::_updatePhongDescriptor() {
   std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
   std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraControl[0].offset = 0;
   bufferInfoCameraControl[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCameraControl;
@@ -1344,7 +1355,7 @@ void TerrainComposition::_updatePhongDescriptor() {
   bufferInfoColor[1] = bufferPatchInfo;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraEval[0].offset = 0;
   bufferInfoCameraEval[0].range = sizeof(BufferMVP);
   bufferInfoColor[2] = bufferInfoCameraEval;
@@ -1381,9 +1392,9 @@ void TerrainComposition::_updatePhongDescriptor() {
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
   // write to binding = 0 for vertex shader
-  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
   bufferInfoCoefficients[0].offset = 0;
-  bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+  bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
   bufferInfoColor[7] = bufferInfoCoefficients;
   _descriptorSetPhong->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
@@ -1394,7 +1405,7 @@ void TerrainComposition::_updatePBRDescriptor() {
   std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
   std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraControl[0].offset = 0;
   bufferInfoCameraControl[0].range = sizeof(BufferMVP);
   bufferInfoColor[0] = bufferInfoCameraControl;
@@ -1406,7 +1417,7 @@ void TerrainComposition::_updatePBRDescriptor() {
   bufferInfoColor[1] = bufferPatchInfo;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer->getBuffer()[currentFrame]->getData();
+  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
   bufferInfoCameraEval[0].offset = 0;
   bufferInfoCameraEval[0].range = sizeof(BufferMVP);
   bufferInfoColor[2] = bufferInfoCameraEval;
@@ -1486,16 +1497,16 @@ void TerrainComposition::_updatePBRDescriptor() {
 
   std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
   // write to binding = 0 for vertex shader
-  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
   bufferInfoCoefficients[0].offset = 0;
-  bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+  bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
   bufferInfoColor[13] = bufferInfoCoefficients;
 
   std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
   // write to binding = 0 for vertex shader
-  bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+  bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
   bufferInfoAlphaCutoff[0].offset = 0;
-  bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+  bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
   bufferInfoColor[14] = bufferInfoAlphaCutoff;
 
   _descriptorSetPBR->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
@@ -1581,7 +1592,7 @@ void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
     cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
-    _cameraBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
+    _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -1756,7 +1767,7 @@ void TerrainComposition::drawShadow(LightType lightType,
   cameraUBO.view = view;
   cameraUBO.projection = projection;
 
-  _cameraBufferDepth[lightIndexTotal][face]->getBuffer()[currentFrame]->setData(&cameraUBO);
+  _cameraBufferDepth[lightIndexTotal][face][currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

@@ -198,12 +198,3 @@ class VertexBufferStatic : public VertexBuffer<T> {
                          nullptr, 0, nullptr);
   }
 };
-
-class UniformBuffer {
- private:
-  std::vector<std::shared_ptr<Buffer>> _buffer;
-
- public:
-  UniformBuffer(int number, int size, std::shared_ptr<EngineState> engineState);
-  std::vector<std::shared_ptr<Buffer>>& getBuffer();
-};

@@ -80,8 +80,11 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
   _descriptorSetLayout->createGUI();
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   sizeof(UniformData), _engineState);
+  _uniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _uniformBuffer[i] = std::make_shared<Buffer>(
+        sizeof(UniformData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                    _descriptorSetLayout, _descriptorPool, _engineState->getDevice());
   _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
@@ -244,7 +247,7 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   uniformData.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
   uniformData.translate = glm::vec2(-1.0f);
 
-  _uniformBuffer->getBuffer()[current]->setData(&uniformData);
+  _uniformBuffer[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,

@@ -9,8 +9,13 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _mesh = std::make_shared<MeshDynamic3D>(engineState);
   _mesh->setIndexes({0, 1});
   _mesh->setVertices({Vertex3D{}, Vertex3D{}});
-  _uniformBuffer = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   sizeof(BufferMVP), engineState);
+  _uniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _uniformBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
+  }
+
   auto setLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
   setLayout->createUniformBuffer();
   _descriptorSetCamera = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(), setLayout,
@@ -61,7 +66,7 @@ void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
   cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
 
-  _uniformBuffer->getBuffer()[currentFrame]->setData(&cameraUBO);
+  _uniformBuffer[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

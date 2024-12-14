@@ -14,9 +14,9 @@ class IBL {
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<MeshStatic3D> _mesh3D;
   std::shared_ptr<MeshStatic2D> _mesh2D;
-  std::vector<std::shared_ptr<UniformBuffer>> _cameraBufferCubemap;
+  std::vector<std::vector<std::shared_ptr<Buffer>>> _cameraBufferCubemap;
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
+  std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor;
   std::shared_ptr<DescriptorSet> _descriptorSetBRDF;

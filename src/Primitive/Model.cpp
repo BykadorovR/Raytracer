@@ -130,8 +130,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _renderPassDepth->initializeLightDepth();
 
   // initialize UBO
-  _cameraUBOFull = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   sizeof(BufferMVP), _engineState);
+  _cameraUBOFull.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _cameraUBOFull[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   // setup joints
   {
@@ -172,13 +175,13 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
       std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
       // write to binding = 0 for vertex shader
-      bufferInfoVertex[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
+      bufferInfoVertex[0].buffer = _cameraUBOFull[i]->getData();
       bufferInfoVertex[0].offset = 0;
       bufferInfoVertex[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[0] = bufferInfoVertex;
       // write for binding = 1 for geometry shader
       std::vector<VkDescriptorBufferInfo> bufferInfoGeometry(1);
-      bufferInfoGeometry[0].buffer = _cameraUBOFull->getBuffer()[i]->getData();
+      bufferInfoGeometry[0].buffer = _cameraUBOFull[i]->getData();
       bufferInfoGeometry[0].offset = 0;
       bufferInfoGeometry[0].range = sizeof(BufferMVP);
       bufferInfoNormalsMesh[1] = bufferInfoGeometry;
@@ -512,15 +515,22 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   int lightNumber = _engineState->getSettings()->getMaxDirectionalLights() +
                     _engineState->getSettings()->getMaxPointLights();
   for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
-    _cameraUBODepth.push_back({std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                               sizeof(BufferMVP), _engineState)});
+    std::vector<std::shared_ptr<Buffer>> buffer(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
+      buffer[j] = std::make_shared<Buffer>(sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                           _engineState);
+    _cameraUBODepth.push_back({buffer});
   }
 
   for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
-    std::vector<std::shared_ptr<UniformBuffer>> facesBuffer(6);
+    std::vector<std::vector<std::shared_ptr<Buffer>>> facesBuffer(6);
     for (int j = 0; j < 6; j++) {
-      facesBuffer[j] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                       sizeof(BufferMVP), _engineState);
+      facesBuffer[j].resize(_engineState->getSettings()->getMaxFramesInFlight());
+      for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++)
+        facesBuffer[j][k] = std::make_shared<Buffer>(
+            sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
     }
     _cameraUBODepth.push_back(facesBuffer);
   }
@@ -613,7 +623,7 @@ void Model3D::_updatePBRDescriptor() {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -676,16 +686,16 @@ void Model3D::_updatePBRDescriptor() {
 
     std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
     // write to binding = 0 for vertex shader
-    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
     bufferInfoAlphaCutoff[0].offset = 0;
-    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
     bufferInfoColor[10] = bufferInfoAlphaCutoff;
 
     std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
     bufferInfoCoefficients[0].offset = 0;
-    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
     bufferInfoColor[11] = bufferInfoCoefficients;
 
     _descriptorSetPBR[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
@@ -701,7 +711,7 @@ void Model3D::_updatePhongDescriptor() {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -728,16 +738,16 @@ void Model3D::_updatePhongDescriptor() {
 
     std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
     // write to binding = 0 for vertex shader
-    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getData();
+    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
     bufferInfoAlphaCutoff[0].offset = 0;
-    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()->getBuffer()[currentFrame]->getSize();
+    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
     bufferInfoColor[4] = bufferInfoAlphaCutoff;
 
     std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()->getBuffer()[currentFrame]->getData();
+    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
     bufferInfoCoefficients[0].offset = 0;
-    bufferInfoCoefficients[0].range = material->getBufferCoefficients()->getBuffer()[currentFrame]->getSize();
+    bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
     bufferInfoColor[5] = bufferInfoCoefficients;
 
     _descriptorSetPhong[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
@@ -753,7 +763,7 @@ void Model3D::_updateColorDescriptor() {
     std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
     std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
     // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull->getBuffer()[currentFrame]->getData();
+    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
     bufferInfoCamera[0].offset = 0;
     bufferInfoCamera[0].range = sizeof(BufferMVP);
     bufferInfoColor[0] = bufferInfoCamera;
@@ -869,7 +879,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         std::shared_ptr<Pipeline> pipeline,
                         std::shared_ptr<Pipeline> pipelineCullOff,
                         std::shared_ptr<DescriptorSet> cameraDS,
-                        std::shared_ptr<UniformBuffer> cameraUBO,
+                        std::vector<std::shared_ptr<Buffer>> cameraUBO,
                         glm::mat4 view,
                         glm::mat4 projection,
                         std::shared_ptr<NodeGLTF> node) {
@@ -893,7 +903,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     cameraMVP.view = view;
     cameraMVP.projection = projection;
 
-    cameraUBO->getBuffer()[currentFrame]->setData(&cameraMVP);
+    cameraUBO[currentFrame]->setData(&cameraMVP);
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
 

@@ -16,7 +16,7 @@ class Skybox {
   std::shared_ptr<GameState> _gameState;
 
   std::shared_ptr<MeshStatic3D> _mesh;
-  std::shared_ptr<UniformBuffer> _uniformBuffer;
+  std::vector<std::shared_ptr<Buffer>> _uniformBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<Pipeline> _pipeline;

@@ -113,7 +113,13 @@ FetchContent_Declare(
     GIT_TAG e767d0ee782709f2bd2df148927ddab02f2dbfe4
 )
 
-FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap volk)
+FetchContent_Declare(
+  vulkan-memory-allocator
+  GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+  GIT_TAG v3.1.0
+)
+
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap volk vulkan-memory-allocator)
 if (ANDROID)
   set_target_properties(vk-bootstrap PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
@@ -204,13 +210,14 @@ endif()
 file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrap.h ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrapDispatch.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${volk_SOURCE_DIR}/volk.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${vulkan-memory-allocator_SOURCE_DIR}/include/vk_mem_alloc.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 
 
 #Jolt should start with capital J
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk GPUOpen::VulkanMemoryAllocator)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk GPUOpen::VulkanMemoryAllocator)
 endif()

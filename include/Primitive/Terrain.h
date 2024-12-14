@@ -57,8 +57,8 @@ class TerrainCPU : public Drawable {
   std::tuple<int, int> _resolution;
   std::vector<std::shared_ptr<MeshDynamic3D>> _mesh;
   std::vector<bool> _changeMeshTriangles, _changeMeshHeightmap;
-  std::shared_ptr<UniformBuffer> _cameraBuffer;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraBufferDepth;
+  std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
+  std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraBufferDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSetColor;
   std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;

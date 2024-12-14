@@ -74,8 +74,11 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   // initialize UBO
   _bufferCubemap.resize(6);
   for (int i = 0; i < 6; i++) {
-    _bufferCubemap[i] = std::make_shared<UniformBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                        sizeof(BufferMVP), engineState);
+    _bufferCubemap[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
+      _bufferCubemap[i][j] = std::make_shared<Buffer>(
+          sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   }
 
   // setup color
@@ -104,7 +107,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
         std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
         // write to binding = 0 for vertex shader
-        bufferInfoCamera[0].buffer = _bufferCubemap[f]->getBuffer()[i]->getData();
+        bufferInfoCamera[0].buffer = _bufferCubemap[f][i]->getData();
         bufferInfoCamera[0].offset = 0;
         bufferInfoCamera[0].range = sizeof(BufferMVP);
         bufferInfoColor[0] = bufferInfoCamera;
@@ -226,7 +229,7 @@ void Equirectangular::_convertToCubemap() {
     cameraUBO.view = _camera->getView();
     cameraUBO.projection = _camera->getProjection();
 
-    _bufferCubemap[i]->getBuffer()[currentFrame]->setData(&cameraUBO);
+    _bufferCubemap[i][currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};

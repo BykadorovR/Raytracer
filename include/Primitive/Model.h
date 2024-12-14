@@ -61,8 +61,8 @@ class Model3D : public Drawable, public Shadowable {
   std::shared_ptr<GameState> _gameState;
   std::vector<bool> _changedMaterial;
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
-  std::shared_ptr<UniformBuffer> _cameraUBOFull;
+  std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
+  std::vector<std::shared_ptr<Buffer>> _cameraUBOFull;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR,
       _descriptorSetJoints;
@@ -99,7 +99,7 @@ class Model3D : public Drawable, public Shadowable {
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
                  std::shared_ptr<DescriptorSet> cameraDS,
-                 std::shared_ptr<UniformBuffer> cameraUBO,
+                 std::vector<std::shared_ptr<Buffer>> cameraUBO,
                  glm::mat4 view,
                  glm::mat4 projection,
                  std::shared_ptr<NodeGLTF> node);

@@ -29,8 +29,8 @@ class Material {
   AlphaCutoff _alphaCutoff;
   bool _doubleSided = false;
 
-  std::shared_ptr<UniformBuffer> _uniformBufferCoefficients;
-  std::shared_ptr<UniformBuffer> _uniformBufferAlphaCutoff;
+  std::vector<std::shared_ptr<Buffer>> _uniformBufferCoefficients;
+  std::vector<std::shared_ptr<Buffer>> _uniformBufferAlphaCutoff;
   std::map<std::shared_ptr<DescriptorSet>, std::vector<std::tuple<MaterialTexture, int>>> _descriptorsUpdate;
   std::shared_ptr<EngineState> _engineState;
   std::map<MaterialTexture, std::vector<bool>> _changedTextures;
@@ -51,8 +51,8 @@ class Material {
   void setDoubleSided(bool doubleSided);
   void setAlphaCutoff(bool alphaCutoff, float alphaMask);
   bool getDoubleSided();
-  std::shared_ptr<UniformBuffer> getBufferCoefficients();
-  std::shared_ptr<UniformBuffer> getBufferAlphaCutoff();
+  std::vector<std::shared_ptr<Buffer>> getBufferCoefficients();
+  std::vector<std::shared_ptr<Buffer>> getBufferAlphaCutoff();
   void update(int currentFrame);
 };
 
