@@ -34,10 +34,8 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     auto identityMat = glm::mat4(1.f);
     int jointNumber = 0;
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      _ssboJoints[0][i]->map();
-      memcpy(_ssboJoints[0][i]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
-      memcpy((uint8_t*)(_ssboJoints[0][i]->getMappedMemory()) + sizeof(glm::vec4), &identityMat, sizeof(glm::mat4));
-      _ssboJoints[0][i]->unmap();
+      _ssboJoints[0][i]->setData(&jointNumber, sizeof(glm::vec4));
+      _ssboJoints[0][i]->setData(&identityMat, sizeof(glm::mat4), sizeof(glm::vec4));
     }
   }
 }
@@ -58,11 +56,9 @@ void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) 
     }
     auto frameInFlight = currentImage % _engineState->getSettings()->getMaxFramesInFlight();
     int jointNumber = jointMatrices.size();
-    _ssboJoints[node->skin][frameInFlight]->map();
-    memcpy(_ssboJoints[node->skin][frameInFlight]->getMappedMemory(), &jointNumber, sizeof(glm::vec4));
-    memcpy((uint8_t*)(_ssboJoints[node->skin][frameInFlight]->getMappedMemory()) + sizeof(glm::vec4),
-           jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4));
-    _ssboJoints[node->skin][frameInFlight]->unmap();
+    _ssboJoints[node->skin][frameInFlight]->setData(&jointNumber, sizeof(glm::vec4));
+    _ssboJoints[node->skin][frameInFlight]->setData(jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4),
+                                                    sizeof(glm::vec4));
   }
 
   for (auto& child : node->children) {

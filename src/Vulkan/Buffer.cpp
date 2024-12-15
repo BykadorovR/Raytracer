@@ -13,36 +13,12 @@ Buffer::Buffer(VkDeviceSize size,
   bufferInfo.usage = usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  if (vkCreateBuffer(engineState->getDevice()->getLogicalDevice(), &bufferInfo, nullptr, &_data) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create buffer!");
-  }
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-  VkMemoryRequirements memRequirements;
-  vkGetBufferMemoryRequirements(engineState->getDevice()->getLogicalDevice(), _data, &memRequirements);
-
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-  VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(engineState->getDevice()->getPhysicalDevice(), &memProperties);
-
-  int memoryID = -1;
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((memRequirements.memoryTypeBits & (1 << i)) &&
-        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-      memoryID = i;
-      break;
-    }
-  }
-  if (memoryID < 0) throw std::runtime_error("failed to find suitable memory type!");
-
-  allocInfo.memoryTypeIndex = memoryID;
-
-  if (vkAllocateMemory(engineState->getDevice()->getLogicalDevice(), &allocInfo, nullptr, &_memory) != VK_SUCCESS) {
-    throw std::runtime_error("failed to allocate buffer memory!");
-  }
-
-  vkBindBufferMemory(engineState->getDevice()->getLogicalDevice(), _data, _memory, 0);
+  vmaCreateBuffer(engineState->getMemoryAllocator()->getAllocator(), &bufferInfo, &allocCreateInfo, &_data, &_memory,
+                  &_memoryInfo);
 }
 
 void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
@@ -63,41 +39,11 @@ VkDeviceSize& Buffer::getSize() { return _size; }
 
 VkBuffer& Buffer::getData() { return _data; }
 
-VkDeviceMemory& Buffer::getMemory() { return _memory; }
-
-// VK_WHOLE_SIZE is used because otherwise memory must be aligned manually to 64 or something
-// so can't just use _size
-// TODO: try to align memory manually?
-void Buffer::map() {
-  vkMapMemory(_engineState->getDevice()->getLogicalDevice(), _memory, 0, VK_WHOLE_SIZE, 0, &_mapped);
+VkResult Buffer::flush() {
+  return vmaFlushAllocation(_engineState->getMemoryAllocator()->getAllocator(), _memory, 0, VK_WHOLE_SIZE);
 }
 
-void Buffer::flush() {
-  VkMappedMemoryRange mappedRange = {};
-  mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-  mappedRange.memory = _memory;
-  mappedRange.offset = 0;
-  mappedRange.size = VK_WHOLE_SIZE;
-  vkFlushMappedMemoryRanges(_engineState->getDevice()->getLogicalDevice(), 1, &mappedRange);
-}
-
-void Buffer::unmap() {
-  if (_mapped != nullptr) {
-    vkUnmapMemory(_engineState->getDevice()->getLogicalDevice(), _memory);
-    _mapped = nullptr;
-  }
-}
-
-void* Buffer::getMappedMemory() { return _mapped; }
-
-Buffer::~Buffer() {
-  if (_mapped != nullptr) {
-    vkUnmapMemory(_engineState->getDevice()->getLogicalDevice(), _memory);
-    _mapped = nullptr;
-  }
-  vkDestroyBuffer(_engineState->getDevice()->getLogicalDevice(), _data, nullptr);
-  vkFreeMemory(_engineState->getDevice()->getLogicalDevice(), _memory, nullptr);
-}
+Buffer::~Buffer() { vmaDestroyBuffer(_engineState->getMemoryAllocator()->getAllocator(), _data, _memory); }
 
 BufferImage::BufferImage(std::tuple<int, int> resolution,
                          int channels,

@@ -201,7 +201,6 @@ void GUI::updateBuffers(int current) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _vertexCount[current] = imDrawData->TotalVtxCount;
-    _vertexBuffer[current]->map();
   }
 
   // Index buffer
@@ -209,23 +208,18 @@ void GUI::updateBuffers(int current) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _indexCount[current] = imDrawData->TotalIdxCount;
-    _indexBuffer[current]->map();
   }
 
   // Upload data
-  ImDrawVert* vtxDst = (ImDrawVert*)_vertexBuffer[current]->getMappedMemory();
-  ImDrawIdx* idxDst = (ImDrawIdx*)_indexBuffer[current]->getMappedMemory();
-
+  int vertexDst = 0;
+  int indexDst = 0;
   for (int n = 0; n < imDrawData->CmdListsCount; n++) {
     const ImDrawList* cmdList = imDrawData->CmdLists[n];
-    memcpy(vtxDst, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert));
-    memcpy(idxDst, cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
-    vtxDst += cmdList->VtxBuffer.Size;
-    idxDst += cmdList->IdxBuffer.Size;
+    _vertexBuffer[current]->setData(cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert), vertexDst);
+    _indexBuffer[current]->setData(cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx), indexDst);
+    vertexDst += cmdList->VtxBuffer.Size * sizeof(ImDrawVert);
+    indexDst += cmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
   }
-
-  _vertexBuffer[current]->flush();
-  _indexBuffer[current]->flush();
 }
 
 void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {

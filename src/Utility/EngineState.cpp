@@ -18,6 +18,7 @@ void EngineState::initialize() {
   _instance = std::make_shared<Instance>(_settings->getName(), true);
   _surface = std::make_shared<Surface>(_window, _instance);
   _device = std::make_shared<Device>(_surface, _instance);
+  _memoryAllocator = std::make_shared<MemoryAllocator>(_device, _instance);
   _descriptorPool = std::make_shared<DescriptorPool>(3000, _device);
   _filesystem = std::make_shared<Filesystem>();
 #ifdef __ANDROID__
@@ -30,6 +31,8 @@ std::shared_ptr<Settings> EngineState::getSettings() { return _settings; }
 std::shared_ptr<Window> EngineState::getWindow() { return _window; }
 
 std::shared_ptr<Input> EngineState::getInput() { return _input; }
+
+std::shared_ptr<MemoryAllocator> EngineState::getMemoryAllocator() { return _memoryAllocator; }
 
 std::shared_ptr<Instance> EngineState::getInstance() { return _instance; }
 

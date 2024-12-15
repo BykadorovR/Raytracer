@@ -633,17 +633,14 @@ void LightManager::_updateAmbientBuffers(int currentFrame) {
   if (_ambientLights.size() > 0) {
     int offset = 0;
     // we don't want to do multiple map/unmap that's why we don't use corresponding Buffer method setData
-    _lightAmbientSSBO[currentFrame]->map();
     int ambientNumber = _ambientLights.size();
-    memcpy((uint8_t*)(_lightAmbientSSBO[currentFrame]->getMappedMemory()) + offset, &ambientNumber, sizeof(glm::vec4));
+    _lightAmbientSSBO[currentFrame]->setData(&ambientNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _ambientLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightAmbientSSBO[currentFrame]->getMappedMemory()) + offset, _ambientLights[i]->getData(),
-             _ambientLights[i]->getSize());
+      _lightAmbientSSBO[currentFrame]->setData(_ambientLights[i]->getData(), _ambientLights[i]->getSize(), offset);
       offset += _ambientLights[i]->getSize();
     }
-    _lightAmbientSSBO[currentFrame]->unmap();
   }
 }
 
@@ -679,21 +676,17 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
   int directionalNumber = _directionalLights.size();
   if (_directionalLights.size() > 0) {
     int offset = 0;
-    _lightDirectionalSSBO[currentFrame]->map();
-    memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset, &directionalNumber,
-           sizeof(glm::vec4));
+    _lightDirectionalSSBO[currentFrame]->setData(&directionalNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _directionalLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset,
-             _directionalLights[i]->getData(), _directionalLights[i]->getSize());
+      _lightDirectionalSSBO[currentFrame]->setData(_directionalLights[i]->getData(), _directionalLights[i]->getSize(),
+                                                   offset);
       offset += _directionalLights[i]->getSize();
     }
-    _lightDirectionalSSBO[currentFrame]->unmap();
   }
 
   if (_directionalLights.size() > 0) {
-    _lightDirectionalSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> directionalVP;
     for (int i = 0; i < _directionalLights.size(); i++) {
       glm::mat4 viewProjection = _directionalLights[i]->getCamera()->getProjection() *
@@ -701,12 +694,10 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
       directionalVP.push_back(viewProjection);
     }
     int offset = 0;
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[currentFrame]->getMappedMemory()) + offset,
-           &directionalNumber, sizeof(glm::vec4));
+    _lightDirectionalSSBOViewProjection[currentFrame]->setData(&directionalNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[currentFrame]->getMappedMemory()) + offset,
-           directionalVP.data(), directionalVP.size() * sizeof(glm::mat4));
-    _lightDirectionalSSBOViewProjection[currentFrame]->unmap();
+    _lightDirectionalSSBOViewProjection[currentFrame]->setData(directionalVP.data(),
+                                                               directionalVP.size() * sizeof(glm::mat4), offset);
   }
 }
 
@@ -739,21 +730,17 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
 void LightManager::_updatePointBuffers(int currentFrame) {
   int pointNumber = _pointLights.size();
   if (_pointLights.size() > 0) {
-    _lightPointSSBO[currentFrame]->map();
     int offset = 0;
-    memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, &pointNumber, sizeof(glm::vec4));
+    _lightPointSSBO[currentFrame]->setData(&pointNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _pointLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
-             _pointLights[i]->getSize());
+      _lightPointSSBO[currentFrame]->setData(_pointLights[i]->getData(), _pointLights[i]->getSize(), offset);
       offset += _pointLights[i]->getSize();
     }
-    _lightPointSSBO[currentFrame]->unmap();
   }
 
   if (_pointLights.size() > 0) {
-    _lightPointSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> pointVP;
     float aspect = (float)std::get<0>(_engineState->getSettings()->getResolution()) /
                    (float)std::get<1>(_engineState->getSettings()->getResolution());
@@ -763,12 +750,9 @@ void LightManager::_updatePointBuffers(int currentFrame) {
       pointVP.push_back(viewProjection);
     }
     int offset = 0;
-    memcpy((uint8_t*)(_lightPointSSBOViewProjection[currentFrame]->getMappedMemory()) + offset, &pointNumber,
-           sizeof(glm::vec4));
+    _lightPointSSBOViewProjection[currentFrame]->setData(&pointNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
-    memcpy((uint8_t*)(_lightPointSSBOViewProjection[currentFrame]->getMappedMemory()) + offset, pointVP.data(),
-           pointVP.size() * sizeof(glm::mat4));
-    _lightPointSSBOViewProjection[currentFrame]->unmap();
+    _lightPointSSBOViewProjection[currentFrame]->setData(pointVP.data(), pointVP.size() * sizeof(glm::mat4), offset);
   }
 }
 

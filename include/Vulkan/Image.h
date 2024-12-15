@@ -8,7 +8,7 @@ class Image {
   std::shared_ptr<EngineState> _engineState;
   std::tuple<int, int> _resolution;
   VkImage _image;
-  VkDeviceMemory _imageMemory;
+  VmaAllocation _imageMemory;
   VkFormat _format;
   int _layers;
   bool _external = false;

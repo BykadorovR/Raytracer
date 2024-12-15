@@ -44,37 +44,11 @@ Image::Image(std::tuple<int, int> resolution,
   // for cubemap need to set flag
   if (layers == 6) imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-  if (vkCreateImage(_engineState->getDevice()->getLogicalDevice(), &imageInfo, nullptr, &_image) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create image!");
-  }
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-  VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(_engineState->getDevice()->getLogicalDevice(), _image, &memRequirements);
-
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-
-  allocInfo.memoryTypeIndex = -1;
-  // TODO: findMemoryType to device
-  VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(_engineState->getDevice()->getPhysicalDevice(), &memProperties);
-
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((memRequirements.memoryTypeBits & (1 << i)) &&
-        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-      allocInfo.memoryTypeIndex = i;
-      break;
-    }
-  }
-  if (allocInfo.memoryTypeIndex < 0) throw std::runtime_error("failed to find suitable memory type!");
-
-  if (vkAllocateMemory(_engineState->getDevice()->getLogicalDevice(), &allocInfo, nullptr, &_imageMemory) !=
-      VK_SUCCESS) {
-    throw std::runtime_error("failed to allocate image memory!");
-  }
-
-  vkBindImageMemory(_engineState->getDevice()->getLogicalDevice(), _image, _imageMemory, 0);
+  vmaCreateImage(_engineState->getMemoryAllocator()->getAllocator(), &imageInfo, &allocCreateInfo, &_image,
+                 &_imageMemory, nullptr);
 }
 
 int Image::getLayersNumber() { return _layers; }
@@ -315,8 +289,7 @@ VkImage& Image::getImage() { return _image; }
 
 Image::~Image() {
   if (_external == false) {
-    vkDestroyImage(_engineState->getDevice()->getLogicalDevice(), _image, nullptr);
-    vkFreeMemory(_engineState->getDevice()->getLogicalDevice(), _imageMemory, nullptr);
+    vmaDestroyImage(_engineState->getMemoryAllocator()->getAllocator(), _image, _imageMemory);
   }
 }
 

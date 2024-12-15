@@ -214,6 +214,7 @@ file(COPY ${vulkan-memory-allocator_SOURCE_DIR}/include/vk_mem_alloc.h DESTINATI
 
 
 #Jolt should start with capital J
+#vma is not a library, it's "interface library", so need to include .c file in code as well
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
   target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk GPUOpen::VulkanMemoryAllocator)

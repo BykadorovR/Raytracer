@@ -9,10 +9,10 @@
 class Buffer {
  private:
   VkBuffer _data;
-  VkDeviceMemory _memory;
+  VmaAllocation _memory;
+  VmaAllocationInfo _memoryInfo;
   VkDeviceSize _size;
   std::shared_ptr<EngineState> _engineState;
-  void* _mapped = nullptr;
   std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
@@ -26,22 +26,17 @@ class Buffer {
                 std::shared_ptr<CommandBuffer> commandBufferTransfer);
   template <class T>
   void setData(T* data, VkDeviceSize size, int offset = 0) {
-    map();
-    memcpy((char*)_mapped + offset, data, size);
-    unmap();
+    memcpy((char*)_memoryInfo.pMappedData + offset, data, size);
   }
 
   template <class T>
   void setData(T* data) {
     setData(data, _size);
   }
+  // if buffer was created without VK_MEMORY_PROPERTY_HOST_COHERENT_BIT need to call
+  VkResult flush();
   VkBuffer& getData();
   VkDeviceSize& getSize();
-  VkDeviceMemory& getMemory();
-  void map();
-  void unmap();
-  void flush();
-  void* getMappedMemory();
   ~Buffer();
 };
 
