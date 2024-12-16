@@ -3,7 +3,6 @@
 #include "Vulkan/Allocator.h"
 
 MemoryAllocator::MemoryAllocator(std::shared_ptr<Device> device, std::shared_ptr<Instance> instance) {
-  VmaAllocatorCreateInfo createInfo{};
   const VmaVulkanFunctions vmaVulkanFunctions = {
     vkGetInstanceProcAddr,
     vkGetDeviceProcAddr,
@@ -42,10 +41,13 @@ MemoryAllocator::MemoryAllocator(std::shared_ptr<Device> device, std::shared_ptr
     vkGetPhysicalDeviceMemoryProperties2KHR
 #endif
   };
-  createInfo.pVulkanFunctions = &vmaVulkanFunctions;
-  createInfo.physicalDevice = device->getDevice().physical_device;
-  createInfo.device = device->getDevice().device;
-  createInfo.instance = instance->getInstance().instance;
+  VmaAllocatorCreateInfo createInfo{
+      .physicalDevice = device->getDevice().physical_device,
+      .device = device->getDevice().device,
+      .pVulkanFunctions = &vmaVulkanFunctions,
+      .instance = instance->getInstance().instance,
+  };
+
   if (vmaCreateAllocator(&createInfo, &_allocator) != VK_SUCCESS) {
     throw std::runtime_error("Can't create vma allocator");
   }

@@ -3,10 +3,9 @@
 CommandPool::CommandPool(vkb::QueueType type, std::shared_ptr<Device> device) {
   _device = device;
   _type = type;
-  VkCommandPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  poolInfo.queueFamilyIndex = device->getQueueIndex(type);
+  VkCommandPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                                   .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                                   .queueFamilyIndex = static_cast<uint32_t>(device->getQueueIndex(type))};
 
   if (vkCreateCommandPool(device->getLogicalDevice(), &poolInfo, nullptr, &_commandPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create graphics command pool!");
@@ -19,26 +18,27 @@ VkCommandPool& CommandPool::getCommandPool() { return _commandPool; }
 
 CommandPool::~CommandPool() { vkDestroyCommandPool(_device->getLogicalDevice(), _commandPool, nullptr); }
 
-DescriptorPool::DescriptorPool(int number, std::shared_ptr<Device> device) {
+DescriptorPool::DescriptorPool(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device) {
   _device = device;
 
-  std::array<VkDescriptorPoolSize, 4> poolSizes{};
-  poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  poolSizes[0].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  poolSizes[1].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-  poolSizes[2].descriptorCount = static_cast<uint32_t>(number);
-  poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  poolSizes[3].descriptorCount = static_cast<uint32_t>(number);
+  std::vector<VkDescriptorPoolSize> poolSizes{
+      {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = static_cast<uint32_t>(settings->getPoolSizeUBO())},
+      {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+       .descriptorCount = static_cast<uint32_t>(settings->getPoolSizeSampler())},
+      {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+       .descriptorCount = static_cast<uint32_t>(settings->getPoolSizeComputeImage())},
+      {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+       .descriptorCount = static_cast<uint32_t>(settings->getPoolSizeSSBO())}};
 
-  VkDescriptorPoolCreateInfo poolInfo{};
-  poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-  poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-  poolInfo.pPoolSizes = poolSizes.data();
-  poolInfo.maxSets = static_cast<uint32_t>(number);
+  VkDescriptorPoolCreateInfo poolInfo{
+      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+      .maxSets = static_cast<uint32_t>(settings->getPoolSizeUBO() + settings->getPoolSizeSampler() +
+                                       settings->getPoolSizeComputeImage() + settings->getPoolSizeSSBO()),
+      .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+      .pPoolSizes = poolSizes.data()};
+
   poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-  if (vkCreateDescriptorPool(device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
+  if (vkCreateDescriptorPool(_device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create descriptor pool!");
   }
 }

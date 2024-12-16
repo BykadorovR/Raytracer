@@ -218,17 +218,19 @@ void Core::initialize() {
   _initializeFramebuffer();
 
   {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     std::vector<VkSemaphore> signalSemaphoresInitialize = {
         _semaphoreResourcesReady[_engineState->getFrameInFlight()]->getSemaphore()};
-    submitInfo.signalSemaphoreCount = signalSemaphoresInitialize.size();
-    submitInfo.pSignalSemaphores = signalSemaphoresInitialize.data();
-    _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()];
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()],
+        .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphoresInitialize.size()),
+        .pSignalSemaphores = signalSemaphoresInitialize.data()};
+
     auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+
+    _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
   }
 }
 
@@ -269,8 +271,7 @@ void Core::_drawShadowMapDirectional(int index) {
   loggerGPU->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   //
   auto renderPassInfo = _renderPassShadowMap->getRenderPassInfo(shadow->getShadowMapFramebuffer()[frameInFlight]);
-  VkClearValue clearDepth;
-  clearDepth.color = {1.f, 1.f, 1.f, 1.f};
+  VkClearValue clearDepth{.color = {1.f, 1.f, 1.f, 1.f}};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -307,8 +308,7 @@ void Core::_drawShadowMapPoint(int index, int face) {
   commandBuffer->beginCommands();
   loggerGPU->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   auto renderPassInfo = _renderPassShadowMap->getRenderPassInfo(shadow->getShadowMapFramebuffer()[frameInFlight][face]);
-  VkClearValue clearDepth;
-  clearDepth.color = {1.f, 1.f, 1.f, 1.f};
+  VkClearValue clearDepth{.color = {1.f, 1.f, 1.f, 1.f}};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -347,8 +347,7 @@ void Core::_drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int
   loggerGPU->begin("Blur point " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
       _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]);
-  VkClearValue clearDepth;
-  clearDepth.color = {0.f, 0.f, 0.f, 1.f};
+  VkClearValue clearDepth{.color = {0.f, 0.f, 0.f, 1.f}};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -424,8 +423,7 @@ void Core::_drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> dire
   loggerGPU->begin("Blur directional " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
   auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
       _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight]);
-  VkClearValue clearDepth;
-  clearDepth.color = {0.f, 0.f, 0.f, 1.f};
+  VkClearValue clearDepth{.color = {0.f, 0.f, 0.f, 1.f}};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearDepth;
 
@@ -589,8 +587,7 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
   _commandBufferGUI->beginCommands();
 
   auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferDebug[swapchainImageIndex]);
-  VkClearValue clearColor;
-  clearColor.color = _engineState->getSettings()->getClearColor();
+  VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearColor;
 
@@ -620,45 +617,44 @@ void Core::_renderGraphic() {
   std::vector<VkImageMemoryBarrier> imageMemoryBarrier;
   for (int i = 0; i < directionalNum; i++) {
     if (_gameState->getLightManager()->getDirectionalShadows()[i]) {
-      VkImageMemoryBarrier barrier{};
-      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      // We won't be changing the layout of the image
-      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-      barrier.image = _gameState->getLightManager()
-                          ->getDirectionalShadows()[i]
-                          ->getShadowMapTexture()[frameInFlight]
-                          ->getImageView()
-                          ->getImage()
-                          ->getImage();
-      barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      VkImageMemoryBarrier barrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                   .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                   .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                                   // We won't be changing the layout of the image
+                                   .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                   .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                   .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                   .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                   .image = _gameState->getLightManager()
+                                                ->getDirectionalShadows()[i]
+                                                ->getShadowMapTexture()[frameInFlight]
+                                                ->getImageView()
+                                                ->getImage()
+                                                ->getImage(),
+                                   .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+
       imageMemoryBarrier.push_back(barrier);
     }
   }
 
   for (int i = 0; i < pointNum; i++) {
     if (_gameState->getLightManager()->getPointShadows()[i]) {
-      VkImageMemoryBarrier barrier{};
-      barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-      // We won't be changing the layout of the image
-      barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-      barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-      barrier.image = _gameState->getLightManager()
-                          ->getPointShadows()[i]
-                          ->getShadowMapCubemap()[frameInFlight]
-                          ->getTexture()
-                          ->getImageView()
-                          ->getImage()
-                          ->getImage();
-      barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-      barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      VkImageMemoryBarrier barrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                                   .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                   .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                                   .oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                   .newLayout = VK_IMAGE_LAYOUT_GENERAL,
+                                   .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                   .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                   .image = _gameState->getLightManager()
+                                                ->getPointShadows()[i]
+                                                ->getShadowMapCubemap()[frameInFlight]
+                                                ->getTexture()
+                                                ->getImageView()
+                                                ->getImage()
+                                                ->getImage(),
+                                   .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
+
       imageMemoryBarrier.push_back(barrier);
     }
   }
@@ -669,10 +665,9 @@ void Core::_renderGraphic() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
-  std::vector<VkClearValue> clearColor(3);
-  clearColor[0].color = _engineState->getSettings()->getClearColor();
-  clearColor[1].color = _engineState->getSettings()->getClearColor();
-  clearColor[2].color = {1.0f, 0};
+  std::vector<VkClearValue> clearColor{{.color = _engineState->getSettings()->getClearColor()},
+                                       {.color = _engineState->getSettings()->getClearColor()},
+                                       {.color = {1.0f, 0}}};
 
   auto renderPassInfo = _renderPassGraphic->getRenderPassInfo(_frameBufferGraphic[frameInFlight]);
   renderPassInfo.clearValueCount = 3;
@@ -791,17 +786,18 @@ void Core::_reset() {
 
   _initializeFramebuffer();
   {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     std::vector<VkSemaphore> signalSemaphoresInitialize = {
         _semaphoreResourcesReady[_engineState->getFrameInFlight()]->getSemaphore()};
-    submitInfo.signalSemaphoreCount = signalSemaphoresInitialize.size();
-    submitInfo.pSignalSemaphores = signalSemaphoresInitialize.data();
-    _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()];
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()],
+        .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphoresInitialize.size()),
+        .pSignalSemaphores = signalSemaphoresInitialize.data()};
+
     auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
   }
 
   _callbackReset(_swapchain->getSwapchain().extent.width, _swapchain->getSwapchain().extent.height);
@@ -877,7 +873,10 @@ void Core::_drawFrame(int imageIndex) {
   // wait for particles to complete before render
   if (particlesFuture.valid()) particlesFuture.get();
   // submit particles
-  VkSubmitInfo submitInfoCompute{};
+  VkSubmitInfo submitInfoCompute{.commandBufferCount = 1,
+                                 .pCommandBuffers = &_commandBufferParticleSystem->getCommandBuffer()[frameInFlight],
+                                 .signalSemaphoreCount = 1,
+                                 .pSignalSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore()};
   submitInfoCompute.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   std::vector<VkPipelineStageFlags> waitStages;
   std::vector<VkSemaphore> semaphoresWaitParticles;
@@ -896,10 +895,6 @@ void Core::_drawFrame(int imageIndex) {
     submitInfoCompute.pWaitSemaphores = semaphoresWaitParticles.data();
     submitInfoCompute.pWaitDstStageMask = waitStages.data();
   }
-  submitInfoCompute.signalSemaphoreCount = 1;
-  submitInfoCompute.pSignalSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore();
-  submitInfoCompute.commandBufferCount = 1;
-  submitInfoCompute.pCommandBuffers = &_commandBufferParticleSystem->getCommandBuffer()[frameInFlight];
 
   // end command buffer
   _frameSubmitInfoPreCompute[frameInFlight].push_back(submitInfoCompute);
@@ -909,11 +904,10 @@ void Core::_drawFrame(int imageIndex) {
     // binary wait structure
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore();
-    submitInfo.pWaitDstStageMask = waitStages;
+    VkSubmitInfo submitInfo{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                            .waitSemaphoreCount = 1,
+                            .pWaitSemaphores = &_semaphoreParticleSystem[frameInFlight]->getSemaphore(),
+                            .pWaitDstStageMask = waitStages};
     {
       auto shadows = _gameState->getLightManager()->getDirectionalShadows();
       for (int i = 0; i < shadows.size(); i++) {
@@ -961,16 +955,15 @@ void Core::_drawFrame(int imageIndex) {
     if (postprocessingFuture.valid()) postprocessingFuture.get();
 
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = waitSemaphoresPostprocessing.size();
-    submitInfo.pWaitSemaphores = waitSemaphoresPostprocessing.data();
-    submitInfo.pWaitDstStageMask = waitStages;
+    VkSubmitInfo submitInfo{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                            .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphoresPostprocessing.size()),
+                            .pWaitSemaphores = waitSemaphoresPostprocessing.data(),
+                            .pWaitDstStageMask = waitStages,
+                            .commandBufferCount = 1,
+                            .pCommandBuffers = &_commandBufferPostprocessing->getCommandBuffer()[frameInFlight],
+                            .signalSemaphoreCount = 1,
+                            .pSignalSemaphores = &_semaphoreGUI[frameInFlight]->getSemaphore()};
 
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &_semaphoreGUI[frameInFlight]->getSemaphore();
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferPostprocessing->getCommandBuffer()[frameInFlight];
     _frameSubmitInfoPostCompute[frameInFlight].push_back(submitInfo);
   }
 
@@ -980,19 +973,16 @@ void Core::_drawFrame(int imageIndex) {
   {
     if (debugVisualizationFuture.valid()) debugVisualizationFuture.get();
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &_semaphoreGUI[frameInFlight]->getSemaphore();
-    submitInfo.pWaitDstStageMask = waitStages;
+    VkSubmitInfo submitInfo{.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                            .waitSemaphoreCount = 1,
+                            .pWaitSemaphores = &_semaphoreGUI[frameInFlight]->getSemaphore(),
+                            .pWaitDstStageMask = waitStages,
+                            .commandBufferCount = 1,
+                            .pCommandBuffers = &_commandBufferGUI->getCommandBuffer()[frameInFlight],
+                            .signalSemaphoreCount = 1,
+                            .pSignalSemaphores = &_semaphoreRenderFinished[frameInFlight]->getSemaphore()};
 
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferGUI->getCommandBuffer()[frameInFlight];
-
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &_semaphoreRenderFinished[frameInFlight]->getSemaphore();
     _frameSubmitInfoDebug[frameInFlight].push_back(submitInfo);
   }
 
@@ -1017,19 +1007,14 @@ void Core::_drawFrame(int imageIndex) {
 void Core::_displayFrame(uint32_t* imageIndex) {
   auto frameInFlight = _engineState->getFrameInFlight();
 
-  VkPresentInfoKHR presentInfo{};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
   std::vector<VkSemaphore> waitSemaphoresPresent = {_semaphoreRenderFinished[frameInFlight]->getSemaphore()};
-
-  presentInfo.waitSemaphoreCount = waitSemaphoresPresent.size();
-  presentInfo.pWaitSemaphores = waitSemaphoresPresent.data();
-
   VkSwapchainKHR swapChains[] = {_swapchain->getSwapchain()};
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = swapChains;
-
-  presentInfo.pImageIndices = imageIndex;
+  VkPresentInfoKHR presentInfo{.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                               .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphoresPresent.size()),
+                               .pWaitSemaphores = waitSemaphoresPresent.data(),
+                               .swapchainCount = 1,
+                               .pSwapchains = swapChains,
+                               .pImageIndices = imageIndex};
 
   // TODO: change to own present queue
   auto result = vkQueuePresentKHR(_engineState->getDevice()->getQueue(vkb::QueueType::present), &presentInfo);
@@ -1088,17 +1073,18 @@ void Core::startRecording() { _commandBufferApplication->beginCommands(); }
 void Core::endRecording() {
   _commandBufferApplication->endCommands();
   {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     std::vector<VkSemaphore> signalSemaphores = {
         _semaphoreApplicationReady[_engineState->getFrameInFlight()]->getSemaphore()};
-    submitInfo.signalSemaphoreCount = signalSemaphores.size();
-    submitInfo.pSignalSemaphores = signalSemaphores.data();
-    _waitSemaphoreApplicationReady[_engineState->getFrameInFlight()] = true;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_commandBufferApplication->getCommandBuffer()[_engineState->getFrameInFlight()];
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &_commandBufferApplication->getCommandBuffer()[_engineState->getFrameInFlight()],
+        .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
+        .pSignalSemaphores = signalSemaphores.data()};
+
     auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
     vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    _waitSemaphoreApplicationReady[_engineState->getFrameInFlight()] = true;
   }
 }
 

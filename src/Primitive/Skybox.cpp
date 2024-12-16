@@ -6,16 +6,16 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _engineState = engineState;
   _gameState = gameState;
   _mesh = std::make_shared<MeshStatic3D>(engineState);
-  std::vector<Vertex3D> vertices(8);
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
-  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
-  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
-  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
-  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
-  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
-  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
-  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
-
+  std::vector<Vertex3D> vertices{
+      {.pos = glm::vec3(-0.5, -0.5, 0.5)},   // 0
+      {.pos = glm::vec3(0.5, -0.5, 0.5)},    // 1
+      {.pos = glm::vec3(-0.5, 0.5, 0.5)},    // 2
+      {.pos = glm::vec3(0.5, 0.5, 0.5)},     // 3
+      {.pos = glm::vec3(-0.5, -0.5, -0.5)},  // 4
+      {.pos = glm::vec3(0.5, -0.5, -0.5)},   // 5
+      {.pos = glm::vec3(-0.5, 0.5, -0.5)},   // 6
+      {.pos = glm::vec3(0.5, 0.5, -0.5)}     // 7
+  };
   std::vector<uint32_t> indices{                    // Bottom
                                 0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
                                                     //  Top
@@ -46,22 +46,20 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // setup color
   {
     _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayout->createCustom(layoutColor);
 
     _descriptorSet = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                     _descriptorSetLayout, engineState->getDescriptorPool(),
-                                                     engineState->getDevice());
+                                                     _descriptorSetLayout, engineState);
 
     setMaterial(_defaultMaterialColor);
 
@@ -85,21 +83,16 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 void Skybox::_updateColorDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   auto material = std::dynamic_pointer_cast<MaterialColor>(_material);
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-  // write to binding = 0 for vertex shader
-  bufferInfoCamera[0].buffer = _uniformBuffer[currentFrame]->getData();
-  bufferInfoCamera[0].offset = 0;
-  bufferInfoCamera[0].range = sizeof(BufferMVP);
-  bufferInfoColor[0] = bufferInfoCamera;
-
-  // write for binding = 1 for textures
-  std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-  bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-  bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-  bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-  textureInfoColor[1] = bufferInfoTexture;
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+      {0,
+       {{.buffer = _uniformBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _uniformBuffer[currentFrame]->getSize()}}}};
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+      {1,
+       {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
+         .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
+         .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
   _descriptorSet->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
@@ -130,26 +123,22 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(_engineState->getSettings()->getResolution());
-  viewport.width = std::get<0>(_engineState->getSettings()->getResolution());
-  viewport.height = -std::get<1>(_engineState->getSettings()->getResolution());
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(_engineState->getSettings()->getResolution())),
+                      .width = static_cast<float>(std::get<0>(_engineState->getSettings()->getResolution())),
+                      .height = static_cast<float>(-std::get<1>(_engineState->getSettings()->getResolution())),
+                      .minDepth = 0.f,
+                      .maxDepth = 1.f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(_engineState->getSettings()->getResolution()),
-                              std::get<1>(_engineState->getSettings()->getResolution()));
+  VkRect2D scissor{.offset = {0, 0},
+                   .extent = VkExtent2D(std::get<0>(_engineState->getSettings()->getResolution()),
+                                        std::get<1>(_engineState->getSettings()->getResolution()))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
-  cameraUBO.view = glm::mat4(glm::mat3(_gameState->getCameraManager()->getCurrentCamera()->getView()));
-  cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
-
+  BufferMVP cameraUBO{.model = _model,
+                      .view = glm::mat4(glm::mat3(_gameState->getCameraManager()->getCurrentCamera()->getView())),
+                      .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
   _uniformBuffer[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};

@@ -7,15 +7,13 @@ Buffer::Buffer(VkDeviceSize size,
   _size = size;
   _engineState = engineState;
 
-  VkBufferCreateInfo bufferInfo{};
-  bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  bufferInfo.size = size;
-  bufferInfo.usage = usage;
-  bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-  VmaAllocationCreateInfo allocCreateInfo = {};
-  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+  VkBufferCreateInfo bufferInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                                .size = size,
+                                .usage = usage,
+                                .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
+  VmaAllocationCreateInfo allocCreateInfo = {
+      .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
+      .usage = VMA_MEMORY_USAGE_AUTO};
 
   vmaCreateBuffer(engineState->getMemoryAllocator()->getAllocator(), &bufferInfo, &allocCreateInfo, &_data, &_memory,
                   &_memoryInfo);
@@ -27,10 +25,7 @@ void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
                       std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _stagingBuffer = buffer;
 
-  VkBufferCopy copyRegion{};
-  copyRegion.size = buffer->getSize() - srcOffset;
-  copyRegion.srcOffset = srcOffset;
-  copyRegion.dstOffset = dstOffset;
+  VkBufferCopy copyRegion{.srcOffset = srcOffset, .dstOffset = dstOffset, .size = buffer->getSize() - srcOffset};
   vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[_engineState->getFrameInFlight()], buffer->getData(), _data,
                   1, &copyRegion);
 }

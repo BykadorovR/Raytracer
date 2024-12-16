@@ -19,7 +19,7 @@ void EngineState::initialize() {
   _surface = std::make_shared<Surface>(_window, _instance);
   _device = std::make_shared<Device>(_surface, _instance);
   _memoryAllocator = std::make_shared<MemoryAllocator>(_device, _instance);
-  _descriptorPool = std::make_shared<DescriptorPool>(3000, _device);
+  _descriptorPool = std::make_shared<DescriptorPool>(_settings, _device);
   _filesystem = std::make_shared<Filesystem>();
 #ifdef __ANDROID__
   _filesystem->setAssetManager(_assetManager);

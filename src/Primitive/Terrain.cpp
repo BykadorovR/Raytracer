@@ -176,13 +176,8 @@ TerrainCPU::TerrainCPU(std::vector<float> heights,
 void TerrainCPU::_updateColorDescriptor() {
   std::vector<VkDescriptorImageInfo> colorImageInfo(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    bufferInfoCamera[0].buffer = _cameraBuffer[i]->getData();
-    bufferInfoCamera[0].offset = 0;
-    bufferInfoCamera[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCamera;
-
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+        {0, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}}};
     _descriptorSetColor->createCustom(i, bufferInfoColor, {});
   }
 }
@@ -200,10 +195,9 @@ void TerrainCPU::_loadStrip(int currentFrame) {
       // retrieve texel for (i,j) tex coord
       auto y = data[(j + width * i) * channels];
 
-      // vertex
-      Vertex3D vertex;
       // need to normalize [0, 255] to [0, 1]
-      vertex.pos = glm::vec3(-width / 2.0f + j, (y / 255.f) * _heightScale - _heightShift, -height / 2.0f + i);
+      Vertex3D vertex{
+          .pos = glm::vec3(-width / 2.0f + j, (y / 255.f) * _heightScale - _heightShift, -height / 2.0f + i)};
       vertices.push_back(vertex);
     }
   }
@@ -233,23 +227,20 @@ void TerrainCPU::_loadTriangles(int currentFrame) {
   for (int y = 0; y < height - 1; y++) {
     for (int x = 0; x < width - 1; x++) {
       // define patch: 4 points (square)
-      Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * y], -height / 2.0f + y);
+      Vertex3D vertex1{.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * y], -height / 2.0f + y)};
       vertices.push_back(vertex1);
 
-      Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * y], -height / 2.0f + y);
+      Vertex3D vertex2{.pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * y], -height / 2.0f + y)};
       vertices.push_back(vertex2);
 
-      Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * (y + 1)], -height / 2.0f + (y + 1));
+      Vertex3D vertex3{.pos = glm::vec3(-width / 2.0f + x, _heights[x + width * (y + 1)], -height / 2.0f + (y + 1))};
       vertices.push_back(vertex3);
 
       vertices.push_back(vertex3);
       vertices.push_back(vertex2);
 
-      Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * (y + 1)], -height / 2.0f + (y + 1));
+      Vertex3D vertex4{
+          .pos = glm::vec3(-width / 2.0f + (x + 1), _heights[x + 1 + width * (y + 1)], -height / 2.0f + (y + 1))};
       vertices.push_back(vertex4);
     }
   }
@@ -272,17 +263,15 @@ void TerrainCPU::_loadTerrain() {
   // layout for Color
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(1);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
-                                                          _engineState->getDevice());
+                                                          descriptorSetLayout, _engineState);
     // update descriptor set in setMaterial
     _updateColorDescriptor();
 
@@ -341,25 +330,21 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(resolution);
-    viewport.width = std::get<0>(resolution);
-    viewport.height = -std::get<1>(resolution);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.0f,
+                        .y = static_cast<float>(std::get<1>(resolution)),
+                        .width = static_cast<float>(std::get<0>(resolution)),
+                        .height = static_cast<float>(-std::get<1>(resolution)),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
     vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
-    BufferMVP cameraUBO{};
-    cameraUBO.model = getModel();
-    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
-    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
+    BufferMVP cameraUBO{.model = getModel(),
+                        .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
+                        .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
 
     _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
@@ -466,29 +451,28 @@ void TerrainDebug::_calculateMesh(int index) {
   for (int y = 0; y < _patchNumber.second; y++) {
     for (int x = 0; x < _patchNumber.first; x++) {
       // define patch: 4 points (square)
-      Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex1{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * y / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex1);
 
-      Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex2{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * y / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex2);
 
-      Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex3{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex3);
 
-      Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
-                         glm::vec2((float)width, (float)height);
+      Vertex3D vertex4{.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                                        -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second),
+                       .texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
+                                   glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex4);
     }
   }
@@ -582,29 +566,28 @@ void TerrainGPU::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
   for (int y = 0; y < _patchNumber.second; y++) {
     for (int x = 0; x < _patchNumber.first; x++) {
       // define patch: 4 points (square)
-      Vertex3D vertex1{};
-      vertex1.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex1.texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex1{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * y / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x, (float)y) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex1);
 
-      Vertex3D vertex2{};
-      vertex2.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * y / (float)_patchNumber.second);
-      vertex2.texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex2{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * y / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x + 1, (float)y) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex2);
 
-      Vertex3D vertex3{};
-      vertex3.pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex3.texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height);
+      Vertex3D vertex3{
+          .pos = glm::vec3(-width / 2.0f + (width - 1) * x / (float)_patchNumber.first, 0.f,
+                           -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second),
+          .texCoord = (glm::vec2((float)x, (float)y + 1) * scale + offset) / glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex3);
 
-      Vertex3D vertex4{};
-      vertex4.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
-                              -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second);
-      vertex4.texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
-                         glm::vec2((float)width, (float)height);
+      Vertex3D vertex4{.pos = glm::vec3(-width / 2.0f + (width - 1) * (x + 1) / (float)_patchNumber.first, 0.f,
+                                        -height / 2.0f + (height - 1) * (y + 1) / (float)_patchNumber.second),
+                       .texCoord = (glm::vec2((float)x + 1, (float)y + 1) * scale + offset) /
+                                   glm::vec2((float)width, (float)height)};
       vertices.push_back(vertex4);
     }
   }

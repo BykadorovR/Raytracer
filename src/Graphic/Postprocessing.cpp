@@ -11,9 +11,18 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
                                  std::vector<std::shared_ptr<ImageView>> dst) {
   for (int i = 0; i < src.size(); i++) {
     for (int j = 0; j < dst.size(); j++) {
-      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(
-          1, _textureLayout, _engineState->getDescriptorPool(), _engineState->getDevice());
-      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
+      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, _textureLayout, _engineState);
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {0,
+           {VkDescriptorImageInfo{.imageView = src[i]->getImageView()->getImageView(),
+                                  .imageLayout = src[i]->getImageView()->getImage()->getImageLayout()}}},
+          {1,
+           {VkDescriptorImageInfo{.imageView = blur[i]->getImageView()->getImageView(),
+                                  .imageLayout = blur[i]->getImageView()->getImage()->getImageLayout()}}},
+          {2,
+           {VkDescriptorImageInfo{.imageView = dst[j]->getImageView(),
+                                  .imageLayout = dst[j]->getImage()->getImageLayout()}}}};
+      _descriptorSet[std::pair(i, j)]->createCustom(0, {}, textureInfoColor);
     }
   }
 }
@@ -28,7 +37,22 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
   shader->add("shaders/postprocessing/postprocess_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _textureLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  _textureLayout->createPostprocessing();
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding = {{.binding = 0,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr},
+                                                             {.binding = 1,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr},
+                                                             {.binding = 2,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr}};
+  _textureLayout->createCustom(layoutBinding);
 
   _initialize(src, blur, dst);
 
@@ -59,10 +83,9 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                     _computePipeline->getPipeline());
 
   if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
-    ComputePush pushConstants;
-    pushConstants.gamma = _gamma;
-    pushConstants.exposure = _exposure;
-    pushConstants.enableBloom = _engineState->getSettings()->getBloomPasses();
+    ComputePush pushConstants{.gamma = _gamma,
+                              .exposure = _exposure,
+                              .enableBloom = _engineState->getSettings()->getBloomPasses()};
     auto info = _computePipeline->getPushConstants()["compute"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
                        info.stageFlags, info.offset, info.size, &pushConstants);

@@ -49,7 +49,7 @@ class Material {
   void unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor);
 
   void setDoubleSided(bool doubleSided);
-  void setAlphaCutoff(bool alphaCutoff, float alphaMask);
+  void setAlphaCutoff(bool alphaMask, float alphaCutoff);
   bool getDoubleSided();
   std::vector<std::shared_ptr<Buffer>> getBufferCoefficients();
   std::vector<std::shared_ptr<Buffer>> getBufferAlphaCutoff();

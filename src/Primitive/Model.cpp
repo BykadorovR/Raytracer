@@ -150,12 +150,11 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // setup joints
   {
     _descriptorSetLayoutJoints = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutJoints(1);
-    layoutJoints[0].binding = 0;
-    layoutJoints[0].descriptorCount = 1;
-    layoutJoints[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutJoints[0].pImmutableSamplers = nullptr;
-    layoutJoints[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutJoints{{.binding = 0,
+                                                            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                            .descriptorCount = 1,
+                                                            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutJoints->createCustom(layoutJoints);
 
     _updateJointsDescriptor();
@@ -164,38 +163,32 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // setup Normal
   {
     _descriptorSetLayoutNormalsMesh = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh(2);
-    layoutNormalsMesh[0].binding = 0;
-    layoutNormalsMesh[0].descriptorCount = 1;
-    layoutNormalsMesh[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutNormalsMesh[0].pImmutableSamplers = nullptr;
-    layoutNormalsMesh[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutNormalsMesh[1].binding = 1;
-    layoutNormalsMesh[1].descriptorCount = 1;
-    layoutNormalsMesh[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutNormalsMesh[1].pImmutableSamplers = nullptr;
-    layoutNormalsMesh[1].stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutNormalsMesh{{.binding = 0,
+                                                                 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                                 .descriptorCount = 1,
+                                                                 .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                                 .pImmutableSamplers = nullptr},
+                                                                {.binding = 1,
+                                                                 .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                                 .descriptorCount = 1,
+                                                                 .stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT,
+                                                                 .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutNormalsMesh->createCustom(layoutNormalsMesh);
 
     // TODO: we can just have one buffer and put it twice to descriptor
 
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(
-        engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutNormalsMesh,
-        engineState->getDescriptorPool(), engineState->getDevice());
+    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                                _descriptorSetLayoutNormalsMesh, engineState);
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
-      std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoVertex[0].buffer = _cameraUBOFull[i]->getData();
-      bufferInfoVertex[0].offset = 0;
-      bufferInfoVertex[0].range = sizeof(BufferMVP);
-      bufferInfoNormalsMesh[0] = bufferInfoVertex;
-      // write for binding = 1 for geometry shader
-      std::vector<VkDescriptorBufferInfo> bufferInfoGeometry(1);
-      bufferInfoGeometry[0].buffer = _cameraUBOFull[i]->getData();
-      bufferInfoGeometry[0].offset = 0;
-      bufferInfoGeometry[0].range = sizeof(BufferMVP);
-      bufferInfoNormalsMesh[1] = bufferInfoGeometry;
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh = {
+          {0,
+           {VkDescriptorBufferInfo{.buffer = _cameraUBOFull[i]->getData(),
+                                   .offset = 0,
+                                   .range = _cameraUBOFull[i]->getSize()}}},
+          {1,
+           {VkDescriptorBufferInfo{.buffer = _cameraUBOFull[i]->getData(),
+                                   .offset = 0,
+                                   .range = _cameraUBOFull[i]->getSize()}}}};
       _descriptorSetNormalsMesh->createCustom(i, bufferInfoNormalsMesh, {});
     }
 
@@ -271,17 +264,16 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // setup color
   {
     _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutColor->createCustom(layoutColor);
 
     // phong is default, will form default descriptor only for it here
@@ -331,38 +323,36 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // setup Phong
   {
     _descriptorSetLayoutPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 1;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 1;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutPhong->createCustom(layoutPhong);
 
     setMaterial({_defaultMaterialPhong});
@@ -411,67 +401,66 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   // setup PBR
   {
     _descriptorSetLayoutPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(12);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 1;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 1;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[5].binding = 5;
-    layoutPBR[5].descriptorCount = 1;
-    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[5].pImmutableSamplers = nullptr;
-    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[6].binding = 6;
-    layoutPBR[6].descriptorCount = 1;
-    layoutPBR[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[6].pImmutableSamplers = nullptr;
-    layoutPBR[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[7].binding = 7;
-    layoutPBR[7].descriptorCount = 1;
-    layoutPBR[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[7].pImmutableSamplers = nullptr;
-    layoutPBR[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[8].binding = 8;
-    layoutPBR[8].descriptorCount = 1;
-    layoutPBR[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[8].pImmutableSamplers = nullptr;
-    layoutPBR[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[9].binding = 9;
-    layoutPBR[9].descriptorCount = 1;
-    layoutPBR[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[9].pImmutableSamplers = nullptr;
-    layoutPBR[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[10].binding = 10;
-    layoutPBR[10].descriptorCount = 1;
-    layoutPBR[10].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[10].pImmutableSamplers = nullptr;
-    layoutPBR[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[11].binding = 11;
-    layoutPBR[11].descriptorCount = 1;
-    layoutPBR[11].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[11].pImmutableSamplers = nullptr;
-    layoutPBR[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 6,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 7,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 8,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 9,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 10,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 11,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
 
     _descriptorSetLayoutPBR->createCustom(layoutPBR);
 
@@ -522,8 +511,13 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     }
   }
 
-  auto layoutCamera = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
-  layoutCamera->createUniformBuffer();
+  auto cameraLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
+  VkDescriptorSetLayoutBinding layoutBinding = {.binding = 0,
+                                                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                .descriptorCount = 1,
+                                                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                .pImmutableSamplers = nullptr};
+  cameraLayout->createCustom({layoutBinding});
 
   int lightNumber = _engineState->getSettings()->getMaxDirectionalLights() +
                     _engineState->getSettings()->getMaxPointLights();
@@ -551,20 +545,32 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   {
     for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
       auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                       layoutCamera, _engineState->getDescriptorPool(),
-                                                       _engineState->getDevice());
-      cameraSet->createUniformBuffer(_cameraUBODepth[i][0]);
-
+                                                       cameraLayout, _engineState);
+      for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++) {
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+            {0,
+             {{.buffer = _cameraUBODepth[i][0][j]->getData(),
+               .offset = 0,
+               .range = _cameraUBODepth[i][0][j]->getSize()}}}};
+        cameraSet->createCustom(j, bufferInfo, {});
+      }
       _descriptorSetCameraDepth.push_back({cameraSet});
     }
 
     for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
       for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), layoutCamera,
-                                                      _engineState->getDescriptorPool(), _engineState->getDevice());
-        facesSet[j]->createUniformBuffer(
-            _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j]);
+        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), cameraLayout,
+                                                      _engineState);
+        for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++) {
+          std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+              {0,
+               {{.buffer = _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j][k]->getData(),
+                 .offset = 0,
+                 .range =
+                     _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j][k]->getSize()}}}};
+          facesSet[j]->createCustom(k, bufferInfo, {});
+        }
       }
       _descriptorSetCameraDepth.push_back(facesSet);
     }
@@ -580,7 +586,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
+        {{"depth", cameraLayout}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
                                                {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
@@ -603,7 +609,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
         VK_CULL_MODE_NONE,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-        {{"depth", layoutCamera}, {"joints", _descriptorSetLayoutJoints}}, defaultPushConstants,
+        {{"depth", cameraLayout}, {"joints", _descriptorSetLayoutJoints}}, defaultPushConstants,
         _mesh->getBindingDescription(),
         _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                                {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
@@ -615,18 +621,15 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 void Model3D::_updateJointsDescriptor() {
   _descriptorSetJoints.resize(_animation->getJointMatricesBuffer().size());
   for (int skin = 0; skin < _animation->getJointMatricesBuffer().size(); skin++) {
-    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(
-        _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutJoints,
-        _engineState->getDescriptorPool(), _engineState->getDevice());
+    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                 _descriptorSetLayoutJoints, _engineState);
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      // write for binding = 0 for joint matrices
-      std::vector<VkDescriptorBufferInfo> bufferInfoJointMatrices(1);
-      bufferInfoJointMatrices[0].buffer = _animation->getJointMatricesBuffer()[skin][i]->getData();
-      bufferInfoJointMatrices[0].offset = 0;
-      bufferInfoJointMatrices[0].range = _animation->getJointMatricesBuffer()[skin][i]->getSize();
-      bufferInfoColor[0] = bufferInfoJointMatrices;
-      _descriptorSetJoints[skin]->createCustom(i, bufferInfoColor, {});
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+          {0,
+           {{.buffer = _animation->getJointMatricesBuffer()[skin][i]->getData(),
+             .offset = 0,
+             .range = _animation->getJointMatricesBuffer()[skin][i]->getSize()}}}};
+      _descriptorSetJoints[skin]->createCustom(i, bufferInfo, {});
     }
   }
 }
@@ -635,85 +638,57 @@ void Model3D::_updatePBRDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   for (int i = 0; i < _materials.size(); i++) {
     std::shared_ptr<MaterialPBR> material = std::dynamic_pointer_cast<MaterialPBR>(_materials[i]);
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+        {0,
+         {{.buffer = _cameraUBOFull[currentFrame]->getData(),
+           .offset = 0,
+           .range = _cameraUBOFull[currentFrame]->getSize()}}},
+        {10,
+         {{.buffer = material->getBufferAlphaCutoff()[currentFrame]->getData(),
+           .offset = 0,
+           .range = material->getBufferAlphaCutoff()[currentFrame]->getSize()}}},
+        {11,
+         {{.buffer = material->getBufferCoefficients()[currentFrame]->getData(),
+           .offset = 0,
+           .range = material->getBufferCoefficients()[currentFrame]->getSize()}}}};
 
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
-    bufferInfoCamera[0].offset = 0;
-    bufferInfoCamera[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCamera;
-
-    // write for binding = 1 for textures
-    std::vector<VkDescriptorImageInfo> bufferInfoBaseColor(1);
-    bufferInfoBaseColor[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoBaseColor[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-    bufferInfoBaseColor[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-    textureInfoColor[1] = bufferInfoBaseColor;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
-    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
-    textureInfoColor[2] = bufferInfoNormal;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoMetallic(1);
-    bufferInfoMetallic[0].imageLayout = material->getMetallic()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoMetallic[0].imageView = material->getMetallic()[0]->getImageView()->getImageView();
-    bufferInfoMetallic[0].sampler = material->getMetallic()[0]->getSampler()->getSampler();
-    textureInfoColor[3] = bufferInfoMetallic;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoRoughness(1);
-    bufferInfoRoughness[0].imageLayout = material->getRoughness()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoRoughness[0].imageView = material->getRoughness()[0]->getImageView()->getImageView();
-    bufferInfoRoughness[0].sampler = material->getRoughness()[0]->getSampler()->getSampler();
-    textureInfoColor[4] = bufferInfoRoughness;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoOcclusion(1);
-    bufferInfoOcclusion[0].imageLayout = material->getOccluded()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoOcclusion[0].imageView = material->getOccluded()[0]->getImageView()->getImageView();
-    bufferInfoOcclusion[0].sampler = material->getOccluded()[0]->getSampler()->getSampler();
-    textureInfoColor[5] = bufferInfoOcclusion;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoEmissive(1);
-    bufferInfoEmissive[0].imageLayout = material->getEmissive()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoEmissive[0].imageView = material->getEmissive()[0]->getImageView()->getImageView();
-    bufferInfoEmissive[0].sampler = material->getEmissive()[0]->getSampler()->getSampler();
-    textureInfoColor[6] = bufferInfoEmissive;
-
-    // TODO: this textures are part of global engineState for PBR
-    std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
-    bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
-    bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
-    bufferInfoIrradiance[0].sampler = material->getDiffuseIBL()->getSampler()->getSampler();
-    textureInfoColor[7] = bufferInfoIrradiance;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
-    bufferInfoSpecularIBL[0].imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
-    bufferInfoSpecularIBL[0].imageView = material->getSpecularIBL()->getImageView()->getImageView();
-    bufferInfoSpecularIBL[0].sampler = material->getSpecularIBL()->getSampler()->getSampler();
-    textureInfoColor[8] = bufferInfoSpecularIBL;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
-    bufferInfoSpecularBRDF[0].imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
-    bufferInfoSpecularBRDF[0].imageView = material->getSpecularBRDF()->getImageView()->getImageView();
-    bufferInfoSpecularBRDF[0].sampler = material->getSpecularBRDF()->getSampler()->getSampler();
-    textureInfoColor[9] = bufferInfoSpecularBRDF;
-
-    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
-    bufferInfoAlphaCutoff[0].offset = 0;
-    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
-    bufferInfoColor[10] = bufferInfoAlphaCutoff;
-
-    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
-    bufferInfoCoefficients[0].offset = 0;
-    bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
-    bufferInfoColor[11] = bufferInfoCoefficients;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+        {1,
+         {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
+           .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {2,
+         {{.sampler = material->getNormal()[0]->getSampler()->getSampler(),
+           .imageView = material->getNormal()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {3,
+         {{.sampler = material->getMetallic()[0]->getSampler()->getSampler(),
+           .imageView = material->getMetallic()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getMetallic()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {4,
+         {{.sampler = material->getRoughness()[0]->getSampler()->getSampler(),
+           .imageView = material->getRoughness()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getRoughness()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {5,
+         {{.sampler = material->getOccluded()[0]->getSampler()->getSampler(),
+           .imageView = material->getOccluded()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getOccluded()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {6,
+         {{.sampler = material->getEmissive()[0]->getSampler()->getSampler(),
+           .imageView = material->getEmissive()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getEmissive()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {7,
+         {{.sampler = material->getDiffuseIBL()->getSampler()->getSampler(),
+           .imageView = material->getDiffuseIBL()->getImageView()->getImageView(),
+           .imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout()}}},
+        {8,
+         {{.sampler = material->getSpecularIBL()->getSampler()->getSampler(),
+           .imageView = material->getSpecularIBL()->getImageView()->getImageView(),
+           .imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout()}}},
+        {9,
+         {{.sampler = material->getSpecularBRDF()->getSampler()->getSampler(),
+           .imageView = material->getSpecularBRDF()->getImageView()->getImageView(),
+           .imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout()}}}};
 
     _descriptorSetPBR[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
   }
@@ -723,49 +698,32 @@ void Model3D::_updatePhongDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   for (int i = 0; i < _materials.size(); i++) {
     std::shared_ptr<MaterialPhong> material = std::dynamic_pointer_cast<MaterialPhong>(_materials[i]);
-
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
-    bufferInfoCamera[0].offset = 0;
-    bufferInfoCamera[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCamera;
-
-    // write for binding = 1 for base color
-    std::vector<VkDescriptorImageInfo> bufferInfoBase(1);
-    bufferInfoBase[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoBase[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-    bufferInfoBase[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-    textureInfoColor[1] = bufferInfoBase;
-
-    // write for binding = 2 for normal color
-    std::vector<VkDescriptorImageInfo> bufferInfoNormal(1);
-    bufferInfoNormal[0].imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoNormal[0].imageView = material->getNormal()[0]->getImageView()->getImageView();
-    bufferInfoNormal[0].sampler = material->getNormal()[0]->getSampler()->getSampler();
-    textureInfoColor[2] = bufferInfoNormal;
-
-    std::vector<VkDescriptorImageInfo> bufferInfoSpecular(1);
-    bufferInfoSpecular[0].imageLayout = material->getSpecular()[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoSpecular[0].imageView = material->getSpecular()[0]->getImageView()->getImageView();
-    bufferInfoSpecular[0].sampler = material->getSpecular()[0]->getSampler()->getSampler();
-    textureInfoColor[3] = bufferInfoSpecular;
-
-    std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
-    bufferInfoAlphaCutoff[0].offset = 0;
-    bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
-    bufferInfoColor[4] = bufferInfoAlphaCutoff;
-
-    std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
-    bufferInfoCoefficients[0].offset = 0;
-    bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
-    bufferInfoColor[5] = bufferInfoCoefficients;
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+        {0,
+         {{.buffer = _cameraUBOFull[currentFrame]->getData(),
+           .offset = 0,
+           .range = _cameraUBOFull[currentFrame]->getSize()}}},
+        {4,
+         {{.buffer = material->getBufferAlphaCutoff()[currentFrame]->getData(),
+           .offset = 0,
+           .range = material->getBufferAlphaCutoff()[currentFrame]->getSize()}}},
+        {5,
+         {{.buffer = material->getBufferCoefficients()[currentFrame]->getData(),
+           .offset = 0,
+           .range = material->getBufferCoefficients()[currentFrame]->getSize()}}}};
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+        {1,
+         {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
+           .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {2,
+         {{.sampler = material->getNormal()[0]->getSampler()->getSampler(),
+           .imageView = material->getNormal()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getNormal()[0]->getImageView()->getImage()->getImageLayout()}}},
+        {3,
+         {{.sampler = material->getSpecular()[0]->getSampler()->getSampler(),
+           .imageView = material->getSpecular()[0]->getImageView()->getImageView(),
+           .imageLayout = material->getSpecular()[0]->getImageView()->getImage()->getImageLayout()}}}};
 
     _descriptorSetPhong[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
   }
@@ -775,24 +733,18 @@ void Model3D::_updateColorDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   for (int i = 0; i < _materials.size(); i++) {
     std::shared_ptr<MaterialColor> material = std::dynamic_pointer_cast<MaterialColor>(_materials[i]);
-
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCamera[0].buffer = _cameraUBOFull[currentFrame]->getData();
-    bufferInfoCamera[0].offset = 0;
-    bufferInfoCamera[0].range = sizeof(BufferMVP);
-    bufferInfoColor[0] = bufferInfoCamera;
-
-    // write for binding = 1 for textures
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+        {0,
+         {{.buffer = _cameraUBOFull[currentFrame]->getData(),
+           .offset = 0,
+           .range = _cameraUBOFull[currentFrame]->getSize()}}}};
     auto texture = _defaultMaterialColor->getBaseColor();
     if (material->getBaseColor().size() > 0) texture = material->getBaseColor();
-    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-    bufferInfoTexture[0].imageLayout = texture[0]->getImageView()->getImage()->getImageLayout();
-    bufferInfoTexture[0].imageView = texture[0]->getImageView()->getImageView();
-    bufferInfoTexture[0].sampler = texture[0]->getSampler()->getSampler();
-    textureInfoColor[1] = bufferInfoTexture;
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+        {1,
+         {{.sampler = texture[0]->getSampler()->getSampler(),
+           .imageView = texture[0]->getImageView()->getImageView(),
+           .imageLayout = texture[0]->getImageView()->getImage()->getImageLayout()}}}};
     _descriptorSetColor[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
   }
 }
@@ -803,9 +755,8 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials)
       _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
 
     if (_descriptorSetColor.size() <= material)
-      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(
-          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
-          _engineState->getDescriptorPool(), _engineState->getDevice()));
+      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                    _descriptorSetLayoutColor, _engineState));
     materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
   }
   _materialType = MaterialType::COLOR;
@@ -825,9 +776,8 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials)
       _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
 
     if (_descriptorSetPhong.size() <= material)
-      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(
-          _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPhong,
-          _engineState->getDescriptorPool(), _engineState->getDevice()));
+      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                    _descriptorSetLayoutPhong, _engineState));
     materials[material]->registerUpdate(
         _descriptorSetPhong[material],
         {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
@@ -849,9 +799,8 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
       _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
 
     if (_descriptorSetPBR.size() <= material)
-      _descriptorSetPBR.push_back(
-          std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutPBR,
-                                          _engineState->getDescriptorPool(), _engineState->getDevice()));
+      _descriptorSetPBR.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                  _descriptorSetLayoutPBR, _engineState));
     materials[material]->registerUpdate(_descriptorSetPBR[material], {{MaterialTexture::COLOR, 1},
                                                                       {MaterialTexture::NORMAL, 2},
                                                                       {MaterialTexture::METALLIC, 3},
@@ -915,10 +864,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
       currentParent = currentParent->parent;
     }
     // pass this matrix to uniforms
-    BufferMVP cameraMVP{};
-    cameraMVP.model = getModel() * nodeMatrix;
-    cameraMVP.view = view;
-    cameraMVP.projection = projection;
+    BufferMVP cameraMVP{.model = getModel() * nodeMatrix, .view = view, .projection = projection};
 
     cameraUBO[currentFrame]->setData(&cameraMVP);
 
@@ -1057,25 +1003,21 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     _changedMaterial[currentFrame] = false;
   }
 
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(resolution);
-  viewport.width = std::get<0>(resolution);
-  viewport.height = -std::get<1>(resolution);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(resolution)),
+                      .width = static_cast<float>(std::get<0>(resolution)),
+                      .height = static_cast<float>(-std::get<1>(resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
-    FragmentPush pushConstants;
-    pushConstants.enableShadow = _enableShadow;
-    pushConstants.enableLighting = _enableLighting;
-    pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
+    FragmentPush pushConstants{.enableShadow = _enableShadow,
+                               .enableLighting = _enableLighting,
+                               .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
     auto info = pipeline->getPushConstants()["constants"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[_engineState->getFrameInFlight()],
                        pipeline->getPipelineLayout(), info.stageFlags, info.offset, info.size, &pushConstants);
@@ -1146,24 +1088,21 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
   VkViewport viewport{};
   if (lightType == LightType::DIRECTIONAL) {
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(resolution);
-    viewport.width = std::get<0>(resolution);
-    viewport.height = -std::get<1>(resolution);
+    viewport = {.x = 0.f,
+                .y = static_cast<float>(std::get<1>(resolution)),
+                .width = static_cast<float>(std::get<0>(resolution)),
+                .height = static_cast<float>(-std::get<1>(resolution))};
   } else if (lightType == LightType::POINT) {
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = std::get<0>(resolution);
-    viewport.height = std::get<1>(resolution);
+    viewport = {.x = 0.f,
+                .y = 0.f,
+                .width = static_cast<float>(std::get<0>(resolution)),
+                .height = static_cast<float>(std::get<1>(resolution))};
   }
-
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (lightType == LightType::POINT) {

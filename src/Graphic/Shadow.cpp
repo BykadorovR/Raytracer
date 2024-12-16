@@ -133,10 +133,7 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
     blurLightOut[i] = std::make_shared<Framebuffer>(std::vector{textureIn[i]->getImageView()}, resolution, renderPass,
                                                     engineState->getDevice());
   }
-
-  _shadowMapFramebuffer.resize(2);
-  _shadowMapFramebuffer[0] = blurLightIn;
-  _shadowMapFramebuffer[1] = blurLightOut;
+  _shadowMapFramebuffer = {blurLightIn, blurLightOut};
 
   _blur = std::make_shared<BlurGraphic>(textureIn, _textureOut, commandBufferTransfer, engineState);
   // create buffer pool and command buffer
@@ -202,9 +199,7 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
     _cubemapOut[i] = cubemapBlurOutFaces;
   }
 
-  _shadowMapFramebuffer.resize(2);
-  _shadowMapFramebuffer[0] = blurLightIn;
-  _shadowMapFramebuffer[1] = blurLightOut;
+  _shadowMapFramebuffer = {blurLightIn, blurLightOut};
 
   for (int j = 0; j < 6; j++) {
     std::vector<std::shared_ptr<Texture>> texturesIn, texturesOut;

@@ -7,8 +7,8 @@ CameraRTS::CameraRTS(std::shared_ptr<Drawable> object, std::shared_ptr<EngineSta
   _eye = _object->getTranslate() + _shift;
   _direction = glm::normalize(_object->getTranslate() - _eye);
   _up = glm::vec3(0.f, 0.f, -1.f);
-  _aspect = ((float)std::get<0>(_engineState->getSettings()->getResolution()) /
-             (float)std::get<1>(_engineState->getSettings()->getResolution()));
+  _aspect = (static_cast<float>(std::get<0>(_engineState->getSettings()->getResolution())) /
+             static_cast<float>(std::get<1>(_engineState->getSettings()->getResolution())));
 }
 
 void CameraRTS::update() {

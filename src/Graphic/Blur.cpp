@@ -43,19 +43,41 @@ void BlurCompute::_updateDescriptors(int currentFrame) {
 }
 
 void BlurCompute::_setWeights(int currentFrame) {
-  _descriptorSetWeights->createShaderStorageBuffer(currentFrame, {0}, {_blurWeightsSSBO});
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+      {0,
+       {VkDescriptorBufferInfo{.buffer = _blurWeightsSSBO[currentFrame]->getData(),
+                               .offset = 0,
+                               .range = _blurWeightsSSBO[currentFrame]->getSize()}}}};
+  _descriptorSetWeights->createCustom(currentFrame, bufferInfo, {});
 }
 
 void BlurCompute::_initialize(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
   _descriptorSetHorizontal = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                             _textureLayout, _engineState->getDescriptorPool(),
-                                                             _engineState->getDevice());
-  _descriptorSetHorizontal->createBlur(src, dst);
-
+                                                             _textureLayout, _engineState);
   _descriptorSetVertical = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                           _textureLayout, _engineState->getDescriptorPool(),
-                                                           _engineState->getDevice());
-  _descriptorSetVertical->createBlur(dst, src);
+                                                           _textureLayout, _engineState);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    {
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {0,
+           {VkDescriptorImageInfo{.imageView = src[i]->getImageView()->getImageView(),
+                                  .imageLayout = src[i]->getImageView()->getImage()->getImageLayout()}}},
+          {1,
+           {VkDescriptorImageInfo{.imageView = dst[i]->getImageView()->getImageView(),
+                                  .imageLayout = dst[i]->getImageView()->getImage()->getImageLayout()}}}};
+      _descriptorSetHorizontal->createCustom(i, {}, textureInfoColor);
+    }
+    {
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {0,
+           {VkDescriptorImageInfo{.imageView = dst[i]->getImageView()->getImageView(),
+                                  .imageLayout = dst[i]->getImageView()->getImage()->getImageLayout()}}},
+          {1,
+           {VkDescriptorImageInfo{.imageView = src[i]->getImageView()->getImageView(),
+                                  .imageLayout = src[i]->getImageView()->getImage()->getImageLayout()}}}};
+      _descriptorSetVertical->createCustom(i, {}, textureInfoColor);
+    }
+  }
 }
 
 BlurCompute::BlurCompute(std::vector<std::shared_ptr<Texture>> src,
@@ -69,27 +91,46 @@ BlurCompute::BlurCompute(std::vector<std::shared_ptr<Texture>> src,
   shaderHorizontal->add("shaders/postprocessing/blurHorizontal_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
   _textureLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  _textureLayout->createPostprocessing();
+  std::vector<VkDescriptorSetLayoutBinding> layoutBindingTexture{{.binding = 0,
+                                                                  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                                  .descriptorCount = 1,
+                                                                  .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                                  .pImmutableSamplers = nullptr},
+                                                                 {.binding = 1,
+                                                                  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                                  .descriptorCount = 1,
+                                                                  .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                                  .pImmutableSamplers = nullptr},
+                                                                 {.binding = 2,
+                                                                  .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                                  .descriptorCount = 1,
+                                                                  .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                                  .pImmutableSamplers = nullptr}};
+  _textureLayout->createCustom(layoutBindingTexture);
 
   _blurWeightsSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
   _changed.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
-  auto bufferLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  bufferLayout->createShaderStorageBuffer({0}, {VK_SHADER_STAGE_COMPUTE_BIT});
+  auto layoutWeights = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+  VkDescriptorSetLayoutBinding layoutBindingWeights = {.binding = 0,
+                                                       .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                       .descriptorCount = 1,
+                                                       .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                       .pImmutableSamplers = nullptr};
+  layoutWeights->createCustom({layoutBindingWeights});
   _descriptorSetWeights = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          bufferLayout, _engineState->getDescriptorPool(),
-                                                          _engineState->getDevice());
+                                                          layoutWeights, _engineState);
 
   _initialize(src, dst);
 
   _computePipelineVertical = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipelineVertical->createParticleSystemCompute(
       shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
-      {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), bufferLayout}}, {});
+      {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), layoutWeights}}, {});
   _computePipelineHorizontal = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
   _computePipelineHorizontal->createParticleSystemCompute(
       shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
-      {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), bufferLayout}}, {});
+      {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), layoutWeights}}, {});
 
   _updateWeights();
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
@@ -148,38 +189,27 @@ void BlurCompute::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
 
 void BlurGraphic::_initialize(std::vector<std::shared_ptr<Texture>> src, std::vector<std::shared_ptr<Texture>> dst) {
   _descriptorSetHorizontal = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                             _layoutBlur, _engineState->getDescriptorPool(),
-                                                             _engineState->getDevice());
+                                                             _layoutBlur, _engineState);
   _descriptorSetVertical = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                           _layoutBlur, _engineState->getDescriptorPool(),
-                                                           _engineState->getDevice());
+                                                           _layoutBlur, _engineState);
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    // write for binding = 1 for textures
-    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-    bufferInfoTexture[0].imageLayout = src[i]->getImageView()->getImage()->getImageLayout();
-    bufferInfoTexture[0].imageView = src[i]->getImageView()->getImageView();
-    bufferInfoTexture[0].sampler = src[i]->getSampler()->getSampler();
-    textureInfoColor[0] = bufferInfoTexture;
-
-    std::vector<VkDescriptorBufferInfo> bufferInfoCoeff(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoCoeff[0].buffer = _blurWeightsSSBO[i]->getData();
-    bufferInfoCoeff[0].offset = 0;
-    bufferInfoCoeff[0].range = _blurWeightsSSBO[i]->getSize();
-    bufferInfoColor[1] = bufferInfoCoeff;
-
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+        {1,
+         {VkDescriptorBufferInfo{.buffer = _blurWeightsSSBO[i]->getData(),
+                                 .offset = 0,
+                                 .range = _blurWeightsSSBO[i]->getSize()}}}};
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+        {0,
+         {VkDescriptorImageInfo{.sampler = src[i]->getSampler()->getSampler(),
+                                .imageView = src[i]->getImageView()->getImageView(),
+                                .imageLayout = src[i]->getImageView()->getImage()->getImageLayout()}}}};
     _descriptorSetHorizontal->createCustom(i, bufferInfoColor, textureInfoColor);
 
     textureInfoColor.clear();
-    // write for binding = 1 for textures
-    bufferInfoTexture = std::vector<VkDescriptorImageInfo>(1);
-    bufferInfoTexture[0].imageLayout = dst[i]->getImageView()->getImage()->getImageLayout();
-    bufferInfoTexture[0].imageView = dst[i]->getImageView()->getImageView();
-    bufferInfoTexture[0].sampler = dst[i]->getSampler()->getSampler();
-    textureInfoColor[0] = bufferInfoTexture;
-
+    textureInfoColor = {{0,
+                         {VkDescriptorImageInfo{.sampler = dst[i]->getSampler()->getSampler(),
+                                                .imageView = dst[i]->getImageView()->getImageView(),
+                                                .imageLayout = dst[i]->getImageView()->getImage()->getImageLayout()}}}};
     _descriptorSetVertical->createCustom(i, bufferInfoColor, textureInfoColor);
   }
 }
@@ -192,14 +222,11 @@ void BlurGraphic::_updateDescriptors(int currentFrame) {
 }
 
 void BlurGraphic::_setWeights(int currentFrame) {
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCoeff(1);
-  // write to binding = 0 for vertex shader
-  bufferInfoCoeff[0].buffer = _blurWeightsSSBO[currentFrame]->getData();
-  bufferInfoCoeff[0].offset = 0;
-  bufferInfoCoeff[0].range = _blurWeightsSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferInfoCoeff;
-
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+      {1,
+       {VkDescriptorBufferInfo{.buffer = _blurWeightsSSBO[currentFrame]->getData(),
+                               .offset = 0,
+                               .range = _blurWeightsSSBO[currentFrame]->getSize()}}}};
   _descriptorSetHorizontal->createCustom(currentFrame, bufferInfoColor, {});
   _descriptorSetVertical->createCustom(currentFrame, bufferInfoColor, {});
 }
@@ -239,17 +266,16 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
   }
 
   _layoutBlur = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  std::vector<VkDescriptorSetLayoutBinding> layoutBinding(2);
-  layoutBinding[0].binding = 0;
-  layoutBinding[0].descriptorCount = 1;
-  layoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  layoutBinding[0].pImmutableSamplers = nullptr;
-  layoutBinding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-  layoutBinding[1].binding = 1;
-  layoutBinding[1].descriptorCount = 1;
-  layoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-  layoutBinding[1].pImmutableSamplers = nullptr;
-  layoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
   _layoutBlur->createCustom(layoutBinding);
 
   _initialize(src, dst);
@@ -293,18 +319,15 @@ void BlurGraphic::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
   }
 
   auto resolution = _resolution;
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(resolution);
-  viewport.width = std::get<0>(resolution);
-  viewport.height = -std::get<1>(resolution);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(resolution)),
+                      .width = static_cast<float>(std::get<0>(resolution)),
+                      .height = static_cast<float>(-std::get<1>(resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};

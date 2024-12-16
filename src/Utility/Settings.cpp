@@ -24,6 +24,13 @@ void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number;
 
 void Settings::setDesiredFPS(int fps) { _desiredFPS = fps; }
 
+void Settings::setPoolSize(int poolSizeUBO, int poolSizeSampler, int poolSizeSSBO, int poolSizeComputeImage) {
+  _poolSizeUBO = poolSizeUBO;
+  _poolSizeSampler = poolSizeSampler;
+  _poolSizeSSBO = poolSizeSSBO;
+  _poolSizeComputeImage = poolSizeComputeImage;
+}
+
 void Settings::setBloomPasses(int number) { _bloomPasses = number; }
 
 void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clearColor; }
@@ -75,3 +82,11 @@ int Settings::getSpecularMipMap() { return _specularIBLMipMap; }
 float Settings::getDepthBiasConstant() { return _depthBiasConstant; }
 
 float Settings::getDepthBiasSlope() { return _depthBiasSlope; }
+
+int Settings::getPoolSizeUBO() { return _poolSizeUBO; }
+
+int Settings::getPoolSizeSampler() { return _poolSizeSampler; }
+
+int Settings::getPoolSizeSSBO() { return _poolSizeSSBO; }
+
+int Settings::getPoolSizeComputeImage() { return _poolSizeComputeImage; }

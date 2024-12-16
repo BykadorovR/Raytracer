@@ -666,10 +666,9 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
             return;
         }
       }
-      MeshPrimitive primitive{};
-      primitive.firstIndex = firstIndex;
-      primitive.indexCount = indexCount;
-      primitive.materialIndex = glTFPrimitive.material;
+      MeshPrimitive primitive{.firstIndex = static_cast<int>(firstIndex),
+                              .indexCount = static_cast<int>(indexCount),
+                              .materialIndex = glTFPrimitive.material};
       mesh->addPrimitive(primitive);
     }
 

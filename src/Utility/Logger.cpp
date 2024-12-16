@@ -20,9 +20,7 @@ LoggerUtils::LoggerUtils(std::shared_ptr<EngineState> engineState) { _engineStat
 
 void LoggerUtils::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, std::array<float, 4> color) {
   auto frameInFlight = _engineState->getFrameInFlight();
-  VkDebugUtilsLabelEXT markerInfo = {};
-  markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-  markerInfo.pLabelName = marker.c_str();
+  VkDebugUtilsLabelEXT markerInfo = {.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT, .pLabelName = marker.c_str()};
   std::copy(color.begin(), color.end(), markerInfo.color);
   vkCmdBeginDebugUtilsLabelEXT(buffer->getCommandBuffer()[frameInFlight], &markerInfo);
 }

@@ -53,10 +53,9 @@ class GUI : public InputSubscriberExclusive {
   std::vector<std::shared_ptr<Buffer>> _vertexBuffer;
   std::vector<std::shared_ptr<Buffer>> _indexBuffer;
   int _lastBuffer = 0;
-  std::vector<std::shared_ptr<Buffer>> _uniformBuffer;
+  std::vector<std::shared_ptr<Buffer>> _scaleTranslateBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSet;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
-  std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Texture> _fontTexture;
   std::shared_ptr<ImageView> _imageView;
   std::vector<int32_t> _vertexCount;

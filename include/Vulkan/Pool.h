@@ -1,5 +1,6 @@
 #pragma once
 #include "Vulkan/Device.h"
+#include "Utility/Settings.h"
 
 class CommandPool {
  private:
@@ -20,7 +21,7 @@ class DescriptorPool {
   VkDescriptorPool _descriptorPool;
 
  public:
-  DescriptorPool(int number, std::shared_ptr<Device> device);
+  DescriptorPool(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
   VkDescriptorPool& getDescriptorPool();
   ~DescriptorPool();
 };

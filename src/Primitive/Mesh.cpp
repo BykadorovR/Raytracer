@@ -27,10 +27,10 @@ std::vector<VkVertexInputAttributeDescription> Mesh::getAttributeDescriptions(
     std::vector<std::tuple<VkFormat, uint32_t>> fields) {
   std::vector<VkVertexInputAttributeDescription> attributeDescriptions(fields.size());
   for (int i = 0; i < fields.size(); i++) {
-    attributeDescriptions[i].binding = 0;
-    attributeDescriptions[i].location = i;
-    attributeDescriptions[i].format = std::get<0>(fields[i]);
-    attributeDescriptions[i].offset = std::get<1>(fields[i]);
+    attributeDescriptions[i] = {.location = static_cast<uint32_t>(i),
+                                .binding = 0,
+                                .format = std::get<0>(fields[i]),
+                                .offset = std::get<1>(fields[i])};
   }
   return attributeDescriptions;
 }
@@ -122,51 +122,27 @@ const std::vector<MeshPrimitive>& MeshStatic3D::getPrimitives() { return _primit
 std::shared_ptr<AABB> MeshStatic3D::getAABB() { return _aabb; }
 
 VkVertexInputBindingDescription MeshStatic3D::getBindingDescription() {
-  VkVertexInputBindingDescription bindingDescription{};
-  bindingDescription.binding = 0;
-  bindingDescription.stride = sizeof(Vertex3D);
-  bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
+  VkVertexInputBindingDescription bindingDescription{.binding = 0,
+                                                     .stride = sizeof(Vertex3D),
+                                                     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
   return bindingDescription;
 }
 
 std::vector<VkVertexInputAttributeDescription> MeshStatic3D::getAttributeDescriptions() {
-  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(7);
-
-  attributeDescriptions[0].binding = 0;
-  attributeDescriptions[0].location = 0;
-  attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[0].offset = offsetof(Vertex3D, pos);
-
-  attributeDescriptions[1].binding = 0;
-  attributeDescriptions[1].location = 1;
-  attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[1].offset = offsetof(Vertex3D, normal);
-
-  attributeDescriptions[2].binding = 0;
-  attributeDescriptions[2].location = 2;
-  attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[2].offset = offsetof(Vertex3D, color);
-
-  attributeDescriptions[3].binding = 0;
-  attributeDescriptions[3].location = 3;
-  attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-  attributeDescriptions[3].offset = offsetof(Vertex3D, texCoord);
-
-  attributeDescriptions[4].binding = 0;
-  attributeDescriptions[4].location = 4;
-  attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[4].offset = offsetof(Vertex3D, jointIndices);
-
-  attributeDescriptions[5].binding = 0;
-  attributeDescriptions[5].location = 5;
-  attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[5].offset = offsetof(Vertex3D, jointWeights);
-
-  attributeDescriptions[6].binding = 0;
-  attributeDescriptions[6].location = 6;
-  attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[6].offset = offsetof(Vertex3D, tangent);
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, pos)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, normal)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, color)},
+      {.location = 3, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(Vertex3D, texCoord)},
+      {.location = 4,
+       .binding = 0,
+       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+       .offset = offsetof(Vertex3D, jointIndices)},
+      {.location = 5,
+       .binding = 0,
+       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+       .offset = offsetof(Vertex3D, jointWeights)},
+      {.location = 6, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(Vertex3D, tangent)}};
 
   return attributeDescriptions;
 }
@@ -242,139 +218,115 @@ const std::vector<MeshPrimitive>& MeshDynamic3D::getPrimitives() { return _primi
 std::shared_ptr<AABB> MeshDynamic3D::getAABB() { return _aabb; }
 
 VkVertexInputBindingDescription MeshDynamic3D::getBindingDescription() {
-  VkVertexInputBindingDescription bindingDescription{};
-  bindingDescription.binding = 0;
-  bindingDescription.stride = sizeof(Vertex3D);
-  bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  VkVertexInputBindingDescription bindingDescription{.binding = 0,
+                                                     .stride = sizeof(Vertex3D),
+                                                     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
 
   return bindingDescription;
 }
 
 std::vector<VkVertexInputAttributeDescription> MeshDynamic3D::getAttributeDescriptions() {
-  std::vector<VkVertexInputAttributeDescription> attributeDescriptions(7);
-
-  attributeDescriptions[0].binding = 0;
-  attributeDescriptions[0].location = 0;
-  attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[0].offset = offsetof(Vertex3D, pos);
-
-  attributeDescriptions[1].binding = 0;
-  attributeDescriptions[1].location = 1;
-  attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[1].offset = offsetof(Vertex3D, normal);
-
-  attributeDescriptions[2].binding = 0;
-  attributeDescriptions[2].location = 2;
-  attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[2].offset = offsetof(Vertex3D, color);
-
-  attributeDescriptions[3].binding = 0;
-  attributeDescriptions[3].location = 3;
-  attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-  attributeDescriptions[3].offset = offsetof(Vertex3D, texCoord);
-
-  attributeDescriptions[4].binding = 0;
-  attributeDescriptions[4].location = 4;
-  attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[4].offset = offsetof(Vertex3D, jointIndices);
-
-  attributeDescriptions[5].binding = 0;
-  attributeDescriptions[5].location = 5;
-  attributeDescriptions[5].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[5].offset = offsetof(Vertex3D, jointWeights);
-
-  attributeDescriptions[6].binding = 0;
-  attributeDescriptions[6].location = 6;
-  attributeDescriptions[6].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[6].offset = offsetof(Vertex3D, tangent);
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, pos)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, normal)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex3D, color)},
+      {.location = 3, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(Vertex3D, texCoord)},
+      {.location = 4,
+       .binding = 0,
+       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+       .offset = offsetof(Vertex3D, jointIndices)},
+      {.location = 5,
+       .binding = 0,
+       .format = VK_FORMAT_R32G32B32A32_SFLOAT,
+       .offset = offsetof(Vertex3D, jointWeights)},
+      {.location = 6, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(Vertex3D, tangent)}};
 
   return attributeDescriptions;
 }
 
 MeshCube::MeshCube(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState)
     : MeshStatic3D(engineState) {
-  std::vector<Vertex3D> vertices(24);
   // normal - z, tangent - y, bitangent - x
-  // 0
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);
-  vertices[0].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[0].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[1].pos = glm::vec3(-0.5, -0.5, 0.5);
-  vertices[1].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[1].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[2].pos = glm::vec3(-0.5, -0.5, 0.5);
-  vertices[2].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[2].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 1
-  vertices[3].pos = glm::vec3(0.5, -0.5, 0.5);
-  vertices[3].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[3].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[4].pos = glm::vec3(0.5, -0.5, 0.5);
-  vertices[4].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[4].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[5].pos = glm::vec3(0.5, -0.5, 0.5);
-  vertices[5].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[5].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 2
-  vertices[6].pos = glm::vec3(-0.5, 0.5, 0.5);
-  vertices[6].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[6].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[7].pos = glm::vec3(-0.5, 0.5, 0.5);
-  vertices[7].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[7].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[8].pos = glm::vec3(-0.5, 0.5, 0.5);
-  vertices[8].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[8].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 3
-  vertices[9].pos = glm::vec3(0.5, 0.5, 0.5);
-  vertices[9].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[9].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[10].pos = glm::vec3(0.5, 0.5, 0.5);
-  vertices[10].normal = glm::vec3(0.0, 0.0, 1.0);  // front
-  vertices[10].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  vertices[11].pos = glm::vec3(0.5, 0.5, 0.5);
-  vertices[11].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[11].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 4
-  vertices[12].pos = glm::vec3(-0.5, -0.5, -0.5);
-  vertices[12].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[12].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[13].pos = glm::vec3(-0.5, -0.5, -0.5);
-  vertices[13].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[13].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[14].pos = glm::vec3(-0.5, -0.5, -0.5);
-  vertices[14].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[14].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 5
-  vertices[15].pos = glm::vec3(0.5, -0.5, -0.5);
-  vertices[15].normal = glm::vec3(0.0, -1.0, 0.0);  // down
-  vertices[15].tangent = glm::vec4(0.0, 0.0, 1.0, 1.0);
-  vertices[16].pos = glm::vec3(0.5, -0.5, -0.5);
-  vertices[16].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[16].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[17].pos = glm::vec3(0.5, -0.5, -0.5);
-  vertices[17].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[17].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 6
-  vertices[18].pos = glm::vec3(-0.5, 0.5, -0.5);
-  vertices[18].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[18].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[19].pos = glm::vec3(-0.5, 0.5, -0.5);
-  vertices[19].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[19].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[20].pos = glm::vec3(-0.5, 0.5, -0.5);
-  vertices[20].normal = glm::vec3(-1.0, 0.0, 0.0);  // left
-  vertices[20].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
-  // 7
-  vertices[21].pos = glm::vec3(0.5, 0.5, -0.5);
-  vertices[21].normal = glm::vec3(0.0, 1.0, 0.0);  // top
-  vertices[21].tangent = glm::vec4(0.0, 0.0, -1.0, 1.0);
-  vertices[22].pos = glm::vec3(0.5, 0.5, -0.5);
-  vertices[22].normal = glm::vec3(0.0, 0.0, -1.0);  // back
-  vertices[22].tangent = glm::vec4(0.0, -1.0, 0.0, 1.0);
-  vertices[23].pos = glm::vec3(0.5, 0.5, -0.5);
-  vertices[23].normal = glm::vec3(1.0, 0.0, 0.0);  // right
-  vertices[23].tangent = glm::vec4(0.0, 1.0, 0.0, 1.0);
+  std::vector<Vertex3D> vertices{{// 0
+                                  .pos = glm::vec3(-0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(0.0, -1.0, 0.0),  // down
+                                  .tangent = glm::vec4(0.0, 0.0, 1.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 0.0, 1.0),  // front
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(-1.0, 0.0, 0.0),  // left
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 1
+                                 {.pos = glm::vec3(0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(0.0, -1.0, 0.0),  // down
+                                  .tangent = glm::vec4(0.0, 0.0, 1.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 0.0, 1.0),  // front
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, -0.5, 0.5),
+                                  .normal = glm::vec3(1.0, 0.0, 0.0),  // right
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 2
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 1.0, 0.0),  // top
+                                  .tangent = glm::vec4(0.0, 0.0, -1.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 0.0, 1.0),  // front
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(-1.0, 0.0, 0.0),  // left
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 3
+                                 {.pos = glm::vec3(0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 1.0, 0.0),  // top
+                                  .tangent = glm::vec4(0.0, 0.0, -1.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(0.0, 0.0, 1.0),  // front
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, 0.5, 0.5),
+                                  .normal = glm::vec3(1.0, 0.0, 0.0),  // right
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 4
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(0.0, -1.0, 0.0),  // down
+                                  .tangent = glm::vec4(0.0, 0.0, 1.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 0.0, -1.0),  // back
+                                  .tangent = glm::vec4(0.0, -1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(-1.0, 0.0, 0.0),  // left
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 5
+                                 {.pos = glm::vec3(0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(0.0, -1.0, 0.0),  // down
+                                  .tangent = glm::vec4(0.0, 0.0, 1.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 0.0, -1.0),  // back
+                                  .tangent = glm::vec4(0.0, -1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, -0.5, -0.5),
+                                  .normal = glm::vec3(1.0, 0.0, 0.0),  // right
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 6
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 1.0, 0.0),  // top
+                                  .tangent = glm::vec4(0.0, 0.0, -1.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 0.0, -1.0),  // back
+                                  .tangent = glm::vec4(0.0, -1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(-1.0, 0.0, 0.0),  // left
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)},
+                                 // 7
+                                 {.pos = glm::vec3(0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 1.0, 0.0),  // top
+                                  .tangent = glm::vec4(0.0, 0.0, -1.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(0.0, 0.0, -1.0),  // back
+                                  .tangent = glm::vec4(0.0, -1.0, 0.0, 1.0)},
+                                 {.pos = glm::vec3(0.5, 0.5, -0.5),
+                                  .normal = glm::vec3(1.0, 0.0, 0.0),  // right
+                                  .tangent = glm::vec4(0.0, 1.0, 0.0, 1.0)}};
 
   std::vector<uint32_t> indices{                          // Bottom
                                 0, 12, 15, 15, 3, 0,      // ccw if look to this face from down
@@ -435,8 +387,8 @@ MeshSphere::MeshSphere(std::shared_ptr<CommandBuffer> commandBufferTransfer, std
       vertex.tangent = glm::vec4(-sinf(sectorAngle), 0.f, cosf(sectorAngle), 1.f);
 
       // vertex tex coord (s, t) range between [0, 1]
-      s = (float)j / sectorCount;
-      t = (float)i / stackCount;
+      s = static_cast<float>(j) / sectorCount;
+      t = static_cast<float>(i) / stackCount;
       vertex.texCoord = glm::vec2(s, t);
       vertices.push_back(vertex);
     }
@@ -654,41 +606,20 @@ std::shared_ptr<VertexBuffer<uint32_t>> MeshStatic2D::getIndexBuffer() {
 }
 
 VkVertexInputBindingDescription MeshStatic2D::getBindingDescription() {
-  VkVertexInputBindingDescription bindingDescription{};
-  bindingDescription.binding = 0;
-  bindingDescription.stride = sizeof(Vertex2D);
-  bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+  VkVertexInputBindingDescription bindingDescription{.binding = 0,
+                                                     .stride = sizeof(Vertex2D),
+                                                     .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
 
   return bindingDescription;
 }
 
 std::vector<VkVertexInputAttributeDescription> MeshStatic2D::getAttributeDescriptions() {
-  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{5};
-
-  attributeDescriptions[0].binding = 0;
-  attributeDescriptions[0].location = 0;
-  attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[0].offset = offsetof(Vertex2D, pos);
-
-  attributeDescriptions[1].binding = 0;
-  attributeDescriptions[1].location = 1;
-  attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[1].offset = offsetof(Vertex2D, normal);
-
-  attributeDescriptions[2].binding = 0;
-  attributeDescriptions[2].location = 2;
-  attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-  attributeDescriptions[2].offset = offsetof(Vertex2D, color);
-
-  attributeDescriptions[3].binding = 0;
-  attributeDescriptions[3].location = 3;
-  attributeDescriptions[3].format = VK_FORMAT_R32G32_SFLOAT;
-  attributeDescriptions[3].offset = offsetof(Vertex2D, texCoord);
-
-  attributeDescriptions[4].binding = 0;
-  attributeDescriptions[4].location = 4;
-  attributeDescriptions[4].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-  attributeDescriptions[4].offset = offsetof(Vertex2D, tangent);
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex2D, pos)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex2D, normal)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Vertex2D, color)},
+      {.location = 3, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(Vertex2D, texCoord)},
+      {.location = 4, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(Vertex2D, tangent)}};
 
   return attributeDescriptions;
 }

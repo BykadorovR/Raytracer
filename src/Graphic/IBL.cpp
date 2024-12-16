@@ -13,16 +13,10 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _mesh2D = std::make_shared<MeshStatic2D>(engineState);
   _gameState = gameState;
 
-  std::vector<Vertex3D> vertices(8);
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
-  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
-  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
-  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
-  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
-  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
-  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
-  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
-
+  std::vector<Vertex3D> vertices{{.pos = glm::vec3(-0.5, -0.5, 0.5)},  {.pos = glm::vec3(0.5, -0.5, 0.5)},
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5)},   {.pos = glm::vec3(0.5, 0.5, 0.5)},
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5)}, {.pos = glm::vec3(0.5, -0.5, -0.5)},
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5)},  {.pos = glm::vec3(0.5, 0.5, -0.5)}};
   std::vector<uint32_t> indices{                    // Bottom
                                 0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
                                                     //  Top
@@ -55,19 +49,30 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
   _renderPass->initializeIBL();
 
-  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
-    _cameraBuffer[i] = std::make_shared<Buffer>(
-        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   // setup BRDF
   {
     auto cameraLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
-    cameraLayout->createUniformBuffer();
+    VkDescriptorSetLayoutBinding layoutBinding = {.binding = 0,
+                                                  .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                  .descriptorCount = 1,
+                                                  .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                  .pImmutableSamplers = nullptr};
+    cameraLayout->createCustom({layoutBinding});
     _descriptorSetBRDF = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                         cameraLayout, engineState->getDescriptorPool(),
-                                                         engineState->getDevice());
-    _descriptorSetBRDF->createUniformBuffer(_cameraBuffer);
+                                                         cameraLayout, engineState);
+    _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _cameraBuffer[i] = std::make_shared<Buffer>(
+          sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
+
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+          {0,
+           {VkDescriptorBufferInfo{.buffer = _cameraBuffer[i]->getData(),
+                                   .offset = 0,
+                                   .range = _cameraBuffer[i]->getSize()}}}};
+      _descriptorSetBRDF->createCustom(i, bufferInfoColor, {});
+    }
 
     {
       auto shader = std::make_shared<Shader>(engineState);
@@ -99,24 +104,22 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   // setup diffuse and specular
   {
     _descriptorSetLayoutColor = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutColor->createCustom(layoutColor);
 
     _descriptorSetColor.resize(6);
     for (int f = 0; f < 6; f++) {
-      _descriptorSetColor[f] = std::make_shared<DescriptorSet>(
-          engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
-          engineState->getDescriptorPool(), engineState->getDevice());
+      _descriptorSetColor[f] = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                               _descriptorSetLayoutColor, engineState);
     }
 
     _updateColorDescriptor(_material);
@@ -219,25 +222,21 @@ std::shared_ptr<Texture> IBL::getTextureSpecularBRDF() { return _textureSpecular
 
 void IBL::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
   for (int f = 0; f < 6; f++) {
-    _descriptorSetColor[f] = std::make_shared<DescriptorSet>(
-        _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutColor,
-        _engineState->getDescriptorPool(), _engineState->getDevice());
+    _descriptorSetColor[f] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                             _descriptorSetLayoutColor, _engineState);
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraBufferCubemap[f][i]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+          {0,
+           {VkDescriptorBufferInfo{.buffer = _cameraBufferCubemap[f][i]->getData(),
+                                   .offset = 0,
+                                   .range = _cameraBufferCubemap[f][i]->getSize()}}}};
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {1,
+           {VkDescriptorImageInfo{
+               .sampler = _material->getBaseColor()[0]->getSampler()->getSampler(),
+               .imageView = _material->getBaseColor()[0]->getImageView()->getImageView(),
+               .imageLayout = _material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
 
-      // write for binding = 1 for textures
-      std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout = _material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = _material->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = _material->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoTexture;
       _descriptorSetColor[f]->createCustom(i, bufferInfoColor, textureInfoColor);
     }
   }
@@ -258,10 +257,7 @@ void IBL::_draw(int face,
                 std::shared_ptr<CommandBuffer> commandBuffer,
                 std::shared_ptr<Pipeline> pipeline) {
   auto currentFrame = _engineState->getFrameInFlight();
-  BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
-  cameraUBO.view = camera->getView();
-  cameraUBO.projection = camera->getProjection();
+  BufferMVP cameraUBO{.model = _model, .view = camera->getView(), .projection = camera->getProjection()};
 
   _cameraBufferCubemap[face][currentFrame]->setData(&cameraUBO);
 
@@ -301,8 +297,7 @@ void IBL::drawSpecular() {
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < _engineState->getSettings()->getSpecularMipMap(); j++) {
       auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferSpecular[i][j]);
-      VkClearValue clearColor;
-      clearColor.color = _engineState->getSettings()->getClearColor();
+      VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
       renderPassInfo.clearValueCount = 1;
       renderPassInfo.pClearValues = &clearColor;
 
@@ -342,18 +337,15 @@ void IBL::drawSpecular() {
       auto [width, height] = _engineState->getSettings()->getSpecularIBLResolution();
       width *= std::pow(0.5, j);
       height *= std::pow(0.5, j);
-      VkViewport viewport{};
-      viewport.x = 0.f;
-      viewport.y = 0.f;
-      viewport.width = width;
-      viewport.height = height;
-      viewport.minDepth = 0.0f;
-      viewport.maxDepth = 1.0f;
+      VkViewport viewport{.x = 0.f,
+                          .y = 0.f,
+                          .width = static_cast<float>(width),
+                          .height = static_cast<float>(height),
+                          .minDepth = 0.0f,
+                          .maxDepth = 1.0f};
       vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-      VkRect2D scissor{};
-      scissor.offset = {0, 0};
-      scissor.extent = VkExtent2D(width, height);
+      VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
       vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
       if (_pipelineSpecular->getPushConstants().find("fragment") != _pipelineSpecular->getPushConstants().end()) {
@@ -387,8 +379,7 @@ void IBL::drawDiffuse() {
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
     auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferDiffuse[i]);
-    VkClearValue clearColor;
-    clearColor.color = _engineState->getSettings()->getClearColor();
+    VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
@@ -424,18 +415,15 @@ void IBL::drawDiffuse() {
         break;
     }
     auto [width, height] = _engineState->getSettings()->getDiffuseIBLResolution();
-    VkViewport viewport{};
-    viewport.x = 0.f;
-    viewport.y = 0.f;
-    viewport.width = width;
-    viewport.height = height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.f,
+                        .y = 0.f,
+                        .width = static_cast<float>(width),
+                        .height = static_cast<float>(height),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
     vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(width, height);
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
     vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
     _draw(i, _camera, _commandBufferTransfer, _pipelineDiffuse);
 
@@ -451,23 +439,19 @@ void IBL::drawSpecularBRDF() {
 
   auto resolution = _textureSpecularBRDF->getImageView()->getImage()->getResolution();
   int currentFrame = _engineState->getFrameInFlight();
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(resolution);
-  viewport.width = std::get<0>(resolution);
-  viewport.height = -std::get<1>(resolution);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(resolution)),
+                      .width = static_cast<float>(std::get<0>(resolution)),
+                      .height = static_cast<float>(-std::get<1>(resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferBRDF);
-  VkClearValue clearColor;
-  clearColor.color = _engineState->getSettings()->getClearColor();
+  VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
   renderPassInfo.clearValueCount = 1;
   renderPassInfo.pClearValues = &clearColor;
 
@@ -475,12 +459,10 @@ void IBL::drawSpecularBRDF() {
                        VK_SUBPASS_CONTENTS_INLINE);
 
   _logger->begin("Render specular brdf", _commandBufferTransfer);
-  BufferMVP cameraMVP{};
   auto model = glm::scale(_model, glm::vec3(2.f, 2.f, 1.f));
-  cameraMVP.model = model;
-  cameraMVP.view = _cameraSpecularBRDF->getView();
-  cameraMVP.projection = _cameraSpecularBRDF->getProjection();
-
+  BufferMVP cameraMVP{.model = model,
+                      .view = _cameraSpecularBRDF->getView(),
+                      .projection = _cameraSpecularBRDF->getProjection()};
   _cameraBuffer[currentFrame]->setData(&cameraMVP);
 
   VkBuffer vertexBuffers[] = {_mesh2D->getVertexBuffer()->getBuffer()->getData()};

@@ -14,157 +14,151 @@ struct ShadowParameters {
 LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
 
-  _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _engineState->getDevice());
-
   // update global descriptor for Phong and PBR (2 separate)
   {
     _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 2;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 4;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[6].binding = 6;
-    layoutPhong[6].descriptorCount = 1;
-    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[6].pImmutableSamplers = nullptr;
-    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 2,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 6,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
   }
   {
     _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 2;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 4;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[5].binding = 5;
-    layoutPBR[5].descriptorCount = 1;
-    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[5].pImmutableSamplers = nullptr;
-    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 2,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
   {
     _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(7);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 2;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 4;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[6].binding = 6;
-    layoutPhong[6].descriptorCount = 1;
-    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[6].pImmutableSamplers = nullptr;
-    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 2,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 6,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalTerrainPhong->createCustom(layoutPhong);
   }
   {
     _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(6);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 2;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 4;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[5].binding = 5;
-    layoutPBR[5].descriptorCount = 1;
-    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[5].pImmutableSamplers = nullptr;
-    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 2,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalTerrainPBR->createCustom(layoutPBR);
   }
 
@@ -230,24 +224,20 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                              _descriptorSetLayoutGlobalPhong, _descriptorPool,
-                                                              _engineState->getDevice());
+                                                              _descriptorSetLayoutGlobalPhong, _engineState);
   auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
   loggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                        _descriptorSetGlobalPhong->getDescriptorSets());
   _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                            _descriptorSetLayoutGlobalPBR, _descriptorPool,
-                                                            _engineState->getDevice());
+                                                            _descriptorSetLayoutGlobalPBR, _engineState);
   loggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                        _descriptorSetGlobalPBR->getDescriptorSets());
   _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
-      _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _descriptorPool,
-      _engineState->getDevice());
+      _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _engineState);
   loggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                        _descriptorSetGlobalTerrainPhong->getDescriptorSets());
   _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                   _descriptorSetLayoutGlobalTerrainPBR,
-                                                                   _descriptorPool, _engineState->getDevice());
+                                                                   _descriptorSetLayoutGlobalTerrainPBR, _engineState);
   loggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
                        _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 

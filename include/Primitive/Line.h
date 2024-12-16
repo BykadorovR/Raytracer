@@ -13,7 +13,7 @@ class Line : public Drawable {
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<Buffer> _stagingBuffer;
   std::shared_ptr<MeshDynamic3D> _mesh;
-  std::vector<std::shared_ptr<Buffer>> _uniformBuffer;
+  std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCamera;
   std::shared_ptr<Pipeline> _pipeline;
   std::shared_ptr<RenderPass> _renderPass;

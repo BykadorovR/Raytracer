@@ -34,40 +34,30 @@ void ParticleSystem::_initializeGraphic() {
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   auto descriptorSetLayoutGraphic = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  std::vector<VkDescriptorSetLayoutBinding> layoutGraphic(2);
-  layoutGraphic[0].binding = 0;
-  layoutGraphic[0].descriptorCount = 1;
-  layoutGraphic[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  layoutGraphic[0].pImmutableSamplers = nullptr;
-  layoutGraphic[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  layoutGraphic[1].binding = 1;
-  layoutGraphic[1].descriptorCount = 1;
-  layoutGraphic[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  layoutGraphic[1].pImmutableSamplers = nullptr;
-  layoutGraphic[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  std::vector<VkDescriptorSetLayoutBinding> layoutGraphic{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
+
   descriptorSetLayoutGraphic->createCustom(layoutGraphic);
 
   _descriptorSetGraphic = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayoutGraphic, _engineState->getDescriptorPool(),
-                                                          _engineState->getDevice());
-
+                                                          descriptorSetLayoutGraphic, _engineState);
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorBufferInfo> bufferInfoVertex(1);
-    // write to binding = 0 for vertex shader
-    bufferInfoVertex[0].buffer = _cameraUniformBuffer[i]->getData();
-    bufferInfoVertex[0].offset = 0;
-    bufferInfoVertex[0].range = sizeof(BufferMVP);
-    bufferInfoNormalsMesh[0] = bufferInfoVertex;
-    // write for binding = 1 for geometry shader
-    // write for binding = 1 for textures
-    std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-    bufferInfoTexture[0].imageLayout = _texture->getImageView()->getImage()->getImageLayout();
-    bufferInfoTexture[0].imageView = _texture->getImageView()->getImageView();
-    bufferInfoTexture[0].sampler = _texture->getSampler()->getSampler();
-    textureInfoColor[1] = bufferInfoTexture;
-
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh = {
+        {0,
+         {{.buffer = _cameraUniformBuffer[i]->getData(), .offset = 0, .range = _cameraUniformBuffer[i]->getSize()}}}};
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+        {1,
+         {{.sampler = _texture->getSampler()->getSampler(),
+           .imageView = _texture->getImageView()->getImageView(),
+           .imageLayout = _texture->getImageView()->getImage()->getImageLayout()}}}};
     _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
   }
 
@@ -100,16 +90,35 @@ void ParticleSystem::_initializeCompute() {
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
   auto setLayoutSSBOCompute = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  setLayoutSSBOCompute->createParticleComputeBuffer();
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                           .pImmutableSamplers = nullptr}};
+  setLayoutSSBOCompute->createCustom(layoutBinding);
 
-  _descriptorSetCompute.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSetCompute = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                          setLayoutSSBOCompute, _engineState);
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+        {0, {{.buffer = _deltaUniformBuffer[i]->getData(), .offset = 0, .range = _deltaUniformBuffer[i]->getSize()}}},
+        {1,
+         {{.buffer = _particlesBuffer[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()]->getData(),
+           .offset = 0,
+           .range = _particlesBuffer[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()]->getSize()}}},
+        {2, {{.buffer = _particlesBuffer[i]->getData(), .offset = 0, .range = _particlesBuffer[i]->getSize()}}}};
     // for 0 frame we have ssbo in + ssbo out, for 1 frame we have ssbo out + ssbo in
-    _descriptorSetCompute[i] = std::make_shared<DescriptorSet>(
-        1, setLayoutSSBOCompute, _engineState->getDescriptorPool(), _engineState->getDevice());
-    _descriptorSetCompute[i]->createParticleComputeBuffer(
-        _deltaUniformBuffer, _particlesBuffer[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()],
-        _particlesBuffer[i]);
+    _descriptorSetCompute->createCustom(i, bufferInfo, {});
   }
 
   auto shader = std::make_shared<Shader>(_engineState);
@@ -140,7 +149,7 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (computeLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
                             _computePipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCompute[currentFrame]->getDescriptorSets()[0], 0, nullptr);
+                            &_descriptorSetCompute->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particles.size() / 16.f)),
@@ -152,33 +161,28 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
   auto resolution = _engineState->getSettings()->getResolution();
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(resolution);
-  viewport.width = std::get<0>(resolution);
-  viewport.height = -std::get<1>(resolution);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(resolution)),
+                      .width = static_cast<float>(std::get<0>(resolution)),
+                      .height = static_cast<float>(-std::get<1>(resolution)),
+                      .minDepth = 0.f,
+                      .maxDepth = 1.f};
+
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   if (_graphicPipeline->getPushConstants().find("vertex") != _graphicPipeline->getPushConstants().end()) {
-    VertexPush pushConstants;
-    pushConstants.pointScale = _pointScale;
+    VertexPush pushConstants{.pointScale = _pointScale};
     auto info = _graphicPipeline->getPushConstants()["vertex"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _graphicPipeline->getPipelineLayout(),
                        info.stageFlags, info.offset, info.size, &pushConstants);
   }
 
-  BufferMVP cameraUBO{};
-  cameraUBO.model = getModel();
-  cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
-  cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
-
+  BufferMVP cameraUBO{.model = getModel(),
+                      .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
+                      .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
   _cameraUniformBuffer[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_particlesBuffer[currentFrame]->getData()};

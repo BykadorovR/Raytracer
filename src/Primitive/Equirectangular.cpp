@@ -40,15 +40,14 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   // convert to cubemap
   _mesh3D = std::make_shared<MeshStatic3D>(engineState);
 
-  std::vector<Vertex3D> vertices(8);
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
-  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
-  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
-  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
-  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
-  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
-  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
-  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
+  std::vector<Vertex3D> vertices{{.pos = glm::vec3(-0.5, -0.5, 0.5)},   // 0
+                                 {.pos = glm::vec3(0.5, -0.5, 0.5)},    // 1
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5)},    // 2
+                                 {.pos = glm::vec3(0.5, 0.5, 0.5)},     // 3
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5)},  // 4
+                                 {.pos = glm::vec3(0.5, -0.5, -0.5)},   // 5
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5)},   // 6
+                                 {.pos = glm::vec3(0.5, 0.5, -0.5)}};   // 7
 
   std::vector<uint32_t> indices{                    // Bottom
                                 0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
@@ -84,40 +83,35 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   // setup color
   {
     _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayout->createCustom(layoutColor);
 
     _descriptorSetCubemap.resize(6);
     for (int f = 0; f < 6; f++) {
       _descriptorSetCubemap[f] = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayout, engineState->getDescriptorPool(),
-                                                                 engineState->getDevice());
+                                                                 _descriptorSetLayout, engineState);
       for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-        std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-        // write to binding = 0 for vertex shader
-        bufferInfoCamera[0].buffer = _bufferCubemap[f][i]->getData();
-        bufferInfoCamera[0].offset = 0;
-        bufferInfoCamera[0].range = sizeof(BufferMVP);
-        bufferInfoColor[0] = bufferInfoCamera;
-
-        // write for binding = 1 for textures
-        std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-        bufferInfoTexture[0].imageLayout = _texture->getImageView()->getImage()->getImageLayout();
-        bufferInfoTexture[0].imageView = _texture->getImageView()->getImageView();
-        bufferInfoTexture[0].sampler = _texture->getSampler()->getSampler();
-        textureInfoColor[1] = bufferInfoTexture;
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+            {0,
+             {VkDescriptorBufferInfo{.buffer = _bufferCubemap[f][i]->getData(),
+                                     .offset = 0,
+                                     .range = _bufferCubemap[f][i]->getSize()}}}};
+        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+            {1,
+             {VkDescriptorImageInfo{
+                 .sampler = _texture->getSampler()->getSampler(),
+                 .imageView = _texture->getImageView()->getImageView(),
+                 .imageLayout = _texture->getImageView()->getImage()->getImageLayout(),
+             }}}};
         _descriptorSetCubemap[f]->createCustom(i, bufferInfoColor, textureInfoColor);
       }
     }
@@ -211,24 +205,17 @@ void Equirectangular::_convertToCubemap() {
         _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
         break;
     }
-    VkViewport viewport{};
-    viewport.x = 0.f;
-    viewport.y = 0.f;
-    viewport.width = width;
-    viewport.height = height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.f,
+                        .y = 0.f,
+                        .width = static_cast<float>(width),
+                        .height = static_cast<float>(height),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
     vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(width, height);
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
     vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-    BufferMVP cameraUBO{};
-    cameraUBO.model = glm::mat4(1.f);
-    cameraUBO.view = _camera->getView();
-    cameraUBO.projection = _camera->getProjection();
-
+    BufferMVP cameraUBO{.model = glm::mat4(1.f), .view = _camera->getView(), .projection = _camera->getProjection()};
     _bufferCubemap[i][currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};

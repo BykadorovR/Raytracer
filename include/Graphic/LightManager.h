@@ -17,8 +17,6 @@ enum class ShadowAlgorithm { PCF = 0, VSM = 1 };
 
 class LightManager {
  private:
-  int _descriptorPoolSize = 100;
-
   std::vector<std::shared_ptr<DirectionalLight>> _directionalLights;
   std::vector<std::shared_ptr<PointLight>> _pointLights;
   std::vector<std::shared_ptr<AmbientLight>> _ambientLights;
@@ -26,7 +24,6 @@ class LightManager {
   std::vector<std::shared_ptr<PointShadow>> _pointShadows;
 
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<DescriptorPool> _descriptorPool;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBO, _lightPointSSBO, _lightAmbientSSBO;
   std::shared_ptr<Buffer> _lightDirectionalSSBOStub, _lightPointSSBOStub, _lightAmbientSSBOStub;
   std::vector<std::shared_ptr<Buffer>> _lightDirectionalSSBOViewProjection, _lightPointSSBOViewProjection;

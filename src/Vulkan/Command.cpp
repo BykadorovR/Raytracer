@@ -6,11 +6,10 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
 
   _buffer.resize(number);
 
-  VkCommandBufferAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  allocInfo.commandPool = pool->getCommandPool();
-  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  allocInfo.commandBufferCount = number;
+  VkCommandBufferAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                                        .commandPool = pool->getCommandPool(),
+                                        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                        .commandBufferCount = static_cast<uint32_t>(number)};
 
   if (vkAllocateCommandBuffers(_engineState->getDevice()->getLogicalDevice(), &allocInfo, _buffer.data()) !=
       VK_SUCCESS) {
@@ -21,9 +20,8 @@ CommandBuffer::CommandBuffer(int number, std::shared_ptr<CommandPool> pool, std:
 void CommandBuffer::beginCommands() {
   int frameInFlight = _engineState->getFrameInFlight();
 
-  VkCommandBufferBeginInfo beginInfo{};
-  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+  VkCommandBufferBeginInfo beginInfo{.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                                     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT};
 
   vkBeginCommandBuffer(_buffer[frameInFlight], &beginInfo);
   _active = true;

@@ -76,18 +76,37 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView,
                                            _engineState);
 
-  _descriptorPool = std::make_shared<DescriptorPool>(100, _engineState->getDevice());
   _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-  _descriptorSetLayout->createGUI();
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
+  _descriptorSetLayout->createCustom(layoutBinding);
 
-  _uniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
-    _uniformBuffer[i] = std::make_shared<Buffer>(
+  _scaleTranslateBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   _descriptorSetLayout, _engineState);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _scaleTranslateBuffer[i] = std::make_shared<Buffer>(
         sizeof(UniformData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
-  _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   _descriptorSetLayout, _descriptorPool, _engineState->getDevice());
-  _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+        {0,
+         {{.buffer = _scaleTranslateBuffer[i]->getData(), .offset = 0, .range = _scaleTranslateBuffer[i]->getSize()}}}};
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+        {1,
+         {{.sampler = _fontTexture->getSampler()->getSampler(),
+           .imageView = _fontTexture->getImageView()->getImageView(),
+           .imageLayout = _fontTexture->getImageView()->getImage()->getImageLayout()}}}};
+    _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
+  }
 
   auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -228,20 +247,18 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
 
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  std::tie(viewport.width, viewport.height) = _resolution;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = 0.0f,
+                      .width = static_cast<float>(std::get<0>(_resolution)),
+                      .height = static_cast<float>(std::get<1>(_resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[current], 0, 1, &viewport);
 
   // UI scale and translate via push constants
-  UniformData uniformData{};
-  uniformData.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
-  uniformData.translate = glm::vec2(-1.0f);
-
-  _uniformBuffer[current]->setData(&uniformData);
+  UniformData uniformData{.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y),
+                          .translate = glm::vec2(-1.0f)};
+  _scaleTranslateBuffer[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,
@@ -263,11 +280,10 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
       const ImDrawList* cmd_list = imDrawData->CmdLists[i];
       for (int32_t j = 0; j < cmd_list->CmdBuffer.Size; j++) {
         const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
-        VkRect2D scissorRect;
-        scissorRect.offset.x = std::max((int32_t)(pcmd->ClipRect.x), 0);
-        scissorRect.offset.y = std::max((int32_t)(pcmd->ClipRect.y), 0);
-        scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
-        scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
+        VkRect2D scissorRect{
+            .offset = {.x = std::max((int32_t)(pcmd->ClipRect.x), 0), .y = std::max((int32_t)(pcmd->ClipRect.y), 0)},
+            .extent = {.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                       .height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y)}};
         vkCmdSetScissor(commandBuffer->getCommandBuffer()[current], 0, 1, &scissorRect);
         vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[current], pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
         indexOffset += pcmd->ElemCount;

@@ -1,11 +1,13 @@
 #include "Vulkan/Device.h"
 
 Device::Device(std::shared_ptr<Surface> surface, std::shared_ptr<Instance> instance) {
-  VkPhysicalDeviceFeatures deviceFeatures{};
-  deviceFeatures.samplerAnisotropy = VK_TRUE;
-  deviceFeatures.fillModeNonSolid = VK_TRUE;
-  deviceFeatures.tessellationShader = VK_TRUE;
-  deviceFeatures.geometryShader = VK_TRUE;
+  VkPhysicalDeviceFeatures deviceFeatures{
+      .geometryShader = VK_TRUE,
+      .tessellationShader = VK_TRUE,
+      .fillModeNonSolid = VK_TRUE,
+      .samplerAnisotropy = VK_TRUE,
+  };
+
   vkb::PhysicalDeviceSelector deviceSelector(instance->getInstance());
   deviceSelector.set_required_features(deviceFeatures);
 

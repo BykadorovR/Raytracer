@@ -16,7 +16,7 @@ void Material::_updateDescriptor(int currentFrame, MaterialTexture type) {
           colorTextureInfo[i].sampler = _textures[type][i]->getSampler()->getSampler();
         }
         images[std::get<1>(info[elem])] = colorTextureInfo;
-        descriptor->updateImages(currentFrame, images);
+        descriptor->createCustom(currentFrame, {}, images);
       }
     }
   }
@@ -60,10 +60,9 @@ void Material::registerUpdate(std::shared_ptr<DescriptorSet> descriptor,
 
 void Material::setDoubleSided(bool doubleSided) { _doubleSided = doubleSided; }
 
-void Material::setAlphaCutoff(bool alphaCutoff, float alphaMask) {
+void Material::setAlphaCutoff(bool alphaMask, float alphaCutoff) {
   std::unique_lock<std::mutex> lock(_mutex);
-  _alphaCutoff.alphaCutoff = alphaCutoff;
-  _alphaCutoff.alphaMask = alphaCutoff;
+  _alphaCutoff = {.alphaMask = alphaMask, .alphaCutoff = alphaCutoff};
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedAlpha[i] = true;
 }
 
@@ -209,10 +208,10 @@ void MaterialPBR::setCoefficients(float metallicFactor,
                                   float occlusionStrength,
                                   glm::vec3 emissiveFactor) {
   std::unique_lock<std::mutex> lock(_mutex);
-  _coefficients.metallicFactor = metallicFactor;
-  _coefficients.roughnessFactor = roughnessFactor;
-  _coefficients.occlusionStrength = occlusionStrength;
-  _coefficients.emissiveFactor = emissiveFactor;
+  _coefficients = {.metallicFactor = metallicFactor,
+                   .roughnessFactor = roughnessFactor,
+                   .occlusionStrength = occlusionStrength,
+                   .emissiveFactor = emissiveFactor};
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
 }
 
@@ -283,10 +282,7 @@ void MaterialPhong::setNormal(std::vector<std::shared_ptr<Texture>> normal) {
 
 void MaterialPhong::setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess) {
   std::unique_lock<std::mutex> lock(_mutex);
-  _coefficients._ambient = ambient;
-  _coefficients._diffuse = diffuse;
-  _coefficients._specular = specular;
-  _coefficients._shininess = shininess;
+  _coefficients = {._ambient = ambient, ._diffuse = diffuse, ._specular = specular, ._shininess = shininess};
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedCoefficients[i] = true;
 }
 

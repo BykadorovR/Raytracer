@@ -99,59 +99,40 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
   // layout for Normal
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutNormal(4);
-    layoutNormal[0].binding = 0;
-    layoutNormal[0].descriptorCount = 1;
-    layoutNormal[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutNormal[0].pImmutableSamplers = nullptr;
-    layoutNormal[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutNormal[1].binding = 1;
-    layoutNormal[1].descriptorCount = 1;
-    layoutNormal[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutNormal[1].pImmutableSamplers = nullptr;
-    layoutNormal[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutNormal[2].binding = 2;
-    layoutNormal[2].descriptorCount = 1;
-    layoutNormal[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutNormal[2].pImmutableSamplers = nullptr;
-    layoutNormal[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutNormal[3].binding = 3;
-    layoutNormal[3].descriptorCount = 1;
-    layoutNormal[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutNormal[3].pImmutableSamplers = nullptr;
-    layoutNormal[3].stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutNormal{{.binding = 0,
+                                                            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                            .descriptorCount = 1,
+                                                            .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                            .pImmutableSamplers = nullptr},
+                                                           {.binding = 1,
+                                                            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                            .descriptorCount = 1,
+                                                            .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                            .pImmutableSamplers = nullptr},
+                                                           {.binding = 2,
+                                                            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                            .descriptorCount = 1,
+                                                            .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                            .pImmutableSamplers = nullptr},
+                                                           {.binding = 3,
+                                                            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                            .descriptorCount = 1,
+                                                            .stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT,
+                                                            .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutNormal);
     _descriptorSetLayoutNormalsMesh.push_back({"normal", descriptorSetLayout});
     _descriptorSetNormal = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                           descriptorSetLayout, engineState->getDescriptorPool(),
-                                                           engineState->getDevice());
+                                                           descriptorSetLayout, engineState);
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
-      bufferInfoTesControl[0].buffer = _cameraBuffer[i]->getData();
-      bufferInfoTesControl[0].offset = 0;
-      bufferInfoTesControl[0].range = sizeof(BufferMVP);
-      bufferInfoNormalsMesh[0] = bufferInfoTesControl;
-
-      std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
-      bufferInfoTesEval[0].buffer = _cameraBuffer[i]->getData();
-      bufferInfoTesEval[0].offset = 0;
-      bufferInfoTesEval[0].range = sizeof(BufferMVP);
-      bufferInfoNormalsMesh[1] = bufferInfoTesEval;
-
-      std::vector<VkDescriptorImageInfo> bufferInfoHeightMap(1);
-      bufferInfoHeightMap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-      bufferInfoHeightMap[0].imageView = _heightMap->getImageView()->getImageView();
-      bufferInfoHeightMap[0].sampler = _heightMap->getSampler()->getSampler();
-      textureInfoColor[2] = bufferInfoHeightMap;
-
-      // write for binding = 1 for geometry shader
-      std::vector<VkDescriptorBufferInfo> bufferInfoGeometry(1);
-      bufferInfoGeometry[0].buffer = _cameraBuffer[i]->getData();
-      bufferInfoGeometry[0].offset = 0;
-      bufferInfoGeometry[0].range = sizeof(BufferMVP);
-      bufferInfoNormalsMesh[3] = bufferInfoGeometry;
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
+          {0, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}},
+          {1, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}},
+          {3, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}}};
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+          {2,
+           {{.sampler = _heightMap->getSampler()->getSampler(),
+             .imageView = _heightMap->getImageView()->getImageView(),
+             .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
       _descriptorSetNormal->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
     }
 
@@ -234,37 +215,36 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
   // layout for Color
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(5);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutColor[2].binding = 2;
-    layoutColor[2].descriptorCount = 1;
-    layoutColor[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[2].pImmutableSamplers = nullptr;
-    layoutColor[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutColor[3].binding = 3;
-    layoutColor[3].descriptorCount = 1;
-    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[3].pImmutableSamplers = nullptr;
-    layoutColor[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutColor[4].binding = 4;
-    layoutColor[4].descriptorCount = 4;
-    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[4].pImmutableSamplers = nullptr;
-    layoutColor[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
+
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, engineState->getDescriptorPool(),
-                                                          engineState->getDevice());
+                                                          descriptorSetLayout, engineState);
     setMaterial(_defaultMaterialColor);
 
     // initialize Color
@@ -376,39 +356,31 @@ void TerrainCompositionDebug::_loadAuxilary(std::string path) {
 void TerrainCompositionDebug::_updateColorDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   auto material = std::dynamic_pointer_cast<MaterialColor>(_material);
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraControl[0].offset = 0;
-  bufferInfoCameraControl[0].range = sizeof(BufferMVP);
-  bufferInfoColor[0] = bufferInfoCameraControl;
-
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferPatchInfo;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraEval[0].offset = 0;
-  bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-  bufferInfoColor[2] = bufferInfoCameraEval;
-
-  std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-  textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-  textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-  textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-  textureInfoColor[3] = textureHeightmap;
-
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+      {0,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {1,
+       {{.buffer = _patchDescriptionSSBO[currentFrame]->getData(),
+         .offset = 0,
+         .range = _patchDescriptionSSBO[currentFrame]->getSize()}}},
+      {2,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}}};
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
-    textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
-    textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
+    textureBaseColor[j] = {.sampler = material->getBaseColor()[j]->getSampler()->getSampler(),
+                           .imageView = material->getBaseColor()[j]->getImageView()->getImageView(),
+                           .imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[4] = textureBaseColor;
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+      {3,
+       {{.sampler = _heightMap->getSampler()->getSampler(),
+         .imageView = _heightMap->getImageView()->getImageView(),
+         .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
+      {4, {textureBaseColor}}};
 
   _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
@@ -466,80 +438,76 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
                       pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(resolution);
-    viewport.width = std::get<0>(resolution);
-    viewport.height = -std::get<1>(resolution);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.0f,
+                        .y = static_cast<float>(std::get<1>(resolution)),
+                        .width = static_cast<float>(std::get<0>(resolution)),
+                        .height = static_cast<float>(-std::get<1>(resolution)),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
+
     vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
+
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
-      TesselationControlPush pushConstants;
-      pushConstants.patchDimX = _patchNumber.first;
-      pushConstants.patchDimY = _patchNumber.second;
-      pushConstants.minTesselationDistance = _minTesselationDistance;
-      pushConstants.maxTesselationDistance = _maxTesselationDistance;
-      pushConstants.minTessellationLevel = _minTessellationLevel;
-      pushConstants.maxTessellationLevel = _maxTessellationLevel;
+      TesselationControlPush pushConstants{
+          .patchDimX = _patchNumber.first,
+          .patchDimY = _patchNumber.second,
+          .minTessellationLevel = _minTessellationLevel,
+          .maxTessellationLevel = _maxTessellationLevel,
+          .minTesselationDistance = _minTesselationDistance,
+          .maxTesselationDistance = _maxTesselationDistance,
+      };
       auto info = pipeline->getPushConstants()["control"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("controlDepth") != pipeline->getPushConstants().end()) {
-      TesselationControlPushDepth pushConstants;
-      pushConstants.minTesselationDistance = _minTesselationDistance;
-      pushConstants.maxTesselationDistance = _maxTesselationDistance;
-      pushConstants.minTessellationLevel = _minTessellationLevel;
-      pushConstants.maxTessellationLevel = _maxTessellationLevel;
+      TesselationControlPushDepth pushConstants{.minTessellationLevel = _minTessellationLevel,
+                                                .maxTessellationLevel = _maxTessellationLevel,
+                                                .minTesselationDistance = _minTesselationDistance,
+                                                .maxTesselationDistance = _maxTesselationDistance};
       auto info = pipeline->getPushConstants()["controlDepth"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPush pushConstants;
-      pushConstants.patchDimX = _patchNumber.first;
-      pushConstants.patchDimY = _patchNumber.second;
-      pushConstants.heightScale = _heightScale;
-      pushConstants.heightShift = _heightShift;
+      TesselationEvaluationPush pushConstants{.patchDimX = _patchNumber.first,
+                                              .patchDimY = _patchNumber.second,
+                                              .heightScale = _heightScale,
+                                              .heightShift = _heightShift};
+
       auto info = pipeline->getPushConstants()["evaluate"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPushDepth pushConstants;
-      pushConstants.heightScale = _heightScale;
-      pushConstants.heightShift = _heightShift;
+      TesselationEvaluationPushDepth pushConstants{.heightScale = _heightScale, .heightShift = _heightShift};
       auto info = pipeline->getPushConstants()["evaluateDepth"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
-      FragmentPushDebug pushConstants;
-      pushConstants.patchEdge = _enableEdge;
-      pushConstants.showLOD = _showLoD;
-      pushConstants.enableShadow = _enableShadow;
-      pushConstants.enableLighting = _enableLighting;
-      pushConstants.tile = _pickedTile;
+      FragmentPushDebug pushConstants{.patchEdge = _enableEdge,
+                                      .showLOD = _showLoD,
+                                      .enableShadow = _enableShadow,
+                                      .enableLighting = _enableLighting,
+                                      .tile = _pickedTile};
+
       auto info = pipeline->getPushConstants()["fragment"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
-    BufferMVP cameraUBO{};
-    cameraUBO.model = getModel();
-    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
-    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
+    BufferMVP cameraUBO{.model = getModel(),
+                        .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
+                        .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
 
     _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
@@ -594,13 +562,12 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
   }
 
   if (_changedHeightmap[currentFrame]) {
-    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-    std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-    textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-    textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-    textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-    textureInfoColor[3] = textureHeightmap;
-    _descriptorSetColor->updateImages(currentFrame, textureInfoColor);
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+        {3,
+         {{.sampler = _heightMap->getSampler()->getSampler(),
+           .imageView = _heightMap->getImageView()->getImageView(),
+           .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
+    _descriptorSetColor->createCustom(currentFrame, {}, textureInfoColor);
     _changedHeightmap[currentFrame] = false;
   }
 
@@ -784,49 +751,43 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   // layout for Shadows
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutShadows(3);
-    layoutShadows[0].binding = 0;
-    layoutShadows[0].descriptorCount = 1;
-    layoutShadows[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutShadows[0].pImmutableSamplers = nullptr;
-    layoutShadows[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutShadows[1].binding = 1;
-    layoutShadows[1].descriptorCount = 1;
-    layoutShadows[1].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutShadows[1].pImmutableSamplers = nullptr;
-    layoutShadows[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutShadows[2].binding = 2;
-    layoutShadows[2].descriptorCount = 1;
-    layoutShadows[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutShadows[2].pImmutableSamplers = nullptr;
-    layoutShadows[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutShadows{
+        {.binding = 0,
+         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+         .descriptorCount = 1,
+         .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+         .pImmutableSamplers = nullptr},
+        {.binding = 1,
+         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+         .descriptorCount = 1,
+         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+         .pImmutableSamplers = nullptr},
+        {.binding = 2,
+         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+         .descriptorCount = 1,
+         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+         .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutShadows);
     _descriptorSetLayoutShadows.push_back({"shadows", descriptorSetLayout});
 
     for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
-      auto descriptorSetShadows = std::make_shared<DescriptorSet>(
-          _engineState->getSettings()->getMaxFramesInFlight(), descriptorSetLayout, _engineState->getDescriptorPool(),
-          _engineState->getDevice());
+      auto descriptorSetShadows = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                  descriptorSetLayout, _engineState);
       for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
-        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-        std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
-        bufferInfoTesControl[0].buffer = _cameraBufferDepth[d][0][i]->getData();
-        bufferInfoTesControl[0].offset = 0;
-        bufferInfoTesControl[0].range = sizeof(BufferMVP);
-        bufferInfoNormalsMesh[0] = bufferInfoTesControl;
-
-        std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
-        bufferInfoTesEval[0].buffer = _cameraBufferDepth[d][0][i]->getData();
-        bufferInfoTesEval[0].offset = 0;
-        bufferInfoTesEval[0].range = sizeof(BufferMVP);
-        bufferInfoNormalsMesh[1] = bufferInfoTesEval;
-
-        std::vector<VkDescriptorImageInfo> bufferInfoHeightMap(1);
-        bufferInfoHeightMap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-        bufferInfoHeightMap[0].imageView = _heightMap->getImageView()->getImageView();
-        bufferInfoHeightMap[0].sampler = _heightMap->getSampler()->getSampler();
-        textureInfoColor[2] = bufferInfoHeightMap;
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
+            {0,
+             {{.buffer = _cameraBufferDepth[d][0][i]->getData(),
+               .offset = 0,
+               .range = _cameraBufferDepth[d][0][i]->getSize()}}},
+            {1,
+             {{.buffer = _cameraBufferDepth[d][0][i]->getData(),
+               .offset = 0,
+               .range = _cameraBufferDepth[d][0][i]->getSize()}}}};
+        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+            {2,
+             {{.sampler = _heightMap->getSampler()->getSampler(),
+               .imageView = _heightMap->getImageView()->getImageView(),
+               .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
         descriptorSetShadows->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
       }
       _descriptorSetCameraDepth.push_back({descriptorSetShadows});
@@ -835,31 +796,28 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
     for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
       std::vector<std::shared_ptr<DescriptorSet>> facesSet;
       for (int f = 0; f < 6; f++) {
-        auto descriptorSetShadows = std::make_shared<DescriptorSet>(
-            _engineState->getSettings()->getMaxFramesInFlight(), descriptorSetLayout, _engineState->getDescriptorPool(),
-            _engineState->getDevice());
+        auto descriptorSetShadows = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                    descriptorSetLayout, _engineState);
         for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-          std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh;
-          std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-          std::vector<VkDescriptorBufferInfo> bufferInfoTesControl(1);
-          bufferInfoTesControl[0].buffer =
-              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData();
-          bufferInfoTesControl[0].offset = 0;
-          bufferInfoTesControl[0].range = sizeof(BufferMVP);
-          bufferInfoNormalsMesh[0] = bufferInfoTesControl;
+          std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
+              {0,
+               {{.buffer =
+                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData(),
+                 .offset = 0,
+                 .range =
+                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getSize()}}},
+              {1,
+               {{.buffer =
+                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData(),
+                 .offset = 0,
+                 .range = _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]
+                              ->getSize()}}}};
+          std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+              {2,
+               {{.sampler = _heightMap->getSampler()->getSampler(),
+                 .imageView = _heightMap->getImageView()->getImageView(),
+                 .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
 
-          std::vector<VkDescriptorBufferInfo> bufferInfoTesEval(1);
-          bufferInfoTesEval[0].buffer =
-              _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData();
-          bufferInfoTesEval[0].offset = 0;
-          bufferInfoTesEval[0].range = sizeof(BufferMVP);
-          bufferInfoNormalsMesh[1] = bufferInfoTesEval;
-
-          std::vector<VkDescriptorImageInfo> bufferInfoHeightMap(1);
-          bufferInfoHeightMap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-          bufferInfoHeightMap[0].imageView = _heightMap->getImageView()->getImageView();
-          bufferInfoHeightMap[0].sampler = _heightMap->getSampler()->getSampler();
-          textureInfoColor[2] = bufferInfoHeightMap;
           descriptorSetShadows->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
         }
         facesSet.push_back(descriptorSetShadows);
@@ -954,38 +912,35 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   // layout for Color
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(5);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutColor[2].binding = 2;
-    layoutColor[2].descriptorCount = 1;
-    layoutColor[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[2].pImmutableSamplers = nullptr;
-    layoutColor[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutColor[3].binding = 3;
-    layoutColor[3].descriptorCount = 1;
-    layoutColor[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[3].pImmutableSamplers = nullptr;
-    layoutColor[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutColor[4].binding = 4;
-    layoutColor[4].descriptorCount = 4;
-    layoutColor[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[4].pImmutableSamplers = nullptr;
-    layoutColor[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
     _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
-                                                          _engineState->getDevice());
+                                                          descriptorSetLayout, _engineState);
     setMaterial(_defaultMaterialColor);
 
     // initialize Color
@@ -1031,55 +986,53 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   // layout for Phong
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(8);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 4;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 4;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[6].binding = 6;
-    layoutPhong[6].descriptorCount = 4;
-    layoutPhong[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[6].pImmutableSamplers = nullptr;
-    layoutPhong[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[7].binding = 7;
-    layoutPhong[7].descriptorCount = 1;
-    layoutPhong[7].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPhong[7].pImmutableSamplers = nullptr;
-    layoutPhong[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 6,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 7,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutPhong);
 
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PHONG].push_back(
         {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
     _descriptorSetPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState->getDescriptorPool(),
-                                                          _engineState->getDevice());
+                                                          descriptorSetLayout, _engineState);
     // update descriptor set in setMaterial
 
     // initialize Phong
@@ -1125,90 +1078,88 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   // layout for PBR
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(15);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 1;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 4;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[5].binding = 5;
-    layoutPBR[5].descriptorCount = 4;
-    layoutPBR[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[5].pImmutableSamplers = nullptr;
-    layoutPBR[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[6].binding = 6;
-    layoutPBR[6].descriptorCount = 4;
-    layoutPBR[6].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[6].pImmutableSamplers = nullptr;
-    layoutPBR[6].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[7].binding = 7;
-    layoutPBR[7].descriptorCount = 4;
-    layoutPBR[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[7].pImmutableSamplers = nullptr;
-    layoutPBR[7].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[8].binding = 8;
-    layoutPBR[8].descriptorCount = 4;
-    layoutPBR[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[8].pImmutableSamplers = nullptr;
-    layoutPBR[8].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[9].binding = 9;
-    layoutPBR[9].descriptorCount = 4;
-    layoutPBR[9].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[9].pImmutableSamplers = nullptr;
-    layoutPBR[9].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[10].binding = 10;
-    layoutPBR[10].descriptorCount = 1;
-    layoutPBR[10].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[10].pImmutableSamplers = nullptr;
-    layoutPBR[10].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[11].binding = 11;
-    layoutPBR[11].descriptorCount = 1;
-    layoutPBR[11].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[11].pImmutableSamplers = nullptr;
-    layoutPBR[11].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[12].binding = 12;
-    layoutPBR[12].descriptorCount = 1;
-    layoutPBR[12].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[12].pImmutableSamplers = nullptr;
-    layoutPBR[12].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[13].binding = 13;
-    layoutPBR[13].descriptorCount = 1;
-    layoutPBR[13].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[13].pImmutableSamplers = nullptr;
-    layoutPBR[13].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[14].binding = 14;
-    layoutPBR[14].descriptorCount = 1;
-    layoutPBR[14].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutPBR[14].pImmutableSamplers = nullptr;
-    layoutPBR[14].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 6,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 7,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 8,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 9,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 10,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 11,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 12,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 13,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 14,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutPBR);
     _descriptorSetLayout[MaterialType::PBR].push_back({"pbr", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PBR].push_back(
         {"globalPBR", _gameState->getLightManager()->getDSLGlobalTerrainPBR()});
 
     _descriptorSetPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                        descriptorSetLayout, _engineState->getDescriptorPool(),
-                                                        _engineState->getDevice());
+                                                        descriptorSetLayout, _engineState);
     // update descriptor set in setMaterial
 
     // initialize PBR
@@ -1306,39 +1257,32 @@ void TerrainComposition::_updatePatchDescription(int currentFrame) {
 void TerrainComposition::_updateColorDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   auto material = std::dynamic_pointer_cast<MaterialColor>(_material);
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraControl[0].offset = 0;
-  bufferInfoCameraControl[0].range = sizeof(BufferMVP);
-  bufferInfoColor[0] = bufferInfoCameraControl;
-
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferPatchInfo;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraEval[0].offset = 0;
-  bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-  bufferInfoColor[2] = bufferInfoCameraEval;
-
-  std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-  textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-  textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-  textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-  textureInfoColor[3] = textureHeightmap;
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+      {0,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {1,
+       {{.buffer = _patchDescriptionSSBO[currentFrame]->getData(),
+         .offset = 0,
+         .range = _patchDescriptionSSBO[currentFrame]->getSize()}}},
+      {2,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}}};
 
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
-    textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
-    textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
+    textureBaseColor[j] = {.sampler = material->getBaseColor()[j]->getSampler()->getSampler(),
+                           .imageView = material->getBaseColor()[j]->getImageView()->getImageView(),
+                           .imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[4] = textureBaseColor;
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+      {3,
+       {{.sampler = _heightMap->getSampler()->getSampler(),
+         .imageView = _heightMap->getImageView()->getImageView(),
+         .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
+      {4, {textureBaseColor}}};
 
   _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
@@ -1346,175 +1290,136 @@ void TerrainComposition::_updateColorDescriptor() {
 void TerrainComposition::_updatePhongDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   auto material = std::dynamic_pointer_cast<MaterialPhong>(_material);
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraControl[0].offset = 0;
-  bufferInfoCameraControl[0].range = sizeof(BufferMVP);
-  bufferInfoColor[0] = bufferInfoCameraControl;
-
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferPatchInfo;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraEval[0].offset = 0;
-  bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-  bufferInfoColor[2] = bufferInfoCameraEval;
-
-  std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-  textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-  textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-  textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-  textureInfoColor[3] = textureHeightmap;
-
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+      {0,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {1,
+       {{.buffer = _patchDescriptionSSBO[currentFrame]->getData(),
+         .offset = 0,
+         .range = _patchDescriptionSSBO[currentFrame]->getSize()}}},
+      {2,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {7,
+       {{.buffer = material->getBufferCoefficients()[currentFrame]->getData(),
+         .offset = 0,
+         .range = material->getBufferCoefficients()[currentFrame]->getSize()}}}};
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
-    textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
-    textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
+    textureBaseColor[j] = {.sampler = material->getBaseColor()[j]->getSampler()->getSampler(),
+                           .imageView = material->getBaseColor()[j]->getImageView()->getImageView(),
+                           .imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[4] = textureBaseColor;
-
   std::vector<VkDescriptorImageInfo> textureBaseNormal(material->getNormal().size());
   for (int j = 0; j < material->getNormal().size(); j++) {
-    textureBaseNormal[j].imageLayout = material->getNormal()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseNormal[j].imageView = material->getNormal()[j]->getImageView()->getImageView();
-    textureBaseNormal[j].sampler = material->getNormal()[j]->getSampler()->getSampler();
+    textureBaseNormal[j] = {.sampler = material->getNormal()[j]->getSampler()->getSampler(),
+                            .imageView = material->getNormal()[j]->getImageView()->getImageView(),
+                            .imageLayout = material->getNormal()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[5] = textureBaseNormal;
-
   std::vector<VkDescriptorImageInfo> textureBaseSpecular(material->getSpecular().size());
   for (int j = 0; j < material->getSpecular().size(); j++) {
-    textureBaseSpecular[j].imageLayout = material->getSpecular()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseSpecular[j].imageView = material->getSpecular()[j]->getImageView()->getImageView();
-    textureBaseSpecular[j].sampler = material->getSpecular()[j]->getSampler()->getSampler();
+    textureBaseSpecular[j] = {.sampler = material->getSpecular()[j]->getSampler()->getSampler(),
+                              .imageView = material->getSpecular()[j]->getImageView()->getImageView(),
+                              .imageLayout = material->getSpecular()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[6] = textureBaseSpecular;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-  // write to binding = 0 for vertex shader
-  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
-  bufferInfoCoefficients[0].offset = 0;
-  bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
-  bufferInfoColor[7] = bufferInfoCoefficients;
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+      {3,
+       {{.sampler = _heightMap->getSampler()->getSampler(),
+         .imageView = _heightMap->getImageView()->getImageView(),
+         .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
+      {4, {textureBaseColor}},
+      {5, {textureBaseNormal}},
+      {6, {textureBaseSpecular}}};
   _descriptorSetPhong->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
 void TerrainComposition::_updatePBRDescriptor() {
   int currentFrame = _engineState->getFrameInFlight();
   auto material = std::dynamic_pointer_cast<MaterialPBR>(_material);
-  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraControl(1);
-  bufferInfoCameraControl[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraControl[0].offset = 0;
-  bufferInfoCameraControl[0].range = sizeof(BufferMVP);
-  bufferInfoColor[0] = bufferInfoCameraControl;
-
-  std::vector<VkDescriptorBufferInfo> bufferPatchInfo(1);
-  bufferPatchInfo[0].buffer = _patchDescriptionSSBO[currentFrame]->getData();
-  bufferPatchInfo[0].offset = 0;
-  bufferPatchInfo[0].range = _patchDescriptionSSBO[currentFrame]->getSize();
-  bufferInfoColor[1] = bufferPatchInfo;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCameraEval(1);
-  bufferInfoCameraEval[0].buffer = _cameraBuffer[currentFrame]->getData();
-  bufferInfoCameraEval[0].offset = 0;
-  bufferInfoCameraEval[0].range = sizeof(BufferMVP);
-  bufferInfoColor[2] = bufferInfoCameraEval;
-
-  std::vector<VkDescriptorImageInfo> textureHeightmap(1);
-  textureHeightmap[0].imageLayout = _heightMap->getImageView()->getImage()->getImageLayout();
-  textureHeightmap[0].imageView = _heightMap->getImageView()->getImageView();
-  textureHeightmap[0].sampler = _heightMap->getSampler()->getSampler();
-  textureInfoColor[3] = textureHeightmap;
-
+  std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+      {0,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {1,
+       {{.buffer = _patchDescriptionSSBO[currentFrame]->getData(),
+         .offset = 0,
+         .range = _patchDescriptionSSBO[currentFrame]->getSize()}}},
+      {2,
+       {{.buffer = _cameraBuffer[currentFrame]->getData(),
+         .offset = 0,
+         .range = _cameraBuffer[currentFrame]->getSize()}}},
+      {13,
+       {{.buffer = material->getBufferCoefficients()[currentFrame]->getData(),
+         .offset = 0,
+         .range = material->getBufferCoefficients()[currentFrame]->getSize()}}},
+      {14,
+       {{.buffer = material->getBufferAlphaCutoff()[currentFrame]->getData(),
+         .offset = 0,
+         .range = material->getBufferAlphaCutoff()[currentFrame]->getSize()}}}};
   std::vector<VkDescriptorImageInfo> textureBaseColor(material->getBaseColor().size());
   for (int j = 0; j < material->getBaseColor().size(); j++) {
-    textureBaseColor[j].imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseColor[j].imageView = material->getBaseColor()[j]->getImageView()->getImageView();
-    textureBaseColor[j].sampler = material->getBaseColor()[j]->getSampler()->getSampler();
+    textureBaseColor[j] = {.sampler = material->getBaseColor()[j]->getSampler()->getSampler(),
+                           .imageView = material->getBaseColor()[j]->getImageView()->getImageView(),
+                           .imageLayout = material->getBaseColor()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[4] = textureBaseColor;
-
   std::vector<VkDescriptorImageInfo> textureBaseNormal(material->getNormal().size());
   for (int j = 0; j < material->getNormal().size(); j++) {
-    textureBaseNormal[j].imageLayout = material->getNormal()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseNormal[j].imageView = material->getNormal()[j]->getImageView()->getImageView();
-    textureBaseNormal[j].sampler = material->getNormal()[j]->getSampler()->getSampler();
+    textureBaseNormal[j] = {.sampler = material->getNormal()[j]->getSampler()->getSampler(),
+                            .imageView = material->getNormal()[j]->getImageView()->getImageView(),
+                            .imageLayout = material->getNormal()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[5] = textureBaseNormal;
-
   std::vector<VkDescriptorImageInfo> textureBaseMetallic(material->getMetallic().size());
   for (int j = 0; j < material->getMetallic().size(); j++) {
-    textureBaseMetallic[j].imageLayout = material->getMetallic()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseMetallic[j].imageView = material->getMetallic()[j]->getImageView()->getImageView();
-    textureBaseMetallic[j].sampler = material->getMetallic()[j]->getSampler()->getSampler();
+    textureBaseMetallic[j] = {.sampler = material->getMetallic()[j]->getSampler()->getSampler(),
+                              .imageView = material->getMetallic()[j]->getImageView()->getImageView(),
+                              .imageLayout = material->getMetallic()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[6] = textureBaseMetallic;
-
   std::vector<VkDescriptorImageInfo> textureBaseRoughness(material->getRoughness().size());
   for (int j = 0; j < material->getRoughness().size(); j++) {
-    textureBaseRoughness[j].imageLayout = material->getRoughness()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseRoughness[j].imageView = material->getRoughness()[j]->getImageView()->getImageView();
-    textureBaseRoughness[j].sampler = material->getRoughness()[j]->getSampler()->getSampler();
+    textureBaseRoughness[j] = {
+        .sampler = material->getRoughness()[j]->getSampler()->getSampler(),
+        .imageView = material->getRoughness()[j]->getImageView()->getImageView(),
+        .imageLayout = material->getRoughness()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[7] = textureBaseRoughness;
-
   std::vector<VkDescriptorImageInfo> textureBaseOcclusion(material->getOccluded().size());
   for (int j = 0; j < material->getOccluded().size(); j++) {
-    textureBaseOcclusion[j].imageLayout = material->getOccluded()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseOcclusion[j].imageView = material->getOccluded()[j]->getImageView()->getImageView();
-    textureBaseOcclusion[j].sampler = material->getOccluded()[j]->getSampler()->getSampler();
+    textureBaseOcclusion[j] = {.sampler = material->getOccluded()[j]->getSampler()->getSampler(),
+                               .imageView = material->getOccluded()[j]->getImageView()->getImageView(),
+                               .imageLayout = material->getOccluded()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[8] = textureBaseOcclusion;
-
   std::vector<VkDescriptorImageInfo> textureBaseEmissive(material->getEmissive().size());
   for (int j = 0; j < material->getEmissive().size(); j++) {
-    textureBaseEmissive[j].imageLayout = material->getEmissive()[j]->getImageView()->getImage()->getImageLayout();
-    textureBaseEmissive[j].imageView = material->getEmissive()[j]->getImageView()->getImageView();
-    textureBaseEmissive[j].sampler = material->getEmissive()[j]->getSampler()->getSampler();
+    textureBaseEmissive[j] = {.sampler = material->getEmissive()[j]->getSampler()->getSampler(),
+                              .imageView = material->getEmissive()[j]->getImageView()->getImageView(),
+                              .imageLayout = material->getEmissive()[j]->getImageView()->getImage()->getImageLayout()};
   }
-  textureInfoColor[9] = textureBaseEmissive;
-
-  // TODO: this textures are part of global engineState for PBR
-  std::vector<VkDescriptorImageInfo> bufferInfoIrradiance(1);
-  bufferInfoIrradiance[0].imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout();
-  bufferInfoIrradiance[0].imageView = material->getDiffuseIBL()->getImageView()->getImageView();
-  bufferInfoIrradiance[0].sampler = material->getDiffuseIBL()->getSampler()->getSampler();
-  textureInfoColor[10] = bufferInfoIrradiance;
-
-  std::vector<VkDescriptorImageInfo> bufferInfoSpecularIBL(1);
-  bufferInfoSpecularIBL[0].imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout();
-  bufferInfoSpecularIBL[0].imageView = material->getSpecularIBL()->getImageView()->getImageView();
-  bufferInfoSpecularIBL[0].sampler = material->getSpecularIBL()->getSampler()->getSampler();
-  textureInfoColor[11] = bufferInfoSpecularIBL;
-
-  std::vector<VkDescriptorImageInfo> bufferInfoSpecularBRDF(1);
-  bufferInfoSpecularBRDF[0].imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout();
-  bufferInfoSpecularBRDF[0].imageView = material->getSpecularBRDF()->getImageView()->getImageView();
-  bufferInfoSpecularBRDF[0].sampler = material->getSpecularBRDF()->getSampler()->getSampler();
-  textureInfoColor[12] = bufferInfoSpecularBRDF;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoCoefficients(1);
-  // write to binding = 0 for vertex shader
-  bufferInfoCoefficients[0].buffer = material->getBufferCoefficients()[currentFrame]->getData();
-  bufferInfoCoefficients[0].offset = 0;
-  bufferInfoCoefficients[0].range = material->getBufferCoefficients()[currentFrame]->getSize();
-  bufferInfoColor[13] = bufferInfoCoefficients;
-
-  std::vector<VkDescriptorBufferInfo> bufferInfoAlphaCutoff(1);
-  // write to binding = 0 for vertex shader
-  bufferInfoAlphaCutoff[0].buffer = material->getBufferAlphaCutoff()[currentFrame]->getData();
-  bufferInfoAlphaCutoff[0].offset = 0;
-  bufferInfoAlphaCutoff[0].range = material->getBufferAlphaCutoff()[currentFrame]->getSize();
-  bufferInfoColor[14] = bufferInfoAlphaCutoff;
-
+  std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+      {3,
+       {{.sampler = _heightMap->getSampler()->getSampler(),
+         .imageView = _heightMap->getImageView()->getImageView(),
+         .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
+      {4, textureBaseColor},
+      {5, textureBaseNormal},
+      {6, textureBaseMetallic},
+      {7, {textureBaseRoughness}},
+      {8, {textureBaseOcclusion}},
+      {9, {textureBaseEmissive}},
+      {10,
+       {{.sampler = material->getDiffuseIBL()->getSampler()->getSampler(),
+         .imageView = material->getDiffuseIBL()->getImageView()->getImageView(),
+         .imageLayout = material->getDiffuseIBL()->getImageView()->getImage()->getImageLayout()}}},
+      {11,
+       {{.sampler = material->getSpecularIBL()->getSampler()->getSampler(),
+         .imageView = material->getSpecularIBL()->getImageView()->getImageView(),
+         .imageLayout = material->getSpecularIBL()->getImageView()->getImage()->getImageLayout()}}},
+      {12,
+       {{.sampler = material->getSpecularBRDF()->getSampler()->getSampler(),
+         .imageView = material->getSpecularBRDF()->getImageView()->getImageView(),
+         .imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout()}}}};
   _descriptorSetPBR->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
 }
 
@@ -1525,78 +1430,74 @@ void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(resolution);
-    viewport.width = std::get<0>(resolution);
-    viewport.height = -std::get<1>(resolution);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.0f,
+                        .y = static_cast<float>(std::get<1>(resolution)),
+                        .width = static_cast<float>(std::get<0>(resolution)),
+                        .height = static_cast<float>(-std::get<1>(resolution)),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
     vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
+
     vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
-      TesselationControlPush pushConstants;
-      pushConstants.patchDimX = _patchNumber.first;
-      pushConstants.patchDimY = _patchNumber.second;
-      pushConstants.minTesselationDistance = _minTesselationDistance;
-      pushConstants.maxTesselationDistance = _maxTesselationDistance;
-      pushConstants.minTessellationLevel = _minTessellationLevel;
-      pushConstants.maxTessellationLevel = _maxTessellationLevel;
+      TesselationControlPush pushConstants{.patchDimX = _patchNumber.first,
+                                           .patchDimY = _patchNumber.second,
+                                           .minTessellationLevel = _minTessellationLevel,
+                                           .maxTessellationLevel = _maxTessellationLevel,
+                                           .minTesselationDistance = _minTesselationDistance,
+                                           .maxTesselationDistance = _maxTesselationDistance};
+
       auto info = pipeline->getPushConstants()["control"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPush pushConstants;
-      pushConstants.patchDimX = _patchNumber.first;
-      pushConstants.patchDimY = _patchNumber.second;
-      pushConstants.heightScale = _heightScale;
-      pushConstants.heightShift = _heightShift;
+      TesselationEvaluationPush pushConstants{.patchDimX = _patchNumber.first,
+                                              .patchDimY = _patchNumber.second,
+                                              .heightScale = _heightScale,
+                                              .heightShift = _heightShift};
+
       auto info = pipeline->getPushConstants()["evaluate"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPushDepth pushConstants;
-      pushConstants.heightScale = _heightScale;
-      pushConstants.heightShift = _heightShift;
+      TesselationEvaluationPushDepth pushConstants{.heightScale = _heightScale, .heightShift = _heightShift};
+
       auto info = pipeline->getPushConstants()["evaluateDepth"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
-      FragmentPush pushConstants;
-      pushConstants.enableShadow = _enableShadow;
-      pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
+      FragmentPush pushConstants{.enableShadow = _enableShadow,
+                                 .enableLighting = _enableLighting,
+                                 .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
+
       auto info = pipeline->getPushConstants()["fragment"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragmentColor") != pipeline->getPushConstants().end()) {
-      FragmentPush pushConstants;
-      pushConstants.enableShadow = _enableShadow;
-      pushConstants.enableLighting = _enableLighting;
-      pushConstants.cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye();
+      FragmentPush pushConstants{.enableShadow = _enableShadow,
+                                 .enableLighting = _enableLighting,
+                                 .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
+
       auto info = pipeline->getPushConstants()["fragmentColor"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
-    BufferMVP cameraUBO{};
-    cameraUBO.model = getModel();
-    cameraUBO.view = _gameState->getCameraManager()->getCurrentCamera()->getView();
-    cameraUBO.projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection();
+    BufferMVP cameraUBO{.model = getModel(),
+                        .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
+                        .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
 
     _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
@@ -1701,23 +1602,21 @@ void TerrainComposition::drawShadow(LightType lightType,
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
   VkViewport viewport{};
   if (lightType == LightType::DIRECTIONAL) {
-    viewport.x = 0.0f;
-    viewport.y = std::get<1>(resolution);
-    viewport.width = std::get<0>(resolution);
-    viewport.height = -std::get<1>(resolution);
+    viewport = {.x = 0.0f,
+                .y = static_cast<float>(std::get<1>(resolution)),
+                .width = static_cast<float>(std::get<0>(resolution)),
+                .height = static_cast<float>(-std::get<1>(resolution))};
   } else if (lightType == LightType::POINT) {
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = std::get<0>(resolution);
-    viewport.height = std::get<1>(resolution);
+    viewport = {.x = 0.0f,
+                .y = 0.f,
+                .width = static_cast<float>(std::get<0>(resolution)),
+                .height = static_cast<float>(std::get<1>(resolution))};
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
   glm::mat4 view(1.f);
@@ -1737,41 +1636,36 @@ void TerrainComposition::drawShadow(LightType lightType,
   }
 
   if (pipeline->getPushConstants().find("controlDepth") != pipeline->getPushConstants().end()) {
-    TesselationControlPushDepth pushConstants;
-    pushConstants.minTesselationDistance = _minTesselationDistance;
-    pushConstants.maxTesselationDistance = _maxTesselationDistance;
-    pushConstants.minTessellationLevel = _minTessellationLevel;
-    pushConstants.maxTessellationLevel = _maxTessellationLevel;
+    TesselationControlPushDepth pushConstants{.minTessellationLevel = _minTessellationLevel,
+                                              .maxTessellationLevel = _maxTessellationLevel,
+                                              .minTesselationDistance = _minTesselationDistance,
+                                              .maxTesselationDistance = _maxTesselationDistance};
+
     auto info = pipeline->getPushConstants()["controlDepth"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
                        info.offset, info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
-    TesselationEvaluationPushDepth pushConstants;
-    pushConstants.heightScale = _heightScale;
-    pushConstants.heightShift = _heightShift;
+    TesselationEvaluationPushDepth pushConstants{.heightScale = _heightScale, .heightShift = _heightShift};
+
     auto info = pipeline->getPushConstants()["evaluateDepth"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
                        info.offset, info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("fragmentDepth") != pipeline->getPushConstants().end()) {
-    FragmentPointLightPushDepth pushConstants;
-    pushConstants.lightPosition =
-        _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition();
-    // light camera
-    pushConstants.far = far;
+    FragmentPointLightPushDepth pushConstants{
+        .lightPosition = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getPosition(),
+        .far = static_cast<int>(far)};
+
     auto info = pipeline->getPushConstants()["fragmentDepth"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
                        info.offset, info.size, &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
-  BufferMVP cameraUBO{};
-  cameraUBO.model = getModel();
-  cameraUBO.view = view;
-  cameraUBO.projection = projection;
+  BufferMVP cameraUBO{.model = getModel(), .view = view, .projection = projection};
 
   _cameraBufferDepth[lightIndexTotal][face][currentFrame]->setData(&cameraUBO);
 

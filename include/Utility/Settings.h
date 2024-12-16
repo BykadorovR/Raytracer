@@ -51,6 +51,11 @@ struct Settings {
   float _depthBiasConstant = 1.25f;
   // Slope depth bias factor, applied depending on polygon's slope
   float _depthBiasSlope = 1.75f;
+  // number of entities in descriptor pool
+  int _poolSizeUBO = 1000;
+  int _poolSizeSampler = 600;
+  int _poolSizeSSBO = 100;
+  int _poolSizeComputeImage = 30;
 
  public:
   // setters
@@ -68,6 +73,7 @@ struct Settings {
   void setBloomPasses(int number);
   void setAnisotropicSamples(int number);
   void setDesiredFPS(int fps);
+  void setPoolSize(int poolSizeUBO, int poolSizeSampler, int poolSizeSSBO, int poolSizeComputeImage);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getShadowMapResolution();
@@ -92,4 +98,8 @@ struct Settings {
   int getSpecularMipMap();
   float getDepthBiasConstant();
   float getDepthBiasSlope();
+  int getPoolSizeUBO();
+  int getPoolSizeSampler();
+  int getPoolSizeSSBO();
+  int getPoolSizeComputeImage();
 };
