@@ -33,8 +33,7 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _defaultMaterialColor = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _defaultMaterialColor->setBaseColor({gameState->getResourceManager()->getCubemapOne()->getTexture()});
   _material = _defaultMaterialColor;
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeGraphic();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
   _changedMaterial.resize(engineState->getSettings()->getMaxFramesInFlight());
 
   _uniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
@@ -69,9 +68,11 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       shader->add("shaders/skybox/skybox_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/skybox/skybox_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 
-      _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipeline->createSkybox(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipeline->setDepthTest(true);
+      // we force skybox to have the biggest possible depth = 1 so we need to draw skybox if it's depth <= 1
+      _pipeline->setDepthCompateOp(VK_COMPARE_OP_LESS_OR_EQUAL);
+      _pipeline->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayout}}, {}, _mesh->getBindingDescription(),

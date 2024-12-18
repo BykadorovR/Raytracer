@@ -24,8 +24,7 @@ void ParticleSystem::_initializeGraphic() {
   auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/particles/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/particles/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeGraphic();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
 
   _cameraUniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
@@ -61,9 +60,11 @@ void ParticleSystem::_initializeGraphic() {
     _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
   }
 
-  _graphicPipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _graphicPipeline->createParticleSystemGraphic(
-      VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+  _graphicPipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+  _graphicPipeline->setCullMode(VK_CULL_MODE_BACK_BIT);
+  _graphicPipeline->setDepthTest(true);
+  _graphicPipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_POINT_LIST);
+  _graphicPipeline->createCustom(
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("graphic"), descriptorSetLayoutGraphic}},
@@ -124,9 +125,9 @@ void ParticleSystem::_initializeCompute() {
   auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/particles/particle_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
-  _computePipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipeline->createParticleSystemCompute(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
-                                                {{"computeSSBO", setLayoutSSBOCompute}}, {});
+  _computePipeline = std::make_shared<PipelineCompute>(_engineState->getDevice());
+  _computePipeline->createCustom(shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
+                                 {{"computeSSBO", setLayoutSSBOCompute}}, {});
 }
 
 void ParticleSystem::setPointScale(float pointScale) { _pointScale = pointScale; }

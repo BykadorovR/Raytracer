@@ -329,3 +329,33 @@ VkImageView& ImageView::getImageView() { return _imageView; }
 std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
 ImageView::~ImageView() { vkDestroyImageView(_engineState->getDevice()->getLogicalDevice(), _imageView, nullptr); }
+
+Framebuffer::Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
+                         std::tuple<int, int> renderArea,
+                         std::shared_ptr<RenderPass> renderPass,
+                         std::shared_ptr<Device> device) {
+  _device = device;
+  _resolution = renderArea;
+  std::vector<VkImageView> attachments;
+  for (int i = 0; i < input.size(); i++) {
+    attachments.push_back(input[i]->getImageView());
+  }
+  // depth and image must have equal resolution
+  VkFramebufferCreateInfo framebufferInfo{.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                                          .renderPass = renderPass->getRenderPass(),
+                                          .attachmentCount = static_cast<uint32_t>(attachments.size()),
+                                          .pAttachments = attachments.data(),
+                                          .width = static_cast<uint32_t>(std::get<0>(renderArea)),
+                                          .height = static_cast<uint32_t>(std::get<1>(renderArea)),
+                                          .layers = 1};
+
+  if (vkCreateFramebuffer(_device->getLogicalDevice(), &framebufferInfo, nullptr, &_buffer) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create framebuffer!");
+  }
+}
+
+std::tuple<int, int> Framebuffer::getResolution() { return _resolution; }
+
+VkFramebuffer Framebuffer::getBuffer() { return _buffer; }
+
+Framebuffer::~Framebuffer() { vkDestroyFramebuffer(_device->getLogicalDevice(), _buffer, nullptr); }

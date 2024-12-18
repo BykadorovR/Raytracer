@@ -1,7 +1,6 @@
 #pragma once
-#include "Graphic/Texture.h"
-
-class Framebuffer;
+#include <Vulkan/Device.h>
+#include <Utility/Settings.h>
 
 class RenderPass {
  private:
@@ -11,31 +10,22 @@ class RenderPass {
   int _colorAttachmentNumber = 0;
 
  public:
-  RenderPass(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
-  void initializeGraphic();
-  void initializeDebug();
-  void initializeLightDepth();
-  void initializeIBL();
-  void initializeBlur();
-  VkRenderPassBeginInfo getRenderPassInfo(std::shared_ptr<Framebuffer> framebuffer);
+  RenderPass(std::shared_ptr<Device> device);
+  void initializeCustom(std::vector<VkAttachmentDescription> colorDescription,
+                        std::vector<VkAttachmentReference> colorReference,
+                        std::optional<VkAttachmentReference> depthReference);
   VkRenderPass& getRenderPass();
   int getColorAttachmentNumber();
   ~RenderPass();
 };
 
-class Framebuffer {
+enum class RenderPassScenario { GRAPHIC, GUI, SHADOW, IBL, BLUR };
+
+class RenderPassManager {
  private:
-  std::shared_ptr<Device> _device;
-  VkFramebuffer _buffer;
-  std::tuple<int, int> _resolution;
+  std::map<RenderPassScenario, std::shared_ptr<RenderPass>> _renderPasses;
 
  public:
-  Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
-              std::tuple<int, int> renderArea,
-              std::shared_ptr<RenderPass> renderPass,
-              std::shared_ptr<Device> device);
-
-  std::tuple<int, int> getResolution();
-  VkFramebuffer getBuffer();
-  ~Framebuffer();
+  RenderPassManager(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
+  std::shared_ptr<RenderPass> getRenderPass(RenderPassScenario scenario);
 };

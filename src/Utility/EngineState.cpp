@@ -21,6 +21,7 @@ void EngineState::initialize() {
   _memoryAllocator = std::make_shared<MemoryAllocator>(_device, _instance);
   _descriptorPool = std::make_shared<DescriptorPool>(_settings, _device);
   _filesystem = std::make_shared<Filesystem>();
+  _renderPassManager = std::make_shared<RenderPassManager>(_settings, _device);
 #ifdef __ANDROID__
   _filesystem->setAssetManager(_assetManager);
 #endif
@@ -43,6 +44,8 @@ std::shared_ptr<Device> EngineState::getDevice() { return _device; }
 std::shared_ptr<DescriptorPool> EngineState::getDescriptorPool() { return _descriptorPool; }
 
 std::shared_ptr<Filesystem> EngineState::getFilesystem() { return _filesystem; }
+
+std::shared_ptr<RenderPassManager> EngineState::getRenderPassManager() { return _renderPassManager; }
 
 void EngineState::setFrameInFlight(int frameInFlight) { _frameInFlight = frameInFlight; }
 

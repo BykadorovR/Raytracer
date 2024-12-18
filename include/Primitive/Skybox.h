@@ -19,7 +19,7 @@ class Skybox {
   std::vector<std::shared_ptr<Buffer>> _uniformBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSet;
-  std::shared_ptr<Pipeline> _pipeline;
+  std::shared_ptr<PipelineGraphic> _pipeline;
   std::shared_ptr<RenderPass> _renderPass;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;

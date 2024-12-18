@@ -123,12 +123,12 @@ BlurCompute::BlurCompute(std::vector<std::shared_ptr<Texture>> src,
 
   _initialize(src, dst);
 
-  _computePipelineVertical = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipelineVertical->createParticleSystemCompute(
+  _pipelineVertical = std::make_shared<PipelineCompute>(_engineState->getDevice());
+  _pipelineVertical->createCustom(
       shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
       {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), layoutWeights}}, {});
-  _computePipelineHorizontal = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipelineHorizontal->createParticleSystemCompute(
+  _pipelineHorizontal = std::make_shared<PipelineCompute>(_engineState->getDevice());
+  _pipelineHorizontal->createCustom(
       shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT),
       {std::pair{std::string("texture"), _textureLayout}, std::pair{std::string("weights"), layoutWeights}}, {});
 
@@ -142,12 +142,12 @@ BlurCompute::BlurCompute(std::vector<std::shared_ptr<Texture>> src,
 
 void BlurCompute::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _engineState->getFrameInFlight();
-  std::shared_ptr<Pipeline> pipeline = _computePipelineVertical;
+  std::shared_ptr<Pipeline> pipeline = _pipelineVertical;
   std::shared_ptr<DescriptorSet> descriptorSet = _descriptorSetVertical;
   float groupCountX = 1.f;
   float groupCountY = 128.f;
   if (horizontal) {
-    pipeline = _computePipelineHorizontal;
+    pipeline = _pipelineHorizontal;
     descriptorSet = _descriptorSetHorizontal;
     groupCountX = 128.f;
     groupCountY = 1.f;
@@ -256,8 +256,7 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
                      commandBufferTransfer);
   _mesh->setIndexes({0, 3, 2, 2, 1, 0}, commandBufferTransfer);
 
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeBlur();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::BLUR);
 
   _updateWeights();
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
@@ -280,9 +279,10 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
 
   _initialize(src, dst);
 
-  _computePipelineHorizontal = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipelineHorizontal->createGraphic3D(
-      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+  _pipelineHorizontal = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+  _pipelineHorizontal->setDepthTest(true);
+  _pipelineHorizontal->setDepthWrite(true);
+  _pipelineHorizontal->createCustom(
       {shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("blur"), _layoutBlur}}, {}, _mesh->getBindingDescription(),
@@ -290,9 +290,10 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
                                              {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
       _renderPass);
 
-  _computePipelineVertical = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipelineVertical->createGraphic3D(
-      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+  _pipelineVertical = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+  _pipelineVertical->setDepthTest(true);
+  _pipelineVertical->setDepthWrite(true);
+  _pipelineVertical->createCustom(
       {shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("blur"), _layoutBlur}}, {}, _mesh->getBindingDescription(),
@@ -303,10 +304,10 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
 
 void BlurGraphic::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
-  std::shared_ptr<Pipeline> pipeline = _computePipelineVertical;
+  std::shared_ptr<Pipeline> pipeline = _pipelineVertical;
   std::shared_ptr<DescriptorSet> descriptorSet = _descriptorSetVertical;
   if (horizontal) {
-    pipeline = _computePipelineHorizontal;
+    pipeline = _pipelineHorizontal;
     descriptorSet = _descriptorSetHorizontal;
   }
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,

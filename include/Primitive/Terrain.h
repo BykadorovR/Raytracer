@@ -61,7 +61,7 @@ class TerrainCPU : public Drawable {
   std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraBufferDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
   std::shared_ptr<DescriptorSet> _descriptorSetColor;
-  std::shared_ptr<Pipeline> _pipeline, _pipelineWireframe;
+  std::shared_ptr<PipelineGraphic> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass;
   float _heightScale = 64.f;
   float _heightShift = 16.f;

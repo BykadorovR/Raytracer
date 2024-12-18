@@ -251,8 +251,7 @@ void TerrainCPU::_loadTriangles(int currentFrame) {
 }
 
 void TerrainCPU::_loadTerrain() {
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeGraphic();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
 
   _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
@@ -280,18 +279,23 @@ void TerrainCPU::_loadTerrain() {
       auto shader = std::make_shared<Shader>(_engineState);
       shader->add("shaders/terrain/terrainCPU_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/terrainCPU_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipeline->createGeometry(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+      _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipeline->setDepthTest(true);
+      _pipeline->setDepthWrite(true);
+      _pipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+      _pipeline->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),
           _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
 
-      _pipelineWireframe = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineWireframe->createGeometry(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+      _pipelineWireframe = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipeline->setDepthTest(true);
+      _pipeline->setDepthWrite(true);
+      _pipeline->setPolygonMode(VK_POLYGON_MODE_LINE);
+      _pipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+      _pipelineWireframe->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),

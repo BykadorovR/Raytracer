@@ -149,14 +149,10 @@ void Core::initialize() {
   _frameSubmitInfoPostCompute.resize(settings->getMaxFramesInFlight());
   _frameSubmitInfoDebug.resize(settings->getMaxFramesInFlight());
 
-  _renderPassGraphic = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPassGraphic->initializeGraphic();
-  _renderPassShadowMap = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPassShadowMap->initializeLightDepth();
-  _renderPassDebug = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPassDebug->initializeDebug();
-  _renderPassBlur = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPassBlur->initializeBlur();
+  _renderPassGraphic = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
+  _renderPassShadowMap = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::SHADOW);
+  _renderPassDebug = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GUI);
+  _renderPassBlur = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::BLUR);
 
   // start transfer command buffer
   _commandBufferInitialize->beginCommands();
@@ -270,10 +266,16 @@ void Core::_drawShadowMapDirectional(int index) {
   commandBuffer->beginCommands();
   loggerGPU->begin("Directional to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
   //
-  auto renderPassInfo = _renderPassShadowMap->getRenderPassInfo(shadow->getShadowMapFramebuffer()[frameInFlight]);
+  auto [widthFramebuffer, heightFramebuffer] = shadow->getShadowMapFramebuffer()[frameInFlight]->getResolution();
   VkClearValue clearDepth{.color = {1.f, 1.f, 1.f, 1.f}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
+  VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                       .renderPass = _renderPassShadowMap->getRenderPass(),
+                                       .framebuffer = shadow->getShadowMapFramebuffer()[frameInFlight]->getBuffer(),
+                                       .renderArea = {.offset = {0, 0},
+                                                      .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                 .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                       .clearValueCount = 1,
+                                       .pClearValues = &clearDepth};
 
   // TODO: only one depth texture?
   vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[frameInFlight], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -307,10 +309,17 @@ void Core::_drawShadowMapPoint(int index, int face) {
   // record command buffer
   commandBuffer->beginCommands();
   loggerGPU->begin("Point to depth buffer " + std::to_string(_timer->getFrameCounter()), commandBuffer);
-  auto renderPassInfo = _renderPassShadowMap->getRenderPassInfo(shadow->getShadowMapFramebuffer()[frameInFlight][face]);
+  auto [widthFramebuffer, heightFramebuffer] = shadow->getShadowMapFramebuffer()[frameInFlight][face]->getResolution();
   VkClearValue clearDepth{.color = {1.f, 1.f, 1.f, 1.f}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
+  VkRenderPassBeginInfo renderPassInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = _renderPassShadowMap->getRenderPass(),
+      .framebuffer = shadow->getShadowMapFramebuffer()[frameInFlight][face]->getBuffer(),
+      .renderArea = {.offset = {0, 0},
+                     .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                .height = static_cast<uint32_t>(heightFramebuffer)}},
+      .clearValueCount = 1,
+      .pClearValues = &clearDepth};
 
   // TODO: only one depth texture?
   vkCmdBeginRenderPass(commandBuffer->getCommandBuffer()[frameInFlight], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -345,12 +354,18 @@ void Core::_drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int
 
   commandBufferBlur->beginCommands();
   loggerGPU->begin("Blur point " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
-  auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]);
+  auto [widthFramebuffer, heightFramebuffer] =
+      _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]->getResolution();
   VkClearValue clearDepth{.color = {0.f, 0.f, 0.f, 1.f}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
-
+  VkRenderPassBeginInfo renderPassInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = _renderPassBlur->getRenderPass(),
+      .framebuffer = _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight][face]->getBuffer(),
+      .renderArea = {.offset = {0, 0},
+                     .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                .height = static_cast<uint32_t>(heightFramebuffer)}},
+      .clearValueCount = 1,
+      .pClearValues = &clearDepth};
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Horizontal " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
@@ -376,10 +391,15 @@ void Core::_drawShadowMapPointBlur(std::shared_ptr<PointShadow> pointShadow, int
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   }
 
-  renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight][face]);
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
+  renderPassInfo = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = _renderPassBlur->getRenderPass(),
+      .framebuffer = _blurGraphicPoint[pointShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight][face]->getBuffer(),
+      .renderArea = {.offset = {0, 0},
+                     .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                .height = static_cast<uint32_t>(heightFramebuffer)}},
+      .clearValueCount = 1,
+      .pClearValues = &clearDepth};
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Vertical " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
@@ -421,12 +441,19 @@ void Core::_drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> dire
 
   commandBufferBlur->beginCommands();
   loggerGPU->begin("Blur directional " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
-  auto renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight]);
+  auto [widthFramebuffer, heightFramebuffer] =
+      _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight]->getResolution();
   VkClearValue clearDepth{.color = {0.f, 0.f, 0.f, 1.f}};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
-
+  VkRenderPassBeginInfo renderPassInfo{
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = _renderPassBlur->getRenderPass(),
+      .framebuffer =
+          _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[0][frameInFlight]->getBuffer(),
+      .renderArea = {.offset = {0, 0},
+                     .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                .height = static_cast<uint32_t>(heightFramebuffer)}},
+      .clearValueCount = 1,
+      .pClearValues = &clearDepth};
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Horizontal " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
@@ -451,10 +478,16 @@ void Core::_drawShadowMapDirectionalBlur(std::shared_ptr<DirectionalShadow> dire
                          nullptr, 0, nullptr, 1, &imageMemoryBarrier);
   }
 
-  renderPassInfo = _renderPassBlur->getRenderPassInfo(
-      _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight]);
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearDepth;
+  renderPassInfo = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass = _renderPassBlur->getRenderPass(),
+      .framebuffer =
+          _blurGraphicDirectional[directionalShadow]->getShadowMapBlurFramebuffer()[1][frameInFlight]->getBuffer(),
+      .renderArea = {.offset = {0, 0},
+                     .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                .height = static_cast<uint32_t>(heightFramebuffer)}},
+      .clearValueCount = 1,
+      .pClearValues = &clearDepth};
   vkCmdBeginRenderPass(commandBufferBlur->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
   loggerGPU->begin("Vertical " + std::to_string(_timer->getFrameCounter()), commandBufferBlur);
@@ -586,11 +619,16 @@ void Core::_debugVisualizations(int swapchainImageIndex) {
 
   _commandBufferGUI->beginCommands();
 
-  auto renderPassInfo = _renderPassDebug->getRenderPassInfo(_frameBufferDebug[swapchainImageIndex]);
+  auto [widthFramebuffer, heightFramebuffer] = _frameBufferDebug[swapchainImageIndex]->getResolution();
   VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearColor;
-
+  VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                       .renderPass = _renderPassDebug->getRenderPass(),
+                                       .framebuffer = _frameBufferDebug[swapchainImageIndex]->getBuffer(),
+                                       .renderArea = {.offset = {0, 0},
+                                                      .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                 .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                       .clearValueCount = 1,
+                                       .pClearValues = &clearColor};
   // TODO: only one depth texture?
   vkCmdBeginRenderPass(_commandBufferGUI->getCommandBuffer()[frameInFlight], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);
@@ -665,13 +703,18 @@ void Core::_renderGraphic() {
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
+  auto [widthFramebuffer, heightFramebuffer] = _frameBufferGraphic[frameInFlight]->getResolution();
   std::vector<VkClearValue> clearColor{{.color = _engineState->getSettings()->getClearColor()},
                                        {.color = _engineState->getSettings()->getClearColor()},
                                        {.color = {1.0f, 0}}};
-
-  auto renderPassInfo = _renderPassGraphic->getRenderPassInfo(_frameBufferGraphic[frameInFlight]);
-  renderPassInfo.clearValueCount = 3;
-  renderPassInfo.pClearValues = clearColor.data();
+  VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                       .renderPass = _renderPassGraphic->getRenderPass(),
+                                       .framebuffer = _frameBufferGraphic[frameInFlight]->getBuffer(),
+                                       .renderArea = {.offset = {0, 0},
+                                                      .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                 .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                       .clearValueCount = 3,
+                                       .pClearValues = clearColor.data()};
 
   auto globalFrame = _timer->getFrameCounter();
   // TODO: only one depth texture?

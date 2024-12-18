@@ -46,8 +46,7 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   std::dynamic_pointer_cast<MaterialColor>(_material)->setBaseColor(
       {_gameState->getResourceManager()->getCubemapOne()->getTexture()});
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeIBL();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::IBL);
 
   // setup BRDF
   {
@@ -78,9 +77,10 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/specularBRDF_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/IBL/specularBRDF_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipelineSpecularBRDF = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineSpecularBRDF->createGraphic2D(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL, true,
+      _pipelineSpecularBRDF = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineSpecularBRDF->setDepthTest(true);
+      _pipelineSpecularBRDF->setDepthWrite(true);
+      _pipelineSpecularBRDF->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"brdf", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
@@ -128,9 +128,10 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxDiffuse_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/IBL/skyboxDiffuse_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipelineDiffuse = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineDiffuse->createGraphic3D(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      _pipelineDiffuse = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineDiffuse->setDepthTest(true);
+      _pipelineDiffuse->setDepthWrite(true);
+      _pipelineDiffuse->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayoutColor}}, {}, _mesh3D->getBindingDescription(),
@@ -145,9 +146,10 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxSpecular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/IBL/skyboxSpecular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipelineSpecular = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineSpecular->createGraphic3D(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      _pipelineSpecular = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineSpecular->setDepthTest(true);
+      _pipelineSpecular->setDepthWrite(true);
+      _pipelineSpecular->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayoutColor}}, defaultPushConstants,
@@ -296,10 +298,17 @@ void IBL::drawSpecular() {
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < _engineState->getSettings()->getSpecularMipMap(); j++) {
-      auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferSpecular[i][j]);
+      auto [widthFramebuffer, heightFramebuffer] = _frameBufferSpecular[i][j]->getResolution();
       VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
-      renderPassInfo.clearValueCount = 1;
-      renderPassInfo.pClearValues = &clearColor;
+      VkRenderPassBeginInfo renderPassInfo{
+          .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+          .renderPass = _renderPass->getRenderPass(),
+          .framebuffer = _frameBufferSpecular[i][j]->getBuffer(),
+          .renderArea = {.offset = {0, 0},
+                         .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                    .height = static_cast<uint32_t>(heightFramebuffer)}},
+          .clearValueCount = 1,
+          .pClearValues = &clearColor};
 
       // TODO: only one depth texture?
       vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
@@ -378,10 +387,16 @@ void IBL::drawDiffuse() {
   // render graphic
   /////////////////////////////////////////////////////////////////////////////////////////
   for (int i = 0; i < 6; i++) {
-    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferDiffuse[i]);
+    auto [widthFramebuffer, heightFramebuffer] = _frameBufferDiffuse[i]->getResolution();
     VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                         .renderPass = _renderPass->getRenderPass(),
+                                         .framebuffer = _frameBufferDiffuse[i]->getBuffer(),
+                                         .renderArea = {.offset = {0, 0},
+                                                        .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                   .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                         .clearValueCount = 1,
+                                         .pClearValues = &clearColor};
 
     vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
@@ -450,10 +465,16 @@ void IBL::drawSpecularBRDF() {
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBufferBRDF);
+  auto [widthFramebuffer, heightFramebuffer] = _frameBufferBRDF->getResolution();
   VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
-  renderPassInfo.clearValueCount = 1;
-  renderPassInfo.pClearValues = &clearColor;
+  VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                       .renderPass = _renderPass->getRenderPass(),
+                                       .framebuffer = _frameBufferBRDF->getBuffer(),
+                                       .renderArea = {.offset = {0, 0},
+                                                      .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                 .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                       .clearValueCount = 1,
+                                       .pClearValues = &clearColor};
 
   vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                        VK_SUBPASS_CONTENTS_INLINE);

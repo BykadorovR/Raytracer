@@ -8,7 +8,6 @@
 class Blur {
  protected:
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<Pipeline> _computePipelineVertical, _computePipelineHorizontal;
   std::shared_ptr<DescriptorSet> _descriptorSetVertical, _descriptorSetHorizontal;
   std::vector<std::shared_ptr<Buffer>> _blurWeightsSSBO;
   std::vector<float> _blurWeights;
@@ -33,6 +32,7 @@ class Blur {
 
 class BlurCompute : public Blur {
  private:
+  std::shared_ptr<PipelineCompute> _pipelineVertical, _pipelineHorizontal;
   std::shared_ptr<DescriptorSet> _descriptorSetWeights;
   std::shared_ptr<DescriptorSetLayout> _textureLayout;
   void _setWeights(int currentFrame) override;
@@ -49,6 +49,7 @@ class BlurCompute : public Blur {
 
 class BlurGraphic : public Blur {
  private:
+  std::shared_ptr<PipelineGraphic> _pipelineVertical, _pipelineHorizontal;
   std::shared_ptr<DescriptorSetLayout> _layoutBlur;
   std::shared_ptr<RenderPass> _renderPass;
   std::shared_ptr<MeshStatic2D> _mesh;

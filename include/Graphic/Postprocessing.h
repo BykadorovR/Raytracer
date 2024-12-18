@@ -6,7 +6,7 @@
 class Postprocessing {
  private:
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<Pipeline> _computePipeline;
+  std::shared_ptr<PipelineCompute> _computePipeline;
   std::shared_ptr<DescriptorSetLayout> _textureLayout;
   std::map<std::pair<int, int>, std::shared_ptr<DescriptorSet>> _descriptorSet;
   float _gamma = 2.2f;

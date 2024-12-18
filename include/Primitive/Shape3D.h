@@ -46,9 +46,9 @@ class Shape3D : public Drawable, public Shadowable {
 
   std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<ShapeType, std::map<MaterialType, std::shared_ptr<Pipeline>>> _pipeline, _pipelineWireframe;
+  std::map<ShapeType, std::map<MaterialType, std::shared_ptr<PipelineGraphic>>> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
+  std::shared_ptr<PipelineGraphic> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;

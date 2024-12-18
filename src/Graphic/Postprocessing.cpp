@@ -56,8 +56,8 @@ Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
 
   _initialize(src, blur, dst);
 
-  _computePipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-  _computePipeline->createParticleSystemCompute(
+  _computePipeline = std::make_shared<PipelineCompute>(_engineState->getDevice());
+  _computePipeline->createCustom(
       shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), _textureLayout}},
       std::map<std::string, VkPushConstantRange>{
           {std::string("compute"),

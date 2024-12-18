@@ -6,6 +6,7 @@
 #include "Vulkan/Device.h"
 #include "Vulkan/Filesystem.h"
 #include "Vulkan/Allocator.h"
+#include "Vulkan/Render.h"
 #include "Utility/Settings.h"
 #include "Utility/Input.h"
 
@@ -20,6 +21,7 @@ class EngineState {
   std::shared_ptr<DescriptorPool> _descriptorPool;
   std::shared_ptr<Filesystem> _filesystem;
   std::shared_ptr<MemoryAllocator> _memoryAllocator;
+  std::shared_ptr<RenderPassManager> _renderPassManager;
   int _frameInFlight = 0;
 #ifdef __ANDROID__
   AAssetManager* _assetManager;
@@ -42,7 +44,7 @@ class EngineState {
   std::shared_ptr<Device> getDevice();
   std::shared_ptr<DescriptorPool> getDescriptorPool();
   std::shared_ptr<Filesystem> getFilesystem();
-
+  std::shared_ptr<RenderPassManager> getRenderPassManager();
   void setFrameInFlight(int frameInFlight);
   int getFrameInFlight();
 };

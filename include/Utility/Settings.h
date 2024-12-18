@@ -35,8 +35,8 @@ struct Settings {
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
   VkFormat _shadowMapFormat = VK_FORMAT_R32G32_SFLOAT;
-  // if changed have to be change in shaders too
   int _threadsInPool = 6;
+  // if changed have to be change in shaders too
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
   int _anisotropicSamples = 0;

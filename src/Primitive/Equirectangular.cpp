@@ -66,8 +66,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
   _mesh3D->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
   _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _material->setBaseColor({_texture});
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeIBL();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::IBL);
 
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
@@ -120,9 +119,10 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/IBL/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipelineEquirectangular = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineEquirectangular->createGraphic3D(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      _pipelineEquirectangular = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineEquirectangular->setDepthTest(true);
+      _pipelineEquirectangular->setDepthWrite(true);
+      _pipelineEquirectangular->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayout}}, {}, _mesh3D->getBindingDescription(),
@@ -167,11 +167,16 @@ void Equirectangular::_convertToCubemap() {
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemap->getTextureSeparate()[i][0];
 
-    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBuffer[i]);
-    VkClearValue clearColor;
-    clearColor.color = _engineState->getSettings()->getClearColor();
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    auto [widthFramebuffer, heightFramebuffer] = _frameBuffer[i]->getResolution();
+    VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
+    VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                         .renderPass = _renderPass->getRenderPass(),
+                                         .framebuffer = _frameBuffer[i]->getBuffer(),
+                                         .renderArea = {.offset = {0, 0},
+                                                        .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                   .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                         .clearValueCount = 1,
+                                         .pClearValues = &clearColor};
 
     // TODO: only one depth texture?
     vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,

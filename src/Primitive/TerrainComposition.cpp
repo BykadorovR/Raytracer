@@ -87,8 +87,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
     _calculateMesh(i);
   }
 
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeGraphic();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
 
   _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
@@ -145,7 +144,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
       shaderNormal->add("shaders/terrain/terrainNormal_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineNormalMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
+      _pipelineNormalMesh = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["controlDepth"] = VkPushConstantRange{
@@ -158,8 +157,12 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
           .offset = sizeof(TesselationControlPushDepth),
           .size = sizeof(TesselationEvaluationPush),
       };
-      _pipelineNormalMesh->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      _pipelineNormalMesh->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipelineNormalMesh->setDepthTest(true);
+      _pipelineNormalMesh->setDepthWrite(true);
+      _pipelineNormalMesh->setTesselation(4);
+      _pipelineNormalMesh->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipelineNormalMesh->createCustom(
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -180,7 +183,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
       shaderNormal->add("shaders/terrain/terrainTangent_evaluation.spv", VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       shaderNormal->add("shaders/terrain/terrainNormal_geometry.spv", VK_SHADER_STAGE_GEOMETRY_BIT);
 
-      _pipelineTangentMesh = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
+      _pipelineTangentMesh = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["controlDepth"] = VkPushConstantRange{
@@ -193,8 +196,13 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
           .offset = sizeof(TesselationControlPushDepth),
           .size = sizeof(TesselationEvaluationPush),
       };
-      _pipelineTangentMesh->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+
+      _pipelineTangentMesh->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipelineTangentMesh->setDepthTest(true);
+      _pipelineTangentMesh->setDepthWrite(true);
+      _pipelineTangentMesh->setTesselation(4);
+      _pipelineTangentMesh->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipelineTangentMesh->createCustom(
           {shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -255,7 +263,7 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
       shader->add("shaders/terrain/composition/terrainDebug_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/composition/terrainDebug_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      _pipeline = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
+      _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -273,8 +281,13 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
           .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPushDepth),
           .size = sizeof(FragmentPushDebug),
       };
-      _pipeline->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+
+      _pipeline->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipeline->setDepthTest(true);
+      _pipeline->setDepthWrite(true);
+      _pipeline->setTesselation(4);
+      _pipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipeline->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -284,9 +297,14 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
                                                     {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
 
-      _pipelineWireframe = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineWireframe->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_LINE,
+      _pipelineWireframe = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineWireframe->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipelineWireframe->setPolygonMode(VK_POLYGON_MODE_LINE);
+      _pipelineWireframe->setDepthTest(true);
+      _pipelineWireframe->setDepthWrite(true);
+      _pipelineWireframe->setTesselation(4);
+      _pipelineWireframe->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipelineWireframe->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -716,10 +734,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
   _mesh = std::make_shared<MeshStatic3D>(_engineState);
   _calculateMesh(commandBuffer);
 
-  _renderPass = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPass->initializeGraphic();
-  _renderPassShadow = std::make_shared<RenderPass>(_engineState->getSettings(), _engineState->getDevice());
-  _renderPassShadow->initializeLightDepth();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
+  _renderPassShadow = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::SHADOW);
 
   _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
@@ -845,9 +861,13 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .size = sizeof(TesselationEvaluationPushDepth),
       };
 
-      _pipelineDirectional = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
-      _pipelineDirectional->createGraphicTerrainShadowGPU(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      _pipelineDirectional = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineDirectional->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipelineDirectional->setDepthBias(true);
+      _pipelineDirectional->setColorBlendOp(VK_BLEND_OP_MIN);
+      _pipelineDirectional->setTesselation(4);
+      _pipelineDirectional->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipelineDirectional->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
@@ -885,11 +905,15 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .size = sizeof(FragmentPointLightPushDepth),
       };
 
-      _pipelinePoint = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
+      _pipelinePoint = std::make_shared<PipelineGraphic>(_engineState->getDevice());
       // we use different culling here because camera looks upside down for lighting because of some specific cubemap Y
       // coordinate stuff
-      _pipelinePoint->createGraphicTerrainShadowGPU(
-          VK_CULL_MODE_FRONT_BIT, VK_POLYGON_MODE_FILL,
+      _pipelinePoint->setCullMode(VK_CULL_MODE_FRONT_BIT);
+      _pipelinePoint->setDepthBias(true);
+      _pipelinePoint->setColorBlendOp(VK_BLEND_OP_MIN);
+      _pipelinePoint->setTesselation(4);
+      _pipelinePoint->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipelinePoint->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
@@ -951,8 +975,7 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/composition/terrainColor_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      _pipeline[MaterialType::COLOR] = std::make_shared<Pipeline>(_engineState->getSettings(),
-                                                                  _engineState->getDevice());
+      _pipeline[MaterialType::COLOR] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -971,8 +994,12 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .size = sizeof(FragmentPush),
       };
 
-      _pipeline[MaterialType::COLOR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      _pipeline[MaterialType::COLOR]->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipeline[MaterialType::COLOR]->setDepthTest(true);
+      _pipeline[MaterialType::COLOR]->setDepthWrite(true);
+      _pipeline[MaterialType::COLOR]->setTesselation(4);
+      _pipeline[MaterialType::COLOR]->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipeline[MaterialType::COLOR]->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -1043,8 +1070,7 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/composition/terrainPhong_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      _pipeline[MaterialType::PHONG] = std::make_shared<Pipeline>(_engineState->getSettings(),
-                                                                  _engineState->getDevice());
+      _pipeline[MaterialType::PHONG] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -1063,8 +1089,12 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .size = sizeof(FragmentPush),
       };
 
-      _pipeline[MaterialType::PHONG]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      _pipeline[MaterialType::PHONG]->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipeline[MaterialType::PHONG]->setDepthTest(true);
+      _pipeline[MaterialType::PHONG]->setDepthWrite(true);
+      _pipeline[MaterialType::PHONG]->setTesselation(4);
+      _pipeline[MaterialType::PHONG]->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipeline[MaterialType::PHONG]->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
@@ -1170,7 +1200,7 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
       shader->add("shaders/terrain/composition/terrainPhong_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
-      _pipeline[MaterialType::PBR] = std::make_shared<Pipeline>(_engineState->getSettings(), _engineState->getDevice());
+      _pipeline[MaterialType::PBR] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
       std::map<std::string, VkPushConstantRange> pushConstants;
       pushConstants["control"] = VkPushConstantRange{
@@ -1189,8 +1219,12 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .size = sizeof(FragmentPush),
       };
 
-      _pipeline[MaterialType::PBR]->createGraphicTerrain(
-          VK_CULL_MODE_BACK_BIT, VK_POLYGON_MODE_FILL,
+      _pipeline[MaterialType::PBR]->setCullMode(VK_CULL_MODE_BACK_BIT);
+      _pipeline[MaterialType::PBR]->setDepthTest(true);
+      _pipeline[MaterialType::PBR]->setDepthWrite(true);
+      _pipeline[MaterialType::PBR]->setTesselation(4);
+      _pipeline[MaterialType::PBR]->setTopology(VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
+      _pipeline[MaterialType::PBR]->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),

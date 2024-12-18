@@ -76,7 +76,8 @@ class ParticleSystem : public Drawable {
   std::vector<std::shared_ptr<Buffer>> _particlesBuffer;
   std::shared_ptr<DescriptorSet> _descriptorSetCompute;
   std::shared_ptr<DescriptorSet> _descriptorSetGraphic;
-  std::shared_ptr<Pipeline> _computePipeline, _graphicPipeline;
+  std::shared_ptr<PipelineGraphic> _graphicPipeline;
+  std::shared_ptr<PipelineCompute> _computePipeline;
   std::shared_ptr<RenderPass> _renderPass;
   float _frameTimer = 0.f;
   float _pointScale = 60.f;
