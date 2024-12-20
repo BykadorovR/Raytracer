@@ -425,7 +425,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
           cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
-
         pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
         pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
@@ -512,7 +511,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
           cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
-
         pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
         pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
@@ -587,7 +585,6 @@ void LightManager::_setLightDescriptors(int currentFrame) {
           cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
         pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
-
         pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
         pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }

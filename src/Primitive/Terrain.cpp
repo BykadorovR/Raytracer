@@ -291,10 +291,10 @@ void TerrainCPU::_loadTerrain() {
           _renderPass);
 
       _pipelineWireframe = std::make_shared<PipelineGraphic>(_engineState->getDevice());
-      _pipeline->setDepthTest(true);
-      _pipeline->setDepthWrite(true);
-      _pipeline->setPolygonMode(VK_POLYGON_MODE_LINE);
-      _pipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+      _pipelineWireframe->setDepthTest(true);
+      _pipelineWireframe->setDepthWrite(true);
+      _pipelineWireframe->setPolygonMode(VK_POLYGON_MODE_LINE);
+      _pipelineWireframe->setTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
       _pipelineWireframe->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},

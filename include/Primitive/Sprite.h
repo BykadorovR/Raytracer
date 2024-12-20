@@ -54,42 +54,33 @@ class Sprite : public Drawable, public Shadowable {
   void _updateShadowDescriptor(std::shared_ptr<T> material) {
     int currentFrame = _engineState->getFrameInFlight();
     for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
-      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-      std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-      // write to binding = 0 for vertex shader
-      bufferInfoCamera[0].buffer = _cameraUBODepth[d][0][currentFrame]->getData();
-      bufferInfoCamera[0].offset = 0;
-      bufferInfoCamera[0].range = sizeof(BufferMVP);
-      bufferInfoColor[0] = bufferInfoCamera;
-
-      // write for binding = 1 for textures
-      std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-      bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-      bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-      bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-      textureInfoColor[1] = bufferInfoTexture;
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+          {0,
+           {{.buffer = _cameraUBODepth[d][0][currentFrame]->getData(),
+             .offset = 0,
+             .range = _cameraUBODepth[d][0][currentFrame]->getSize()}}}};
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {1,
+           {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
+             .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
+             .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
       _descriptorSetCameraDepth[d][0]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
     }
 
     for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
       for (int f = 0; f < 6; f++) {
-        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-        std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-        // write to binding = 0 for vertex shader
-        bufferInfoCamera[0].buffer =
-            _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]->getData();
-        bufferInfoCamera[0].offset = 0;
-        bufferInfoCamera[0].range = sizeof(BufferMVP);
-        bufferInfoColor[0] = bufferInfoCamera;
-
-        // write for binding = 1 for textures
-        std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-        bufferInfoTexture[0].imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout();
-        bufferInfoTexture[0].imageView = material->getBaseColor()[0]->getImageView()->getImageView();
-        bufferInfoTexture[0].sampler = material->getBaseColor()[0]->getSampler()->getSampler();
-        textureInfoColor[1] = bufferInfoTexture;
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+            {0,
+             {{.buffer = _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]
+                             ->getData(),
+               .offset = 0,
+               .range = _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]
+                            ->getSize()}}}};
+        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+            {1,
+             {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
+               .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
+               .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
         _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
             currentFrame, bufferInfoColor, textureInfoColor);
       }

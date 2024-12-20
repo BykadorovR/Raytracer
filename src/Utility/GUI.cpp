@@ -94,7 +94,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
                                                    _descriptorSetLayout, _engineState);
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _scaleTranslateBuffer[i] = std::make_shared<Buffer>(
-        sizeof(UniformData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        sizeof(UniformDataGUI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
@@ -108,6 +108,15 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
     _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
   }
 
+  auto bindingDescriptor = VkVertexInputBindingDescription{.binding = 0,
+                                                           .stride = sizeof(ImDrawVert),
+                                                           .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+  // the order is different from built-in Mesh type, so need to handle it explicitily
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptor{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(ImDrawVert, pos)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(ImDrawVert, uv)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R8G8B8A8_UNORM, .offset = offsetof(ImDrawVert, col)}};
+
   auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/UI/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -115,8 +124,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
   _pipeline->createCustom({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
                            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                          {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
-                          VertexGUI::getAttributeDescriptions(), _renderPass);
+                          {{"gui", _descriptorSetLayout}}, {}, bindingDescriptor, attributeDescriptor, _renderPass);
   ImGui::NewFrame();
 }
 
@@ -255,8 +263,8 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[current], 0, 1, &viewport);
 
   // UI scale and translate via push constants
-  UniformData uniformData{.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y),
-                          .translate = glm::vec2(-1.0f)};
+  UniformDataGUI uniformData{.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y),
+                             .translate = glm::vec2(-1.0f)};
   _scaleTranslateBuffer[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -276,9 +284,9 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
                          VK_INDEX_TYPE_UINT16);
 
     for (int32_t i = 0; i < imDrawData->CmdListsCount; i++) {
-      const ImDrawList* cmd_list = imDrawData->CmdLists[i];
-      for (int32_t j = 0; j < cmd_list->CmdBuffer.Size; j++) {
-        const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+      const ImDrawList* cmdList = imDrawData->CmdLists[i];
+      for (int32_t j = 0; j < cmdList->CmdBuffer.Size; j++) {
+        const ImDrawCmd* pcmd = &cmdList->CmdBuffer[j];
         VkRect2D scissorRect{
             .offset = {.x = std::max((int32_t)(pcmd->ClipRect.x), 0), .y = std::max((int32_t)(pcmd->ClipRect.y), 0)},
             .extent = {.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x),
@@ -287,7 +295,7 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
         vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[current], pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
         indexOffset += pcmd->ElemCount;
       }
-      vertexOffset += cmd_list->VtxBuffer.Size;
+      vertexOffset += cmdList->VtxBuffer.Size;
     }
   }
 

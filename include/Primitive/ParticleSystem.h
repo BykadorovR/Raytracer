@@ -22,46 +22,6 @@ struct Particle {
   float minVelocity;
   float maxVelocity;
   alignas(16) glm::vec3 velocityDirection;
-
-  static VkVertexInputBindingDescription getBindingDescription() {
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Particle);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-  }
-
-  static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions() {
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions{5};
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(Particle, position);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Particle, color);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(Particle, maxLife);
-
-    attributeDescriptions[3].binding = 0;
-    attributeDescriptions[3].location = 3;
-    attributeDescriptions[3].format = VK_FORMAT_R32_SFLOAT;
-    attributeDescriptions[3].offset = offsetof(Particle, maxVelocity);
-
-    attributeDescriptions[4].binding = 0;
-    attributeDescriptions[4].location = 4;
-    attributeDescriptions[4].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[4].offset = offsetof(Particle, velocityDirection);
-
-    return attributeDescriptions;
-  }
 };
 
 class ParticleSystem : public Drawable {
@@ -78,7 +38,6 @@ class ParticleSystem : public Drawable {
   std::shared_ptr<DescriptorSet> _descriptorSetGraphic;
   std::shared_ptr<PipelineGraphic> _graphicPipeline;
   std::shared_ptr<PipelineCompute> _computePipeline;
-  std::shared_ptr<RenderPass> _renderPass;
   float _frameTimer = 0.f;
   float _pointScale = 60.f;
 

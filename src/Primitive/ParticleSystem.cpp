@@ -24,7 +24,7 @@ void ParticleSystem::_initializeGraphic() {
   auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/particles/particle_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/particles/particle_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
+  auto renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
 
   _cameraUniformBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
@@ -60,6 +60,21 @@ void ParticleSystem::_initializeGraphic() {
     _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
   }
 
+  // there is no mesh, so store separately
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptions{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32B32_SFLOAT, .offset = offsetof(Particle, position)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32B32A32_SFLOAT, .offset = offsetof(Particle, color)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R32_SFLOAT, .offset = offsetof(Particle, maxLife)},
+      {.location = 3, .binding = 0, .format = VK_FORMAT_R32_SFLOAT, .offset = offsetof(Particle, maxVelocity)},
+      {.location = 4,
+       .binding = 0,
+       .format = VK_FORMAT_R32G32B32_SFLOAT,
+       .offset = offsetof(Particle, velocityDirection)}};
+
+  VkVertexInputBindingDescription bindingDescriptions = {.binding = 0,
+                                                         .stride = sizeof(Particle),
+                                                         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+
   _graphicPipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
   _graphicPipeline->setCullMode(VK_CULL_MODE_BACK_BIT);
   _graphicPipeline->setDepthTest(true);
@@ -71,7 +86,7 @@ void ParticleSystem::_initializeGraphic() {
       std::map<std::string, VkPushConstantRange>{
           {std::string("vertex"),
            VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_VERTEX_BIT, .offset = 0, .size = sizeof(VertexPush)}}},
-      Particle::getBindingDescription(), Particle::getAttributeDescriptions(), _renderPass);
+      bindingDescriptions, attributeDescriptions, renderPass);
 }
 
 void ParticleSystem::_initializeCompute() {

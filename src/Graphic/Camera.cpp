@@ -110,8 +110,8 @@ CameraPerspective::CameraPerspective(std::shared_ptr<EngineState> engineState) {
   _pitch = 0.f;
   _roll = 0.f;
   _fov = 60.f;
-  _aspect = ((float)std::get<0>(engineState->getSettings()->getResolution()) /
-             (float)std::get<1>(engineState->getSettings()->getResolution()));
+  _aspect = (static_cast<float>(std::get<0>(engineState->getSettings()->getResolution())) /
+             static_cast<float>(std::get<1>(engineState->getSettings()->getResolution())));
   _direction.x = cos(glm::radians(_yaw)) * cos(glm::radians(_pitch));
   _direction.y = sin(glm::radians(_pitch));
   _direction.z = sin(glm::radians(_yaw)) * cos(glm::radians(_pitch));

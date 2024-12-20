@@ -11,9 +11,9 @@ void Material::_updateDescriptor(int currentFrame, MaterialTexture type) {
         std::map<int, std::vector<VkDescriptorImageInfo>> images;
         std::vector<VkDescriptorImageInfo> colorTextureInfo(_textures[type].size());
         for (int i = 0; i < _textures[type].size(); i++) {
-          colorTextureInfo[i].imageLayout = _textures[type][i]->getImageView()->getImage()->getImageLayout();
-          colorTextureInfo[i].imageView = _textures[type][i]->getImageView()->getImageView();
-          colorTextureInfo[i].sampler = _textures[type][i]->getSampler()->getSampler();
+          colorTextureInfo[i] = {.sampler = _textures[type][i]->getSampler()->getSampler(),
+                                 .imageView = _textures[type][i]->getImageView()->getImageView(),
+                                 .imageLayout = _textures[type][i]->getImageView()->getImage()->getImageLayout()};
         }
         images[std::get<1>(info[elem])] = colorTextureInfo;
         descriptor->createCustom(currentFrame, {}, images);
