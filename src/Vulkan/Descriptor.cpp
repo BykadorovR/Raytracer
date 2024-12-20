@@ -27,7 +27,9 @@ DescriptorSet::DescriptorSet(int number,
                              std::shared_ptr<EngineState> engineState) {
   _descriptorSets.resize(number);
   _engineState = engineState;
-  _layout = layout;
+  _layoutInfo = layout->getLayoutInfo();
+
+  _engineState->getDescriptorPool()->notify(_layoutInfo, number);
 
   std::vector<VkDescriptorSetLayout> layouts(_descriptorSets.size(), layout->getDescriptorSetLayout());
   VkDescriptorSetAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -44,25 +46,24 @@ DescriptorSet::DescriptorSet(int number,
 void DescriptorSet::createCustom(int currentFrame,
                                  std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
                                  std::map<int, std::vector<VkDescriptorImageInfo>> images) {
-  auto info = _layout->getLayoutInfo();
   std::vector<VkWriteDescriptorSet> descriptorWrites;
   for (auto [key, value] : buffers) {
     VkWriteDescriptorSet descriptorSet = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                           .dstSet = _descriptorSets[currentFrame],
-                                          .dstBinding = info[key].binding,
+                                          .dstBinding = _layoutInfo[key].binding,
                                           .dstArrayElement = 0,
-                                          .descriptorCount = info[key].descriptorCount,
-                                          .descriptorType = info[key].descriptorType,
+                                          .descriptorCount = _layoutInfo[key].descriptorCount,
+                                          .descriptorType = _layoutInfo[key].descriptorType,
                                           .pBufferInfo = buffers[key].data()};
     descriptorWrites.push_back(descriptorSet);
   }
   for (auto [key, value] : images) {
     VkWriteDescriptorSet descriptorSet = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                           .dstSet = _descriptorSets[currentFrame],
-                                          .dstBinding = info[key].binding,
+                                          .dstBinding = _layoutInfo[key].binding,
                                           .dstArrayElement = 0,
-                                          .descriptorCount = info[key].descriptorCount,
-                                          .descriptorType = info[key].descriptorType,
+                                          .descriptorCount = _layoutInfo[key].descriptorCount,
+                                          .descriptorType = _layoutInfo[key].descriptorType,
                                           .pImageInfo = images[key].data()};
     descriptorWrites.push_back(descriptorSet);
   }
@@ -74,6 +75,7 @@ void DescriptorSet::createCustom(int currentFrame,
 std::vector<VkDescriptorSet>& DescriptorSet::getDescriptorSets() { return _descriptorSets; }
 
 DescriptorSet::~DescriptorSet() {
+  _engineState->getDescriptorPool()->notify(_layoutInfo, -_descriptorSets.size());
   vkFreeDescriptorSets(_engineState->getDevice()->getLogicalDevice(),
                        _engineState->getDescriptorPool()->getDescriptorPool(), _descriptorSets.size(),
                        _descriptorSets.data());

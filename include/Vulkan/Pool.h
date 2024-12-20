@@ -19,9 +19,15 @@ class DescriptorPool {
  private:
   std::shared_ptr<Device> _device;
   VkDescriptorPool _descriptorPool;
+  std::map<VkDescriptorType, int> _descriptorTypes;
+  int _descriptorSetsNumber = 0;
 
  public:
   DescriptorPool(std::shared_ptr<Settings> settings, std::shared_ptr<Device> device);
+  void notify(std::vector<VkDescriptorSetLayoutBinding> layoutInfo, int number);
+  // needed to calculate real number of descriptor sets and descriptors
+  std::map<VkDescriptorType, int> getDescriptorsNumber();
+  int getDescriptorSetsNumber();
   VkDescriptorPool& getDescriptorPool();
   ~DescriptorPool();
 };

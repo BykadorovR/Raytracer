@@ -501,13 +501,13 @@ void Main::update() {
       _core->startRecording();
       switch (_typeIndex) {
         case 0:
-          _createTerrainColor();
+          _terrain->setMaterial(_materialColor);
           break;
         case 1:
-          _createTerrainPhong();
+          _terrain->setMaterial(_materialPhong);
           break;
         case 2:
-          _createTerrainPBR();
+          _terrain->setMaterial(_materialPBR);
           break;
       }
       _core->endRecording();

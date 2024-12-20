@@ -22,7 +22,7 @@ class DescriptorSet {
  private:
   std::vector<VkDescriptorSet> _descriptorSets;
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<DescriptorSetLayout> _layout;
+  std::vector<VkDescriptorSetLayoutBinding> _layoutInfo;
 
  public:
   DescriptorSet(int number, std::shared_ptr<DescriptorSetLayout> layout, std::shared_ptr<EngineState> engineState);

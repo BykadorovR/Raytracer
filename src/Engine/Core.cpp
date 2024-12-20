@@ -194,7 +194,7 @@ void Core::initialize() {
   _gui->initialize(_commandBufferInitialize);
 
   _blurCompute = std::make_shared<BlurCompute>(_textureBlurIn, _textureBlurOut, _engineState);
-  // for postprocessing descriptors GENERAL is needed
+  // for postprocessing layout GENERAL is needed
   for (auto& imageView : _swapchain->getImageViews()) imageView->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
 
   _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn, _swapchain->getImageViews(),

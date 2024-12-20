@@ -30,18 +30,27 @@ DescriptorPool::DescriptorPool(std::shared_ptr<Settings> settings, std::shared_p
       {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
        .descriptorCount = static_cast<uint32_t>(settings->getPoolSizeSSBO())}};
 
-  VkDescriptorPoolCreateInfo poolInfo{
-      .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-      .maxSets = static_cast<uint32_t>(settings->getPoolSizeUBO() + settings->getPoolSizeSampler() +
-                                       settings->getPoolSizeComputeImage() + settings->getPoolSizeSSBO()),
-      .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
-      .pPoolSizes = poolSizes.data()};
+  VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+                                      .maxSets = static_cast<uint32_t>(settings->getPoolSizeDescriptorSets()),
+                                      .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+                                      .pPoolSizes = poolSizes.data()};
 
   poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
   if (vkCreateDescriptorPool(_device->getLogicalDevice(), &poolInfo, nullptr, &_descriptorPool) != VK_SUCCESS) {
     throw std::runtime_error("failed to create descriptor pool!");
   }
 }
+
+void DescriptorPool::notify(std::vector<VkDescriptorSetLayoutBinding> layoutInfo, int number) {
+  for (const auto& info : layoutInfo) {
+    _descriptorTypes[info.descriptorType] += number;
+  }
+
+  _descriptorSetsNumber += number;
+}
+std::map<VkDescriptorType, int> DescriptorPool::getDescriptorsNumber() { return _descriptorTypes; }
+
+int DescriptorPool::getDescriptorSetsNumber() { return _descriptorSetsNumber; }
 
 VkDescriptorPool& DescriptorPool::getDescriptorPool() { return _descriptorPool; }
 

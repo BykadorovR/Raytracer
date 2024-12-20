@@ -24,11 +24,16 @@ void Settings::setAnisotropicSamples(int number) { _anisotropicSamples = number;
 
 void Settings::setDesiredFPS(int fps) { _desiredFPS = fps; }
 
-void Settings::setPoolSize(int poolSizeUBO, int poolSizeSampler, int poolSizeSSBO, int poolSizeComputeImage) {
+void Settings::setPoolSize(int poolSizeDescriptorSets,
+                           int poolSizeUBO,
+                           int poolSizeSampler,
+                           int poolSizeSSBO,
+                           int poolSizeComputeImage) {
   _poolSizeUBO = poolSizeUBO;
   _poolSizeSampler = poolSizeSampler;
   _poolSizeSSBO = poolSizeSSBO;
   _poolSizeComputeImage = poolSizeComputeImage;
+  _poolSizeDescriptorSets = poolSizeDescriptorSets;
 }
 
 void Settings::setBloomPasses(int number) { _bloomPasses = number; }
@@ -90,3 +95,5 @@ int Settings::getPoolSizeSampler() { return _poolSizeSampler; }
 int Settings::getPoolSizeSSBO() { return _poolSizeSSBO; }
 
 int Settings::getPoolSizeComputeImage() { return _poolSizeComputeImage; }
+
+int Settings::getPoolSizeDescriptorSets() { return _poolSizeDescriptorSets; }
