@@ -308,17 +308,13 @@ void TerrainCPU::_loadTerrain() {
 void TerrainCPU::setHeightmap(std::shared_ptr<ImageCPU<uint8_t>> heightMap) {
   auto currentFrame = _engineState->getFrameInFlight();
   _heightMap = heightMap;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _changeMeshHeightmap[currentFrame] = true;
-  }
+  _changeMeshHeightmap[currentFrame] = true;
 }
 
 void TerrainCPU::setHeightmap(std::vector<float> heights) {
   auto currentFrame = _engineState->getFrameInFlight();
   _heights = heights;
-  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
-    _changeMeshTriangles[currentFrame] = true;
-  }
+  _changeMeshTriangles[currentFrame] = true;
 }
 
 void TerrainCPU::setDrawType(DrawType drawType) { _drawType = drawType; }
@@ -499,8 +495,10 @@ void TerrainDebug::_loadHeightmap(std::string path) {
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) _changedHeightmap[i] = true;
 }
 
-void TerrainDebug::setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics) {
+void TerrainDebug::setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics,
+                                     std::shared_ptr<TerrainCPU> terrainCPU) {
   _terrainPhysics = terrainPhysics;
+  _terrainCPU = terrainCPU;
 }
 
 void TerrainDebug::setTessellationLevel(int min, int max) {
@@ -543,24 +541,9 @@ void TerrainDebug::patchEdge(bool enable) { _enableEdge = enable; }
 
 void TerrainDebug::showLoD(bool enable) { _showLoD = enable; }
 
-bool TerrainDebug::heightmapChanged() {
-  bool change = false;
-  for (auto changed : _changedHeightmap) {
-    if (changed) {
-      change = true;
-      break;
-    }
-  }
-  return change;
-}
-
 std::shared_ptr<ImageCPU<uint8_t>> TerrainDebug::getHeightmap() { return _heightMapCPU; }
 
 std::optional<glm::vec3> TerrainDebug::getHitCoords() { return _hitCoords; }
-
-void TerrainDebug::transfer(std::shared_ptr<CommandBuffer> commandBuffer) {
-  _heightMap->copyFrom(_heightMapGPU, commandBuffer);
-}
 
 void TerrainGPU::_calculateMesh(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto [width, height] = _heightMap->getImageView()->getImage()->getResolution();

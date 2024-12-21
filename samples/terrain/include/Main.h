@@ -32,7 +32,7 @@ class Main {
   std::shared_ptr<TerrainGPU> _terrain;
   std::shared_ptr<TerrainDebug> _terrainDebug;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  bool _showDebug = false, _showCPU = false, _showTerrain = true;
+  bool _showDebug = false, _showTerrain = true;
   std::shared_ptr<PhysicsManager> _physicsManager;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   bool _showLoD = false, _showWireframe = false, _showNormals = false, _showPatches = false;

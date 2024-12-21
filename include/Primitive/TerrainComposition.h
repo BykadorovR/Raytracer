@@ -50,7 +50,7 @@ class TerrainCompositionDebug : public TerrainDebug {
                           std::shared_ptr<EngineState> engineState);
 
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
-  void drawDebug() override;
+  void drawDebug(std::shared_ptr<CommandBuffer> commandBuffer) override;
 
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;

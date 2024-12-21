@@ -586,6 +586,9 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
            .imageView = _heightMap->getImageView()->getImageView(),
            .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
     _descriptorSetColor->createCustom(currentFrame, {}, textureInfoColor);
+
+    _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
+
     _changedHeightmap[currentFrame] = false;
   }
 
@@ -596,7 +599,12 @@ void TerrainCompositionDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer)
   drawTerrain(pipeline);
 }
 
-void TerrainCompositionDebug::drawDebug() {
+void TerrainCompositionDebug::drawDebug(std::shared_ptr<CommandBuffer> commandBuffer) {
+  int currentFrame = _engineState->getFrameInFlight();
+
+  if (_changedHeightmap[currentFrame]) {
+    _heightMap->copyFrom(_heightMapGPU, commandBuffer);
+  }
   if (_gui->startTree("Terrain")) {
     _gui->drawText({"Tile: " + std::to_string(_pickedTile)});
     _gui->drawText({"Texture: " + std::to_string(_pickedPixel.x) + "x" + std::to_string(_pickedPixel.y)});

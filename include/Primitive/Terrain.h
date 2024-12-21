@@ -105,6 +105,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
+  std::shared_ptr<TerrainCPU> _terrainCPU;
   std::shared_ptr<DescriptorSet> _descriptorSetColor;
 
   std::shared_ptr<Material> _material;
@@ -139,7 +140,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   void _loadHeightmap(std::string path);
 
  public:
-  void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics);
+  void setTerrainPhysics(std::shared_ptr<TerrainPhysics> terrainPhysics, std::shared_ptr<TerrainCPU> terrainCPU);
   void setTessellationLevel(int min, int max);
   void setTesselationDistance(int min, int max);
   void setColorHeightLevels(std::array<float, 4> levels);
@@ -153,13 +154,11 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   DrawType getDrawType();
   void patchEdge(bool enable);
   void showLoD(bool enable);
-  bool heightmapChanged();
   std::shared_ptr<ImageCPU<uint8_t>> getHeightmap();
   std::optional<glm::vec3> getHitCoords();
 
-  void transfer(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
-  virtual void drawDebug() = 0;
+  virtual void drawDebug(std::shared_ptr<CommandBuffer> commandBuffer) = 0;
 
   void cursorNotify(float xPos, float yPos) = 0;
   void mouseNotify(int button, int action, int mods) = 0;

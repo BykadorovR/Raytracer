@@ -144,7 +144,7 @@ void Main::_createTerrainDebug(std::string path) {
   }
 
   _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));
-  _terrainDebug->setTerrainPhysics(_terrainPhysics);
+  _terrainDebug->setTerrainPhysics(_terrainPhysics, _terrainCPU);
   _terrainDebug->setMaterial(_materialColor);
 
   _terrainDebug->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
@@ -361,12 +361,13 @@ Main::Main() {
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
-
-  _createTerrainDebug("../assets/heightmap.png");
   _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
   _terrainCPU->setDrawType(DrawType::WIREFRAME);
   _terrainCPU->setTranslate(_terrainPositionDebug);
   _terrainCPU->setScale(_terrainScale);
+
+  _createTerrainDebug("../assets/heightmap.png");
+
   _core->endRecording();
 
   _core->registerUpdate(std::bind(&Main::update, this));
@@ -514,14 +515,9 @@ void Main::update() {
   if (_core->getGUI()->drawCheckbox({{"Show Debug", &_showDebug}})) {
     if (_showDebug == false) {
       _core->removeDrawable(_terrainDebug);
-    } else {
-      _core->addDrawable(_terrainDebug);
-    }
-  }
-  if (_core->getGUI()->drawCheckbox({{"Show CPU", &_showCPU}})) {
-    if (_showCPU == false) {
       _core->removeDrawable(_terrainCPU);
     } else {
+      _core->addDrawable(_terrainDebug);
       _core->addDrawable(_terrainCPU);
     }
   }
@@ -533,19 +529,13 @@ void Main::update() {
     _core->addDrawable(_sphereClickDebug);
   }
 
-  if (_showCPU || _showDebug) {
+  if (_showDebug) {
     _core->getGUI()->startWindow("Editor");
     _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
-    _terrainDebug->drawDebug();
-    _core->getGUI()->endWindow();
-  }
-
-  // should be in the end in case of "load terrain" pressed and handled in drawDebug()
-  if (_terrainDebug->heightmapChanged()) {
     _core->startRecording();
-    _terrainDebug->transfer(_core->getCommandBufferApplication());
+    _terrainDebug->drawDebug(_core->getCommandBufferApplication());
     _core->endRecording();
-    _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
+    _core->getGUI()->endWindow();
   }
 }
 
