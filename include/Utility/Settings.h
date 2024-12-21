@@ -52,10 +52,10 @@ struct Settings {
   // Slope depth bias factor, applied depending on polygon's slope
   float _depthBiasSlope = 1.75f;
   // number of DESCRIPTORS in descriptor pool
-  int _poolSizeUBO = 2000;
-  int _poolSizeSampler = 1500;
-  int _poolSizeSSBO = 60;
-  int _poolSizeComputeImage = 30;
+  int _poolSizeUBO = 3000;
+  int _poolSizeSampler = 2500;
+  int _poolSizeSSBO = 100;
+  int _poolSizeComputeImage = 100;
   // number of DESCRIPTOR SETs in descriptor pool
   int _poolSizeDescriptorSets = 2000;
 

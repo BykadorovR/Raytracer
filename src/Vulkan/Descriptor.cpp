@@ -39,7 +39,13 @@ DescriptorSet::DescriptorSet(int number,
   auto sts = vkAllocateDescriptorSets(_engineState->getDevice()->getLogicalDevice(), &allocInfo,
                                       _descriptorSets.data());
   if (sts != VK_SUCCESS) {
-    throw std::runtime_error("failed to allocate descriptor sets!");
+    std::string descriptors = "";
+    for (auto [key, value] : _engineState->getDescriptorPool()->getDescriptorsNumber()) {
+      descriptors += std::to_string(key) + ":" + std::to_string(value) + " ";
+    }
+    throw std::runtime_error("failed to allocate descriptor sets: allocated sets: " +
+                             std::to_string(_engineState->getDescriptorPool()->getDescriptorSetsNumber()) +
+                             ", descriptors: " + descriptors);
   }
 }
 
