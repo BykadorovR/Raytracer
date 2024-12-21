@@ -14,12 +14,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -53,11 +51,12 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   std::default_random_engine rndEngine((unsigned)time(nullptr));
@@ -91,12 +90,8 @@ Main::Main() {
 
     auto particleTexture = _core->createTexture("../assets/gradient.png", settings->getLoadTextureColorFormat(), 1);
     auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-    {
-      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-      particleSystem->setModel(matrix);
-    }
+    particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
+    particleSystem->setTranslate(glm::vec3(0.f, 0.f, 2.f));
     _core->addParticleSystem(particleSystem);
   }
   {
@@ -130,12 +125,8 @@ Main::Main() {
 
     auto particleTexture = _core->createTexture("../assets/circle.png", settings->getLoadTextureColorFormat(), 1);
     auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-    {
-      auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 2.f));
-      matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-      particleSystem->setModel(matrix);
-    }
+    particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
+    particleSystem->setTranslate(glm::vec3(0.5f, 0.f, 2.f));
     _core->addParticleSystem(particleSystem);
   }
   _core->endRecording();
@@ -146,8 +137,9 @@ Main::Main() {
 
 void Main::update() {
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});

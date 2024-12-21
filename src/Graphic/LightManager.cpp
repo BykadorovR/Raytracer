@@ -1,250 +1,263 @@
-#include "LightManager.h"
-#include "Buffer.h"
+#include "Graphic/LightManager.h"
+#include "Vulkan/Buffer.h"
 
-LightManager::LightManager(std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                           std::shared_ptr<ResourceManager> resourceManager,
-                           std::shared_ptr<State> state) {
-  _state = state;
-  _commandBufferTransfer = commandBufferTransfer;
+struct ShadowParameters {
+  int enabledDirectional[2];
+  int enabledPoint[4];
+  // 0 - simple, 1 - vsm
+  int algorithmDirectional;
+  int algorithmPoint;
 
-  _descriptorPool = std::make_shared<DescriptorPool>(_descriptorPoolSize, _state->getDevice());
+  static int getSize() { return 2 * 16 + 4 * 16 + 4 + 4; }
+};
+
+LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
 
   // update global descriptor for Phong and PBR (2 separate)
   {
-    _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 2;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 4;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 2,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 6,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalPhong->createCustom(layoutPhong);
   }
   {
-    _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 2;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 4;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 2,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalPBR->createCustom(layoutPBR);
   }
   {
-    _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPhong(6);
-    layoutPhong[0].binding = 0;
-    layoutPhong[0].descriptorCount = 1;
-    layoutPhong[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[0].pImmutableSamplers = nullptr;
-    layoutPhong[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPhong[1].binding = 1;
-    layoutPhong[1].descriptorCount = 1;
-    layoutPhong[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[1].pImmutableSamplers = nullptr;
-    layoutPhong[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[2].binding = 2;
-    layoutPhong[2].descriptorCount = 1;
-    layoutPhong[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[2].pImmutableSamplers = nullptr;
-    layoutPhong[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[3].binding = 3;
-    layoutPhong[3].descriptorCount = 1;
-    layoutPhong[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPhong[3].pImmutableSamplers = nullptr;
-    layoutPhong[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[4].binding = 4;
-    layoutPhong[4].descriptorCount = 2;
-    layoutPhong[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[4].pImmutableSamplers = nullptr;
-    layoutPhong[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPhong[5].binding = 5;
-    layoutPhong[5].descriptorCount = 4;
-    layoutPhong[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPhong[5].pImmutableSamplers = nullptr;
-    layoutPhong[5].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalTerrainPhong = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPhong{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 2,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 3,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 4,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 2,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 5,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 4,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 6,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalTerrainPhong->createCustom(layoutPhong);
   }
   {
-    _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutPBR(5);
-    layoutPBR[0].binding = 0;
-    layoutPBR[0].descriptorCount = 1;
-    layoutPBR[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[0].pImmutableSamplers = nullptr;
-    layoutPBR[0].stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-    layoutPBR[1].binding = 1;
-    layoutPBR[1].descriptorCount = 1;
-    layoutPBR[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[1].pImmutableSamplers = nullptr;
-    layoutPBR[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[2].binding = 2;
-    layoutPBR[2].descriptorCount = 1;
-    layoutPBR[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    layoutPBR[2].pImmutableSamplers = nullptr;
-    layoutPBR[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[3].binding = 3;
-    layoutPBR[3].descriptorCount = 2;
-    layoutPBR[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[3].pImmutableSamplers = nullptr;
-    layoutPBR[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    layoutPBR[4].binding = 4;
-    layoutPBR[4].descriptorCount = 4;
-    layoutPBR[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutPBR[4].pImmutableSamplers = nullptr;
-    layoutPBR[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayoutGlobalTerrainPBR = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutPBR{{.binding = 0,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 1,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 2,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 3,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 2,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 4,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                         .descriptorCount = 4,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr},
+                                                        {.binding = 5,
+                                                         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                         .descriptorCount = 1,
+                                                         .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                         .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutGlobalTerrainPBR->createCustom(layoutPBR);
   }
 
-  _lightDirectionalSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightPointSSBOViewProjection.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightDirectionalSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightPointSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
-  _lightAmbientSSBO.resize(_state->getSettings()->getMaxFramesInFlight());
+  _lightDirectionalSSBOViewProjection.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightPointSSBOViewProjection.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightDirectionalSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightPointSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _lightAmbientSSBO.resize(_engineState->getSettings()->getMaxFramesInFlight());
 
   {
-    auto lightTmp = std::make_shared<DirectionalLight>();
+    auto lightTmp = std::make_shared<DirectionalLight>(_engineState);
     _lightDirectionalSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
-    // fill only number of lights
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightDirectionalSSBOStub->map();
-    memcpy((uint8_t*)(_lightDirectionalSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightDirectionalSSBOStub->unmap();
+    _lightDirectionalSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
-    auto lightTmp = std::make_shared<PointLight>(_state->getSettings());
+    auto lightTmp = std::make_shared<PointLight>(_engineState);
     _lightPointSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightPointSSBOStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightPointSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightPointSSBOStub->unmap();
+    _lightPointSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
     auto lightTmp = std::make_shared<AmbientLight>();
     _lightAmbientSSBOStub = std::make_shared<Buffer>(
-        lightTmp->getSize() + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        sizeof(glm::vec4) + lightTmp->getSize(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightAmbientSSBOStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightAmbientSSBOStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightAmbientSSBOStub->unmap();
+    _lightAmbientSSBOStub->setData(&number, sizeof(glm::vec4));
   }
   {
     _lightDirectionalSSBOViewProjectionStub = std::make_shared<Buffer>(
-        sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightDirectionalSSBOViewProjectionStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjectionStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightDirectionalSSBOViewProjectionStub->unmap();
+    _lightDirectionalSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
   {
     _lightPointSSBOViewProjectionStub = std::make_shared<Buffer>(
-        sizeof(glm::mat4) + sizeof(glm::vec4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        sizeof(glm::vec4) + sizeof(glm::mat4), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
+    // fill only number of lights because it's stub
     int number = 0;
-    _lightPointSSBOViewProjectionStub->map();
-    // fill only number of lights
-    memcpy((uint8_t*)(_lightPointSSBOViewProjectionStub->getMappedMemory()), &number, sizeof(glm::vec4));
-    _lightPointSSBOViewProjectionStub->unmap();
+    _lightPointSSBOViewProjectionStub->setData(&number, sizeof(glm::vec4));
   }
 
-  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                              _descriptorSetLayoutGlobalPhong, _descriptorPool,
-                                                              _state->getDevice());
-  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                            _descriptorSetLayoutGlobalPBR, _descriptorPool,
-                                                            _state->getDevice());
-  _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                     _descriptorSetLayoutGlobalTerrainPhong,
-                                                                     _descriptorPool, _state->getDevice());
-  _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(),
-                                                                   _descriptorSetLayoutGlobalTerrainPBR,
-                                                                   _descriptorPool, _state->getDevice());
+  _shadowParametersBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _shadowParametersBuffer[i] = std::make_shared<Buffer>(
+        ShadowParameters::getSize(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+
+  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                              _descriptorSetLayoutGlobalPhong, _engineState);
+  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
+  loggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalPhong->getDescriptorSets());
+  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                            _descriptorSetLayoutGlobalPBR, _engineState);
+  loggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalPBR->getDescriptorSets());
+  _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
+      _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _engineState);
+  loggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalTerrainPhong->getDescriptorSets());
+  _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                                   _descriptorSetLayoutGlobalTerrainPBR, _engineState);
+  loggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                       _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
   // stub texture
-  _stubTexture = std::make_shared<Texture>(
-      resourceManager->loadImageGPU<uint8_t>({resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png"}),
-      _state->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
-      commandBufferTransfer, _state);
-  _stubCubemap = std::make_shared<Cubemap>(
-      resourceManager->loadImageGPU<uint8_t>(
-          std::vector<std::string>(6, resourceManager->getAssetEnginePath() + "stubs/Texture1x1.png")),
-      _state->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, commandBufferTransfer, _state);
+  _stubTexture = resourceManager->getTextureOne();
+  _stubCubemap = resourceManager->getCubemapOne();
 
-  _directionalTextures.resize(state->getSettings()->getMaxDirectionalLights(), _stubTexture);
-  _pointTextures.resize(state->getSettings()->getMaxPointLights(), _stubCubemap->getTexture());
+  _changed[LightType::DIRECTIONAL].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changed[LightType::POINT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
+  _changed[LightType::AMBIENT].resize(engineState->getSettings()->getMaxFramesInFlight(), false);
 
-  _changed[LightType::DIRECTIONAL].resize(state->getSettings()->getMaxFramesInFlight(), false);
-  _changed[LightType::POINT].resize(state->getSettings()->getMaxFramesInFlight(), false);
-  _changed[LightType::AMBIENT].resize(state->getSettings()->getMaxFramesInFlight(), false);
-
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _reallocateDirectionalBuffers(i);
     _reallocatePointBuffers(i);
     _reallocateAmbientBuffers(i);
     _updateDirectionalBuffers(i);
-    _updatePointDescriptors(i);
+    _updatePointBuffers(i);
     _updateAmbientBuffers(i);
     _setLightDescriptors(i);
+    _updateShadowParametersBuffer(i);
   }
 }
 
@@ -254,7 +267,7 @@ std::shared_ptr<AmbientLight> LightManager::createAmbientLight() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _ambientLights.push_back(light);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::AMBIENT][i] = true;
   }
 
@@ -317,24 +330,39 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[3] = bufferAmbientInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[6] = bufferShadowParameters;
     }
     _descriptorSetGlobalPhong->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -377,24 +405,38 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[2] = bufferPointInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[5] = bufferShadowParameters;
     }
     _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -449,24 +491,38 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[3] = bufferAmbientInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[4] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[5] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[6] = bufferShadowParameters;
     }
     _descriptorSetGlobalTerrainPhong->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -509,24 +565,38 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       }
       bufferInfo[2] = bufferPointInfo;
     }
+    // shadows
     {
-      std::vector<VkDescriptorImageInfo> directionalImageInfo(_directionalTextures.size());
+      std::vector<VkDescriptorImageInfo> directionalImageInfo(_engineState->getSettings()->getMaxDirectionalLights());
       for (int j = 0; j < directionalImageInfo.size(); j++) {
-        directionalImageInfo[j].imageLayout = _directionalTextures[j]->getImageView()->getImage()->getImageLayout();
-
-        directionalImageInfo[j].imageView = _directionalTextures[j]->getImageView()->getImageView();
-        directionalImageInfo[j].sampler = _directionalTextures[j]->getSampler()->getSampler();
+        auto texture = _stubTexture;
+        if (j < _directionalShadows.size() && _directionalShadows[j])
+          texture = _directionalShadows[j]->getShadowMapTexture()[currentFrame];
+        directionalImageInfo[j].imageLayout = texture->getImageView()->getImage()->getImageLayout();
+        directionalImageInfo[j].imageView = texture->getImageView()->getImageView();
+        directionalImageInfo[j].sampler = texture->getSampler()->getSampler();
       }
       textureInfo[3] = directionalImageInfo;
 
-      std::vector<VkDescriptorImageInfo> pointImageInfo(_pointTextures.size());
+      std::vector<VkDescriptorImageInfo> pointImageInfo(_engineState->getSettings()->getMaxPointLights());
       for (int j = 0; j < pointImageInfo.size(); j++) {
-        pointImageInfo[j].imageLayout = _pointTextures[j]->getImageView()->getImage()->getImageLayout();
+        auto cubemap = _stubCubemap;
+        if (j < _pointShadows.size() && _pointShadows[j])
+          cubemap = _pointShadows[j]->getShadowMapCubemap()[currentFrame];
 
-        pointImageInfo[j].imageView = _pointTextures[j]->getImageView()->getImageView();
-        pointImageInfo[j].sampler = _pointTextures[j]->getSampler()->getSampler();
+        pointImageInfo[j].imageLayout = cubemap->getTexture()->getImageView()->getImage()->getImageLayout();
+        pointImageInfo[j].imageView = cubemap->getTexture()->getImageView()->getImageView();
+        pointImageInfo[j].sampler = cubemap->getTexture()->getSampler()->getSampler();
       }
       textureInfo[4] = pointImageInfo;
+    }
+    // shadow parameters
+    {
+      std::vector<VkDescriptorBufferInfo> bufferShadowParameters(1);
+      bufferShadowParameters[0].buffer = _shadowParametersBuffer[currentFrame]->getData();
+      bufferShadowParameters[0].offset = 0;
+      bufferShadowParameters[0].range = ShadowParameters::getSize();
+      bufferInfo[5] = bufferShadowParameters;
     }
     _descriptorSetGlobalTerrainPBR->createCustom(currentFrame, bufferInfo, textureInfo);
   }
@@ -542,24 +612,22 @@ void LightManager::_reallocateAmbientBuffers(int currentFrame) {
   if (_ambientLights.size() > 0) {
     _lightAmbientSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
 void LightManager::_updateAmbientBuffers(int currentFrame) {
   if (_ambientLights.size() > 0) {
     int offset = 0;
-    _lightAmbientSSBO[currentFrame]->map();
+    // we don't want to do multiple map/unmap that's why we don't use corresponding Buffer method setData
     int ambientNumber = _ambientLights.size();
-    memcpy((uint8_t*)(_lightAmbientSSBO[currentFrame]->getMappedMemory()) + offset, &ambientNumber, sizeof(glm::vec4));
+    _lightAmbientSSBO[currentFrame]->setData(&ambientNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _ambientLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightAmbientSSBO[currentFrame]->getMappedMemory()) + offset, _ambientLights[i]->getData(),
-             _ambientLights[i]->getSize());
+      _lightAmbientSSBO[currentFrame]->setData(_ambientLights[i]->getData(), _ambientLights[i]->getSize(), offset);
       offset += _ambientLights[i]->getSize();
     }
-    _lightAmbientSSBO[currentFrame]->unmap();
   }
 }
 
@@ -575,7 +643,7 @@ void LightManager::_reallocateDirectionalBuffers(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 
   size = 0;
@@ -587,7 +655,7 @@ void LightManager::_reallocateDirectionalBuffers(int currentFrame) {
   if (_directionalLights.size() > 0) {
     _lightDirectionalSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
@@ -595,39 +663,29 @@ void LightManager::_updateDirectionalBuffers(int currentFrame) {
   int directionalNumber = _directionalLights.size();
   if (_directionalLights.size() > 0) {
     int offset = 0;
-    _lightDirectionalSSBO[currentFrame]->map();
-    memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset, &directionalNumber,
-           sizeof(glm::vec4));
+    _lightDirectionalSSBO[currentFrame]->setData(&directionalNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _directionalLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightDirectionalSSBO[currentFrame]->getMappedMemory()) + offset,
-             _directionalLights[i]->getData(), _directionalLights[i]->getSize());
+      _lightDirectionalSSBO[currentFrame]->setData(_directionalLights[i]->getData(), _directionalLights[i]->getSize(),
+                                                   offset);
       offset += _directionalLights[i]->getSize();
     }
-    _lightDirectionalSSBO[currentFrame]->unmap();
   }
 
   if (_directionalLights.size() > 0) {
-    _lightDirectionalSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> directionalVP;
     for (int i = 0; i < _directionalLights.size(); i++) {
-      glm::mat4 viewProjection = _directionalLights[i]->getProjectionMatrix() * _directionalLights[i]->getViewMatrix();
+      glm::mat4 viewProjection = _directionalLights[i]->getCamera()->getProjection() *
+                                 _directionalLights[i]->getCamera()->getView();
       directionalVP.push_back(viewProjection);
     }
     int offset = 0;
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[currentFrame]->getMappedMemory()) + offset,
-           &directionalNumber, sizeof(glm::vec4));
+    _lightDirectionalSSBOViewProjection[currentFrame]->setData(&directionalNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
-    memcpy((uint8_t*)(_lightDirectionalSSBOViewProjection[currentFrame]->getMappedMemory()) + offset,
-           directionalVP.data(), directionalVP.size() * sizeof(glm::mat4));
-    _lightDirectionalSSBOViewProjection[currentFrame]->unmap();
+    _lightDirectionalSSBOViewProjection[currentFrame]->setData(directionalVP.data(),
+                                                               directionalVP.size() * sizeof(glm::mat4), offset);
   }
-}
-
-void LightManager::_updateDirectionalTexture(int currentFrame) {
-  int currentIndex = _directionalLights.size() - 1;
-  _directionalTextures[currentIndex] = _directionalLights[currentIndex]->getDepthTexture()[currentFrame];
 }
 
 void LightManager::_reallocatePointBuffers(int currentFrame) {
@@ -640,7 +698,7 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBO[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 
   size = 0;
@@ -652,115 +710,172 @@ void LightManager::_reallocatePointBuffers(int currentFrame) {
   if (_pointLights.size() > 0) {
     _lightPointSSBOViewProjection[currentFrame] = std::make_shared<Buffer>(
         size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
   }
 }
 
-void LightManager::_updatePointDescriptors(int currentFrame) {
+void LightManager::_updatePointBuffers(int currentFrame) {
   int pointNumber = _pointLights.size();
   if (_pointLights.size() > 0) {
-    _lightPointSSBO[currentFrame]->map();
     int offset = 0;
-    memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, &pointNumber, sizeof(glm::vec4));
+    _lightPointSSBO[currentFrame]->setData(&pointNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
     for (int i = 0; i < _pointLights.size(); i++) {
       // we pass inverse bind matrices to shader via SSBO
-      memcpy((uint8_t*)(_lightPointSSBO[currentFrame]->getMappedMemory()) + offset, _pointLights[i]->getData(),
-             _pointLights[i]->getSize());
+      _lightPointSSBO[currentFrame]->setData(_pointLights[i]->getData(), _pointLights[i]->getSize(), offset);
       offset += _pointLights[i]->getSize();
     }
-    _lightPointSSBO[currentFrame]->unmap();
   }
 
   if (_pointLights.size() > 0) {
-    _lightPointSSBOViewProjection[currentFrame]->map();
     std::vector<glm::mat4> pointVP;
-    float aspect = (float)std::get<0>(_state->getSettings()->getResolution()) /
-                   (float)std::get<1>(_state->getSettings()->getResolution());
+    float aspect = (float)std::get<0>(_engineState->getSettings()->getResolution()) /
+                   (float)std::get<1>(_engineState->getSettings()->getResolution());
     for (int i = 0; i < _pointLights.size(); i++) {
-      glm::mat4 viewProjection = _pointLights[i]->getProjectionMatrix() * _pointLights[i]->getViewMatrix(0);
+      glm::mat4 viewProjection = _pointLights[i]->getCamera()->getProjection() *
+                                 _pointLights[i]->getCamera()->getView(0);
       pointVP.push_back(viewProjection);
     }
     int offset = 0;
-    memcpy((uint8_t*)(_lightPointSSBOViewProjection[currentFrame]->getMappedMemory()) + offset, &pointNumber,
-           sizeof(glm::vec4));
+    _lightPointSSBOViewProjection[currentFrame]->setData(&pointNumber, sizeof(glm::vec4), offset);
     offset += sizeof(glm::vec4);
-    memcpy((uint8_t*)(_lightPointSSBOViewProjection[currentFrame]->getMappedMemory()) + offset, pointVP.data(),
-           pointVP.size() * sizeof(glm::mat4));
-    _lightPointSSBOViewProjection[currentFrame]->unmap();
+    _lightPointSSBOViewProjection[currentFrame]->setData(pointVP.data(), pointVP.size() * sizeof(glm::mat4), offset);
   }
 }
 
-void LightManager::_updatePointTexture(int currentFrame) {
-  for (int i = 0; i < _pointLights.size(); i++)
-    _pointTextures[i] = _pointLights[i]->getDepthCubemap()[currentFrame]->getTexture();
+void LightManager::_updateShadowParametersBuffer(int currentFrame) {
+  ShadowParameters shadowParameters{};
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    if (i < _directionalShadows.size() && _directionalShadows[i]) shadowParameters.enabledDirectional[i] = true;
+  }
+  std::vector<int> pointEnabled{_engineState->getSettings()->getMaxPointLights(), false};
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
+    if (i < _pointShadows.size() && _pointShadows[i]) shadowParameters.enabledPoint[i] = true;
+  }
+  shadowParameters.algorithmDirectional = static_cast<int>(_shadowAlgorithm[LightType::DIRECTIONAL]);
+  shadowParameters.algorithmPoint = static_cast<int>(_shadowAlgorithm[LightType::POINT]);
+  std::vector<uint8_t> buffer(ShadowParameters::getSize());
+  int offset = 0;
+  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
+    memcpy(buffer.data() + offset, &shadowParameters.enabledDirectional[i], 16);
+    offset += 16;
+  }
+  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
+    memcpy(buffer.data() + offset, &shadowParameters.enabledPoint[i], 16);
+    offset += 16;
+  }
+  memcpy(buffer.data() + offset, &shadowParameters.algorithmDirectional, sizeof(shadowParameters.algorithmDirectional));
+  offset += sizeof(shadowParameters.algorithmDirectional);
+  memcpy(buffer.data() + offset, &shadowParameters.algorithmPoint, sizeof(shadowParameters.algorithmPoint));
+  _shadowParametersBuffer[currentFrame]->setData(buffer.data());
 }
 
-std::shared_ptr<PointLight> LightManager::createPointLight(std::tuple<int, int> resolution) {
-  std::vector<std::shared_ptr<Cubemap>> depthCubemap;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    depthCubemap.push_back(std::make_shared<Cubemap>(
-        resolution, _state->getSettings()->getDepthFormat(), 1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_DEPTH_BIT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        _commandBufferTransfer, _state));
-  }
-
-  auto light = std::make_shared<PointLight>(_state->getSettings());
-  light->setDepthCubemap(depthCubemap);
+std::shared_ptr<PointLight> LightManager::createPointLight() {
+  auto light = std::make_shared<PointLight>(_engineState);
 
   std::unique_lock<std::mutex> accessLock(_accessMutex);
   _pointLights.push_back(light);
+  _pointShadows.push_back(nullptr);
 
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _changed[LightType::POINT][i] = true;
   }
-
-  // should be unique command pool for every command buffer to work in parallel.
-  // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
-  std::vector<std::shared_ptr<CommandBuffer>> commandBuffer(6);
-  std::vector<std::shared_ptr<LoggerGPU>> loggerGPU(6);
-  for (int j = 0; j < commandBuffer.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-    commandBuffer[j] = std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool,
-                                                       _state);
-    loggerGPU[j] = std::make_shared<LoggerGPU>(_state);
-  }
-  _commandBufferPoint.push_back(commandBuffer);
-  _loggerGPUPoint.push_back(loggerGPU);
 
   return light;
 }
 
-void LightManager::removePointLights(std::shared_ptr<PointLight> pointLight) {
+std::shared_ptr<PointShadow> LightManager::createPointShadow(std::shared_ptr<PointLight> pointLight,
+                                                             std::shared_ptr<RenderPass> renderPass,
+                                                             std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _pointLights.size(); i++) {
-    if (_pointLights[i] == pointLight) index = i;
+  auto shadow = std::make_shared<PointShadow>(commandBufferTransfer, renderPass, _engineState);
+  int indexLight = std::distance(_pointLights.begin(), find(_pointLights.begin(), _pointLights.end(), pointLight));
+  _pointShadows[indexLight] = shadow;
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::POINT][i] = true;
   }
-  if (index > 0) {
-    _pointLights.erase(_pointLights.begin() + index);
-    _commandBufferPoint.erase(_commandBufferPoint.begin() + index);
-    _loggerGPUPoint.erase(_loggerGPUPoint.begin() + index);
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+
+  return shadow;
+}
+
+void LightManager::removePointLight(std::shared_ptr<PointLight> pointLight) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _pointLights.erase(std::remove(_pointLights.begin(), _pointLights.end(), pointLight),
+                                   _pointLights.end());
+  if (erased != _pointLights.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::POINT][i] = true;
     }
   }
 }
 
+void LightManager::removePoinShadow(std::shared_ptr<PointShadow> pointShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _pointShadows.erase(std::remove(_pointShadows.begin(), _pointShadows.end(), pointShadow),
+                                    _pointShadows.end());
+  if (erased != _pointShadows.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::POINT][i] = true;
+    }
+  }
+}
+
+std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight() {
+  auto light = std::make_shared<DirectionalLight>(_engineState);
+
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  _directionalLights.push_back(light);
+  _directionalShadows.push_back(nullptr);
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+
+  return light;
+}
+
+std::shared_ptr<DirectionalShadow> LightManager::createDirectionalShadow(
+    std::shared_ptr<DirectionalLight> directionalLight,
+    std::shared_ptr<RenderPass> renderPass,
+    std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto shadow = std::make_shared<DirectionalShadow>(commandBufferTransfer, renderPass, _engineState);
+  int indexLight = std::distance(_directionalLights.begin(),
+                                 find(_directionalLights.begin(), _directionalLights.end(), directionalLight));
+  _directionalShadows[indexLight] = shadow;
+
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _changed[LightType::DIRECTIONAL][i] = true;
+  }
+  return shadow;
+}
+
 void LightManager::removeDirectionalLight(std::shared_ptr<DirectionalLight> directionalLight) {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  int index = -1;
-  for (int i = 0; i < _directionalLights.size(); i++) {
-    if (_directionalLights[i] == directionalLight) index = i;
-  }
-  if (index > 0) {
-    _directionalLights.erase(_directionalLights.begin() + index);
-    _commandBufferDirectional.erase(_commandBufferDirectional.begin() + index);
-    _loggerGPUDirectional.erase(_loggerGPUDirectional.begin() + index);
-    for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
+  auto erased = _directionalLights.erase(
+      std::remove(_directionalLights.begin(), _directionalLights.end(), directionalLight), _directionalLights.end());
+  if (erased != _directionalLights.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _changed[LightType::DIRECTIONAL][i] = true;
     }
   }
+}
+
+void LightManager::removeDirectionalShadow(std::shared_ptr<DirectionalShadow> directionalShadow) {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  auto erased = _directionalShadows.erase(
+      std::remove(_directionalShadows.begin(), _directionalShadows.end(), directionalShadow),
+      _directionalShadows.end());
+  if (erased != _directionalShadows.end()) {
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _changed[LightType::DIRECTIONAL][i] = true;
+    }
+  }
+}
+
+void LightManager::setShadowAlgorithm(LightType lightType, ShadowAlgorithm shadowAlgorithm) {
+  _shadowAlgorithm[lightType] = shadowAlgorithm;
 }
 
 const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
@@ -768,45 +883,9 @@ const std::vector<std::shared_ptr<PointLight>>& LightManager::getPointLights() {
   return _pointLights;
 }
 
-const std::vector<std::vector<std::shared_ptr<CommandBuffer>>>& LightManager::getPointLightCommandBuffers() {
-  return _commandBufferPoint;
-}
-
-const std::vector<std::vector<std::shared_ptr<LoggerGPU>>>& LightManager::getPointLightLoggers() {
-  return _loggerGPUPoint;
-}
-
-std::shared_ptr<DirectionalLight> LightManager::createDirectionalLight(std::tuple<int, int> resolution) {
-  std::vector<std::shared_ptr<Texture>> depthTexture;
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(
-        resolution, 1, 1, _state->getSettings()->getDepthFormat(), VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        _state);
-    image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                        VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, _commandBufferTransfer);
-    auto imageView = std::make_shared<ImageView>(image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_DEPTH_BIT,
-                                                 _state);
-    depthTexture.push_back(
-        std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, 1, VK_FILTER_LINEAR, imageView, _state));
-  }
-
-  auto light = std::make_shared<DirectionalLight>();
-  light->setDepthTexture(depthTexture);
-
+const std::vector<std::shared_ptr<PointShadow>>& LightManager::getPointShadows() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  _directionalLights.push_back(light);
-
-  for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-    _changed[LightType::DIRECTIONAL][i] = true;
-  }
-
-  auto commandPool = std::make_shared<CommandPool>(QueueType::GRAPHIC, _state->getDevice());
-  _commandBufferDirectional.push_back(
-      std::make_shared<CommandBuffer>(_state->getSettings()->getMaxFramesInFlight(), commandPool, _state));
-  _loggerGPUDirectional.push_back(std::make_shared<LoggerGPU>(_state));
-
-  return light;
+  return _pointShadows;
 }
 
 const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirectionalLights() {
@@ -814,12 +893,9 @@ const std::vector<std::shared_ptr<DirectionalLight>>& LightManager::getDirection
   return _directionalLights;
 }
 
-const std::vector<std::shared_ptr<CommandBuffer>>& LightManager::getDirectionalLightCommandBuffers() {
-  return _commandBufferDirectional;
-}
-
-const std::vector<std::shared_ptr<LoggerGPU>>& LightManager::getDirectionalLightLoggers() {
-  return _loggerGPUDirectional;
+const std::vector<std::shared_ptr<DirectionalShadow>>& LightManager::getDirectionalShadows() {
+  std::unique_lock<std::mutex> accessLock(_accessMutex);
+  return _directionalShadows;
 }
 
 std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalPhong() { return _descriptorSetLayoutGlobalPhong; }
@@ -859,14 +935,12 @@ void LightManager::draw(int currentFrame) {
   if (_changed[LightType::DIRECTIONAL][currentFrame]) {
     _changed[LightType::DIRECTIONAL][currentFrame] = false;
     _reallocateDirectionalBuffers(currentFrame);
-    _updateDirectionalTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
   if (_changed[LightType::POINT][currentFrame]) {
     _changed[LightType::POINT][currentFrame] = false;
     _reallocatePointBuffers(currentFrame);
-    _updatePointTexture(currentFrame);
     updateLightDescriptors = true;
   }
 
@@ -878,8 +952,13 @@ void LightManager::draw(int currentFrame) {
 
   // light parameters can be changed on per-frame basis
   _updateDirectionalBuffers(currentFrame);
-  _updatePointDescriptors(currentFrame);
+  _updatePointBuffers(currentFrame);
   _updateAmbientBuffers(currentFrame);
 
-  if (updateLightDescriptors) _setLightDescriptors(currentFrame);
+  if (updateLightDescriptors) {
+    // specifies whether shadows are enabled for some specific light or not + algorithm for shadowing.
+    // changes when shadows/lights are changed
+    _updateShadowParametersBuffer(currentFrame);
+    _setLightDescriptors(currentFrame);
+  }
 }

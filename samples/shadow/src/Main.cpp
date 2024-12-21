@@ -2,11 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Primitive/Line.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Model.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -17,12 +17,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -40,8 +38,9 @@ Main::Main() {
   // TODO: fullscreen if resolution is {0, 0}
   // TODO: validation layers complain if resolution is {2560, 1600}
   settings->setResolution(std::tuple{1920, 1080});
-  // for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
-  // https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
+  // settings->setDepthResolution(std::tuple{1024, 1024});
+  //  for HDR, linear 16 bit per channel to represent values outside of 0-1 range (UNORM - float [0, 1], SFLOAT - float)
+  //  https://registry.khronos.org/vulkan/specs/1.1/html/vkspec.html#_identification_of_formats
   settings->setGraphicColorFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
   settings->setSwapchainColorFormat(VK_FORMAT_B8G8R8A8_UNORM);
   // SRGB the same as UNORM but + gamma conversion out of box (!)
@@ -55,35 +54,36 @@ Main::Main() {
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
+  auto commandBufferTransfer = _core->getCommandBufferApplication();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _core->createPointShadow(_pointLightVertical);
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _core->createPointShadow(_pointLightHorizontal);
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 10.f, 0.f));
+  _core->createDirectionalShadow(_directionalLight, true);
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
@@ -93,11 +93,8 @@ Main::Main() {
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
       commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+  cubeColoredLightDirectional->setTranslate(_directionalLight->getCamera()->getPosition());
   _core->addDrawable(cubeColoredLightDirectional);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -162,22 +159,16 @@ Main::Main() {
 
     auto cubeTexturedPhong = _core->createShape3D(ShapeType::CUBE);
     cubeTexturedPhong->setMaterial(materialCubePhong);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
-      cubeTexturedPhong->setModel(model);
-    }
+    cubeTexturedPhong->setTranslate(glm::vec3(0.f, -3.f, -3.f));
     _core->addDrawable(cubeTexturedPhong);
     _core->addShadowable(cubeTexturedPhong);
   }
   {
     // sphere colored
     auto sphereColored = _core->createShape3D(ShapeType::SPHERE);
+    sphereColored->setTranslate(glm::vec3(0.f, 0.f, -5.f));
     sphereColored->getMesh()->setColor(
         std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)}, commandBufferTransfer);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -5.f));
-      sphereColored->setModel(model);
-    }
     _core->addDrawable(sphereColored);
     _core->addShadowable(sphereColored);
   }
@@ -192,11 +183,8 @@ Main::Main() {
     auto animationDancing = _core->createAnimation(gltfModelDancing);
     // set animation to model, so joints will be passed to shader
     modelDancing->setAnimation(animationDancing);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-5.f, -1.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelDancing->setModel(model);
-    }
+    modelDancing->setTranslate(glm::vec3(-5.f, -1.f, -3.f));
+    modelDancing->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(modelDancing);
     _core->addShadowable(modelDancing);
   }
@@ -209,17 +197,15 @@ Main::Main() {
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
                                            settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto terrainPhong = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPhong = _core->createTerrainInterpolation(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+    terrainPhong->setPatchNumber(12, 12);
+    terrainPhong->initialize(_core->getCommandBufferApplication());
     auto materialTerrainPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
     materialTerrainPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     fillMaterialTerrainPhong(materialTerrainPhong);
     terrainPhong->setMaterial(materialTerrainPhong);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -7.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.1f, 0.1f, 0.1f));
-      terrainPhong->setModel(scaleMatrix);
-    }
-
+    terrainPhong->setScale(glm::vec3(0.1f, 0.1f, 0.1f));
+    terrainPhong->setTranslate(glm::vec3(0.f, -7.f, 0.f));
     _core->addDrawable(terrainPhong, AlphaType::OPAQUE);
   }
   // draw textured Sprite Phong without specular
@@ -234,13 +220,9 @@ Main::Main() {
     material->setNormal({textureNormal});
     fillMaterialPhong(material);
     sprite->setMaterial(material);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      sprite->setModel(model);
-    }
-
+    sprite->setTranslate(glm::vec3(3.f, 0.f, -3.f));
+    sprite->setRotate(glm::vec3(glm::radians(-90.f), 0.f, 0.f));
+    sprite->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(sprite);
     _core->addShadowable(sprite);
   }
@@ -290,7 +272,9 @@ Main::Main() {
     auto tile3AO = _core->createTexture("../../terrain/assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto terrainPBR = _core->createTerrain("../../terrain/assets/heightmap.png", std::pair{12, 12});
+    auto terrainPBR = _core->createTerrainInterpolation(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+    terrainPBR->setPatchNumber(12, 12);
+    terrainPBR->initialize(_core->getCommandBufferApplication());
     auto materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
     materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
     materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
@@ -299,12 +283,8 @@ Main::Main() {
     materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
     fillMaterialTerrainPBR(materialPBR);
     terrainPBR->setMaterial(materialPBR);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(3.f, -2.f, 3.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      terrainPBR->setModel(scaleMatrix);
-    }
-
+    terrainPBR->setTranslate(glm::vec3(3.f, -2.f, 3.f));
+    terrainPBR->setScale(glm::vec3(0.01f, 0.01f, 0.01f));
     _core->addDrawable(terrainPBR);
     _core->addShadowable(terrainPBR);
   }
@@ -322,11 +302,8 @@ Main::Main() {
     animationFish->setAnimation("swim");
     // set animation to model, so joints will be passed to shader
     modelFish->setAnimation(animationFish);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
-      model = glm::scale(model, glm::vec3(5.f, 5.f, 5.f));
-      modelFish->setModel(model);
-    }
+    modelFish->setTranslate(glm::vec3(3.f, 3.f, 3.f));
+    modelFish->setScale(glm::vec3(5.f, 5.f, 5.f));
     _core->addDrawable(modelFish);
     _core->addShadowable(modelFish);
   }
@@ -340,11 +317,8 @@ Main::Main() {
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
     spriteTree->setMaterial(materialPBR);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -5.f, -5.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      spriteTree->setModel(model);
-    }
+    spriteTree->setTranslate(glm::vec3(-3.f, -5.f, -5.f));
+    spriteTree->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(spriteTree);
     _core->addShadowable(spriteTree);
   }
@@ -358,12 +332,9 @@ Main::Main() {
     materialPBR->setBaseColor({textureTree});
     fillMaterialPBR(materialPBR);
     spriteTree->setMaterial(materialPBR);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -6.f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      spriteTree->setModel(model);
-    }
+    spriteTree->setTranslate(glm::vec3(3.f, 0.f, -6.f));
+    spriteTree->setRotate(glm::vec3(glm::radians(-90.f), 0.f, 0.f));
+    spriteTree->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(spriteTree);
     _core->addShadowable(spriteTree);
   }
@@ -385,25 +356,17 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
-
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   if (_core->getGUI()->drawSlider(
@@ -416,6 +379,14 @@ void Main::update() {
     _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
   }
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
+  auto eye = _camera->getEye();
+  auto direction = _camera->getDirection();
+  if (_core->getGUI()->startTree("Coordinates")) {
+    _core->getGUI()->drawText({std::string("eye x: ") + std::format("{:.2f}", eye.x),
+                               std::string("eye y: ") + std::format("{:.2f}", eye.y),
+                               std::string("eye z: ") + std::format("{:.2f}", eye.z)});
+    _core->getGUI()->endTree();
+  }
   _core->getGUI()->endWindow();
 }
 

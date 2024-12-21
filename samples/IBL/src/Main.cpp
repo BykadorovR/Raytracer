@@ -2,13 +2,11 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
 #include <random>
 #include <glm/gtc/random.hpp>
-#include "Equirectangular.h"
-#include "IBL.h"
+#include "Primitive/Model.h"
+#include "Primitive/Equirectangular.h"
+#include "Graphic/IBL.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -19,12 +17,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -58,77 +54,70 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(_pointVerticalValue, _pointVerticalValue, _pointVerticalValue));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(_pointHorizontalValue, _pointHorizontalValue, _pointHorizontalValue));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+      _core->getCommandBufferApplication());
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
   _core->addDrawable(cubeColoredLightDirectional);
 
-  auto equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
-  auto cubemapConverted = equirectangular->getCubemap();
+  _equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
+  auto cubemapConverted = _equirectangular->getCubemap();
   auto materialSkybox = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialSkybox->setBaseColor({cubemapConverted->getTexture()});
   auto skybox = _core->createSkybox();
   skybox->setMaterial(materialSkybox);
   _core->addSkybox(skybox);
 
-  auto ibl = _core->createIBL();
-  ibl->setMaterial(materialSkybox);
-  ibl->drawDiffuse();
-  ibl->drawSpecular();
-  ibl->drawSpecularBRDF();
+  _ibl = _core->createIBL();
+  _ibl->setMaterial(materialSkybox);
+  _ibl->drawDiffuse();
+  _ibl->drawSpecular();
+  _ibl->drawSpecularBRDF();
 
   {
     auto modelGLTF = _core->createModelGLTF("../assets/DamagedHelmet/DamagedHelmet.gltf");
     auto modelPBR = _core->createModel3D(modelGLTF);
     auto materialDamagedHelmet = modelGLTF->getMaterialsPBR();
     for (auto& material : materialDamagedHelmet) {
-      material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
-      material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+      material->setSpecularIBL(_ibl->getCubemapSpecular()->getTexture(), _ibl->getTextureSpecularBRDF());
+      material->setDiffuseIBL(_ibl->getCubemapDiffuse()->getTexture());
     }
     modelPBR->setMaterial(materialDamagedHelmet);
-    {
-      auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 0.f, -3.f));
-      model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-      modelPBR->setModel(model);
-    }
+    modelPBR->setTranslate(glm::vec3(-2.f, 0.f, -3.f));
+    modelPBR->setScale(glm::vec3(1.f, 1.f, 1.f));
     _core->addDrawable(modelPBR);
   }
 
@@ -148,25 +137,18 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   if (_core->getGUI()->drawSlider(

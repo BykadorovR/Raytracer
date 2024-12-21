@@ -10,45 +10,24 @@
 #include <mutex>
 #include <memory>
 
-#include "Instance.h"
-#include "Surface.h"
-
-enum class QueueType { PRESENT = 0, GRAPHIC, COMPUTE, TRANSFER };
+#include "Vulkan/Instance.h"
+#include "Vulkan/Surface.h"
 
 class Device {
  private:
-  std::shared_ptr<Instance> _instance;
-  std::shared_ptr<Surface> _surface;
-  VkPhysicalDevice _physicalDevice = VK_NULL_HANDLE;
+  vkb::Device _device;
   VkPhysicalDeviceLimits _deviceLimits;
-  VkDevice _logicalDevice;
-  // device extension
-  const std::vector<const char*> _deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-  // supported device features
-  VkPhysicalDeviceFeatures _supportedFeatures;
-  // supported queues
-  std::map<QueueType, std::optional<uint32_t>> _family;
-  // supported surface capabilities
-  VkSurfaceCapabilitiesKHR _surfaceCapabilities;
-  std::vector<VkSurfaceFormatKHR> _surfaceFormats;
-  std::vector<VkPresentModeKHR> _surfacePresentModes;
-
-  void _createLogicalDevice();
-  void _pickPhysicalDevice();
-  bool _isDeviceSuitable(VkPhysicalDevice device);
 
  public:
   Device(std::shared_ptr<Surface> surface, std::shared_ptr<Instance> instance);
-  VkDevice& getLogicalDevice();
-  VkPhysicalDevice& getPhysicalDevice();
-  std::vector<VkSurfaceFormatKHR>& getSupportedSurfaceFormats();
-  std::vector<VkPresentModeKHR>& getSupportedSurfacePresentModes();
-  VkSurfaceCapabilitiesKHR& getSupportedSurfaceCapabilities();
-  std::optional<uint32_t> getSupportedFamilyIndex(QueueType type);
-  VkQueue getQueue(QueueType type);
-  VkPhysicalDeviceLimits getDeviceLimits();
-  VkFormat findDepthBufferSupportedFormat(const std::vector<VkFormat>& candidates,
-                                          VkImageTiling tiling,
-                                          VkFormatFeatureFlags features);
+  bool isFormatFeatureSupported(VkFormat format, VkImageTiling tiling, VkFormatFeatureFlagBits featureFlagBit);
+  const VkDevice& getLogicalDevice();
+  const VkPhysicalDevice& getPhysicalDevice();
+  const vkb::Device& getDevice();
+  VkQueue getQueue(vkb::QueueType type);
+  int getQueueIndex(vkb::QueueType type);
+
+  VkPhysicalDeviceLimits& getDeviceLimits();
+
   ~Device();
 };

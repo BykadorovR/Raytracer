@@ -1,13 +1,12 @@
-#include "Shader.h"
+#include "Vulkan/Shader.h"
 
 VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
-  VkShaderModuleCreateInfo createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-  createInfo.codeSize = code.size();
-  createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+  VkShaderModuleCreateInfo createInfo{.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                                      .codeSize = code.size(),
+                                      .pCode = reinterpret_cast<const uint32_t*>(code.data())};
 
   VkShaderModule shaderModule;
-  if (vkCreateShaderModule(_state->getDevice()->getLogicalDevice(), &createInfo, nullptr, &shaderModule) !=
+  if (vkCreateShaderModule(_engineState->getDevice()->getLogicalDevice(), &createInfo, nullptr, &shaderModule) !=
       VK_SUCCESS) {
     throw std::runtime_error("failed to create shader module!");
   }
@@ -15,16 +14,15 @@ VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
   return shaderModule;
 }
 
-Shader::Shader(std::shared_ptr<State> state) { _state = state; }
+Shader::Shader(std::shared_ptr<EngineState> engineState) { _engineState = engineState; }
 
 void Shader::add(std::string path, VkShaderStageFlagBits type) {
-  auto shaderCode = _state->getFilesystem()->readFile<char>(path);
+  auto shaderCode = _engineState->getFilesystem()->readFile<char>(path);
   VkShaderModule shaderModule = _createShaderModule(shaderCode);
-  _shaders[type] = {};
-  _shaders[type].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-  _shaders[type].stage = type;
-  _shaders[type].module = shaderModule;
-  _shaders[type].pName = "main";
+  _shaders[type] = {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = type,
+                    .module = shaderModule,
+                    .pName = "main"};
 }
 
 void Shader::setSpecializationInfo(VkSpecializationInfo info, VkShaderStageFlagBits type) {
@@ -36,5 +34,5 @@ VkPipelineShaderStageCreateInfo& Shader::getShaderStageInfo(VkShaderStageFlagBit
 
 Shader::~Shader() {
   for (auto& [type, shader] : _shaders)
-    vkDestroyShaderModule(_state->getDevice()->getLogicalDevice(), shader.module, nullptr);
+    vkDestroyShaderModule(_engineState->getDevice()->getLogicalDevice(), shader.module, nullptr);
 }

@@ -2,7 +2,9 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Window.h"
+#include "Primitive/TerrainInterpolation.h"
+#include "Primitive/TerrainComposition.h"
+#include <nlohmann/json.hpp>
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -13,12 +15,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -28,8 +28,146 @@ void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
 
+void Main::_createTerrainPhong(std::string path) {
+  auto heightmap = _core->loadImageCPU(path);
+  switch (_interpolationMode) {
+    case InrepolationMode::INTERPOLATION:
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
+      break;
+    case InrepolationMode::COMPOSITION:
+      _terrain = _core->createTerrainComposition(heightmap);
+      break;
+  }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialPhong);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+}
+
+void Main::_createTerrainPBR(std::string path) {
+  auto heightmap = _core->loadImageCPU(path);
+  switch (_interpolationMode) {
+    case InrepolationMode::INTERPOLATION:
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
+      break;
+    case InrepolationMode::COMPOSITION:
+      _terrain = _core->createTerrainComposition(heightmap);
+      break;
+  }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialPBR);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+}
+
+void Main::_createTerrainColor(std::string path) {
+  auto heightmap = _core->loadImageCPU(path);
+  switch (_interpolationMode) {
+    case InrepolationMode::INTERPOLATION:
+      _terrain = _core->createTerrainInterpolation(heightmap);
+      if (_stripeLeft.has_value())
+        std::dynamic_pointer_cast<TerrainInterpolation>(_terrain)->setStripes(_stripeLeft.value(), _stripeTop.value(),
+                                                                              _stripeRight.value(), _stripeBot.value());
+      break;
+    case InrepolationMode::COMPOSITION:
+      _terrain = _core->createTerrainComposition(heightmap);
+      break;
+  }
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->setPatchRotations(_patchRotationsIndex);
+  _terrain->setPatchTextures(_patchTextures);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialColor);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+}
+
+void Main::_loadTerrain(std::string path) {
+  std::ifstream file(path);
+  nlohmann::json inputJSON;
+  file >> inputJSON;
+  if (inputJSON["stripe"].is_null() == false) {
+    _stripeLeft = inputJSON["stripe"][0];
+    _stripeRight = inputJSON["stripe"][1];
+    _stripeTop = inputJSON["stripe"][2];
+    _stripeBot = inputJSON["stripe"][3];
+  }
+
+  _patchX = inputJSON["patches"][0];
+  _patchY = inputJSON["patches"][1];
+  _patchRotationsIndex.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["rotation"].size(); i++) {
+    _patchRotationsIndex[i] = inputJSON["rotation"][i];
+  }
+  _patchTextures.resize(_patchX * _patchY);
+  for (int i = 0; i < inputJSON["textures"].size(); i++) {
+    _patchTextures[i] = inputJSON["textures"][i];
+  }
+}
+
+void Main::_createTerrainDebug(std::string path) {
+  switch (_interpolationMode) {
+    case InrepolationMode::INTERPOLATION:
+      _terrainDebug = std::make_shared<TerrainInterpolationDebug>(
+          _core->loadImageCPU(path), std::pair{_patchX, _patchY}, _core->getCommandBufferApplication(), _core->getGUI(),
+          _core->getGameState(), _core->getEngineState());
+      break;
+    case InrepolationMode::COMPOSITION:
+      _terrainDebug = std::make_shared<TerrainCompositionDebug>(_core->loadImageCPU(path), std::pair{_patchX, _patchY},
+                                                                _core->getCommandBufferApplication(), _core->getGUI(),
+                                                                _core->getGameState(), _core->getEngineState());
+      break;
+  }
+
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_terrainDebug));
+  _terrainDebug->setTerrainPhysics(_terrainPhysics, _terrainCPU);
+  _terrainDebug->setMaterial(_materialColor);
+
+  _terrainDebug->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrainDebug->setTesselationDistance(_minDistance, _maxDistance);
+  _terrainDebug->setColorHeightLevels(_heightLevels);
+  _terrainDebug->setHeight(_heightScale, _heightShift);
+  _terrainDebug->patchEdge(_showPatches);
+  _terrainDebug->showLoD(_showLoD);
+  if (_showWireframe) {
+    _terrainDebug->setDrawType(DrawType::WIREFRAME);
+  }
+  if (_showNormals) {
+    _terrainDebug->setDrawType(DrawType::NORMAL);
+  }
+  if (_showWireframe == false && _showNormals == false) {
+    _terrainDebug->setDrawType(DrawType::FILL);
+  }
+  _terrainDebug->setScale(_terrainScale);
+  _terrainDebug->setTranslate(_terrainPositionDebug);
+}
+
 Main::Main() {
-  int mipMapLevels = 8;
+  int mipMapLevels = 4;
   auto settings = std::make_shared<Settings>();
   settings->setName("Terrain");
   settings->setClearColor({0.01f, 0.01f, 0.01f, 1.f});
@@ -49,42 +187,41 @@ Main::Main() {
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
 
-  float heightScale = 64.f;
-  float heightShift = 16.f;
-  std::array<float, 4> heightLevels = {16, 128, 192, 256};
-  int minTessellationLevel = 4, maxTessellationLevel = 32;
-  float minDistance = 30, maxDistance = 100;
-
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _camera->setSpeed(0.05f, 0.01f);
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
 
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
+
+  _sphereClickDebug = _core->createShape3D(ShapeType::SPHERE);
+  _sphereClickDebug->setScale(glm::vec3(0.005f, 0.005f, 0.005f));
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
@@ -116,27 +253,13 @@ Main::Main() {
   {
     auto tile0 = _core->createTexture("../assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
-    auto tile1 = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(), mipMapLevels);
-    auto tile2 = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1 = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
+    auto tile2 = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(), mipMapLevels);
     auto tile3 = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                       mipMapLevels);
-
-    _terrainColor = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
-    materialColor->setBaseColor({tile0, tile1, tile2, tile3});
-    _terrainColor->setMaterial(materialColor);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainColor->setModel(scaleMatrix);
-    }
-
-    _terrainColor->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainColor->setDisplayDistance(minDistance, maxDistance);
-    _terrainColor->setColorHeightLevels(heightLevels);
-    _terrainColor->setHeight(heightScale, heightShift);
-    _core->addDrawable(_terrainColor);
+    _materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
+    _materialColor->setBaseColor({tile0, tile1, tile2, tile3});
   }
 
   {
@@ -144,36 +267,23 @@ Main::Main() {
                                            mipMapLevels);
     auto tile0Normal = _core->createTexture("../assets/desert/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile1Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile1Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile2Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile2Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile2Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
     auto tile3Color = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
     auto tile3Normal = _core->createTexture("../assets/ground/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
 
-    _terrainPhong = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
-    materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
-    materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
-    fillMaterialPhong(materialPhong);
-    _terrainPhong->setMaterial(materialPhong);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 0.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainPhong->setModel(scaleMatrix);
-    }
-    _terrainPhong->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainPhong->setDisplayDistance(minDistance, maxDistance);
-    _terrainPhong->setColorHeightLevels(heightLevels);
-    _terrainPhong->setHeight(heightScale, heightShift);
-
-    _core->addDrawable(_terrainPhong);
+    _materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
+    _materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    fillMaterialPhong(_materialPhong);
   }
 
   {
@@ -188,26 +298,26 @@ Main::Main() {
     auto tile0AO = _core->createTexture("../assets/desert/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto tile1Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile1Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile1Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile1Metallic = _core->createTexture("../assets/rock/metallic.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Metallic = _core->createTexture("../assets/grass/metallic.png", settings->getLoadTextureAuxilaryFormat(),
                                               mipMapLevels);
-    auto tile1Roughness = _core->createTexture("../assets/rock/roughness.png", settings->getLoadTextureAuxilaryFormat(),
-                                               mipMapLevels);
-    auto tile1AO = _core->createTexture("../assets/rock/ao.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile1Roughness = _core->createTexture("../assets/grass/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1AO = _core->createTexture("../assets/grass/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    auto tile2Color = _core->createTexture("../assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+    auto tile2Color = _core->createTexture("../assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
                                            mipMapLevels);
-    auto tile2Normal = _core->createTexture("../assets/grass/normal.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Normal = _core->createTexture("../assets/rock/normal.png", settings->getLoadTextureAuxilaryFormat(),
                                             mipMapLevels);
-    auto tile2Metallic = _core->createTexture("../assets/grass/metallic.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Metallic = _core->createTexture("../assets/rock/metallic.png", settings->getLoadTextureAuxilaryFormat(),
                                               mipMapLevels);
-    auto tile2Roughness = _core->createTexture("../assets/grass/roughness.png",
-                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
-    auto tile2AO = _core->createTexture("../assets/grass/ao.png", settings->getLoadTextureAuxilaryFormat(),
+    auto tile2Roughness = _core->createTexture("../assets/rock/roughness.png", settings->getLoadTextureAuxilaryFormat(),
+                                               mipMapLevels);
+    auto tile2AO = _core->createTexture("../assets/rock/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
     auto tile3Color = _core->createTexture("../assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
@@ -221,27 +331,42 @@ Main::Main() {
     auto tile3AO = _core->createTexture("../assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
                                         mipMapLevels);
 
-    _terrainPBR = _core->createTerrain("../assets/heightmap.png", std::pair{12, 12});
-    auto materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
-    materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
-    materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
-    materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
-    materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
-    materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
-    fillMaterialPBR(materialPBR);
-    _terrainPBR->setMaterial(materialPBR);
-    {
-      auto translateMatrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-      auto scaleMatrix = glm::scale(translateMatrix, glm::vec3(0.01f, 0.01f, 0.01f));
-      _terrainPBR->setModel(scaleMatrix);
-    }
-    _terrainPBR->setTessellationLevel(minTessellationLevel, maxTessellationLevel);
-    _terrainPBR->setDisplayDistance(minDistance, maxDistance);
-    _terrainPBR->setColorHeightLevels(heightLevels);
-    _terrainPBR->setHeight(heightScale, heightShift);
-
-    _core->addDrawable(_terrainPBR);
+    _materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
+    _materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    _materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
+    _materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
+    _materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
+    fillMaterialPBR(_materialPBR);
   }
+
+  switch (_typeIndex) {
+    case 0:
+      _createTerrainColor("../assets/heightmap.png");
+      break;
+    case 1:
+      _createTerrainPhong("../assets/heightmap.png");
+      break;
+    case 2:
+      _createTerrainPBR("../assets/heightmap.png");
+      break;
+  }
+  _core->addDrawable(_terrain);
+
+  auto terrainCPU = _core->loadImageCPU("../assets/heightmap.png");
+  auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
+  _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x, _terrainPositionDebug.y, _terrainPositionDebug.z);
+
+  _physicsManager = std::make_shared<PhysicsManager>();
+  _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
+                                                     _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
+                                                     _physicsManager, _core->getGameState(), _core->getEngineState());
+  _terrainCPU = _core->createTerrainCPU(_terrainPhysics->getHeights(), terrainCPU->getResolution());
+  _terrainCPU->setDrawType(DrawType::WIREFRAME);
+  _terrainCPU->setTranslate(_terrainPositionDebug);
+  _terrainCPU->setScale(_terrainScale);
+
+  _createTerrainDebug("../assets/heightmap.png");
 
   _core->endRecording();
 
@@ -261,26 +386,18 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
-
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Terrain", {20, 20}, {widthScreen / 10, heightScreen / 10});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Terrain");
+  _core->getGUI()->setWindowPosition({20, 20});
   if (_core->getGUI()->startTree("Info")) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
@@ -288,36 +405,138 @@ void Main::update() {
     _core->getGUI()->endTree();
   }
   if (_core->getGUI()->startTree("Toggles")) {
-    if (_core->getGUI()->drawCheckbox({{"Patches", &_showPatches}})) {
-      _terrainColor->patchEdge(_showPatches);
-      _terrainPhong->patchEdge(_showPatches);
-      _terrainPBR->patchEdge(_showPatches);
+    std::map<std::string, int*> terrainType;
+    terrainType["##Type"] = &_typeIndex;
+    if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
+      _core->startRecording();
+      switch (_typeIndex) {
+        case 0:
+          _terrain->setMaterial(_materialColor);
+          break;
+        case 1:
+          _terrain->setMaterial(_materialPhong);
+          break;
+        case 2:
+          _terrain->setMaterial(_materialPBR);
+          break;
+      }
+      _core->endRecording();
     }
-    if (_core->getGUI()->drawCheckbox({{"LoD", &_showLoD}})) {
-      _terrainColor->showLoD(_showLoD);
-      _terrainPhong->showLoD(_showLoD);
-      _terrainPBR->showLoD(_showLoD);
+
+    std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
+    if (_core->getGUI()->drawInputInt(patchesNumber)) {
+      _core->startRecording();
+      if (_showTerrain) _core->removeDrawable(_terrain);
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor("../assets/heightmap.png");
+          break;
+        case 1:
+          _createTerrainPhong("../assets/heightmap.png");
+          break;
+        case 2:
+          _createTerrainPBR("../assets/heightmap.png");
+          break;
+      }
+      if (_showTerrain) _core->addDrawable(_terrain);
+      _core->endRecording();
     }
-    if (_core->getGUI()->drawCheckbox({{"Wireframe", &_showWireframe}})) {
-      _terrainColor->setDrawType(DrawType::WIREFRAME);
-      _terrainPhong->setDrawType(DrawType::WIREFRAME);
-      _terrainPBR->setDrawType(DrawType::WIREFRAME);
-      _showNormals = false;
+
+    std::map<std::string, int*> tesselationLevels{{"Tesselation min", &_minTessellationLevel},
+                                                  {"Tesselation max", &_maxTessellationLevel}};
+    if (_core->getGUI()->drawInputInt(tesselationLevels)) {
+      _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
     }
-    if (_core->getGUI()->drawCheckbox({{"Normal", &_showNormals}})) {
-      _terrainColor->setDrawType(DrawType::NORMAL);
-      _terrainPhong->setDrawType(DrawType::NORMAL);
-      _terrainPBR->setDrawType(DrawType::NORMAL);
-      _showWireframe = false;
+
+    std::map<std::string, int*> interpolationType;
+    interpolationType["##Interpolation"] = &_interpolationIndex;
+    if (_core->getGUI()->drawListBox({"Interpolation", "Composition"}, interpolationType, 2)) {
+      switch (_interpolationIndex) {
+        case 0:
+          _interpolationMode = InrepolationMode::INTERPOLATION;
+          break;
+        case 1:
+          _interpolationMode = InrepolationMode::COMPOSITION;
+          break;
+      }
+      _core->startRecording();
+      if (_showTerrain) _core->removeDrawable(_terrain);
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor("../assets/heightmap.png");
+          break;
+        case 1:
+          _createTerrainPhong("../assets/heightmap.png");
+          break;
+        case 2:
+          _createTerrainPBR("../assets/heightmap.png");
+          break;
+      }
+      if (_showTerrain) _core->addDrawable(_terrain);
+
+      if (_showDebug) _core->removeDrawable(_terrainDebug);
+      _createTerrainDebug("../assets/heightmap.png");
+      if (_showDebug) _core->addDrawable(_terrainDebug);
+
+      _core->endRecording();
     }
-    if (_showWireframe == false && _showNormals == false) {
-      _terrainColor->setDrawType(DrawType::FILL);
-      _terrainPhong->setDrawType(DrawType::FILL);
-      _terrainPBR->setDrawType(DrawType::FILL);
+
+    _core->getGUI()->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
+
+    if (_core->getGUI()->drawButton("Load terrain")) {
+      _core->startRecording();
+      if (_showTerrain) _core->removeDrawable(_terrain);
+      _loadTerrain(std::string(_terrainPath) + ".json");
+      switch (_typeIndex) {
+        case 0:
+          _createTerrainColor(std::string(_terrainPath) + ".png");
+          break;
+        case 1:
+          _createTerrainPhong(std::string(_terrainPath) + ".png");
+          break;
+        case 2:
+          _createTerrainPBR(std::string(_terrainPath) + ".png");
+          break;
+      }
+      if (_showTerrain) _core->addDrawable(_terrain);
+      _core->endRecording();
     }
+
     _core->getGUI()->endTree();
   }
+
+  if (_core->getGUI()->drawCheckbox({{"Show Terrain", &_showTerrain}})) {
+    if (_showTerrain == false) {
+      _core->removeDrawable(_terrain);
+    } else {
+      _core->addDrawable(_terrain);
+    }
+  }
+  if (_core->getGUI()->drawCheckbox({{"Show Debug", &_showDebug}})) {
+    if (_showDebug == false) {
+      _core->removeDrawable(_terrainDebug);
+      _core->removeDrawable(_terrainCPU);
+    } else {
+      _core->addDrawable(_terrainDebug);
+      _core->addDrawable(_terrainCPU);
+    }
+  }
   _core->getGUI()->endWindow();
+
+  auto hitPosition = _terrainDebug->getHitCoords();
+  if (hitPosition) {
+    _sphereClickDebug->setTranslate(hitPosition.value());
+    _core->addDrawable(_sphereClickDebug);
+  }
+
+  if (_showDebug) {
+    _core->getGUI()->startWindow("Editor");
+    _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
+    _core->startRecording();
+    _terrainDebug->drawDebug(_core->getCommandBufferApplication());
+    _core->endRecording();
+    _core->getGUI()->endWindow();
+  }
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

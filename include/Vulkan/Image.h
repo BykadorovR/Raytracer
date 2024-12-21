@@ -1,14 +1,14 @@
 #pragma once
-#include "State.h"
-#include "Buffer.h"
+#include "Utility/EngineState.h"
+#include "Vulkan/Buffer.h"
 #include <tuple>
 
 class Image {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::tuple<int, int> _resolution;
   VkImage _image;
-  VkDeviceMemory _imageMemory;
+  VmaAllocation _imageMemory;
   VkFormat _format;
   int _layers;
   bool _external = false;
@@ -16,7 +16,7 @@ class Image {
   std::shared_ptr<Buffer> _stagingBuffer;
 
  public:
-  Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state);
+  Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<EngineState> engineState);
   Image(std::tuple<int, int> resolution,
         int layers,
         int mipMapLevels,
@@ -24,8 +24,9 @@ class Image {
         VkImageTiling tiling,
         VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties,
-        std::shared_ptr<State> state);
+        std::shared_ptr<EngineState> engineState);
 
+  void setData(std::shared_ptr<Buffer> buffer);
   // bufferOffsets contains offsets for part of buffer that should be copied to corresponding layers of image
   void copyFrom(std::shared_ptr<Buffer> buffer,
                 std::vector<int> bufferOffsets,
@@ -52,7 +53,7 @@ class ImageView {
  private:
   std::shared_ptr<Image> _image;
   VkImageView _imageView;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
 
  public:
   // baseArrayLayer - which face is used
@@ -66,9 +67,27 @@ class ImageView {
             int baseMipMap,
             int mipMapNumber,
             VkImageAspectFlags aspectFlags,
-            std::shared_ptr<State> state);
+            std::shared_ptr<EngineState> engineState);
+  ImageView(std::shared_ptr<Image> image, VkImageView& imageView, std::shared_ptr<EngineState> engineState);
   VkImageView& getImageView();
   std::shared_ptr<Image> getImage();
 
   ~ImageView();
+};
+
+class Framebuffer {
+ private:
+  std::shared_ptr<Device> _device;
+  VkFramebuffer _buffer;
+  std::tuple<int, int> _resolution;
+
+ public:
+  Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
+              std::tuple<int, int> renderArea,
+              std::shared_ptr<RenderPass> renderPass,
+              std::shared_ptr<Device> device);
+
+  std::tuple<int, int> getResolution();
+  VkFramebuffer getBuffer();
+  ~Framebuffer();
 };

@@ -1,16 +1,13 @@
-#include "GUI.h"
-#include "Sampler.h"
-#include "Descriptor.h"
-#include "Input.h"
+#include "Utility/GUI.h"
 
-GUI::GUI(std::shared_ptr<State> state) {
-  _state = state;
-  _resolution = state->getSettings()->getResolution();
+GUI::GUI(std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
+  _resolution = engineState->getSettings()->getResolution();
 
-  _vertexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
-  _indexBuffer.resize(state->getSettings()->getMaxFramesInFlight());
-  _vertexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
-  _indexCount.resize(state->getSettings()->getMaxFramesInFlight(), 0);
+  _vertexBuffer.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _indexBuffer.resize(engineState->getSettings()->getMaxFramesInFlight());
+  _vertexCount.resize(engineState->getSettings()->getMaxFramesInFlight(), 0);
+  _indexCount.resize(engineState->getSettings()->getMaxFramesInFlight(), 0);
 
   ImGui::CreateContext();
   ImGuiIO& io = ImGui::GetIO();
@@ -30,7 +27,7 @@ GUI::GUI(std::shared_ptr<State> state) {
 
 void GUI::reset() {
   ImGuiIO& io = ImGui::GetIO();
-  _resolution = _state->getSettings()->getResolution();
+  _resolution = _engineState->getSettings()->getResolution();
   io.DisplaySize = ImVec2(std::get<0>(_resolution), std::get<1>(_resolution));
 }
 
@@ -45,10 +42,11 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   // check if device extensions are supported
   uint32_t extensionCount;
-  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount, nullptr);
+  vkEnumerateDeviceExtensionProperties(_engineState->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
+                                       nullptr);
 
   std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-  vkEnumerateDeviceExtensionProperties(_state->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
+  vkEnumerateDeviceExtensionProperties(_engineState->getDevice()->getPhysicalDevice(), nullptr, &extensionCount,
                                        availableExtensions.data());
   bool supported = false;
   for (const auto& extension : availableExtensions) {
@@ -60,57 +58,88 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
 
   auto stagingBuffer = std::make_shared<Buffer>(
       uploadSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _state);
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory(), 0, uploadSize, 0, &data);
-  memcpy(data, fontData, uploadSize);
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), stagingBuffer->getMemory());
+  stagingBuffer->setData(fontData);
 
-  _fontImage = std::make_shared<Image>(std::tuple{texWidth, texHeight}, 1, 1,
-                                       _state->getSettings()->getLoadTextureColorFormat(), VK_IMAGE_TILING_OPTIMAL,
-                                       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _state);
+  _fontImage = std::make_shared<Image>(
+      std::tuple{texWidth, texHeight}, 1, 1, _engineState->getSettings()->getLoadTextureColorFormat(),
+      VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, _engineState);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
                            1, 1, commandBufferTransfer);
   _fontImage->copyFrom(stagingBuffer, {0}, commandBufferTransfer);
   _fontImage->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_ASPECT_COLOR_BIT, 1,
                            1, commandBufferTransfer);
   _imageView = std::make_shared<ImageView>(_fontImage, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           _state);
-  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView, _state);
+                                           _engineState);
+  _fontTexture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR, _imageView,
+                                           _engineState);
 
-  _descriptorPool = std::make_shared<DescriptorPool>(100, _state->getDevice());
-  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  _descriptorSetLayout->createGUI();
+  _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
+  _descriptorSetLayout->createCustom(layoutBinding);
 
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(UniformData),
-                                                   _state);
-  _descriptorSet = std::make_shared<DescriptorSet>(_state->getSettings()->getMaxFramesInFlight(), _descriptorSetLayout,
-                                                   _descriptorPool, _state->getDevice());
-  _descriptorSet->createGUI(_fontTexture, _uniformBuffer);
+  _scaleTranslateBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
+                                                   _descriptorSetLayout, _engineState);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _scaleTranslateBuffer[i] = std::make_shared<Buffer>(
+        sizeof(UniformDataGUI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
-  auto shader = std::make_shared<Shader>(_state);
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
+        {0,
+         {{.buffer = _scaleTranslateBuffer[i]->getData(), .offset = 0, .range = _scaleTranslateBuffer[i]->getSize()}}}};
+    std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
+        {1,
+         {{.sampler = _fontTexture->getSampler()->getSampler(),
+           .imageView = _fontTexture->getImageView()->getImageView(),
+           .imageLayout = _fontTexture->getImageView()->getImage()->getImageLayout()}}}};
+    _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
+  }
+
+  auto bindingDescriptor = VkVertexInputBindingDescription{.binding = 0,
+                                                           .stride = sizeof(ImDrawVert),
+                                                           .inputRate = VK_VERTEX_INPUT_RATE_VERTEX};
+  // the order is different from built-in Mesh type, so need to handle it explicitily
+  std::vector<VkVertexInputAttributeDescription> attributeDescriptor{
+      {.location = 0, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(ImDrawVert, pos)},
+      {.location = 1, .binding = 0, .format = VK_FORMAT_R32G32_SFLOAT, .offset = offsetof(ImDrawVert, uv)},
+      {.location = 2, .binding = 0, .format = VK_FORMAT_R8G8B8A8_UNORM, .offset = offsetof(ImDrawVert, col)}};
+
+  auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/UI/ui_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/UI/ui_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeDebug();
-  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createHUD({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
-                        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-                       {{"gui", _descriptorSetLayout}}, {}, VertexGUI::getBindingDescription(),
-                       VertexGUI::getAttributeDescriptions(), _renderPass);
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GUI);
+  _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+  _pipeline->createCustom({shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
+                           shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
+                          {{"gui", _descriptorSetLayout}}, {}, bindingDescriptor, attributeDescriptor, _renderPass);
   ImGui::NewFrame();
 }
 
-void GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
+bool GUI::drawListBox(std::vector<std::string> list, std::map<std::string, int*> variable, int displayedNumber) {
+  bool result = false;
+
   for (auto& [key, value] : variable) {
     std::vector<const char*> listFormatted;
     for (auto& item : list) {
       listFormatted.push_back(item.c_str());
     }
-    ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber);
+    if (ImGui::ListBox(key.c_str(), value, listFormatted.data(), listFormatted.size(), displayedNumber)) result = true;
   }
+
+  return result;
 }
 
 bool GUI::drawButton(std::string label, bool hideWindow) {
@@ -158,6 +187,13 @@ bool GUI::drawInputFloat(std::map<std::string, float*> variable) {
   return result;
 }
 
+bool GUI::drawInputText(std::string label, char* buffer, int size) {
+  bool result = false;
+  if (ImGui::InputText(label.c_str(), buffer, size, ImGuiInputTextFlags_EnterReturnsTrue)) result = true;
+
+  return result;
+}
+
 bool GUI::drawInputInt(std::map<std::string, int*> variable) {
   bool result = false;
   for (auto& [key, value] : variable) {
@@ -189,33 +225,27 @@ void GUI::updateBuffers(int current) {
 
   if ((_vertexBuffer[current] == nullptr) || (_vertexCount[current] != imDrawData->TotalVtxCount)) {
     _vertexBuffer[current] = std::make_shared<Buffer>(vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
+                                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _vertexCount[current] = imDrawData->TotalVtxCount;
-    _vertexBuffer[current]->map();
   }
 
   // Index buffer
   if ((_indexBuffer[current] == nullptr) || (_indexCount[current] != imDrawData->TotalIdxCount)) {
     _indexBuffer[current] = std::make_shared<Buffer>(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _state);
+                                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, _engineState);
     _indexCount[current] = imDrawData->TotalIdxCount;
-    _indexBuffer[current]->map();
   }
 
   // Upload data
-  ImDrawVert* vtxDst = (ImDrawVert*)_vertexBuffer[current]->getMappedMemory();
-  ImDrawIdx* idxDst = (ImDrawIdx*)_indexBuffer[current]->getMappedMemory();
-
+  int vertexDst = 0;
+  int indexDst = 0;
   for (int n = 0; n < imDrawData->CmdListsCount; n++) {
-    const ImDrawList* cmd_list = imDrawData->CmdLists[n];
-    memcpy(vtxDst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-    memcpy(idxDst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-    vtxDst += cmd_list->VtxBuffer.Size;
-    idxDst += cmd_list->IdxBuffer.Size;
+    const ImDrawList* cmdList = imDrawData->CmdLists[n];
+    _vertexBuffer[current]->setData(cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert), vertexDst);
+    _indexBuffer[current]->setData(cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx), indexDst);
+    vertexDst += cmdList->VtxBuffer.Size * sizeof(ImDrawVert);
+    indexDst += cmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
   }
-
-  _vertexBuffer[current]->flush();
-  _indexBuffer[current]->flush();
 }
 
 void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -224,24 +254,18 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
 
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  std::tie(viewport.width, viewport.height) = _resolution;
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  VkViewport viewport{.x = 0.0f,
+                      .y = 0.0f,
+                      .width = static_cast<float>(std::get<0>(_resolution)),
+                      .height = static_cast<float>(std::get<1>(_resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[current], 0, 1, &viewport);
 
   // UI scale and translate via push constants
-  UniformData uniformData{};
-  uniformData.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
-  uniformData.translate = glm::vec2(-1.0f);
-
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory(), 0,
-              sizeof(uniformData), 0, &data);
-  memcpy(data, &uniformData, sizeof(uniformData));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[current]->getMemory());
+  UniformDataGUI uniformData{.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y),
+                             .translate = glm::vec2(-1.0f)};
+  _scaleTranslateBuffer[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,
@@ -260,41 +284,51 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
                          VK_INDEX_TYPE_UINT16);
 
     for (int32_t i = 0; i < imDrawData->CmdListsCount; i++) {
-      const ImDrawList* cmd_list = imDrawData->CmdLists[i];
-      for (int32_t j = 0; j < cmd_list->CmdBuffer.Size; j++) {
-        const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
-        VkRect2D scissorRect;
-        scissorRect.offset.x = std::max((int32_t)(pcmd->ClipRect.x), 0);
-        scissorRect.offset.y = std::max((int32_t)(pcmd->ClipRect.y), 0);
-        scissorRect.extent.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x);
-        scissorRect.extent.height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y);
+      const ImDrawList* cmdList = imDrawData->CmdLists[i];
+      for (int32_t j = 0; j < cmdList->CmdBuffer.Size; j++) {
+        const ImDrawCmd* pcmd = &cmdList->CmdBuffer[j];
+        VkRect2D scissorRect{
+            .offset = {.x = std::max((int32_t)(pcmd->ClipRect.x), 0), .y = std::max((int32_t)(pcmd->ClipRect.y), 0)},
+            .extent = {.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                       .height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y)}};
         vkCmdSetScissor(commandBuffer->getCommandBuffer()[current], 0, 1, &scissorRect);
         vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[current], pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
         indexOffset += pcmd->ElemCount;
       }
-      vertexOffset += cmd_list->VtxBuffer.Size;
+      vertexOffset += cmdList->VtxBuffer.Size;
     }
   }
 
   ImGui::NewFrame();
 }
 
-void GUI::startWindow(std::string name, std::tuple<int, int> position, std::tuple<int, int> size, float fontScale) {
-  ImGui::SetNextWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)), ImGuiCond_FirstUseEver);
-  // ImGui::SetNextWindowContentSize(ImVec2(std::get<0>(size), std::get<1>(size)));
-  ImGui::SetNextWindowSizeConstraints(ImVec2(std::get<0>(size), std::get<1>(size)), ImVec2(FLT_MAX, FLT_MAX));
-
+void GUI::startWindow(std::string name, float fontScale) {
   ImGui::Begin(name.c_str(), 0, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::GetFont()->Scale = fontScale;
   ImGui::PushFont(ImGui::GetFont());
 }
 
-std::tuple<int, int, int, int> GUI::endWindow() {
-  ImVec2 size = ImGui::GetWindowSize();
-  ImVec2 position = ImGui::GetWindowPos();
+void GUI::setWindowSize(std::tuple<int, int> size) {
+  ImGui::SetWindowSize(ImVec2(std::get<0>(size), std::get<1>(size)));
+}
+
+void GUI::setWindowPosition(std::tuple<int, int> position) {
+  ImGui::SetWindowPos(ImVec2(std::get<0>(position), std::get<1>(position)));
+}
+
+std::tuple<int, int> GUI::getWindowSize() {
+  auto size = ImGui::GetWindowSize();
+  return {size.x, size.y};
+}
+
+std::tuple<int, int> GUI::getWindowPosition() {
+  auto position = ImGui::GetWindowPos();
+  return {position.x, position.y};
+}
+
+void GUI::endWindow() {
   ImGui::PopFont();
   ImGui::End();
-  return {position.x, position.y, size.x, size.y};
 }
 
 bool GUI::startTree(std::string name, bool open) {
@@ -306,12 +340,18 @@ void GUI::endTree() { ImGui::TreePop(); }
 
 GUI::~GUI() { ImGui::DestroyContext(); }
 
-void GUI::cursorNotify(float xPos, float yPos) {
+bool GUI::cursorNotify(float xPos, float yPos) {
   ImGuiIO& io = ImGui::GetIO();
   io.MousePos = ImVec2(xPos, yPos);
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::mouseNotify(int button, int action, int mods) {
+bool GUI::mouseNotify(int button, int action, int mods) {
   ImGuiIO& io = ImGui::GetIO();
 #ifdef __ANDROID__
   if (action == 1) io.MouseDown[0] = true;
@@ -330,20 +370,37 @@ void GUI::mouseNotify(int button, int action, int mods) {
     io.MouseDown[1] = false;
   }
 #endif
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::charNotify(unsigned int code) {
+bool GUI::charNotify(unsigned int code) {
   ImGuiIO& io = ImGui::GetIO();
   io.AddInputCharacter(code);
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::scrollNotify(double xOffset, double yOffset) {
+bool GUI::scrollNotify(double xOffset, double yOffset) {
   ImGuiIO& io = ImGui::GetIO();
   io.MouseWheelH += (float)xOffset;
   io.MouseWheel += (float)yOffset;
+
+  if (io.WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
 }
 
-void GUI::keyNotify(int key, int scancode, int action, int mods) {
+bool GUI::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   ImGuiIO& io = ImGui::GetIO();
   if (key == GLFW_KEY_BACKSPACE && action == GLFW_PRESS) {
@@ -374,5 +431,11 @@ void GUI::keyNotify(int key, int scancode, int action, int mods) {
     io.AddKeyEvent(ImGuiKey_LeftCtrl, false);
     io.AddKeyEvent(ImGuiKey_ModCtrl, false);
   }
+
+  if (io.WantCaptureKeyboard) {
+    return true;
+  }
 #endif
+
+  return false;
 }

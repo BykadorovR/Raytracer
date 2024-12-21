@@ -1,9 +1,9 @@
 #pragma once
-#include "Window.h"
+#include "Vulkan/Window.h"
+#include "Vulkan/Instance.h"
 #include "tuple"
 #include <vector>
 #include <memory>
-#include "Instance.h"
 
 class Surface {
  private:

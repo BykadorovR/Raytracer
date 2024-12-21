@@ -1,18 +1,19 @@
-#include "Cubemap.h"
-#include "Buffer.h"
+#include "Primitive/Cubemap.h"
+#include "Vulkan/Buffer.h"
 
 Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
                  VkFormat format,
                  int mipMapLevels,
                  VkImageAspectFlagBits colorBits,
                  VkImageUsageFlags usage,
+                 VkFilter filter,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<State> state) {
-  _state = state;
+                 std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   // image
   // usage VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
   _image = std::make_shared<Image>(data->getResolution(), data->getNumber(), mipMapLevels, format,
-                                   VK_IMAGE_TILING_OPTIMAL, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
+                                   VK_IMAGE_TILING_OPTIMAL, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, colorBits, 6, mipMapLevels,
                        commandBufferTransfer);
   int imageSize = std::get<0>(data->getResolution()) * std::get<1>(data->getResolution()) * data->getChannels();
@@ -24,9 +25,10 @@ Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
   // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
   //_image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout, colorBits, 6, mipMapLevels,
   // commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6, 0, mipMapLevels, colorBits, state);
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, mipMapLevels, VK_FILTER_LINEAR,
-                                       _imageView, _state);
+  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6, 0, mipMapLevels, colorBits,
+                                           engineState);
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, mipMapLevels, filter, _imageView,
+                                       _engineState);
 
   _imageViewSeparate.resize(6);
   _textureSeparate.resize(6);
@@ -35,9 +37,9 @@ Cubemap::Cubemap(std::shared_ptr<BufferImage> data,
     _textureSeparate[i].resize(mipMapLevels);
     for (int j = 0; j < mipMapLevels; j++) {
       _imageViewSeparate[i][j] = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, i, 1, j, 1, colorBits,
-                                                             state);
-      _textureSeparate[i][j] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
-                                                         _imageViewSeparate[i][j], _state);
+                                                             engineState);
+      _textureSeparate[i][j] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, filter,
+                                                         _imageViewSeparate[i][j], _engineState);
     }
   }
 }
@@ -48,17 +50,19 @@ Cubemap::Cubemap(std::tuple<int, int> resolution,
                  VkImageLayout layout,
                  VkImageAspectFlagBits colorBits,
                  VkImageUsageFlags usage,
+                 VkFilter filter,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                 std::shared_ptr<State> state) {
-  _state = state;
+                 std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   // usage VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
   _image = std::make_shared<Image>(resolution, 6, mipMapLevels, format, VK_IMAGE_TILING_OPTIMAL, usage,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
   // VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, layout, colorBits, 6, mipMapLevels, commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6, 0, mipMapLevels, colorBits, state);
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, mipMapLevels, VK_FILTER_LINEAR,
-                                       _imageView, _state);
+  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_CUBE, 0, 6, 0, mipMapLevels, colorBits,
+                                           engineState);
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, mipMapLevels, filter, _imageView,
+                                       _engineState);
 
   _imageViewSeparate.resize(6);
   _textureSeparate.resize(6);
@@ -67,9 +71,9 @@ Cubemap::Cubemap(std::tuple<int, int> resolution,
     _textureSeparate[i].resize(mipMapLevels);
     for (int j = 0; j < mipMapLevels; j++) {
       _imageViewSeparate[i][j] = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, i, 1, j, 1, colorBits,
-                                                             state);
-      _textureSeparate[i][j] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR,
-                                                         _imageViewSeparate[i][j], _state);
+                                                             engineState);
+      _textureSeparate[i][j] = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, filter,
+                                                         _imageViewSeparate[i][j], _engineState);
     }
   }
 }

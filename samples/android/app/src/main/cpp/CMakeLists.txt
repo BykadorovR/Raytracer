@@ -15,7 +15,7 @@ FetchContent_MakeAvailable(VulkanEngine)
 # for the detailed instructions.
 find_package(game-activity REQUIRED CONFIG)
 
-include_directories("include/")
+include_directories("include")
 file(GLOB_RECURSE app_source "src/*.c*")
 source_group("src" FILES ${app_source})
 file(GLOB_RECURSE app_header "include/*.h*")
@@ -27,12 +27,7 @@ set(LAYER_SRC_DIR ${ANDROID_NDK}/sources/third_party/vulkan/src)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include 
                                                    ${LAYER_SRC_DIR}/include 
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Engine/ 
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Graphic/
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Platform/Android/
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Primitive/
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Utility/
-                                                   ${VulkanEngine_SOURCE_DIR}/include/Vulkan/)
+                                                   ${VulkanEngine_SOURCE_DIR}/include)
 target_link_libraries(${PROJECT_NAME} VulkanEngine game-activity::game-activity log android)
 
 # debug shaders crash on Android with enabled shadows

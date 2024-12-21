@@ -1,58 +1,53 @@
-#include "Equirectangular.h"
+#include "Primitive/Equirectangular.h"
 
-Equirectangular::Equirectangular(std::string path,
+Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                                 std::shared_ptr<ResourceManager> resourceManager,
-                                 std::shared_ptr<State> state) {
+                                 std::shared_ptr<EngineState> engineState) {
   _commandBufferTransfer = commandBufferTransfer;
-  _state = state;
+  _engineState = engineState;
 
-  auto image = resourceManager->loadImageCPU<float>({path});
-
-  auto pixels = std::get<0>(image).get();
-  auto [texWidth, texHeight, _] = std::get<1>(image);
+  auto pixels = imageCPU->getData().get();
+  auto [texWidth, texHeight] = imageCPU->getResolution();
 
   int imageSize = texWidth * texHeight * STBI_rgb_alpha;
   int bufferSize = imageSize * sizeof(float);
   // fill buffer
   _stagingBuffer = std::make_shared<Buffer>(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                            state);
-  void* data;
-  vkMapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory(), 0, bufferSize, 0, &data);
-  memcpy((stbi_uc*)data, pixels, static_cast<size_t>(bufferSize));
-  vkUnmapMemory(state->getDevice()->getLogicalDevice(), _stagingBuffer->getMemory());
+                                            engineState);
+  _stagingBuffer->setData(pixels);
 
   // image
-  auto [width, height] = state->getSettings()->getResolution();
+  auto [width, height] = engineState->getSettings()->getResolution();
   // HDR image is in VK_FORMAT_R32G32B32A32_SFLOAT
   _image = std::make_shared<Image>(
       std::tuple{texWidth, texHeight}, 1, 1, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
-      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, state);
+      VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, engineState);
   _image->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1,
                        commandBufferTransfer);
   _image->copyFrom(_stagingBuffer, {0}, commandBufferTransfer);
   _image->changeLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, commandBufferTransfer);
-  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT, state);
-#ifdef __ANDROID__
-  // on Android VK_FORMAT_R32G32B32A32_SFLOAT doesn't support linear filtering
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_NEAREST, _imageView, state);
-#else
-  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, VK_FILTER_LINEAR, _imageView, state);
-#endif
-  // convert to cubemap
-  _mesh3D = std::make_shared<Mesh3D>(state);
+  _imageView = std::make_shared<ImageView>(_image, VK_IMAGE_VIEW_TYPE_2D, 0, 1, 0, 1, VK_IMAGE_ASPECT_COLOR_BIT,
+                                           engineState);
+  auto filter = VK_FILTER_NEAREST;
+  if (_engineState->getDevice()->isFormatFeatureSupported(VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL,
+                                                          VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+    filter = VK_FILTER_LINEAR;
+  }
 
-  std::vector<Vertex3D> vertices(8);
-  vertices[0].pos = glm::vec3(-0.5, -0.5, 0.5);   // 0
-  vertices[1].pos = glm::vec3(0.5, -0.5, 0.5);    // 1
-  vertices[2].pos = glm::vec3(-0.5, 0.5, 0.5);    // 2
-  vertices[3].pos = glm::vec3(0.5, 0.5, 0.5);     // 3
-  vertices[4].pos = glm::vec3(-0.5, -0.5, -0.5);  // 4
-  vertices[5].pos = glm::vec3(0.5, -0.5, -0.5);   // 5
-  vertices[6].pos = glm::vec3(-0.5, 0.5, -0.5);   // 6
-  vertices[7].pos = glm::vec3(0.5, 0.5, -0.5);    // 7
+  _texture = std::make_shared<Texture>(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, 1, filter, _imageView, engineState);
+  // convert to cubemap
+  _mesh3D = std::make_shared<MeshStatic3D>(engineState);
+
+  std::vector<Vertex3D> vertices{{.pos = glm::vec3(-0.5, -0.5, 0.5)},   // 0
+                                 {.pos = glm::vec3(0.5, -0.5, 0.5)},    // 1
+                                 {.pos = glm::vec3(-0.5, 0.5, 0.5)},    // 2
+                                 {.pos = glm::vec3(0.5, 0.5, 0.5)},     // 3
+                                 {.pos = glm::vec3(-0.5, -0.5, -0.5)},  // 4
+                                 {.pos = glm::vec3(0.5, -0.5, -0.5)},   // 5
+                                 {.pos = glm::vec3(-0.5, 0.5, -0.5)},   // 6
+                                 {.pos = glm::vec3(0.5, 0.5, -0.5)}};   // 7
 
   std::vector<uint32_t> indices{                    // Bottom
                                 0, 4, 5, 5, 1, 0,   // ccw if look to this face from down
@@ -69,67 +64,65 @@ Equirectangular::Equirectangular(std::string path,
   _mesh3D->setVertices(vertices, commandBufferTransfer);
   _mesh3D->setIndexes(indices, commandBufferTransfer);
   _mesh3D->setColor(std::vector<glm::vec3>(vertices.size(), glm::vec3(1.f, 1.f, 1.f)), commandBufferTransfer);
-  _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, state);
+  _material = std::make_shared<MaterialColor>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
   _material->setBaseColor({_texture});
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeIBL();
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::IBL);
 
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
   _bufferCubemap.resize(6);
   for (int i = 0; i < 6; i++) {
-    _bufferCubemap[i] = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(),
-                                                        sizeof(BufferMVP), state);
+    _bufferCubemap[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
+      _bufferCubemap[i][j] = std::make_shared<Buffer>(
+          sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
   }
 
   // setup color
   {
-    _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-    std::vector<VkDescriptorSetLayoutBinding> layoutColor(2);
-    layoutColor[0].binding = 0;
-    layoutColor[0].descriptorCount = 1;
-    layoutColor[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    layoutColor[0].pImmutableSamplers = nullptr;
-    layoutColor[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    layoutColor[1].binding = 1;
-    layoutColor[1].descriptorCount = 1;
-    layoutColor[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    layoutColor[1].pImmutableSamplers = nullptr;
-    layoutColor[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+    std::vector<VkDescriptorSetLayoutBinding> layoutColor{{.binding = 0,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                           .pImmutableSamplers = nullptr},
+                                                          {.binding = 1,
+                                                           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                                           .descriptorCount = 1,
+                                                           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                                           .pImmutableSamplers = nullptr}};
     _descriptorSetLayout->createCustom(layoutColor);
 
     _descriptorSetCubemap.resize(6);
     for (int f = 0; f < 6; f++) {
-      _descriptorSetCubemap[f] = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayout, state->getDescriptorPool(),
-                                                                 state->getDevice());
-      for (int i = 0; i < _state->getSettings()->getMaxFramesInFlight(); i++) {
-        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor;
-        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor;
-        std::vector<VkDescriptorBufferInfo> bufferInfoCamera(1);
-        // write to binding = 0 for vertex shader
-        bufferInfoCamera[0].buffer = _bufferCubemap[f]->getBuffer()[i]->getData();
-        bufferInfoCamera[0].offset = 0;
-        bufferInfoCamera[0].range = sizeof(BufferMVP);
-        bufferInfoColor[0] = bufferInfoCamera;
-
-        // write for binding = 1 for textures
-        std::vector<VkDescriptorImageInfo> bufferInfoTexture(1);
-        bufferInfoTexture[0].imageLayout = _texture->getImageView()->getImage()->getImageLayout();
-        bufferInfoTexture[0].imageView = _texture->getImageView()->getImageView();
-        bufferInfoTexture[0].sampler = _texture->getSampler()->getSampler();
-        textureInfoColor[1] = bufferInfoTexture;
+      _descriptorSetCubemap[f] = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                                 _descriptorSetLayout, engineState);
+      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+        std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
+            {0,
+             {VkDescriptorBufferInfo{.buffer = _bufferCubemap[f][i]->getData(),
+                                     .offset = 0,
+                                     .range = _bufferCubemap[f][i]->getSize()}}}};
+        std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+            {1,
+             {VkDescriptorImageInfo{
+                 .sampler = _texture->getSampler()->getSampler(),
+                 .imageView = _texture->getImageView()->getImageView(),
+                 .imageLayout = _texture->getImageView()->getImage()->getImageLayout(),
+             }}}};
         _descriptorSetCubemap[f]->createCustom(i, bufferInfoColor, textureInfoColor);
       }
     }
 
     {
-      auto shader = std::make_shared<Shader>(state);
+      auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/IBL/skyboxEquirectangular_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-      _pipelineEquirectangular = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-      _pipelineEquirectangular->createGraphic3D(
-          VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+      _pipelineEquirectangular = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+      _pipelineEquirectangular->setDepthTest(true);
+      _pipelineEquirectangular->setDepthWrite(true);
+      _pipelineEquirectangular->createCustom(
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayout}}, {}, _mesh3D->getBindingDescription(),
@@ -138,9 +131,9 @@ Equirectangular::Equirectangular(std::string path,
     }
   }
 
-  _loggerGPU = std::make_shared<LoggerGPU>(state);
+  _logger = std::make_shared<Logger>(engineState);
 
-  _camera = std::make_shared<CameraFly>(_state);
+  _camera = std::make_shared<CameraFly>(_engineState);
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
   _camera->setAspect(1.f);
@@ -149,23 +142,24 @@ Equirectangular::Equirectangular(std::string path,
 }
 
 void Equirectangular::_convertToCubemap() {
-  _cubemap = std::make_shared<Cubemap>(
-      _state->getSettings()->getDepthResolution(), _state->getSettings()->getGraphicColorFormat(), 1,
-      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-      VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, _commandBufferTransfer, _state);
+  _cubemap = std::make_shared<Cubemap>(_engineState->getSettings()->getShadowMapResolution(),
+                                       _engineState->getSettings()->getGraphicColorFormat(), 1,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                                       VK_FILTER_LINEAR, _commandBufferTransfer, _engineState);
 
   _frameBuffer.resize(6);
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemap->getTextureSeparate()[i][0];
     _frameBuffer[i] = std::make_shared<Framebuffer>(std::vector{currentTexture->getImageView()},
                                                     currentTexture->getImageView()->getImage()->getResolution(),
-                                                    _renderPass, _state->getDevice());
+                                                    _renderPass, _engineState->getDevice());
   }
 
-  auto currentFrame = _state->getFrameInFlight();
+  auto currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineEquirectangular->getPipeline());
-  auto [width, height] = _state->getSettings()->getDepthResolution();
+  auto [width, height] = _engineState->getSettings()->getShadowMapResolution();
   // render equirectangular to cubemap
   /////////////////////////////////////////////////////////////////////////////////////////
   // render graphic
@@ -173,18 +167,22 @@ void Equirectangular::_convertToCubemap() {
   for (int i = 0; i < 6; i++) {
     auto currentTexture = _cubemap->getTextureSeparate()[i][0];
 
-    auto renderPassInfo = _renderPass->getRenderPassInfo(_frameBuffer[i]);
-    VkClearValue clearColor;
-    clearColor.color = _state->getSettings()->getClearColor();
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    auto [widthFramebuffer, heightFramebuffer] = _frameBuffer[i]->getResolution();
+    VkClearValue clearColor{.color = _engineState->getSettings()->getClearColor()};
+    VkRenderPassBeginInfo renderPassInfo{.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                                         .renderPass = _renderPass->getRenderPass(),
+                                         .framebuffer = _frameBuffer[i]->getBuffer(),
+                                         .renderArea = {.offset = {0, 0},
+                                                        .extent = {.width = static_cast<uint32_t>(widthFramebuffer),
+                                                                   .height = static_cast<uint32_t>(heightFramebuffer)}},
+                                         .clearValueCount = 1,
+                                         .pClearValues = &clearColor};
 
     // TODO: only one depth texture?
     vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
-    _loggerGPU->setCommandBufferName("Equirectangular", _commandBufferTransfer);
-    _loggerGPU->begin("Render equirectangular");
+    _logger->begin("Render equirectangular", _commandBufferTransfer);
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
     switch (i) {
       case 0:
@@ -212,29 +210,18 @@ void Equirectangular::_convertToCubemap() {
         _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, -1.f, 0.f));
         break;
     }
-    VkViewport viewport{};
-    viewport.x = 0.f;
-    viewport.y = 0.f;
-    viewport.width = width;
-    viewport.height = height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    VkViewport viewport{.x = 0.f,
+                        .y = 0.f,
+                        .width = static_cast<float>(width),
+                        .height = static_cast<float>(height),
+                        .minDepth = 0.0f,
+                        .maxDepth = 1.0f};
     vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D(width, height);
+    VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
     vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
-    BufferMVP cameraUBO{};
-    cameraUBO.model = glm::mat4(1.f);
-    cameraUBO.view = _camera->getView();
-    cameraUBO.projection = _camera->getProjection();
-
-    void* data;
-    vkMapMemory(_state->getDevice()->getLogicalDevice(), _bufferCubemap[i]->getBuffer()[currentFrame]->getMemory(), 0,
-                sizeof(cameraUBO), 0, &data);
-    memcpy(data, &cameraUBO, sizeof(cameraUBO));
-    vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _bufferCubemap[i]->getBuffer()[currentFrame]->getMemory());
+    BufferMVP cameraUBO{.model = glm::mat4(1.f), .view = _camera->getView(), .projection = _camera->getProjection()};
+    _bufferCubemap[i][currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -256,7 +243,7 @@ void Equirectangular::_convertToCubemap() {
 
     vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer()[currentFrame],
                      static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
-    _loggerGPU->end();
+    _logger->end(_commandBufferTransfer);
 
     vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
 

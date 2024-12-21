@@ -1,23 +1,11 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(VulkanEngine LANGUAGES CXX)
-
-function(imports name)
-  get_cmake_property(_variableNames VARIABLES)
-  foreach(_variableName ${_variableNames})
-    if(_variableName MATCHES "^${name}")
-      message(STATUS "${_variableName}")
-      message(STATUS "\t${${_variableName}}")
-    endif()
-  endforeach()
-endfunction()
-
 set(CMAKE_CXX_STANDARD 20)
 
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 include(FetchContent)
 
 if (NOT ANDROID)
@@ -93,21 +81,67 @@ FetchContent_Declare(
         GIT_TAG        release-v3
 )
 
+set(JSON_BuildTests OFF CACHE BOOL "Disable JSON tests")
+FetchContent_Declare(
+        json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG        v3.11.3
+)
+
+FetchContent_Declare(
+  jolt
+  GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
+  GIT_TAG        7a14ab982e279c3e20826f6769bb93d5637242b8
+  SOURCE_SUBDIR  Build
+)
+
+FetchContent_Declare(
+    vk-bootstrap
+    GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap
+    GIT_TAG        v1.3.302
+)
+
+#there is no UNIX one in vulkan/vulkan.h
+if (ANDROID)
+   set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_ANDROID_KHR)
+elseif(WIN32)
+   set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
+endif()
+FetchContent_Declare(
+    volk
+    GIT_REPOSITORY https://github.com/zeux/volk
+    GIT_TAG e767d0ee782709f2bd2df148927ddab02f2dbfe4
+)
+
+FetchContent_Declare(
+  vulkan-memory-allocator
+  GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+  GIT_TAG v3.1.0
+)
+
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap volk vulkan-memory-allocator)
+if (ANDROID)
+  set_target_properties(vk-bootstrap PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 if (NOT ANDROID)
-  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx glfw)
-else()
-  FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx)
+  FetchContent_MakeAvailable(glfw)
+endif()
+
+#hack to force MD (default mode) instead of MT
+if (NOT WINDOWS_STORE)
+  set(WINDOWS_STORE ON)
+  set(WINDOWS_STORE_CHANGE ON)
+endif()
+
+FetchContent_MakeAvailable(jolt)
+
+if (WINDOWS_STORE_CHANGE)
+  set(WINDOWS_STORE OFF)
 endif()
 
 #affects all projects, add folder "include" to include section in VS
-include_directories("include/Graphic")
-include_directories("include/Primitive")
-include_directories("include/Utility")
-include_directories("include/Engine")
-include_directories("include/Vulkan")
-if (ANDROID)
-  include_directories("include/Platform/Android")
-endif()
+include_directories("include")
 
 file(GLOB_RECURSE app_source_graphic "src/Graphic/*.c*")
 source_group("Graphic\\src" FILES ${app_source_graphic})
@@ -129,12 +163,6 @@ file(GLOB_RECURSE app_source_engine "src/Engine/*.c*")
 source_group("Engine\\src" FILES ${app_source_engine})
 file(GLOB_RECURSE app_header_engine "include/Engine/*.h*")
 source_group("Engine\\include" FILES ${app_header_engine})
-if (ANDROID)
-  file(GLOB_RECURSE app_header_platform "include/Platform/Android/*.h*")
-  source_group("Platform\\include" FILES ${app_header_platform})
-  file(GLOB_RECURSE app_source_platform "src/Platform/Android/*.c*")
-  source_group("Platform\\src" FILES ${app_source_platform})
-endif()
 
 
 ###############################
@@ -148,30 +176,27 @@ if (NOT ANDROID)
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin")
   set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/libraries)
   set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/libraries)
-  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
-                                     ${app_header_primitive} ${app_source_primitive}
-                                     ${app_header_utility}   ${app_source_utility}                                   
-                                     ${app_header_vulkan}    ${app_source_vulkan}
-                                     ${app_header_engine}    ${app_source_engine})
-else()
-  add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
-                                     ${app_header_primitive} ${app_source_primitive}
-                                     ${app_header_utility}   ${app_source_utility}                                   
-                                     ${app_header_vulkan}    ${app_source_vulkan}
-                                     ${app_header_engine}    ${app_source_engine}
-                                     ${app_header_platform}  ${app_source_platform})
-endif()
+endif()  
+
+add_library(${PROJECT_NAME} SHARED ${app_header_graphic}   ${app_source_graphic}
+                                   ${app_header_primitive} ${app_source_primitive}
+                                   ${app_header_utility}   ${app_source_utility}
+                                   ${app_header_vulkan}    ${app_source_vulkan}
+                                   ${app_header_engine}    ${app_source_engine})
+
 ###############################
 
 #enable multiple cores compilation for VS
 if(MSVC)
- target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
+ target_compile_options(${PROJECT_NAME} PRIVATE "/MP") 
 endif()
 
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
+# don't link loader explicitly
+#target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
 
+# copy includes so they are visible for applications
 file(COPY ${glm_SOURCE_DIR}/glm DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${imgui_SOURCE_DIR}/imgui.h ${imgui_SOURCE_DIR}/imconfig.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 file(COPY ${tinygltf_SOURCE_DIR}/tiny_gltf.h ${tinygltf_SOURCE_DIR}/stb_image.h ${tinygltf_SOURCE_DIR}/stb_image_write.h ${tinygltf_SOURCE_DIR}/json.hpp DESTINATION ${CMAKE_BINARY_DIR}/include)
@@ -181,11 +206,19 @@ file(COPY ${nvtx_SOURCE_DIR}/c/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 if (NOT ANDROID)
   file(COPY ${glfw_SOURCE_DIR}/include/ DESTINATION ${CMAKE_BINARY_DIR}/include)
 endif()
+#TODO: how to copy only headers?
+file(COPY ${jolt_SOURCE_DIR}/Jolt DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrap.h ${vk-bootstrap_SOURCE_DIR}/src/VkBootstrapDispatch.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${volk_SOURCE_DIR}/volk.h DESTINATION ${CMAKE_BINARY_DIR}/include)
+file(COPY ${vulkan-memory-allocator_SOURCE_DIR}/include/vk_mem_alloc.h DESTINATION ${CMAKE_BINARY_DIR}/include)
 
+
+#Jolt should start with capital J
+#vma is not a library, it's "interface library", so need to include .c file in code as well
 if (NOT ANDROID)
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE glfw imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk GPUOpen::VulkanMemoryAllocator)
 else()
   target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_BINARY_DIR}/include ${ANDROID_NDK}/sources/third_party/vulkan/src/include)
-  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace)
+  target_link_libraries(${PROJECT_NAME} PRIVATE android log imgui mikktspace Jolt nlohmann_json::nlohmann_json vk-bootstrap::vk-bootstrap volk::volk GPUOpen::VulkanMemoryAllocator)
 endif()

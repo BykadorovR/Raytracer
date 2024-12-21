@@ -1,9 +1,9 @@
 #pragma once
-#include "Core.h"
-#include "Line.h"
-#include "Sprite.h"
-#include "Model.h"
-#include "Shape3D.h"
+#include "Engine/Core.h"
+#include "Primitive/Line.h"
+#include "Primitive/Sprite.h"
+#include "Primitive/Model.h"
+#include "Primitive/Shape3D.h"
 
 class DebugVisualization {
  private:
@@ -36,9 +36,11 @@ class DebugVisualization {
   float _directionalValue, _pointValue;
   std::shared_ptr<MaterialColor> _materialShadow;
   void _drawFrustum();
+  void _drawFrustumLines(glm::vec3 nearPart, glm::vec3 farPart);
   void _drawShadowMaps();
 
  public:
   DebugVisualization(std::shared_ptr<Camera> camera, std::shared_ptr<Core> core);
+  void draw();
   void update();
 };

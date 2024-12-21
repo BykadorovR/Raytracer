@@ -2,7 +2,7 @@
 #include <chrono>
 #include <future>
 #include "Main.h"
-#include "Line.h"
+#include "Primitive/Line.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -13,12 +13,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -52,74 +50,62 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   _core->startRecording();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
-  _pointLightVertical = _core->createPointLight(settings->getDepthResolution());
+  _pointLightVertical = _core->createPointLight();
   _pointLightVertical->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition(glm::vec3(0.f, 20.f, 0.f));
-  // TODO: rename setCenter to lookAt
-  //  looking to (0.f, 0.f, 0.f) with up vector (0.f, 0.f, -1.f)
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
   _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightVertical->getMesh()->setColor(
       std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
   _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   _cubeColoredLightHorizontal->getMesh()->setColor(
       std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
+      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
   auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
   cubeColoredLightDirectional->getMesh()->setColor(
       std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 20.f, 0.f));
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    cubeColoredLightDirectional->setModel(model);
-  }
+      _core->getCommandBufferApplication());
+  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
   _core->addDrawable(cubeColoredLightDirectional);
 
   // lines
   auto lineVertical = _core->createLine();
-  lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)},
-                                    _core->getCommandBufferTransfer());
-  lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)},
-                                       _core->getCommandBufferTransfer());
+  lineVertical->getMesh()->setColor({glm::vec3(1.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f)});
+  lineVertical->getMesh()->setPosition({glm::vec3(-3.f, -0.5f, -3.f), glm::vec3(-3.f, 0.5f, -3.f)});
   _core->addDrawable(lineVertical);
 
   auto lineHorizontal = _core->createLine();
-  lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)},
-                                      _core->getCommandBufferTransfer());
-  lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)},
-                                         _core->getCommandBufferTransfer());
+  lineHorizontal->getMesh()->setColor({glm::vec3(0.f, 0.f, 1.f), glm::vec3(1.f, 0.f, 0.f)});
+  lineHorizontal->getMesh()->setPosition({glm::vec3(-2.5f, 0.f, -3.f), glm::vec3(-3.5f, 0.f, -3.f)});
   _core->addDrawable(lineHorizontal);
 
   // cube colored
   auto cubeColored = _core->createShape3D(ShapeType::CUBE);
+  cubeColored->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   cubeColored->getMesh()->setColor(
       std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-    cubeColored->setModel(model);
-  }
+      _core->getCommandBufferApplication());
   _core->addDrawable(cubeColored);
   // cube textured
   auto cubemap = _core->createCubemap(
@@ -130,10 +116,7 @@ Main::Main() {
   materialCubeTextured->setBaseColor({cubemap->getTexture()});
   _cubeTextured = _core->createShape3D(ShapeType::CUBE);
   _cubeTextured->setMaterial(materialCubeTextured);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-    _cubeTextured->setModel(model);
-  }
+  _cubeTextured->setTranslate(glm::vec3(0.f, 0.f, -3.f));
   _core->addDrawable(_cubeTextured);
 
   //  cube Phong
@@ -155,51 +138,36 @@ Main::Main() {
 
   auto cubeTexturedPhong = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhong->setMaterial(materialCubePhong);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, -3.f));
-    cubeTexturedPhong->setModel(model);
-  }
+  cubeTexturedPhong->setTranslate(glm::vec3(0.f, -3.f, -3.f));
   _core->addDrawable(cubeTexturedPhong);
 
   // cube colored wireframe
   auto cubeColoredWireframe = _core->createShape3D(ShapeType::CUBE);
+  cubeColoredWireframe->setTranslate(glm::vec3(3.f, 3.f, -3.f));
   cubeColoredWireframe->setDrawType(DrawType::WIREFRAME);
   cubeColoredWireframe->getMesh()->setColor(
       std::vector{cubeColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, -3.f));
-    cubeColoredWireframe->setModel(model);
-  }
+      _core->getCommandBufferApplication());
   _core->addDrawable(cubeColoredWireframe);
 
   // cube texture wireframe
   _cubeTexturedWireframe = _core->createShape3D(ShapeType::CUBE);
   _cubeTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   _cubeTexturedWireframe->setMaterial(materialCubeTextured);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-    _cubeTexturedWireframe->setModel(model);
-  }
+  _cubeTexturedWireframe->setTranslate(glm::vec3(3.f, 0.f, -3.f));
   _core->addDrawable(_cubeTexturedWireframe);
 
   // cube Phong wireframe
   auto cubeTexturedWireframePhong = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   cubeTexturedWireframePhong->setMaterial(materialCubePhong);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, -3.f, -3.f));
-    cubeTexturedWireframePhong->setModel(model);
-  }
+  cubeTexturedWireframePhong->setTranslate(glm::vec3(3.f, -3.f, -3.f));
   _core->addDrawable(cubeTexturedWireframePhong);
 
   // cube Phong mesh normal
   auto cubeTexturedPhongNormalMesh = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
-    cubeTexturedPhongNormalMesh->setModel(model);
-  }
+  cubeTexturedPhongNormalMesh->setTranslate(glm::vec3(-3.f, -3.f, -3.f));
   _core->addDrawable(cubeTexturedPhongNormalMesh);
 
   // cube Color fragment normal
@@ -212,10 +180,7 @@ Main::Main() {
   materialCubeTexturedNormalFragment->setBaseColor({cubemapNormal->getTexture()});
   auto cubeTexturedNormalFragment = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedNormalFragment->setMaterial(materialCubeTexturedNormalFragment);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, -3.f));
-    cubeTexturedNormalFragment->setModel(model);
-  }
+  cubeTexturedNormalFragment->setTranslate(glm::vec3(-3.f, -3.f, -3.f));
   _core->addDrawable(cubeTexturedNormalFragment);
 
   // cube Phong: specular without normal
@@ -237,10 +202,7 @@ Main::Main() {
 
   auto cubeTexturedPhongSpecular = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPhongSpecular->setMaterial(materialCubePhongSpecular);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, -3.f));
-    cubeTexturedPhongSpecular->setModel(model);
-  }
+  cubeTexturedPhongSpecular->setTranslate(glm::vec3(0.f, -6.f, -3.f));
   _core->addDrawable(cubeTexturedPhongSpecular);
 
   // cube PBR
@@ -279,31 +241,22 @@ Main::Main() {
 
   auto cubeTexturedPBR = _core->createShape3D(ShapeType::CUBE);
   cubeTexturedPBR->setMaterial(materialCubePBR);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, -3.f));
-    cubeTexturedPBR->setModel(model);
-  }
+  cubeTexturedPBR->setTranslate(glm::vec3(0.f, 6.f, -3.f));
   _core->addDrawable(cubeTexturedPBR);
 
   // cube PBR wireframe
   auto cubeWireframePBR = _core->createShape3D(ShapeType::CUBE);
   cubeWireframePBR->setMaterial(materialCubePBR);
   cubeWireframePBR->setDrawType(DrawType::WIREFRAME);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 6.f, -3.f));
-    cubeWireframePBR->setModel(model);
-  }
+  cubeWireframePBR->setTranslate(glm::vec3(3.f, 6.f, -3.f));
   _core->addDrawable(cubeWireframePBR);
 
   // sphere colored
   auto sphereColored = _core->createShape3D(ShapeType::SPHERE);
   sphereColored->getMesh()->setColor(
       std::vector{sphereColored->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 3.f));
-    sphereColored->setModel(model);
-  }
+      _core->getCommandBufferApplication());
+  sphereColored->setTranslate(glm::vec3(0.f, 3.f, 3.f));
   _core->addDrawable(sphereColored);
 
   // sphere textured
@@ -312,10 +265,7 @@ Main::Main() {
   materialSphereTextured->setBaseColor({sphereTexture});
   auto sphereTextured = _core->createShape3D(ShapeType::SPHERE);
   sphereTextured->setMaterial(materialSphereTextured);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 3.f));
-    sphereTextured->setModel(model);
-  }
+  sphereTextured->setTranslate(glm::vec3(0.f, 0.f, 3.f));
   _core->addDrawable(sphereTextured);
 
   // sphere Phong
@@ -330,10 +280,7 @@ Main::Main() {
 
   auto sphereTexturedPhong = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhong->setMaterial(materialSpherePhong);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -3.f, 3.f));
-    sphereTexturedPhong->setModel(model);
-  }
+  sphereTexturedPhong->setTranslate(glm::vec3(0.f, -3.f, 3.f));
   _core->addDrawable(sphereTexturedPhong);
 
   // sphere colored wireframe
@@ -341,40 +288,28 @@ Main::Main() {
   sphereColoredWireframe->setDrawType(DrawType::WIREFRAME);
   sphereColoredWireframe->getMesh()->setColor(
       std::vector{sphereColoredWireframe->getMesh()->getVertexData().size(), glm::vec3(0.f, 1.f, 0.f)},
-      _core->getCommandBufferTransfer());
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 3.f, 3.f));
-    sphereColoredWireframe->setModel(model);
-  }
+      _core->getCommandBufferApplication());
+  sphereColoredWireframe->setTranslate(glm::vec3(3.f, 3.f, 3.f));
   _core->addDrawable(sphereColoredWireframe);
 
   // sphere texture wireframe
   auto sphereTexturedWireframe = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedWireframe->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframe->setMaterial(materialSphereTextured);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, 3.f));
-    sphereTexturedWireframe->setModel(model);
-  }
+  sphereTexturedWireframe->setTranslate(glm::vec3(3.f, 0.f, 3.f));
   _core->addDrawable(sphereTexturedWireframe);
 
   // sphere Phong wireframe
   auto sphereTexturedWireframePhong = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedWireframePhong->setDrawType(DrawType::WIREFRAME);
   sphereTexturedWireframePhong->setMaterial(materialSpherePhong);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, -3.f, 3.f));
-    sphereTexturedWireframePhong->setModel(model);
-  }
+  sphereTexturedWireframePhong->setTranslate(glm::vec3(3.f, -3.f, 3.f));
   _core->addDrawable(sphereTexturedWireframePhong);
 
   // sphere Phong mesh normal
   auto sphereTexturedPhongNormalMesh = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhongNormalMesh->setDrawType(DrawType::NORMAL);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
-    sphereTexturedPhongNormalMesh->setModel(model);
-  }
+  sphereTexturedPhongNormalMesh->setTranslate(glm::vec3(-3.f, -3.f, 3.f));
   _core->addDrawable(sphereTexturedPhongNormalMesh);
 
   // sphere Color fragment normal
@@ -382,10 +317,7 @@ Main::Main() {
   materialSphereTexturedNormalFragment->setBaseColor({sphereNormalPhong});
   auto sphereTexturedNormalFragment = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedNormalFragment->setMaterial(materialSphereTexturedNormalFragment);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-3.f, -3.f, 3.f));
-    sphereTexturedNormalFragment->setModel(model);
-  }
+  sphereTexturedNormalFragment->setTranslate(glm::vec3(-3.f, -3.f, 3.f));
   _core->addDrawable(sphereTexturedNormalFragment);
 
   // cube Phong: specular without normal
@@ -401,10 +333,7 @@ Main::Main() {
 
   auto sphereTexturedPhongSpecular = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPhongSpecular->setMaterial(materialSpherePhongSpecular);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, -6.f, 3.f));
-    sphereTexturedPhongSpecular->setModel(model);
-  }
+  sphereTexturedPhongSpecular->setTranslate(glm::vec3(0.f, -6.f, 3.f));
   _core->addDrawable(sphereTexturedPhongSpecular);
 
   // TODO: color is not so bright in comparison with cube
@@ -431,20 +360,14 @@ Main::Main() {
 
   auto sphereTexturedPBR = _core->createShape3D(ShapeType::SPHERE);
   sphereTexturedPBR->setMaterial(materialSpherePBR);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 6.f, 3.f));
-    sphereTexturedPBR->setModel(model);
-  }
+  sphereTexturedPBR->setTranslate(glm::vec3(0.f, 6.f, 3.f));
   _core->addDrawable(sphereTexturedPBR);
 
-  // cube PBR wireframe
+  // sphere PBR wireframe
   auto sphereWireframePBR = _core->createShape3D(ShapeType::SPHERE);
   sphereWireframePBR->setMaterial(materialSpherePBR);
   sphereWireframePBR->setDrawType(DrawType::WIREFRAME);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 6.f, 3.f));
-    sphereWireframePBR->setModel(model);
-  }
+  sphereWireframePBR->setTranslate(glm::vec3(3.f, 6.f, 3.f));
   _core->addDrawable(sphereWireframePBR);
   _core->endRecording();
 
@@ -455,13 +378,10 @@ Main::Main() {
 
 void Main::update() {
   static float i = 0;
-  auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, -3.f));
-  model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
-  _cubeTextured->setModel(model);
-
-  model = glm::translate(glm::mat4(1.f), glm::vec3(3.f, 0.f, -3.f));
-  model = glm::rotate(model, glm::radians(i), glm::vec3(1.f, 0.f, 0.f));
-  _cubeTexturedWireframe->setModel(model);
+  _cubeTextured->setTranslate(glm::vec3(0.f, 0.f, -3.f));
+  _cubeTextured->setRotate(glm::quat(glm::vec3(glm::radians(i), 0.f, 0.f)));
+  _cubeTexturedWireframe->setTranslate(glm::vec3(3.f, 0.f, -3.f));
+  _cubeTexturedWireframe->setRotate(glm::quat(glm::vec3(glm::radians(i), 0.f, 0.f)));
 
   // update light position
   float radius = 15.f;
@@ -472,26 +392,19 @@ void Main::update() {
   glm::vec3 lightPositionVertical = glm::vec3(0.f, radius * sin(glm::radians(angleVertical)),
                                               radius * cos(glm::radians(angleVertical)));
 
-  _pointLightVertical->setPosition(lightPositionVertical);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionVertical);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightVertical->setModel(model);
-  }
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
-  {
-    auto model = glm::translate(glm::mat4(1.f), lightPositionHorizontal);
-    model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f));
-    _cubeColoredLightHorizontal->setModel(model);
-  }
+  _pointLightVertical->getCamera()->setPosition(lightPositionVertical);
+  _cubeColoredLightVertical->setTranslate(lightPositionVertical);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
+  _cubeColoredLightHorizontal->setTranslate(lightPositionHorizontal);
 
   i += 0.1f;
   angleHorizontal += 0.05f;
   angleVertical += 0.1f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
   _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
   _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});

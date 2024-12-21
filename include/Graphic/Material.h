@@ -1,7 +1,7 @@
 #pragma once
-#include "State.h"
-#include "Descriptor.h"
-#include "Cubemap.h"
+#include "Utility/EngineState.h"
+#include "Vulkan/Descriptor.h"
+#include "Primitive/Cubemap.h"
 
 enum class MaterialType { PHONG, PBR, COLOR };
 
@@ -29,10 +29,10 @@ class Material {
   AlphaCutoff _alphaCutoff;
   bool _doubleSided = false;
 
-  std::shared_ptr<UniformBuffer> _uniformBufferCoefficients;
-  std::shared_ptr<UniformBuffer> _uniformBufferAlphaCutoff;
+  std::vector<std::shared_ptr<Buffer>> _uniformBufferCoefficients;
+  std::vector<std::shared_ptr<Buffer>> _uniformBufferAlphaCutoff;
   std::map<std::shared_ptr<DescriptorSet>, std::vector<std::tuple<MaterialTexture, int>>> _descriptorsUpdate;
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::map<MaterialTexture, std::vector<bool>> _changedTextures;
   std::vector<bool> _changedCoefficients;
   std::vector<bool> _changedAlpha;
@@ -44,36 +44,34 @@ class Material {
   virtual void _updateCoefficientBuffer(int currentFrame) = 0;
 
  public:
-  Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state);
+  Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
   void registerUpdate(std::shared_ptr<DescriptorSet> descriptor, std::vector<std::tuple<MaterialTexture, int>> type);
   void unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor);
 
   void setDoubleSided(bool doubleSided);
-  void setAlphaCutoff(bool alphaCutoff, float alphaMask);
+  void setAlphaCutoff(bool alphaMask, float alphaCutoff);
   bool getDoubleSided();
-  std::shared_ptr<UniformBuffer> getBufferCoefficients();
-  std::shared_ptr<UniformBuffer> getBufferAlphaCutoff();
+  std::vector<std::shared_ptr<Buffer>> getBufferCoefficients();
+  std::vector<std::shared_ptr<Buffer>> getBufferAlphaCutoff();
   void update(int currentFrame);
 };
 
 class MaterialColor : public Material {
- protected:
-  MaterialTarget _target;
-
  private:
+  MaterialTarget _target;
   void _updateCoefficientBuffer(int currentFrame) override;
 
  public:
   // number of textures color
   MaterialColor(MaterialTarget target,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                std::shared_ptr<State> state);
+                std::shared_ptr<EngineState> engineState);
   const std::vector<std::shared_ptr<Texture>> getBaseColor();
 
   void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
 };
 
-class MaterialPBR : public MaterialColor {
+class MaterialPBR : public Material {
  private:
   struct Coefficients {
     float metallicFactor{1};
@@ -82,6 +80,7 @@ class MaterialPBR : public MaterialColor {
     float occlusionStrength{0};
     alignas(16) glm::vec3 emissiveFactor{0};
   };
+  MaterialTarget _target;
 
   Coefficients _coefficients;
 
@@ -91,7 +90,8 @@ class MaterialPBR : public MaterialColor {
   // number of textures color, normal, metallic, roughness, occluded, emissive
   MaterialPBR(MaterialTarget target,
               std::shared_ptr<CommandBuffer> commandBufferTransfer,
-              std::shared_ptr<State> state);
+              std::shared_ptr<EngineState> engineState);
+  const std::vector<std::shared_ptr<Texture>> getBaseColor();
   const std::vector<std::shared_ptr<Texture>> getNormal();
   const std::vector<std::shared_ptr<Texture>> getMetallic();
   const std::vector<std::shared_ptr<Texture>> getRoughness();
@@ -101,6 +101,7 @@ class MaterialPBR : public MaterialColor {
   std::shared_ptr<Texture> getSpecularIBL();
   std::shared_ptr<Texture> getSpecularBRDF();
 
+  void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
   void setNormal(std::vector<std::shared_ptr<Texture>> normal);
   void setMetallic(std::vector<std::shared_ptr<Texture>> metallic);
   void setRoughness(std::vector<std::shared_ptr<Texture>> roughness);
@@ -111,7 +112,7 @@ class MaterialPBR : public MaterialColor {
   void setCoefficients(float metallicFactor, float roughnessFactor, float occlusionStrength, glm::vec3 emissiveFactor);
 };
 
-class MaterialPhong : public MaterialColor {
+class MaterialPhong : public Material {
  private:
   struct Coefficients {
     alignas(16) glm::vec3 _ambient{0.2f};
@@ -120,6 +121,7 @@ class MaterialPhong : public MaterialColor {
     float _shininess{64.f};
   };
 
+  MaterialTarget _target;
   Coefficients _coefficients;
 
   void _updateCoefficientBuffer(int currentFrame) override;
@@ -128,10 +130,12 @@ class MaterialPhong : public MaterialColor {
   // number of textures color, normal and specular
   MaterialPhong(MaterialTarget target,
                 std::shared_ptr<CommandBuffer> commandBufferTransfer,
-                std::shared_ptr<State> state);
+                std::shared_ptr<EngineState> engineState);
+  const std::vector<std::shared_ptr<Texture>> getBaseColor();
   const std::vector<std::shared_ptr<Texture>> getNormal();
   const std::vector<std::shared_ptr<Texture>> getSpecular();
 
+  void setBaseColor(std::vector<std::shared_ptr<Texture>> color);
   void setNormal(std::vector<std::shared_ptr<Texture>> normal);
   void setSpecular(std::vector<std::shared_ptr<Texture>> specular);
   void setCoefficients(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);

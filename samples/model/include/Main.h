@@ -1,6 +1,6 @@
 #pragma once
-#include "Core.h"
-#include "Shape3D.h"
+#include "Engine/Core.h"
+#include "Primitive/Shape3D.h"
 
 class InputHandler : public InputSubscriber {
  private:
@@ -26,6 +26,12 @@ class Main {
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
   std::shared_ptr<Animation> _animationFish;
+
+  int _typeIndex = 0;
+  std::shared_ptr<Model3D> _modelBottle;
+  std::vector<std::shared_ptr<MaterialColor>> _materialModelBottleColor;
+  std::vector<std::shared_ptr<MaterialPhong>> _materialModelBottlePhong;
+  std::vector<std::shared_ptr<MaterialPBR>> _materialModelBottlePBR;
 
  public:
   Main();

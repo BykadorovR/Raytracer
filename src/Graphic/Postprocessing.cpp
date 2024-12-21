@@ -1,16 +1,9 @@
-#include "Postprocessing.h"
+#include "Graphic/Postprocessing.h"
 
-struct ComputeConstants {
+struct ComputePush {
   float gamma;
   float exposure;
   int enableBloom;
-  static VkPushConstantRange getPushConstant() {
-    VkPushConstantRange pushConstant;
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(ComputeConstants);
-    pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    return pushConstant;
-  }
 };
 
 void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
@@ -18,9 +11,18 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
                                  std::vector<std::shared_ptr<ImageView>> dst) {
   for (int i = 0; i < src.size(); i++) {
     for (int j = 0; j < dst.size(); j++) {
-      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, _textureLayout, _state->getDescriptorPool(),
-                                                                        _state->getDevice());
-      _descriptorSet[std::pair(i, j)]->createPostprocessing(src[i]->getImageView(), blur[i]->getImageView(), dst[j]);
+      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, _textureLayout, _engineState);
+      std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
+          {0,
+           {VkDescriptorImageInfo{.imageView = src[i]->getImageView()->getImageView(),
+                                  .imageLayout = src[i]->getImageView()->getImage()->getImageLayout()}}},
+          {1,
+           {VkDescriptorImageInfo{.imageView = blur[i]->getImageView()->getImageView(),
+                                  .imageLayout = blur[i]->getImageView()->getImage()->getImageLayout()}}},
+          {2,
+           {VkDescriptorImageInfo{.imageView = dst[j]->getImageView(),
+                                  .imageLayout = dst[j]->getImage()->getImageLayout()}}}};
+      _descriptorSet[std::pair(i, j)]->createCustom(0, {}, textureInfoColor);
     }
   }
 }
@@ -28,21 +30,38 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
 Postprocessing::Postprocessing(std::vector<std::shared_ptr<Texture>> src,
                                std::vector<std::shared_ptr<Texture>> blur,
                                std::vector<std::shared_ptr<ImageView>> dst,
-                               std::shared_ptr<State> state) {
-  _state = state;
+                               std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
 
-  auto shader = std::make_shared<Shader>(_state);
+  auto shader = std::make_shared<Shader>(_engineState);
   shader->add("shaders/postprocessing/postprocess_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
 
-  _textureLayout = std::make_shared<DescriptorSetLayout>(_state->getDevice());
-  _textureLayout->createPostprocessing();
+  _textureLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
+  std::vector<VkDescriptorSetLayoutBinding> layoutBinding = {{.binding = 0,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr},
+                                                             {.binding = 1,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr},
+                                                             {.binding = 2,
+                                                              .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                                                              .descriptorCount = 1,
+                                                              .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+                                                              .pImmutableSamplers = nullptr}};
+  _textureLayout->createCustom(layoutBinding);
 
   _initialize(src, blur, dst);
 
-  _computePipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _computePipeline->createParticleSystemCompute(
+  _computePipeline = std::make_shared<PipelineCompute>(_engineState->getDevice());
+  _computePipeline->createCustom(
       shader->getShaderStageInfo(VK_SHADER_STAGE_COMPUTE_BIT), {std::pair{std::string("texture"), _textureLayout}},
-      std::map<std::string, VkPushConstantRange>{{std::string("compute"), ComputeConstants::getPushConstant()}});
+      std::map<std::string, VkPushConstantRange>{
+          {std::string("compute"),
+           VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT, .offset = 0, .size = sizeof(ComputePush)}}});
 }
 
 void Postprocessing::reset(std::vector<std::shared_ptr<Texture>> src,
@@ -64,12 +83,12 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                     _computePipeline->getPipeline());
 
   if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
-    ComputeConstants pushConstants;
-    pushConstants.gamma = _gamma;
-    pushConstants.exposure = _exposure;
-    pushConstants.enableBloom = _state->getSettings()->getBloomPasses();
+    ComputePush pushConstants{.gamma = _gamma,
+                              .exposure = _exposure,
+                              .enableBloom = _engineState->getSettings()->getBloomPasses()};
+    auto info = _computePipeline->getPushConstants()["compute"];
     vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
-                       VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputeConstants), &pushConstants);
+                       info.stageFlags, info.offset, info.size, &pushConstants);
   }
 
   auto pipelineLayout = _computePipeline->getDescriptorSetLayout();
@@ -84,7 +103,7 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                             nullptr);
   }
 
-  auto [width, height] = _state->getSettings()->getResolution();
+  auto [width, height] = _engineState->getSettings()->getResolution();
   vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / 16.f)),
                 std::max(1, (int)std::ceil(height / 16.f)), 1);
 }

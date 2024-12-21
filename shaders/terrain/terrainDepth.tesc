@@ -5,6 +5,9 @@
 // this value controls the size of the input and output arrays
 layout (vertices = 4) out;
 
+// varying input from vertex shader
+layout (location = 0) in vec2 TexCoord[];
+
 layout(set = 0, binding = 0) uniform UniformCamera {
     mat4 model;
     mat4 view;
@@ -14,12 +17,10 @@ layout(set = 0, binding = 0) uniform UniformCamera {
 layout( push_constant ) uniform constants {
     int minTessellationLevel;
     int maxTessellationLevel;
-    float near;
-    float far;
+    float minTesselationDistance;
+    float maxTesselationDistance;
 } push;
 
-// varying input from vertex shader
-layout (location = 0) in vec2 TexCoord[];
 layout (location = 0) out vec2 TextureCoord[];
 
 void main() {
@@ -27,6 +28,10 @@ void main() {
     // pass attributes through
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
     TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
+
+    //set default level for tessColor
+    gl_TessLevelOuter[gl_InvocationID] = push.minTessellationLevel;
+
     // ----------------------------------------------------------------------
     // invocation zero controls tessellation levels for the entire patch
     if (gl_InvocationID == 0) {
@@ -37,11 +42,11 @@ void main() {
         vec4 eyeSpacePos11 = mvp.view * mvp.model * gl_in[3].gl_Position;
 
         // ----------------------------------------------------------------------
-        // Step 2: "distance" from camera scaled between 0 and 1
-        float distance00 = clamp((abs(eyeSpacePos00.z) - push.near) / (push.far - push.near), 0.0, 1.0);
-        float distance01 = clamp((abs(eyeSpacePos01.z) - push.near) / (push.far - push.near), 0.0, 1.0);
-        float distance10 = clamp((abs(eyeSpacePos10.z) - push.near) / (push.far - push.near), 0.0, 1.0);
-        float distance11 = clamp((abs(eyeSpacePos11.z) - push.near) / (push.far - push.near), 0.0, 1.0);
+        // Step 2: distance from camera
+        float distance00 = clamp((abs(eyeSpacePos00.z) - push.minTesselationDistance) / (push.maxTesselationDistance - push.minTesselationDistance), 0.0, 1.0);
+        float distance01 = clamp((abs(eyeSpacePos01.z) - push.minTesselationDistance) / (push.maxTesselationDistance - push.minTesselationDistance), 0.0, 1.0);
+        float distance10 = clamp((abs(eyeSpacePos10.z) - push.minTesselationDistance) / (push.maxTesselationDistance - push.minTesselationDistance), 0.0, 1.0);
+        float distance11 = clamp((abs(eyeSpacePos11.z) - push.minTesselationDistance) / (push.maxTesselationDistance - push.minTesselationDistance), 0.0, 1.0);
 
         // ----------------------------------------------------------------------
         // Step 3: interpolate edge tessellation level based on closer vertex

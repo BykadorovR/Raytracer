@@ -53,6 +53,14 @@ layout(std140, set = 1, binding = 3) readonly buffer LightBufferAmbient {
 
 layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
 layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 6) uniform ShadowParameters {
+    int enabledDirectional[2];
+    int enabledPoint[4];
+    //0 - simple, 1 - vsm
+    int algorithmDirectional;
+    int algorithmPoint;
+} shadowParameters;
+
 
 //coefficients from base color
 layout(set = 0, binding = 4) uniform Material {
@@ -72,6 +80,7 @@ layout( push_constant ) uniform constants {
 #define getLightPoint(index) lightPoint[index]
 #define getLightAmbient(index) lightAmbient[index]
 #define getMaterial() material
+#define getShadowParameters() shadowParameters
 #include "../shadow.glsl"
 #include "../phong.glsl"
 

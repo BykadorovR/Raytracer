@@ -1,7 +1,7 @@
 #pragma once
+#include "Utility/Logger.h"
 #include <chrono>
 #include <thread>
-#include "Logger.h"
 
 class TimerFPS {
  private:
@@ -27,13 +27,14 @@ class Timer {
   std::chrono::high_resolution_clock::time_point _startTimeCurrent;
   float _elapsedCurrent;
   int _FPSMaxPrevious;
+  std::shared_ptr<Logger> _logger;
 
  public:
   Timer();
   void tick();
   void tock();
   void reset();
-  void sleep(int FPSMax, std::shared_ptr<LoggerCPU> loggerCPU);
+  void sleep(int FPSMax);
   float getElapsedCurrent();
   uint64_t getFrameCounter();
 };

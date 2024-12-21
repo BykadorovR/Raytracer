@@ -1,9 +1,44 @@
 #pragma once
 #include <memory>
 #include <vector>
-#include "Texture.h"
-#include "Cubemap.h"
-#include "Settings.h"
+#include "Graphic/Texture.h"
+#include "Primitive/Cubemap.h"
+#include "Utility/Settings.h"
+#include "Graphic/Camera.h"
+#include "Utility/Logger.h"
+
+class AmbientLight {
+ private:
+  struct LightFields {
+    alignas(16) glm::vec3 color;
+  };
+  std::shared_ptr<LightFields> _light = nullptr;
+
+ public:
+  AmbientLight();
+  void setColor(glm::vec3 color);
+  int getSize();
+  void* getData();
+};
+
+class DirectionalLight {
+ private:
+  struct LightFields {
+    alignas(16) glm::vec3 color;
+    alignas(16) glm::vec3 position;
+  };
+  std::shared_ptr<EngineState> _engineState;
+  std::shared_ptr<LightFields> _light = nullptr;
+  std::shared_ptr<CameraDirectionalLight> _camera;
+
+ public:
+  DirectionalLight(std::shared_ptr<EngineState> engineState);
+  void setColor(glm::vec3 color);
+  glm::vec3 getColor();
+  std::shared_ptr<CameraDirectionalLight> getCamera();
+  int getSize();
+  void* getData();
+};
 
 class PointLight {
  private:
@@ -17,66 +52,19 @@ class PointLight {
     alignas(16) glm::vec3 color;
     alignas(16) glm::vec3 position;
   };
-  std::shared_ptr<Settings> _settings;
+  std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<LightFields> _light = nullptr;
-  std::vector<std::shared_ptr<Cubemap>> _depthCubemap;
   int _attenuationIndex = 4;
+  std::shared_ptr<CameraPointLight> _camera;
 
  public:
-  PointLight(std::shared_ptr<Settings> settings);
+  PointLight(std::shared_ptr<EngineState> engineState);
   void setColor(glm::vec3 color);
   glm::vec3 getColor();
-  void setDepthCubemap(std::vector<std::shared_ptr<Cubemap>> depthCubemap);
-  std::vector<std::shared_ptr<Cubemap>> getDepthCubemap();
-  void setPosition(glm::vec3 position);
-  glm::vec3 getPosition();
-  glm::mat4 getViewMatrix(int face);
-  glm::mat4 getProjectionMatrix();
+  std::shared_ptr<CameraPointLight> getCamera();
   void setAttenuationIndex(int index);
   int getAttenuationIndex();
   int getDistance();
-  int getSize();
-  float getFar();
-  void* getData();
-};
-
-class DirectionalLight {
- private:
-  struct LightFields {
-    alignas(16) glm::vec3 color;
-    alignas(16) glm::vec3 position;
-  };
-  std::shared_ptr<LightFields> _light = nullptr;
-  glm::vec3 _center, _up;
-  std::vector<std::shared_ptr<Texture>> _depthTexture;
-
- public:
-  DirectionalLight();
-  void setColor(glm::vec3 color);
-  glm::vec3 getColor();
-  void setDepthTexture(std::vector<std::shared_ptr<Texture>> depthTexture);
-  std::vector<std::shared_ptr<Texture>> getDepthTexture();
-  void setPosition(glm::vec3 position);
-  void setCenter(glm::vec3 center);
-  void setUp(glm::vec3 up);
-  glm::vec3 getPosition();
-  glm::mat4 getViewMatrix();
-  glm::mat4 getProjectionMatrix();
-  int getSize();
-  void* getData();
-};
-
-class AmbientLight {
- private:
-  struct LightFields {
-    alignas(16) glm::vec3 color;
-  };
-
-  std::shared_ptr<LightFields> _light = nullptr;
-
- public:
-  AmbientLight();
-  void setColor(glm::vec3 color);
   int getSize();
   void* getData();
 };

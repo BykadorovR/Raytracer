@@ -1,9 +1,5 @@
 #pragma once
-#ifdef __ANDROID__
-#include "VulkanWrapper.h"
-#else
-#include <vulkan/vulkan.h>
-#endif
+#include "volk.h"
 #include <tuple>
 #include <string>
 #include <vector>
@@ -24,7 +20,7 @@ struct Settings {
  private:
   int _maxFramesInFlight;
   std::tuple<int, int> _resolution = {1920, 1080};
-  std::tuple<int, int> _depthResolution = {512, 512};
+  std::tuple<int, int> _shadowMapResolution = {2048, 2048};
   // used for irradiance diffuse cubemap generation
   std::tuple<int, int> _diffuseIBLResolution = {32, 32};
   std::tuple<int, int> _specularIBLResolution = {128, 128};
@@ -38,8 +34,9 @@ struct Settings {
   VkFormat _loadTextureColorFormat;
   VkFormat _loadTextureAuxilaryFormat;
   VkFormat _depthFormat = VK_FORMAT_D32_SFLOAT;
-  // if changed have to be change in shaders too
+  VkFormat _shadowMapFormat = VK_FORMAT_R32G32_SFLOAT;
   int _threadsInPool = 6;
+  // if changed have to be change in shaders too
   int _maxDirectionalLights = 2;
   int _maxPointLights = 4;
   int _anisotropicSamples = 0;
@@ -54,12 +51,19 @@ struct Settings {
   float _depthBiasConstant = 1.25f;
   // Slope depth bias factor, applied depending on polygon's slope
   float _depthBiasSlope = 1.75f;
+  // number of DESCRIPTORS in descriptor pool
+  int _poolSizeUBO = 3000;
+  int _poolSizeSampler = 2500;
+  int _poolSizeSSBO = 100;
+  int _poolSizeComputeImage = 100;
+  // number of DESCRIPTOR SETs in descriptor pool
+  int _poolSizeDescriptorSets = 2000;
 
  public:
   // setters
   void setName(std::string name);
   void setResolution(std::tuple<int, int> resolution);
-  void setDepthResolution(std::tuple<int, int> depthResolution);
+  void setShadowMapResolution(std::tuple<int, int> shadowMapResolution);
   void setLoadTextureColorFormat(VkFormat format);
   void setLoadTextureAuxilaryFormat(VkFormat format);
   void setGraphicColorFormat(VkFormat format);
@@ -71,9 +75,14 @@ struct Settings {
   void setBloomPasses(int number);
   void setAnisotropicSamples(int number);
   void setDesiredFPS(int fps);
+  void setPoolSize(int poolSizeDescriptorSets,
+                   int poolSizeUBO,
+                   int poolSizeSampler,
+                   int poolSizeSSBO,
+                   int poolSizeComputeImage);
   // getters
   const std::tuple<int, int>& getResolution();
-  const std::tuple<int, int>& getDepthResolution();
+  const std::tuple<int, int>& getShadowMapResolution();
   std::string getName();
   int getMaxFramesInFlight();
   int getMaxDirectionalLights();
@@ -85,6 +94,7 @@ struct Settings {
   VkFormat getLoadTextureColorFormat();
   VkFormat getLoadTextureAuxilaryFormat();
   VkFormat getDepthFormat();
+  VkFormat getShadowMapFormat();
   int getBloomPasses();
   VkClearColorValue getClearColor();
   int getAnisotropicSamples();
@@ -94,4 +104,9 @@ struct Settings {
   int getSpecularMipMap();
   float getDepthBiasConstant();
   float getDepthBiasSlope();
+  int getPoolSizeUBO();
+  int getPoolSizeSampler();
+  int getPoolSizeSSBO();
+  int getPoolSizeComputeImage();
+  int getPoolSizeDescriptorSets();
 };

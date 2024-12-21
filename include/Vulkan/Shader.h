@@ -1,16 +1,16 @@
 #pragma once
-#include "State.h"
+#include "Utility/EngineState.h"
 #include <map>
 
 class Shader {
  private:
-  std::shared_ptr<State> _state;
+  std::shared_ptr<EngineState> _engineState;
   std::map<VkShaderStageFlagBits, VkPipelineShaderStageCreateInfo> _shaders;
   VkSpecializationInfo _specializationInfo;
   VkShaderModule _createShaderModule(const std::vector<char>& code);
 
  public:
-  Shader(std::shared_ptr<State> device);
+  Shader(std::shared_ptr<EngineState> device);
   void add(std::string path, VkShaderStageFlagBits type);
   void setSpecializationInfo(VkSpecializationInfo info, VkShaderStageFlagBits type);
   VkPipelineShaderStageCreateInfo& getShaderStageInfo(VkShaderStageFlagBits type);

@@ -1,8 +1,8 @@
 #include "Main.h"
-#include "IBL.h"
-#include "Equirectangular.h"
 #include <random>
 #include <glm/gtc/random.hpp>
+#include "Graphic/IBL.h"
+#include "Primitive/Equirectangular.h"
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
 
@@ -13,12 +13,10 @@ void InputHandler::mouseNotify(int button, int action, int mods) {}
 void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 #ifndef __ANDROID__
   if ((action == GLFW_RELEASE && key == GLFW_KEY_C)) {
-    if (_cursorEnabled) {
-      _core->getState()->getInput()->showCursor(false);
-      _cursorEnabled = false;
+    if (_core->getEngineState()->getInput()->cursorEnabled()) {
+      _core->getEngineState()->getInput()->showCursor(false);
     } else {
-      _core->getState()->getInput()->showCursor(true);
-      _cursorEnabled = true;
+      _core->getEngineState()->getInput()->showCursor(true);
     }
   }
 #endif
@@ -27,6 +25,59 @@ void InputHandler::keyNotify(int key, int scancode, int action, int mods) {
 void InputHandler::charNotify(unsigned int code) {}
 
 void InputHandler::scrollNotify(double xOffset, double yOffset) {}
+
+void Main::_createTerrainPhong() {
+  _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialPhong);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+  _core->addShadowable(_terrain);
+}
+
+void Main::_createTerrainPBR() {
+  _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialPBR);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+  _core->addShadowable(_terrain);
+}
+
+void Main::_createTerrainColor() {
+  _core->removeDrawable(_terrain);
+  _core->removeShadowable(_terrain);
+  _terrain = _core->createTerrainComposition(_core->loadImageCPU("../../terrain/assets/heightmap.png"));
+  _terrain->setPatchNumber(_patchX, _patchY);
+  _terrain->initialize(_core->getCommandBufferApplication());
+  _terrain->setMaterial(_materialColor);
+  _terrain->setScale(_terrainScale);
+  _terrain->setTranslate(_terrainPosition);
+  _terrain->setTessellationLevel(_minTessellationLevel, _maxTessellationLevel);
+  _terrain->setTesselationDistance(_minDistance, _maxDistance);
+  _terrain->setColorHeightLevels(_heightLevels);
+  _terrain->setHeight(_heightScale, _heightShift);
+
+  _core->addDrawable(_terrain);
+}
 
 Main::Main() {
   int mipMapLevels = 4;
@@ -52,14 +103,14 @@ Main::Main() {
   _core = std::make_shared<Core>(settings);
   _core->initialize();
   // start transfer command buffer
-  auto commandBufferTransfer = _core->getCommandBufferTransfer();
+  auto commandBufferTransfer = _core->getCommandBufferApplication();
   commandBufferTransfer->beginCommands();
-  auto state = _core->getState();
-  _camera = std::make_shared<CameraFly>(_core->getState());
+  _camera = std::make_shared<CameraFly>(_core->getEngineState());
+  _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_camera));
   _inputHandler = std::make_shared<InputHandler>(_core);
-  _core->getState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
+  _core->getEngineState()->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriber>(_inputHandler));
   _core->setCamera(_camera);
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
@@ -82,20 +133,21 @@ Main::Main() {
 
   auto postprocessing = _core->getPostprocessing();
 
-  _pointLightHorizontal = _core->createPointLight(settings->getDepthResolution());
+  _pointLightHorizontal = _core->createPointLight();
+  _core->createPointShadow(_pointLightHorizontal);
   _pointLightHorizontal->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _pointLightHorizontal->setPosition({3.f, 4.f, 0.f});
+  _pointLightHorizontal->getCamera()->setPosition({3.f, 4.f, 0.f});
 
   auto ambientLight = _core->createAmbientLight();
   // calculate ambient color with default gamma
   float ambientColor = std::pow(0.05f, postprocessing->getGamma());
   ambientLight->setColor(glm::vec3(ambientColor, ambientColor, ambientColor));
 
-  _directionalLight = _core->createDirectionalLight(settings->getDepthResolution());
+  _directionalLight = _core->createDirectionalLight();
+  _core->createDirectionalShadow(_directionalLight);
   _directionalLight->setColor(glm::vec3(1.f, 1.f, 1.f));
-  _directionalLight->setPosition({0.f, 35.f, 0.f});
-  _directionalLight->setCenter({0.f, 0.f, 0.f});
-  _directionalLight->setUp({0.f, 0.f, -1.f});
+  _directionalLight->getCamera()->setArea({-10.f, 10.f, -10.f, 10.f}, 0.1f, 40.f);
+  _directionalLight->getCamera()->setPosition({0.f, 15.f, 0.f});
 
   _debugVisualization = std::make_shared<DebugVisualization>(_camera, _core);
 
@@ -111,64 +163,43 @@ Main::Main() {
 
     auto spriteForward = _core->createSprite();
     spriteForward->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 1.f));
-      spriteForward->setModel(model);
-    }
+    spriteForward->setTranslate(glm::vec3(0.f, 0.f, 1.f));
     _core->addDrawable(spriteForward);
 
     auto spriteBackward = _core->createSprite();
     spriteBackward->setMaterial(material);
-    {
-      auto model = glm::rotate(glm::mat4(1.f), glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteBackward->setModel(model);
-    }
+    spriteBackward->setRotate(glm::vec3(0.f, glm::radians(180.f), 0.f));
     _core->addDrawable(spriteBackward);
 
     auto spriteLeft = _core->createSprite();
     spriteLeft->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteLeft->setModel(model);
-    }
+    spriteLeft->setTranslate(glm::vec3(-0.5f, 0.f, 0.5f));
+    spriteLeft->setRotate(glm::vec3(0.f, glm::radians(-90.f), 0.f));
     _core->addDrawable(spriteLeft);
 
     auto spriteRight = _core->createSprite();
     spriteRight->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.5f, 0.f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-      spriteRight->setModel(model);
-    }
+    spriteRight->setTranslate(glm::vec3(0.5f, 0.f, 0.5f));
+    spriteRight->setRotate(glm::vec3(0.f, glm::radians(90.f), 0.f));
     _core->addDrawable(spriteRight);
 
     auto spriteTop = _core->createSprite();
     spriteTop->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(-90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteTop->setModel(model);
-    }
+    spriteTop->setTranslate(glm::vec3(0.f, 0.5f, 0.5f));
+    spriteTop->setRotate(glm::vec3(glm::radians(-90.f), 0.f, 0.f));
     _core->addDrawable(spriteTop);
 
     auto spriteBot = _core->createSprite();
     spriteBot->setMaterial(material);
-    {
-      glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, -0.5f, 0.5f));
-      model = glm::rotate(model, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-      spriteBot->setModel(model);
-    }
+    spriteBot->setTranslate(glm::vec3(0.f, -0.5f, 0.5f));
+    spriteBot->setRotate(glm::vec3(glm::radians(90.f), 0.f, 0.f));
     _core->addDrawable(spriteBot);
   }
   auto modelGLTF = _core->createModelGLTF("../../IBL/assets/DamagedHelmet/DamagedHelmet.gltf");
   auto modelGLTFPhong = _core->createModel3D(modelGLTF);
   modelGLTFPhong->setMaterial(modelGLTF->getMaterialsPhong());
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -5.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPhong->setModel(model);
-  }
+  modelGLTFPhong->setScale(glm::vec3(1.f, 1.f, 1.f));
+  modelGLTFPhong->setTranslate(glm::vec3(-2.f, 2.f, -5.f));
   _core->addDrawable(modelGLTFPhong);
   _core->addShadowable(modelGLTFPhong);
 
@@ -178,23 +209,12 @@ Main::Main() {
     fillMaterialPBR(material);
   }
   modelGLTFPBR->setMaterial(pbrMaterial);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 2.f, -3.f));
-    model = glm::scale(model, glm::vec3(1.f, 1.f, 1.f));
-    modelGLTFPBR->setModel(model);
-  }
+  modelGLTFPBR->setTranslate(glm::vec3(-2.f, 2.f, -3.f));
+  modelGLTFPBR->setScale(glm::vec3(1.f, 1.f, 1.f));
   _core->addDrawable(modelGLTFPBR);
   _core->addShadowable(modelGLTFPBR);
 
-  auto tile0 = _core->createTexture("../assets/Terrain/dirt.jpg", settings->getLoadTextureColorFormat(), 6);
-  auto tile1 = _core->createTexture("../assets/Terrain/grass.jpg", settings->getLoadTextureColorFormat(), 6);
-  auto tile2 = _core->createTexture("../assets/Terrain/rock_gray.png", settings->getLoadTextureColorFormat(), 6);
-  auto tile3 = _core->createTexture("../assets/Terrain/snow.png", settings->getLoadTextureColorFormat(), 6);
-
-  auto terrain = _core->createTerrain("../assets/Terrain/heightmap.png", std::pair{12, 12});
-  auto materialTerrain = _core->createMaterialPhong(MaterialTarget::TERRAIN);
-  materialTerrain->setBaseColor({tile0, tile1, tile2, tile3});
-  auto fillMaterialTerrainPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
+  auto fillMaterialPhongTerrain = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
       material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
     if (material->getNormal().size() == 0)
@@ -202,15 +222,117 @@ Main::Main() {
     if (material->getSpecular().size() == 0)
       material->setSpecular(std::vector{4, core->getResourceManager()->getTextureZero()});
   };
-  fillMaterialTerrainPhong(materialTerrain);
-  terrain->setMaterial(materialTerrain);
+
+  auto fillMaterialPBRTerrain = [core = _core](std::shared_ptr<MaterialPBR> material) {
+    if (material->getBaseColor().size() == 0)
+      material->setBaseColor(std::vector{4, core->getResourceManager()->getTextureOne()});
+    if (material->getNormal().size() == 0)
+      material->setNormal(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getMetallic().size() == 0)
+      material->setMetallic(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getRoughness().size() == 0)
+      material->setRoughness(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getOccluded().size() == 0)
+      material->setOccluded(std::vector{4, core->getResourceManager()->getTextureZero()});
+    if (material->getEmissive().size() == 0)
+      material->setEmissive(std::vector{4, core->getResourceManager()->getTextureZero()});
+    material->setDiffuseIBL(core->getResourceManager()->getCubemapZero()->getTexture());
+    material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
+                             core->getResourceManager()->getTextureZero());
+  };
+
   {
-    auto scaleMatrix = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    auto translateMatrix = glm::translate(scaleMatrix, glm::vec3(2.f, -6.f, 0.f));
-    terrain->setModel(translateMatrix);
+    auto tile0 = _core->createTexture("../../terrain/assets/desert/albedo.png", settings->getLoadTextureColorFormat(),
+                                      mipMapLevels);
+    auto tile1 = _core->createTexture("../../terrain/assets/rock/albedo.png", settings->getLoadTextureColorFormat(),
+                                      mipMapLevels);
+    auto tile2 = _core->createTexture("../../terrain/assets/grass/albedo.png", settings->getLoadTextureColorFormat(),
+                                      mipMapLevels);
+    auto tile3 = _core->createTexture("../../terrain/assets/ground/albedo.png", settings->getLoadTextureColorFormat(),
+                                      mipMapLevels);
+    _materialColor = _core->createMaterialColor(MaterialTarget::TERRAIN);
+    _materialColor->setBaseColor({tile0, tile1, tile2, tile3});
   }
-  _core->addDrawable(terrain, AlphaType::OPAQUE);
-  _core->addShadowable(terrain);
+
+  {
+    auto tile0Color = _core->createTexture("../../terrain/assets/desert/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile0Normal = _core->createTexture("../../terrain/assets/desert/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1Color = _core->createTexture("../../terrain/assets/rock/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile1Normal = _core->createTexture("../../terrain/assets/rock/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile2Color = _core->createTexture("../../terrain/assets/grass/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile2Normal = _core->createTexture("../../terrain/assets/grass/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile3Normal = _core->createTexture("../../terrain/assets/ground/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+
+    _materialPhong = _core->createMaterialPhong(MaterialTarget::TERRAIN);
+    _materialPhong->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPhong->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    fillMaterialPhongTerrain(_materialPhong);
+  }
+
+  {
+    auto tile0Color = _core->createTexture("../../terrain/assets/desert/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile0Normal = _core->createTexture("../../terrain/assets/desert/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile0Metallic = _core->createTexture("../../terrain/assets/desert/metallic.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile0Roughness = _core->createTexture("../../terrain/assets/desert/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile0AO = _core->createTexture("../../terrain/assets/desert/ao.png", settings->getLoadTextureAuxilaryFormat(),
+                                        mipMapLevels);
+
+    auto tile1Color = _core->createTexture("../../terrain/assets/rock/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile1Normal = _core->createTexture("../../terrain/assets/rock/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1Metallic = _core->createTexture("../../terrain/assets/rock/metallic.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1Roughness = _core->createTexture("../../terrain/assets/rock/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile1AO = _core->createTexture("../../terrain/assets/rock/ao.png", settings->getLoadTextureAuxilaryFormat(),
+                                        mipMapLevels);
+
+    auto tile2Color = _core->createTexture("../../terrain/assets/grass/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile2Normal = _core->createTexture("../../terrain/assets/grass/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile2Metallic = _core->createTexture("../../terrain/assets/grass/metallic.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile2Roughness = _core->createTexture("../../terrain/assets/grass/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile2AO = _core->createTexture("../../terrain/assets/grass/ao.png", settings->getLoadTextureAuxilaryFormat(),
+                                        mipMapLevels);
+
+    auto tile3Color = _core->createTexture("../../terrain/assets/ground/albedo.png",
+                                           settings->getLoadTextureColorFormat(), mipMapLevels);
+    auto tile3Normal = _core->createTexture("../../terrain/assets/ground/normal.png",
+                                            settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile3Metallic = _core->createTexture("../../terrain/assets/ground/metallic.png",
+                                              settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile3Roughness = _core->createTexture("../../terrain/assets/ground/roughness.png",
+                                               settings->getLoadTextureAuxilaryFormat(), mipMapLevels);
+    auto tile3AO = _core->createTexture("../../terrain/assets/ground/ao.png", settings->getLoadTextureAuxilaryFormat(),
+                                        mipMapLevels);
+
+    _materialPBR = _core->createMaterialPBR(MaterialTarget::TERRAIN);
+    _materialPBR->setBaseColor({tile0Color, tile1Color, tile2Color, tile3Color});
+    _materialPBR->setNormal({tile0Normal, tile1Normal, tile2Normal, tile3Normal});
+    _materialPBR->setMetallic({tile0Metallic, tile1Metallic, tile2Metallic, tile3Metallic});
+    _materialPBR->setRoughness({tile0Roughness, tile1Roughness, tile2Roughness, tile3Roughness});
+    _materialPBR->setOccluded({tile0AO, tile1AO, tile2AO, tile3AO});
+    fillMaterialPBRTerrain(_materialPBR);
+  }
+
+  _createTerrainColor();
 
   auto particleTexture = _core->createTexture("../../Particles/assets/gradient.png",
                                               settings->getLoadTextureAuxilaryFormat(), 1);
@@ -244,132 +366,96 @@ Main::Main() {
     particle.velocityDirection = glm::normalize(lightPositionHorizontal);
   }
   auto particleSystem = _core->createParticleSystem(particles, particleTexture);
-  {
-    auto matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 2.f));
-    matrix = glm::scale(matrix, glm::vec3(0.5f, 0.5f, 0.5f));
-
-    particleSystem->setModel(matrix);
-  }
+  particleSystem->setTranslate(glm::vec3(0.f, 0.f, 2.f));
+  particleSystem->setScale(glm::vec3(0.5f, 0.5f, 0.5f));
   _core->addParticleSystem(particleSystem);
 
   std::vector<std::shared_ptr<Shape3D>> spheres(6);
   // non HDR
   spheres[0] = _core->createShape3D(ShapeType::SPHERE);
   spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 0.f));
-    spheres[0]->setModel(model);
-  }
+  spheres[0]->setTranslate(glm::vec3(0.f, 5.f, 0.f));
   spheres[1] = _core->createShape3D(ShapeType::SPHERE);
   spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 5.f, 0.f));
-    spheres[1]->setModel(model);
-  }
+  spheres[1]->setTranslate(glm::vec3(2.f, 5.f, 0.f));
   spheres[2] = _core->createShape3D(ShapeType::SPHERE);
   spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-2.f, 5.f, 0.f));
-    spheres[2]->setModel(model);
-  }
+  spheres[2]->setTranslate(glm::vec3(-2.f, 5.f, 0.f));
   // HDR
   spheres[3] = _core->createShape3D(ShapeType::SPHERE);
   spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 5.f, 2.f));
-    spheres[3]->setModel(model);
-  }
+  spheres[3]->setTranslate(glm::vec3(0.f, 5.f, 2.f));
   spheres[4] = _core->createShape3D(ShapeType::SPHERE);
   spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 7.f, -2.f));
-    spheres[4]->setModel(model);
-  }
+  spheres[4]->setTranslate(glm::vec3(-4.f, 7.f, -2.f));
   spheres[5] = _core->createShape3D(ShapeType::SPHERE);
   spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(-4.f, 5.f, -2.f));
-    spheres[5]->setModel(model);
-  }
-
+  spheres[5]->setTranslate(glm::vec3(-4.f, 5.f, -2.f));
   for (auto& sphere : spheres) {
     _core->addDrawable(sphere);
   }
 
   auto [width, height] = settings->getResolution();
-  auto cubemap = _core->createCubemap(
+  _cubemapSkybox = _core->createCubemap(
       {"../assets/Skybox/right.jpg", "../assets/Skybox/left.jpg", "../assets/Skybox/top.jpg",
        "../assets/Skybox/bottom.jpg", "../assets/Skybox/front.jpg", "../assets/Skybox/back.jpg"},
       settings->getLoadTextureColorFormat(), 1);
 
   auto cube = _core->createShape3D(ShapeType::CUBE);
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
-  materialColor->setBaseColor({cubemap->getTexture()});
+  materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, 0.f));
-    cube->setModel(model);
-  }
+  cube->setTranslate(glm::vec3(0.f, 3.f, 0.f));
   _core->addDrawable(cube);
 
-  auto ibl = _core->createIBL();
-
   auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 3.f, -3.f));
-    equiCube->setModel(model);
-  }
+  equiCube->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   _core->addDrawable(equiCube);
 
   auto diffuseCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(2.f, 3.f, -3.f));
-    diffuseCube->setModel(model);
-  }
+  diffuseCube->setTranslate(glm::vec3(2.f, 3.f, -3.f));
   _core->addDrawable(diffuseCube);
 
   auto specularCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
-  {
-    auto model = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 3.f, -3.f));
-    specularCube->setModel(model);
-  }
+  specularCube->setTranslate(glm::vec3(4.f, 3.f, -3.f));
   _core->addDrawable(specularCube);
 
-  auto equirectangular = _core->createEquirectangular("../../IBL/assets/newport_loft.hdr");
-  auto cubemapConverted = equirectangular->getCubemap();
+  _ibl = _core->createIBL();
+  _equirectangular = _core->createEquirectangular("../../IBL/assets/newport_loft.hdr");
+  auto cubemapConverted = _equirectangular->getCubemap();
   auto materialColorEq = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorEq->setBaseColor({cubemapConverted->getTexture()});
-  ibl->setMaterial(materialColorEq);
+  _ibl->setMaterial(materialColorEq);
   auto materialColorCM = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorDiffuse = _core->createMaterialColor(MaterialTarget::SIMPLE);
   auto materialColorSpecular = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColorCM->setBaseColor({cubemapConverted->getTexture()});
   equiCube->setMaterial(materialColorCM);
 
-  ibl->drawDiffuse();
-  ibl->drawSpecular();
-  ibl->drawSpecularBRDF();
+  _ibl->drawDiffuse();
+  _ibl->drawSpecular();
+  _ibl->drawSpecularBRDF();
 
   // display specular as texture
-  materialColorSpecular->setBaseColor({ibl->getCubemapSpecular()->getTexture()});
+  materialColorSpecular->setBaseColor({_ibl->getCubemapSpecular()->getTexture()});
   specularCube->setMaterial(materialColorSpecular);
 
   // display diffuse as texture
-  materialColorDiffuse->setBaseColor({ibl->getCubemapDiffuse()->getTexture()});
+  materialColorDiffuse->setBaseColor({_ibl->getCubemapDiffuse()->getTexture()});
   diffuseCube->setMaterial(materialColorDiffuse);
 
   // set diffuse to material
   for (auto& material : pbrMaterial) {
-    material->setDiffuseIBL(ibl->getCubemapDiffuse()->getTexture());
+    material->setDiffuseIBL(_ibl->getCubemapDiffuse()->getTexture());
   }
 
   // set specular to material
   for (auto& material : pbrMaterial) {
-    material->setSpecularIBL(ibl->getCubemapSpecular()->getTexture(), ibl->getTextureSpecularBRDF());
+    material->setSpecularIBL(_ibl->getCubemapSpecular()->getTexture(), _ibl->getTextureSpecularBRDF());
   }
 
   auto materialBRDF = _core->createMaterialPhong(MaterialTarget::SIMPLE);
-  materialBRDF->setBaseColor({ibl->getTextureSpecularBRDF()});
+  materialBRDF->setBaseColor({_ibl->getTextureSpecularBRDF()});
   materialBRDF->setNormal({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setSpecular({_core->getResourceManager()->getTextureZero()});
   materialBRDF->setCoefficients(glm::vec3(1.f), glm::vec3(0.f), glm::vec3(0.f), 0.f);
@@ -378,10 +464,7 @@ Main::Main() {
   spriteBRDF->enableShadow(false);
   spriteBRDF->enableDepth(false);
   spriteBRDF->setMaterial(materialBRDF);
-  {
-    glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(5.f, 3.f, 1.f));
-    spriteBRDF->setModel(model);
-  }
+  spriteBRDF->setTranslate(glm::vec3(5.f, 3.f, 1.f));
   _core->addDrawable(spriteBRDF);
 
   _core->endRecording();
@@ -397,21 +480,44 @@ void Main::update() {
   static float angleHorizontal = 90.f;
   glm::vec3 lightPositionHorizontal = glm::vec3(radius * cos(glm::radians(angleHorizontal)), radius,
                                                 radius * sin(glm::radians(angleHorizontal)));
-  _pointLightHorizontal->setPosition(lightPositionHorizontal);
+  _pointLightHorizontal->getCamera()->setPosition(lightPositionHorizontal);
 
   angleHorizontal += 0.05f;
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
-  auto [widthScreen, heightScreen] = _core->getState()->getSettings()->getResolution();
-  _core->getGUI()->startWindow("Help", {20, 20}, {widthScreen / 10, 0});
+  auto [widthScreen, heightScreen] = _core->getEngineState()->getSettings()->getResolution();
+  _core->getGUI()->startWindow("Help");
+  _core->getGUI()->setWindowPosition({20, 20});
   if (_core->getGUI()->startTree("Main")) {
     _core->getGUI()->drawText({"Limited FPS: " + std::to_string(FPSLimited)});
     _core->getGUI()->drawText({"Maximum FPS: " + std::to_string(FPSReal)});
     _core->getGUI()->drawText({"Press 'c' to turn cursor on/off"});
     _core->getGUI()->endTree();
   }
-  if (_core->getGUI()->startTree("Debug")) {
-    _debugVisualization->update();
+  if (_core->getGUI()->startTree("Terrain", false)) {
+    std::map<std::string, int*> terrainType;
+    terrainType["##Type"] = &_typeIndex;
+    if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
+      _core->startRecording();
+      switch (_typeIndex) {
+        case 0:
+          _terrain->setMaterial(_materialColor);
+          break;
+        case 1:
+          _terrain->setMaterial(_materialPhong);
+          break;
+        case 2:
+          _terrain->setMaterial(_materialPBR);
+          break;
+      }
+      _core->endRecording();
+    }
+    _core->getGUI()->endTree();
+  }
+
+  _debugVisualization->update();
+  if (_core->getGUI()->startTree("Debug", false)) {
+    _debugVisualization->draw();
     _core->getGUI()->endTree();
   }
   _core->getGUI()->endWindow();

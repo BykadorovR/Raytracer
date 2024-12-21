@@ -1,68 +1,80 @@
-#include "Line.h"
+#include "Primitive/Line.h"
 
-Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<State> state) {
-  _state = state;
-  _mesh = std::make_shared<Mesh3D>(state);
-  _mesh->setIndexes({0, 1}, commandBufferTransfer);
-  _mesh->setVertices({Vertex3D{}, Vertex3D{}}, commandBufferTransfer);
-  _uniformBuffer = std::make_shared<UniformBuffer>(_state->getSettings()->getMaxFramesInFlight(), sizeof(BufferMVP),
-                                                   state);
-  auto setLayout = std::make_shared<DescriptorSetLayout>(state->getDevice());
-  setLayout->createUniformBuffer();
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(state->getSettings()->getMaxFramesInFlight(), setLayout,
-                                                         state->getDescriptorPool(), state->getDevice());
-  _descriptorSetCamera->createUniformBuffer(_uniformBuffer);
+Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
+           std::shared_ptr<GameState> gameState,
+           std::shared_ptr<EngineState> engineState) {
+  setName("Line");
+  _engineState = engineState;
+  _gameState = gameState;
+  _mesh = std::make_shared<MeshDynamic3D>(engineState);
+  _mesh->setIndexes({0, 1});
+  _mesh->setVertices({Vertex3D{}, Vertex3D{}});
 
-  auto shader = std::make_shared<Shader>(state);
+  auto cameraLayout = std::make_shared<DescriptorSetLayout>(engineState->getDevice());
+  VkDescriptorSetLayoutBinding layoutBinding = {.binding = 0,
+                                                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                                                .descriptorCount = 1,
+                                                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                                                .pImmutableSamplers = nullptr};
+  cameraLayout->createCustom({layoutBinding});
+  _descriptorSetCamera = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
+                                                         cameraLayout, engineState);
+  _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _cameraBuffer[i] = std::make_shared<Buffer>(
+        sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
+
+    std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+        {0,
+         {VkDescriptorBufferInfo{.buffer = _cameraBuffer[i]->getData(),
+                                 .offset = 0,
+                                 .range = _cameraBuffer[i]->getSize()}}}};
+    _descriptorSetCamera->createCustom(i, bufferInfo, {});
+  }
+
+  auto shader = std::make_shared<Shader>(engineState);
   shader->add("shaders/line/line_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
   shader->add("shaders/line/line_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-  _renderPass = std::make_shared<RenderPass>(_state->getSettings(), _state->getDevice());
-  _renderPass->initializeGraphic();
-  _pipeline = std::make_shared<Pipeline>(_state->getSettings(), _state->getDevice());
-  _pipeline->createLine(
-      VK_CULL_MODE_NONE, VK_POLYGON_MODE_FILL,
+  _renderPass = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
+  _pipeline = std::make_shared<PipelineGraphic>(_engineState->getDevice());
+  _pipeline->setDepthTest(true);
+  _pipeline->setDepthWrite(true);
+  _pipeline->setTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+  _pipeline->createCustom(
       {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
-      {std::pair{std::string("camera"), setLayout}}, {}, _mesh->getBindingDescription(),
+      {std::pair{std::string("camera"), cameraLayout}}, {}, _mesh->getBindingDescription(),
       _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
                                              {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
       _renderPass);
 }
 
-std::shared_ptr<Mesh3D> Line::getMesh() { return _mesh; }
+std::shared_ptr<MeshDynamic3D> Line::getMesh() { return _mesh; }
 
 void Line::setModel(glm::mat4 model) { _model = model; }
 
-void Line::draw(std::tuple<int, int> resolution,
-                std::shared_ptr<Camera> camera,
-                std::shared_ptr<CommandBuffer> commandBuffer) {
-  auto currentFrame = _state->getFrameInFlight();
+void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto currentFrame = _engineState->getFrameInFlight();
   vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipeline->getPipeline());
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = std::get<1>(resolution);
-  viewport.width = std::get<0>(resolution);
-  viewport.height = -std::get<1>(resolution);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
+  auto resolution = _engineState->getSettings()->getResolution();
+  VkViewport viewport{.x = 0.0f,
+                      .y = static_cast<float>(std::get<1>(resolution)),
+                      .width = static_cast<float>(std::get<0>(resolution)),
+                      .height = static_cast<float>(-std::get<1>(resolution)),
+                      .minDepth = 0.0f,
+                      .maxDepth = 1.0f};
   vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
 
-  VkRect2D scissor{};
-  scissor.offset = {0, 0};
-  scissor.extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution));
+  VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
   vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
 
-  BufferMVP cameraUBO{};
-  cameraUBO.model = _model;
-  cameraUBO.view = camera->getView();
-  cameraUBO.projection = camera->getProjection();
+  BufferMVP cameraUBO{.model = _model,
+                      .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
+                      .projection = _gameState->getCameraManager()->getCurrentCamera()->getProjection()};
 
-  void* data;
-  vkMapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory(), 0,
-              sizeof(cameraUBO), 0, &data);
-  memcpy(data, &cameraUBO, sizeof(cameraUBO));
-  vkUnmapMemory(_state->getDevice()->getLogicalDevice(), _uniformBuffer->getBuffer()[currentFrame]->getMemory());
+  _cameraBuffer[currentFrame]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};

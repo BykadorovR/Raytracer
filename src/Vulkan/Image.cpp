@@ -1,8 +1,11 @@
-#include "Image.h"
+#include "Vulkan/Image.h"
 
-Image::Image(VkImage& image, std::tuple<int, int> resolution, VkFormat format, std::shared_ptr<State> state) {
+Image::Image(VkImage& image,
+             std::tuple<int, int> resolution,
+             VkFormat format,
+             std::shared_ptr<EngineState> engineState) {
   _image = image;
-  _state = state;
+  _engineState = engineState;
   _resolution = resolution;
   _format = format;
 
@@ -16,61 +19,36 @@ Image::Image(std::tuple<int, int> resolution,
              VkImageTiling tiling,
              VkImageUsageFlags usage,
              VkMemoryPropertyFlags properties,
-             std::shared_ptr<State> state) {
-  _state = state;
+             std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   _resolution = resolution;
   _format = format;
   _layers = layers;
 
   _imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-  VkImageCreateInfo imageInfo{};
-  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  imageInfo.imageType = VK_IMAGE_TYPE_2D;
-  imageInfo.extent.width = std::get<0>(resolution);
-  imageInfo.extent.height = std::get<1>(resolution);
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = mipMapLevels;
-  imageInfo.arrayLayers = layers;
-  imageInfo.format = format;
-  imageInfo.tiling = tiling;
-  imageInfo.initialLayout = _imageLayout;
-  imageInfo.usage = usage;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  VkImageCreateInfo imageInfo{
+      .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .format = format,
+      .extent = {.width = static_cast<uint32_t>(std::get<0>(resolution)),
+                 .height = static_cast<uint32_t>(std::get<1>(resolution)),
+                 .depth = 1},
+      .mipLevels = static_cast<uint32_t>(mipMapLevels),
+      .arrayLayers = static_cast<uint32_t>(layers),
+      .samples = VK_SAMPLE_COUNT_1_BIT,
+      .tiling = tiling,
+      .usage = usage,
+      .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+      .initialLayout = _imageLayout,
+  };
   // for cubemap need to set flag
   if (layers == 6) imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-  if (vkCreateImage(_state->getDevice()->getLogicalDevice(), &imageInfo, nullptr, &_image) != VK_SUCCESS) {
-    throw std::runtime_error("failed to create image!");
-  }
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
 
-  VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(_state->getDevice()->getLogicalDevice(), _image, &memRequirements);
-
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-
-  allocInfo.memoryTypeIndex = -1;
-  // TODO: findMemoryType to device
-  VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(_state->getDevice()->getPhysicalDevice(), &memProperties);
-
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((memRequirements.memoryTypeBits & (1 << i)) &&
-        (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-      allocInfo.memoryTypeIndex = i;
-      break;
-    }
-  }
-  if (allocInfo.memoryTypeIndex < 0) throw std::runtime_error("failed to find suitable memory type!");
-
-  if (vkAllocateMemory(_state->getDevice()->getLogicalDevice(), &allocInfo, nullptr, &_imageMemory) != VK_SUCCESS) {
-    throw std::runtime_error("failed to allocate image memory!");
-  }
-
-  vkBindImageMemory(_state->getDevice()->getLogicalDevice(), _image, _imageMemory, 0);
+  vmaCreateImage(_engineState->getMemoryAllocator()->getAllocator(), &imageInfo, &allocCreateInfo, &_image,
+                 &_imageMemory, nullptr);
 }
 
 int Image::getLayersNumber() { return _layers; }
@@ -82,18 +60,15 @@ void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 std::tuple<int, int> Image::getResolution() { return _resolution; }
 
 void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _state->getFrameInFlight();
-
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.image = getImage();
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = layers;
-  barrier.subresourceRange.levelCount = 1;
-
+  int currentFrame = _engineState->getFrameInFlight();
+  VkImageMemoryBarrier barrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                               .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                               .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                               .image = getImage(),
+                               .subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                                    .levelCount = 1,
+                                                    .baseArrayLayer = 0,
+                                                    .layerCount = static_cast<uint32_t>(layers)}};
   auto [mipWidth, mipHeight] = getResolution();
   for (uint32_t i = 1; i < mipMapLevels; i++) {
     // change layout of source image to SRC so we can resize it and generate i-th mip map level
@@ -160,19 +135,17 @@ void Image::changeLayout(VkImageLayout oldLayout,
                          std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _imageLayout = newLayout;
 
-  VkImageMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-  barrier.oldLayout = oldLayout;
-  barrier.newLayout = newLayout;
-
-  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  barrier.image = _image;
-  barrier.subresourceRange.aspectMask = aspectMask;
-  barrier.subresourceRange.baseMipLevel = 0;
-  barrier.subresourceRange.levelCount = mipMapLevels;
-  barrier.subresourceRange.baseArrayLayer = 0;
-  barrier.subresourceRange.layerCount = layersNumber;
+  VkImageMemoryBarrier barrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                               .oldLayout = oldLayout,
+                               .newLayout = newLayout,
+                               .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                               .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                               .image = _image,
+                               .subresourceRange = {.aspectMask = aspectMask,
+                                                    .baseMipLevel = 0,
+                                                    .levelCount = static_cast<uint32_t>(mipMapLevels),
+                                                    .baseArrayLayer = 0,
+                                                    .layerCount = static_cast<uint32_t>(layersNumber)}};
 
   switch (oldLayout) {
     case VK_IMAGE_LAYOUT_UNDEFINED:
@@ -263,10 +236,12 @@ void Image::changeLayout(VkImageLayout oldLayout,
       break;
   }
 
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_state->getFrameInFlight()],
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_engineState->getFrameInFlight()],
                        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0,
                        nullptr, 1, &barrier);
 }
+
+void Image::setData(std::shared_ptr<Buffer> buffer) {}
 
 void Image::copyFrom(std::shared_ptr<Buffer> buffer,
                      std::vector<int> bufferOffsets,
@@ -275,30 +250,28 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
 
   std::vector<VkBufferImageCopy> bufferCopyRegions;
   for (int i = 0; i < bufferOffsets.size(); i++) {
-    VkBufferImageCopy region{};
-    region.bufferOffset = bufferOffsets[i];
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
+    VkBufferImageCopy region{
+        .bufferOffset = static_cast<VkDeviceSize>(bufferOffsets[i]),
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                             .mipLevel = 0,
+                             .baseArrayLayer = static_cast<uint32_t>(i),
+                             .layerCount = 1},
+        .imageOffset = {0, 0, 0},
+        .imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1}};
 
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = i;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {(uint32_t)std::get<0>(_resolution), (uint32_t)std::get<1>(_resolution), 1};
     bufferCopyRegions.push_back(region);
   }
 
-  int currentFrame = _state->getFrameInFlight();
+  int currentFrame = _engineState->getFrameInFlight();
   vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
   // need to insert memory barrier so read in fragment shader waits for copy
-  VkMemoryBarrier memoryBarrier = {};
-  memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-  memoryBarrier.pNext = nullptr;
-  memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-  memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  VkMemoryBarrier memoryBarrier = {.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                                   .pNext = nullptr,
+                                   .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                                   .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
   vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }
@@ -309,8 +282,7 @@ VkImage& Image::getImage() { return _image; }
 
 Image::~Image() {
   if (_external == false) {
-    vkDestroyImage(_state->getDevice()->getLogicalDevice(), _image, nullptr);
-    vkFreeMemory(_state->getDevice()->getLogicalDevice(), _imageMemory, nullptr);
+    vmaDestroyImage(_engineState->getMemoryAllocator()->getAllocator(), _image, _imageMemory);
   }
 }
 
@@ -321,32 +293,69 @@ ImageView::ImageView(std::shared_ptr<Image> image,
                      int baseMipMap,
                      int mipMapNumber,
                      VkImageAspectFlags aspectFlags,
-                     std::shared_ptr<State> state) {
-  _state = state;
+                     std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   _image = image;
 
-  VkImageViewCreateInfo viewInfo{};
-  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = image->getImage();
-  viewInfo.viewType = type;
-  viewInfo.format = image->getFormat();
-  viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-  viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-  viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-  viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-  viewInfo.subresourceRange.aspectMask = aspectFlags;
-  viewInfo.subresourceRange.baseMipLevel = baseMipMap;
-  viewInfo.subresourceRange.baseArrayLayer = baseArrayLayer;
-  viewInfo.subresourceRange.layerCount = arrayLayerNumber;
-  viewInfo.subresourceRange.levelCount = mipMapNumber;
+  VkImageViewCreateInfo viewInfo{.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                                 .image = image->getImage(),
+                                 .viewType = type,
+                                 .format = image->getFormat(),
+                                 .components = {.r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                .a = VK_COMPONENT_SWIZZLE_IDENTITY},
+                                 .subresourceRange = {
+                                     .aspectMask = aspectFlags,
+                                     .baseMipLevel = static_cast<uint32_t>(baseMipMap),
+                                     .levelCount = static_cast<uint32_t>(mipMapNumber),
+                                     .baseArrayLayer = static_cast<uint32_t>(baseArrayLayer),
+                                     .layerCount = static_cast<uint32_t>(arrayLayerNumber),
+                                 }};
 
-  if (vkCreateImageView(_state->getDevice()->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
+  if (vkCreateImageView(_engineState->getDevice()->getLogicalDevice(), &viewInfo, nullptr, &_imageView) != VK_SUCCESS) {
     throw std::runtime_error("failed to create texture image view!");
   }
+}
+
+ImageView::ImageView(std::shared_ptr<Image> image, VkImageView& imageView, std::shared_ptr<EngineState> engineState) {
+  _image = image;
+  _imageView = imageView;
+  _engineState = engineState;
 }
 
 VkImageView& ImageView::getImageView() { return _imageView; }
 
 std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
-ImageView::~ImageView() { vkDestroyImageView(_state->getDevice()->getLogicalDevice(), _imageView, nullptr); }
+ImageView::~ImageView() { vkDestroyImageView(_engineState->getDevice()->getLogicalDevice(), _imageView, nullptr); }
+
+Framebuffer::Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
+                         std::tuple<int, int> renderArea,
+                         std::shared_ptr<RenderPass> renderPass,
+                         std::shared_ptr<Device> device) {
+  _device = device;
+  _resolution = renderArea;
+  std::vector<VkImageView> attachments;
+  for (int i = 0; i < input.size(); i++) {
+    attachments.push_back(input[i]->getImageView());
+  }
+  // depth and image must have equal resolution
+  VkFramebufferCreateInfo framebufferInfo{.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                                          .renderPass = renderPass->getRenderPass(),
+                                          .attachmentCount = static_cast<uint32_t>(attachments.size()),
+                                          .pAttachments = attachments.data(),
+                                          .width = static_cast<uint32_t>(std::get<0>(renderArea)),
+                                          .height = static_cast<uint32_t>(std::get<1>(renderArea)),
+                                          .layers = 1};
+
+  if (vkCreateFramebuffer(_device->getLogicalDevice(), &framebufferInfo, nullptr, &_buffer) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create framebuffer!");
+  }
+}
+
+std::tuple<int, int> Framebuffer::getResolution() { return _resolution; }
+
+VkFramebuffer Framebuffer::getBuffer() { return _buffer; }
+
+Framebuffer::~Framebuffer() { vkDestroyFramebuffer(_device->getLogicalDevice(), _buffer, nullptr); }

@@ -1,39 +1,58 @@
 #pragma once
+#include "Utility/EngineState.h"
+#include "Utility/GameState.h"
+#include "Utility/ResourceManager.h"
+#include "Vulkan/Descriptor.h"
+#include "Vulkan/Pipeline.h"
+#include "Primitive/Drawable.h"
+#include "Primitive/Mesh.h"
+#include "Graphic/Camera.h"
+#include "Graphic/Material.h"
+#include "Utility/PhysicsManager.h"
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
 
-#include "State.h"
-#include "Camera.h"
-#include "Mesh.h"
-#include "Descriptor.h"
-#include "Pipeline.h"
-#include "Drawable.h"
-#include "Material.h"
-#include "ResourceManager.h"
+enum class ShapeType { CUBE = 0, SPHERE = 1, CAPSULE = 2 };
 
-enum class ShapeType { CUBE = 0, SPHERE = 1 };
+class Shape3DPhysics {
+ private:
+  std::shared_ptr<PhysicsManager> _physicsManager;
+  // destructor is private, can't use smart pointer
+  JPH::Body* _shapeBody;
+
+ public:
+  Shape3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
+  void setTranslate(glm::vec3 translate);
+  glm::vec3 getTranslate();
+  glm::quat getRotate();
+  void setLinearVelocity(glm::vec3 velocity);
+  ~Shape3DPhysics();
+};
 
 class Shape3D : public Drawable, public Shadowable {
  private:
+  std::shared_ptr<EngineState> _engineState;
+  std::shared_ptr<GameState> _gameState;
+
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
-  std::map<ShapeType, std::vector<std::string>> _shadersLight, _shadersNormalsMesh, _shadersTangentMesh;
+  std::map<ShapeType, std::vector<std::string>> _shadersLightDirectional, _shadersLightPoint, _shadersNormalsMesh,
+      _shadersTangentMesh;
   ShapeType _shapeType;
-  std::shared_ptr<State> _state;
-  std::shared_ptr<Mesh3D> _mesh;
+  std::shared_ptr<MeshStatic3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
   std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh, _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
-  std::shared_ptr<UniformBuffer> _uniformBufferCamera;
+  std::vector<std::shared_ptr<Buffer>> _uniformBufferCamera;
 
-  std::vector<std::vector<std::shared_ptr<UniformBuffer>>> _cameraUBODepth;
+  std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
   std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::map<ShapeType, std::map<MaterialType, std::shared_ptr<Pipeline>>> _pipeline, _pipelineWireframe;
+  std::map<ShapeType, std::map<MaterialType, std::shared_ptr<PipelineGraphic>>> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
-  std::shared_ptr<Pipeline> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
+  std::shared_ptr<PipelineGraphic> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
   std::shared_ptr<Material> _material;
   std::shared_ptr<MaterialColor> _defaultMaterialColor;
   std::shared_ptr<MaterialPhong> _defaultMaterialPhong;
   std::shared_ptr<MaterialPBR> _defaultMaterialPBR;
-  std::shared_ptr<LightManager> _lightManager;
   MaterialType _materialType = MaterialType::COLOR;
   DrawType _drawType = DrawType::FILL;
   VkCullModeFlags _cullMode;
@@ -46,11 +65,11 @@ class Shape3D : public Drawable, public Shadowable {
 
  public:
   Shape3D(ShapeType shapeType,
+          std::shared_ptr<MeshStatic3D> mesh,
           VkCullModeFlags cullMode,
-          std::shared_ptr<LightManager> lightManager,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
-          std::shared_ptr<ResourceManager> resourceManager,
-          std::shared_ptr<State> state);
+          std::shared_ptr<GameState> gameState,
+          std::shared_ptr<EngineState> engineState);
 
   void enableShadow(bool enable);
   void enableLighting(bool enable);
@@ -59,10 +78,8 @@ class Shape3D : public Drawable, public Shadowable {
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setDrawType(DrawType drawType);
 
-  std::shared_ptr<Mesh3D> getMesh();
+  std::shared_ptr<MeshStatic3D> getMesh();
 
-  void draw(std::tuple<int, int> resolution,
-            std::shared_ptr<Camera> camera,
-            std::shared_ptr<CommandBuffer> commandBuffer) override;
+  void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
 };
