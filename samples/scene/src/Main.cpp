@@ -102,9 +102,9 @@ Main::Main() {
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
+  _core->startRecording();
   // start transfer command buffer
   auto commandBufferTransfer = _core->getCommandBufferApplication();
-  commandBufferTransfer->beginCommands();
   _camera = std::make_shared<CameraFly>(_core->getEngineState());
   _camera->setSpeed(0.05f, 0.01f);
   _camera->setProjectionParameters(60.f, 0.1f, 100.f);
