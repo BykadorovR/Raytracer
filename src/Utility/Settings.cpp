@@ -42,6 +42,10 @@ void Settings::setClearColor(VkClearColorValue clearColor) { _clearColor = clear
 
 void Settings::setThreadsInPool(int threadsInPool) { _threadsInPool = threadsInPool; }
 
+void Settings::setAssetsPath(std::string path) { _pathAssets = path; }
+
+void Settings::setShadersPath(std::string path) { _pathShaders = path; }
+
 std::string Settings::getName() { return _name; }
 
 const std::tuple<int, int>& Settings::getResolution() { return _resolution; }
@@ -97,3 +101,7 @@ int Settings::getPoolSizeSSBO() { return _poolSizeSSBO; }
 int Settings::getPoolSizeComputeImage() { return _poolSizeComputeImage; }
 
 int Settings::getPoolSizeDescriptorSets() { return _poolSizeDescriptorSets; }
+
+std::string Settings::getAssetsPath() { return _pathAssets; }
+
+std::string Settings::getShadersPath() { return _pathShaders; }

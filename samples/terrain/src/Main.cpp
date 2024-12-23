@@ -186,6 +186,8 @@ Main::Main() {
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
+  settings->setAssetsPath("../assets/");
+  settings->setShadersPath("../assets/");
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
@@ -408,7 +410,7 @@ void Main::update() {
     std::map<std::string, int*> terrainType;
     terrainType["##Type"] = &_typeIndex;
     if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, terrainType, 3)) {
-      _core->startRecording();
+      if (_core->getCommandBufferApplication()->getActive() == false) _core->startRecording();
       switch (_typeIndex) {
         case 0:
           _terrain->setMaterial(_materialColor);
@@ -420,12 +422,11 @@ void Main::update() {
           _terrain->setMaterial(_materialPBR);
           break;
       }
-      _core->endRecording();
     }
 
     std::map<std::string, int*> patchesNumber{{"Patch x", &_patchX}, {"Patch y", &_patchY}};
     if (_core->getGUI()->drawInputInt(patchesNumber)) {
-      _core->startRecording();
+      if (_core->getCommandBufferApplication()->getActive() == false) _core->startRecording();
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
@@ -439,7 +440,6 @@ void Main::update() {
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
-      _core->endRecording();
     }
 
     std::map<std::string, int*> tesselationLevels{{"Tesselation min", &_minTessellationLevel},
@@ -459,7 +459,7 @@ void Main::update() {
           _interpolationMode = InrepolationMode::COMPOSITION;
           break;
       }
-      _core->startRecording();
+      if (_core->getCommandBufferApplication()->getActive() == false) _core->startRecording();
       if (_showTerrain) _core->removeDrawable(_terrain);
       switch (_typeIndex) {
         case 0:
@@ -477,14 +477,12 @@ void Main::update() {
       if (_showDebug) _core->removeDrawable(_terrainDebug);
       _createTerrainDebug("../assets/heightmap.png");
       if (_showDebug) _core->addDrawable(_terrainDebug);
-
-      _core->endRecording();
     }
 
     _core->getGUI()->drawInputText("##Path", _terrainPath, sizeof(_terrainPath));
 
     if (_core->getGUI()->drawButton("Load terrain")) {
-      _core->startRecording();
+      if (_core->getCommandBufferApplication()->getActive() == false) _core->startRecording();
       if (_showTerrain) _core->removeDrawable(_terrain);
       _loadTerrain(std::string(_terrainPath) + ".json");
       switch (_typeIndex) {
@@ -499,7 +497,6 @@ void Main::update() {
           break;
       }
       if (_showTerrain) _core->addDrawable(_terrain);
-      _core->endRecording();
     }
 
     _core->getGUI()->endTree();
@@ -532,11 +529,12 @@ void Main::update() {
   if (_showDebug) {
     _core->getGUI()->startWindow("Editor");
     _core->getGUI()->setWindowPosition({widthScreen - std::get<0>(_core->getGUI()->getWindowSize()) - 20, 20});
-    _core->startRecording();
+    if (_core->getCommandBufferApplication()->getActive() == false) _core->startRecording();
     _terrainDebug->drawDebug(_core->getCommandBufferApplication());
-    _core->endRecording();
     _core->getGUI()->endWindow();
   }
+
+  if (_core->getCommandBufferApplication()->getActive()) _core->endRecording();
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

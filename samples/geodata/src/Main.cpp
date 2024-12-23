@@ -125,6 +125,8 @@ Main::Main() {
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(60);
+  settings->setAssetsPath("../assets/");
+  settings->setShadersPath("../assets/");
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();

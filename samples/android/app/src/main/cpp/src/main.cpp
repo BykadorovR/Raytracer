@@ -201,6 +201,8 @@ void initialize() {
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(0);
   settings->setDesiredFPS(60);
+  settings->setAssetsPath("");
+  settings->setShadersPath("");
 
   _core = std::make_shared<Core>(settings);
   _core->setAssetManager(_app->activity->assetManager);

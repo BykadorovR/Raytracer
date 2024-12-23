@@ -480,6 +480,8 @@ void TerrainDebug::_calculateMesh(int index) {
 }
 
 int TerrainDebug::_saveHeightmap(std::string path) {
+  auto assetsPath = _engineState->getSettings()->getAssetsPath();
+  path = assetsPath + path;
   auto [width, height] = _heightMapCPU->getResolution();
   int channels = _heightMapCPU->getChannels();
   auto rawData = _heightMapCPU->getData().get();
@@ -488,6 +490,8 @@ int TerrainDebug::_saveHeightmap(std::string path) {
 }
 
 void TerrainDebug::_loadHeightmap(std::string path) {
+  auto assetsPath = _engineState->getSettings()->getAssetsPath();
+  path = assetsPath + path;
   _heightMapCPU = _gameState->getResourceManager()->loadImageCPU<uint8_t>(path + ".png");
   _heightMapGPU->setData(_heightMapCPU->getData().get());
   // need to recreate TerrainPhysics because heightmapCPU was updated

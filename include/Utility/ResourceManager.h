@@ -13,9 +13,6 @@ class ResourceManager {
   std::shared_ptr<EngineState> _engineState;
 #ifdef __ANDROID__
   AAssetManager* _assetManager;
-  std::string _assetEnginePath = "";
-#else
-  std::string _assetEnginePath = "assets/";
 #endif
  public:
   ResourceManager(std::shared_ptr<EngineState> engineState);
@@ -23,7 +20,6 @@ class ResourceManager {
 #ifdef __ANDROID__
   void setAssetManager(AAssetManager* assetManager);
 #endif
-  std::string getAssetEnginePath();
   // vector is required to load cubemap
   template <class T>
   std::shared_ptr<BufferImage> loadImageGPU(std::vector<std::shared_ptr<ImageCPU<T>>> images) {

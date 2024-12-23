@@ -144,7 +144,6 @@ class ModelGLTF {
 
 class LoaderGLTF {
  private:
-  std::filesystem::path _path;
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<LoaderImage> _loaderImage;
   tinygltf::TinyGLTF _loader;

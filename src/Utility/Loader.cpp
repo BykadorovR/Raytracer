@@ -9,6 +9,7 @@ LoaderImage::LoaderImage(std::shared_ptr<EngineState> engineState) { _engineStat
 
 template <>
 std::shared_ptr<ImageCPU<uint8_t>> LoaderImage::loadCPU<uint8_t>(std::string path) {
+  path = _engineState->getSettings()->getAssetsPath() + path;
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _engineState->getFilesystem()->readFile<stbi_uc>(path);
@@ -31,6 +32,7 @@ std::shared_ptr<ImageCPU<uint8_t>> LoaderImage::loadCPU<uint8_t>(std::string pat
 
 template <>
 std::shared_ptr<ImageCPU<float>> LoaderImage::loadCPU<float>(std::string path) {
+  path = _engineState->getSettings()->getAssetsPath() + path;
   int texWidth, texHeight, texChannels;
 #ifdef __ANDROID__
   std::vector<stbi_uc> fileContent = _engineState->getFilesystem()->readFile<stbi_uc>(path);
@@ -96,6 +98,8 @@ void LoaderGLTF::setAssetManager(AAssetManager* assetManager) { tinygltf::asset_
 #endif
 
 std::shared_ptr<ModelGLTF> LoaderGLTF::load(std::string path, std::shared_ptr<CommandBuffer> commandBufferTransfer) {
+  path = _engineState->getSettings()->getAssetsPath() + path;
+
   if (_models.contains(path) == false) {
     std::shared_ptr<ModelGLTF> modelExternal = std::make_shared<ModelGLTF>();
     std::vector<std::shared_ptr<NodeGLTF>> nodes;
@@ -240,7 +244,7 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
   std::shared_ptr<Texture> texture = textures[imageIndex];
   if (texture == nullptr) {
     const tinygltf::Image glTFImage = modelInternal.images[imageIndex];
-    auto filePath = _path.remove_filename().string() + glTFImage.uri;
+    auto filePath = glTFImage.uri;
     if (std::filesystem::exists(filePath)) {
       auto imageCPU = _loaderImage->loadCPU<uint8_t>(filePath);
       texture = std::make_shared<Texture>(_loaderImage->loadGPU<uint8_t>({imageCPU}), format,
@@ -251,7 +255,8 @@ std::shared_ptr<Texture> LoaderGLTF::_loadTexture(int imageIndex,
       unsigned char* buffer = nullptr;
       int bufferSize = 0;
       bool deleteBuffer = false;
-      // We convert RGB-only images to RGBA, as most devices don't support RGB-formats in Vulkan
+      // We convert RGB-only images to RGBA, as most devices don't support RGB-formats in Vul
+      // kan
       if (glTFImage.component == 3) {
         bufferSize = glTFImage.width * glTFImage.height * 4;
         buffer = new unsigned char[bufferSize];

@@ -34,7 +34,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _farPlaneCCW->enableShadow(false);
   _farPlaneCCW->enableDepth(false);
 
-  auto boxModel = _core->createModelGLTF("assets/box/Box.gltf");
+  auto boxModel = _core->createModelGLTF("box/Box.gltf");
   for (auto light : _core->getPointLights()) {
     _pointValue = light->getColor()[0];
     auto model = _core->createModel3D(boxModel);

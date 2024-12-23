@@ -17,7 +17,8 @@ VkShaderModule Shader::_createShaderModule(const std::vector<char>& code) {
 Shader::Shader(std::shared_ptr<EngineState> engineState) { _engineState = engineState; }
 
 void Shader::add(std::string path, VkShaderStageFlagBits type) {
-  auto shaderCode = _engineState->getFilesystem()->readFile<char>(path);
+  auto globalPath = _engineState->getSettings()->getShadersPath();
+  auto shaderCode = _engineState->getFilesystem()->readFile<char>(globalPath + path);
   VkShaderModule shaderModule = _createShaderModule(shaderCode);
   _shaders[type] = {.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                     .stage = type,

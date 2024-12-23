@@ -46,6 +46,8 @@ Main::Main() {
   settings->setMaxFramesInFlight(2);
   settings->setThreadsInPool(6);
   settings->setDesiredFPS(1000);
+  settings->setAssetsPath("../assets/");
+  settings->setShadersPath("../assets/");
 
   _core = std::make_shared<Core>(settings);
   _core->initialize();
@@ -106,7 +108,7 @@ Main::Main() {
     material->setSpecularIBL(core->getResourceManager()->getCubemapZero()->getTexture(),
                              core->getResourceManager()->getTextureZero());
   };
-  auto gltfModelBox = _core->createModelGLTF("assets/Box/Box.gltf");
+  auto gltfModelBox = _core->createModelGLTF("Box/Box.gltf");
   {
     auto modelBox = _core->createModel3D(gltfModelBox);
     auto materialModelBox = gltfModelBox->getMaterialsPBR();

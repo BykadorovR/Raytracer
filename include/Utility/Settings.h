@@ -58,6 +58,8 @@ struct Settings {
   int _poolSizeComputeImage = 100;
   // number of DESCRIPTOR SETs in descriptor pool
   int _poolSizeDescriptorSets = 2000;
+  std::string _pathAssets = "";
+  std::string _pathShaders = "";
 
  public:
   // setters
@@ -80,6 +82,8 @@ struct Settings {
                    int poolSizeSampler,
                    int poolSizeSSBO,
                    int poolSizeComputeImage);
+  void setAssetsPath(std::string path);
+  void setShadersPath(std::string path);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getShadowMapResolution();
@@ -109,4 +113,6 @@ struct Settings {
   int getPoolSizeSSBO();
   int getPoolSizeComputeImage();
   int getPoolSizeDescriptorSets();
+  std::string getAssetsPath();
+  std::string getShadersPath();
 };

@@ -8,39 +8,38 @@ void ResourceManager::initialize(std::shared_ptr<CommandBuffer> commandBufferTra
 #ifdef __ANDROID__
   _loaderGLTF->setAssetManager(_assetManager);
 #endif
+  auto assetPath = _engineState->getSettings()->getAssetsPath();
   _stubTextureOne = std::make_shared<Texture>(
-      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png")}),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png")}),
       _engineState->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
       commandBufferTransfer, _engineState);
   _stubTextureZero = std::make_shared<Texture>(
-      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png")}),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png")}),
       _engineState->getSettings()->getLoadTextureColorFormat(), VK_SAMPLER_ADDRESS_MODE_REPEAT, 1, VK_FILTER_LINEAR,
       commandBufferTransfer, _engineState);
 
   _stubCubemapZero = std::make_shared<Cubemap>(
-      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1Black.png")}),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1Black.png")}),
       _engineState->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer,
       _engineState);
 
   _stubCubemapOne = std::make_shared<Cubemap>(
-      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png"),
-                             loadImageCPU<uint8_t>(_assetEnginePath + "stubs/Texture1x1.png")}),
+      loadImageGPU<uint8_t>({loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png"),
+                             loadImageCPU<uint8_t>(assetPath + "stubs/Texture1x1.png")}),
       _engineState->getSettings()->getLoadTextureColorFormat(), 1, VK_IMAGE_ASPECT_COLOR_BIT,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_FILTER_LINEAR, commandBufferTransfer,
       _engineState);
 }
-
-std::string ResourceManager::getAssetEnginePath() { return _assetEnginePath; }
 
 #ifdef __ANDROID__
 void ResourceManager::setAssetManager(AAssetManager* assetManager) { _assetManager = assetManager; }
