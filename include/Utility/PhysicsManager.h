@@ -101,7 +101,7 @@ class PhysicsManager {
   JPH::PhysicsSystem _physicsSystem;
   std::shared_ptr<JPH::TempAllocatorImpl> _tempAllocator;
   std::shared_ptr<JPH::JobSystemThreadPool> _jobSystem;
-  const float _deltaTime = 1.0f / 60.0f;
+  float _deltaTime = 1.0f / 60.0f;
   const int _collisionSteps = 1;
 
   // Create mapping table from object layer to broadphase layer
@@ -119,6 +119,7 @@ class PhysicsManager {
   JPH::BodyInterface& getBodyInterface();
   JPH::PhysicsSystem& getPhysicsSystem();
   glm::vec3 getGravity();
+  void setDeltaTime(float deltaTime);
   float getDeltaTime();
   void update();
   ~PhysicsManager();

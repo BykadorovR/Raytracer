@@ -16,9 +16,15 @@ void CameraRTS::update() {
   _eye.z += _offset.second;
 }
 
-void CameraRTS::setShift(glm::vec3 shift) { _shift = shift; }
+void CameraRTS::setShift(glm::vec3 shift) {
+  _shift = shift;
+  _eye = _object->getTranslate() + _shift;
+  _direction = glm::normalize(_object->getTranslate() - _eye);
+}
 
 void CameraRTS::setThreshold(int threshold) { _threshold = threshold; }
+
+void CameraRTS::setSpeed(float speed) { _moveSpeed = speed; }
 
 void CameraRTS::cursorNotify(float xPos, float yPos) {
   auto [wW, wH] = _engineState->getSettings()->getResolution();

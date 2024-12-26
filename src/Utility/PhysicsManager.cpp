@@ -59,6 +59,8 @@ glm::vec3 PhysicsManager::getGravity() {
   return {gravity.GetX(), gravity.GetY(), gravity.GetZ()};
 }
 
+void PhysicsManager::setDeltaTime(float deltaTime) { _deltaTime = deltaTime; }
+
 float PhysicsManager::getDeltaTime() { return _deltaTime; }
 
 void PhysicsManager::update() {

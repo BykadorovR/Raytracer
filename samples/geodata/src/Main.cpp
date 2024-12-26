@@ -7,34 +7,6 @@
 #include <nlohmann/json.hpp>
 #include "glm/gtx/vector_angle.hpp"
 
-float getHeight(std::tuple<std::shared_ptr<uint8_t[]>, std::tuple<int, int, int>> heightmap, glm::vec3 position) {
-  auto [data, dimension] = heightmap;
-  auto [width, height, channels] = dimension;
-
-  float x = position.x + (width - 1) / 2.f;
-  float z = position.z + (height - 1) / 2.f;
-  int xIntegral = x;
-  int zIntegral = z;
-  // 0 1
-  // 2 3
-
-  // channels 2, width 4, (2, 1) = 2 * 2 + 1 * 4 * 2 = 12
-  // 0 0 1 1 2 2 3 3
-  // 4 4 5 5 6 6 7 7
-  int index0 = xIntegral * channels + zIntegral * (width * channels);
-  int index1 = (xIntegral + 1) * channels + zIntegral * (width * channels);
-  int index2 = xIntegral * channels + (zIntegral + 1) * (width * channels);
-  int index3 = (xIntegral + 1) * channels + (zIntegral + 1) * (width * channels);
-  float sample0 = data[index0] / 255.f;
-  float sample1 = data[index1] / 255.f;
-  float sample2 = data[index2] / 255.f;
-  float sample3 = data[index3] / 255.f;
-  float fxy1 = sample0 + (x - xIntegral) * (sample1 - sample0);
-  float fxy2 = sample2 + (x - xIntegral) * (sample3 - sample2);
-  float sample = fxy1 + (z - zIntegral) * (fxy2 - fxy1);
-  return sample * 64.f - 16.f;
-}
-
 void InputHandler::setMoveCallback(std::function<void(glm::vec2)> callback) { _callbackMove = callback; }
 
 InputHandler::InputHandler(std::shared_ptr<Core> core) { _core = core; }
@@ -169,6 +141,7 @@ Main::Main() {
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
+  _physicsManager->setDeltaTime(1.f / static_cast<float>(settings->getDesiredFPS()));
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());
   _terrainPhysics->setFriction(0.5f);
@@ -243,6 +216,8 @@ Main::Main() {
     _model3DPhysics = std::make_shared<Model3DPhysics>(
         glm::vec3(-4.f, 14.f, -10.f), (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _physicsManager);
     _model3DPhysics->setFriction(0.5f);
+    _model3DPhysics->setRotationSpeed(3.f);
+    _model3DPhysics->setMovementSpeed(_speed);
 
     _capsule = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
     _capsule->setTranslate(glm::vec3(0.f, 0.f, 0.f));
@@ -375,49 +350,7 @@ void Main::update() {
   _core->getGUI()->endWindow();
 
   if (_endPoint) {
-    auto endPoint = _endPoint.value();
-    auto position = _model3DPhysics->getTranslate();
-    position.y -= _model3DPhysics->getSize().y / 2.f;
-    auto distance = glm::distance(endPoint, position);
-    if (distance < 0.1f) {
-      _model3DPhysics->setLinearVelocity({0.f, 0.f, 0.f});
-      _model3DPhysics->setTranslate(glm::vec3(position.x, position.y + _model3DPhysics->getSize().y / 2.f, position.z));
-      _endPoint.reset();
-    } else {
-      glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
-      // Cancel movement in opposite direction of normal when touching something we can't walk up
-      if (_model3DPhysics->getGroundState() == GroundState::OnSteepGround ||
-          _model3DPhysics->getGroundState() == GroundState::NotSupported) {
-        auto normal = _model3DPhysics->getGroundNormal();
-        normal.y = 0.0f;
-        float dot = glm::dot(normal, direction);
-        if (dot < 0.0f) {
-          auto change = (dot * normal) / glm::length2(normal);
-          direction -= change;
-        }
-      }
-      // Update velocity
-      glm::vec3 currentVelocity = _model3DPhysics->getLinearVelocity();
-      glm::vec3 desiredVelocity = _speed * direction;
-      if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f)
-        desiredVelocity.y = currentVelocity.y;
-      glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;
-
-      _model3DPhysics->setLinearVelocity(newVelocity);
-
-      // rotate
-      auto flatDirection = glm::vec3(endPoint.x, 0.f, endPoint.z) -
-                           glm::vec3(_model3DPhysics->getTranslate().x, 0.f, _model3DPhysics->getTranslate().z);
-      if (glm::length(flatDirection) > 0.1f) {
-        flatDirection = glm::normalize(flatDirection);
-        auto currentRotation = _model3DPhysics->getRotate();
-        _angle = glm::atan(flatDirection.x, flatDirection.z);
-        glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), _angle, glm::vec3(0.0f, 1.0f, 0.0f));
-        auto rotationSpeed = 3.f;
-        glm::quat smoothedRotation = glm::slerp(currentRotation, rotation, (1.f / (float)FPSLimited) * rotationSpeed);
-        _model3DPhysics->setRotate(glm::normalize(smoothedRotation));
-      }
-    }
+    if (_model3DPhysics->moveTo(_endPoint.value(), 0.1f) == false) _endPoint.reset();
   }
 
   _cubePlayer->setTranslate(_shape3DPhysics->getTranslate());

@@ -38,7 +38,6 @@ set(VulkanEngine_INCLUDE_DIRS ${VulkanEngine_INSTALL_PREFIX}/include/
                               ${Vulkan_INCLUDE_DIRS})
 # VulkanEngine library only
 file(GLOB VulkanEngine_LIBRARIES ${VulkanEngine_INSTALL_PREFIX}/build/libraries/*.lib)
-list(APPEND VulkanEngine_LIBRARIES ${Vulkan_LIBRARIES})
 # VulkanEngine dll path
 set(VulkanEngine_DLL_PATH ${VulkanEngine_INSTALL_PREFIX}/build/bin/)
 set(VulkanEngine_ASSETS ${VulkanEngine_INSTALL_PREFIX}/assets)

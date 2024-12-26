@@ -34,11 +34,16 @@ class Model3DPhysics {
   JPH::Ref<JPH::Character> _character;
   glm::vec3 _size;
   float _collisionTolerance = 0.2f;
+  float _rotationSpeed = 3.f;
+  float _movementSpeed;
 
  public:
   Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
   Model3DPhysics(glm::vec3 translate, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
   void postUpdate();
+  bool moveTo(glm::vec3 endPoint, float error);
+  void setRotationSpeed(float rotationSpeed);
+  void setMovementSpeed(float movementSpeed);
   void setTranslate(glm::vec3 translate);
   void setRotate(glm::quat rotate);
   glm::quat getRotate();

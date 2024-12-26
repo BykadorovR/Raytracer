@@ -18,6 +18,7 @@ class CameraRTS : public CameraPerspective, public InputSubscriber {
   void update() override;
   void setShift(glm::vec3 shift);
   void setThreshold(int threshold);
+  void setSpeed(float speed);
 
   void cursorNotify(float xPos, float yPos) override;
   void mouseNotify(int button, int action, int mods) override;

@@ -76,157 +76,161 @@ void Core::setNativeWindow(ANativeWindow* window) { _nativeWindow = window; }
 #endif
 
 void Core::initialize() {
+  try {
 #ifdef __ANDROID__
-  _engineState->setNativeWindow(_nativeWindow);
-  _engineState->setAssetManager(_assetManager);
+    _engineState->setNativeWindow(_nativeWindow);
+    _engineState->setAssetManager(_assetManager);
 #endif
-  _engineState->initialize();
-  auto settings = _engineState->getSettings();
-  _swapchain = std::make_shared<Swapchain>(_engineState);
-  _timer = std::make_shared<Timer>();
-  _timerFPSReal = std::make_shared<TimerFPS>();
-  _timerFPSLimited = std::make_shared<TimerFPS>();
-  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
-  loggerUtils->setName("Queue graphic", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                       _engineState->getDevice()->getQueue(vkb::QueueType::graphics));
-  loggerUtils->setName("Queue present", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                       _engineState->getDevice()->getQueue(vkb::QueueType::present));
-  loggerUtils->setName("Queue compute", VkObjectType::VK_OBJECT_TYPE_QUEUE,
-                       _engineState->getDevice()->getQueue(vkb::QueueType::compute));
-  {
-    _commandPoolRender = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender,
-                                                           _engineState);
-    loggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferRender->getCommandBuffer());
-  }
-  {
-    _commandPoolApplication = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    // frameInFlight != 0 can be used in reset
-    _commandBufferApplication = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                _commandPoolApplication, _engineState);
-    loggerUtils->setName("Command buffer for appplication", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferApplication->getCommandBuffer());
-  }
-  {
-    _commandPoolInitialize = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    _commandBufferInitialize = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolInitialize,
-                                                               _engineState);
-    loggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferInitialize->getCommandBuffer());
-  }
-  {
-    _commandPoolEquirectangular = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                    _commandPoolEquirectangular, _engineState);
-    loggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferEquirectangular->getCommandBuffer());
-  }
-  {
-    _commandPoolParticleSystem = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
-    _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                   _commandPoolParticleSystem, _engineState);
-    loggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferParticleSystem->getCommandBuffer());
-  }
-  {
-    _commandPoolPostprocessing = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
-    _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
-                                                                   _commandPoolPostprocessing, _engineState);
-    loggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferPostprocessing->getCommandBuffer());
-  }
-  {
-    _commandPoolGUI = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI,
-                                                        _engineState);
-    loggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferGUI->getCommandBuffer());
-  }
+    _engineState->initialize();
+    auto settings = _engineState->getSettings();
+    _swapchain = std::make_shared<Swapchain>(_engineState);
+    _timer = std::make_shared<Timer>();
+    _timerFPSReal = std::make_shared<TimerFPS>();
+    _timerFPSLimited = std::make_shared<TimerFPS>();
+    auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
+    loggerUtils->setName("Queue graphic", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                         _engineState->getDevice()->getQueue(vkb::QueueType::graphics));
+    loggerUtils->setName("Queue present", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                         _engineState->getDevice()->getQueue(vkb::QueueType::present));
+    loggerUtils->setName("Queue compute", VkObjectType::VK_OBJECT_TYPE_QUEUE,
+                         _engineState->getDevice()->getQueue(vkb::QueueType::compute));
+    {
+      _commandPoolRender = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      _commandBufferRender = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolRender,
+                                                             _engineState);
+      loggerUtils->setName("Command buffer for render graphic", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferRender->getCommandBuffer());
+    }
+    {
+      _commandPoolApplication = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      // frameInFlight != 0 can be used in reset
+      _commandBufferApplication = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                  _commandPoolApplication, _engineState);
+      loggerUtils->setName("Command buffer for appplication", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferApplication->getCommandBuffer());
+    }
+    {
+      _commandPoolInitialize = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      _commandBufferInitialize = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                 _commandPoolInitialize, _engineState);
+      loggerUtils->setName("Command buffer for initialize", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferInitialize->getCommandBuffer());
+    }
+    {
+      _commandPoolEquirectangular = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      _commandBufferEquirectangular = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                      _commandPoolEquirectangular, _engineState);
+      loggerUtils->setName("Command buffer for equirectangular", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferEquirectangular->getCommandBuffer());
+    }
+    {
+      _commandPoolParticleSystem = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
+      _commandBufferParticleSystem = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                     _commandPoolParticleSystem, _engineState);
+      loggerUtils->setName("Command buffer for particle system", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferParticleSystem->getCommandBuffer());
+    }
+    {
+      _commandPoolPostprocessing = std::make_shared<CommandPool>(vkb::QueueType::compute, _engineState->getDevice());
+      _commandBufferPostprocessing = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(),
+                                                                     _commandPoolPostprocessing, _engineState);
+      loggerUtils->setName("Command buffer for postprocessing", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferPostprocessing->getCommandBuffer());
+    }
+    {
+      _commandPoolGUI = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      _commandBufferGUI = std::make_shared<CommandBuffer>(settings->getMaxFramesInFlight(), _commandPoolGUI,
+                                                          _engineState);
+      loggerUtils->setName("Command buffer for GUI", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                           _commandBufferGUI->getCommandBuffer());
+    }
 
-  _frameSubmitInfoPreCompute.resize(settings->getMaxFramesInFlight());
-  _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
-  _frameSubmitInfoPostCompute.resize(settings->getMaxFramesInFlight());
-  _frameSubmitInfoDebug.resize(settings->getMaxFramesInFlight());
+    _frameSubmitInfoPreCompute.resize(settings->getMaxFramesInFlight());
+    _frameSubmitInfoGraphic.resize(settings->getMaxFramesInFlight());
+    _frameSubmitInfoPostCompute.resize(settings->getMaxFramesInFlight());
+    _frameSubmitInfoDebug.resize(settings->getMaxFramesInFlight());
 
-  _renderPassGraphic = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
-  _renderPassShadowMap = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::SHADOW);
-  _renderPassDebug = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GUI);
-  _renderPassBlur = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::BLUR);
+    _renderPassGraphic = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GRAPHIC);
+    _renderPassShadowMap = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::SHADOW);
+    _renderPassDebug = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::GUI);
+    _renderPassBlur = _engineState->getRenderPassManager()->getRenderPass(RenderPassScenario::BLUR);
 
-  // start transfer command buffer
-  _commandBufferInitialize->beginCommands();
+    // start transfer command buffer
+    _commandBufferInitialize->beginCommands();
 
-  _logger = std::make_shared<Logger>(_engineState);
-  _loggerPostprocessing = std::make_shared<Logger>(_engineState);
-  _loggerParticles = std::make_shared<Logger>(_engineState);
-  _loggerGUI = std::make_shared<Logger>(_engineState);
-  _loggerDebug = std::make_shared<Logger>(_engineState);
+    _logger = std::make_shared<Logger>(_engineState);
+    _loggerPostprocessing = std::make_shared<Logger>(_engineState);
+    _loggerParticles = std::make_shared<Logger>(_engineState);
+    _loggerGUI = std::make_shared<Logger>(_engineState);
+    _loggerDebug = std::make_shared<Logger>(_engineState);
 
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    // graphic-presentation
-    _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
-    _semaphoreRenderFinished.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+    for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+      // graphic-presentation
+      _semaphoreImageAvailable.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      _semaphoreRenderFinished.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
 
-    // compute-graphic
-    _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
-    _semaphoreGUI.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      // compute-graphic
+      _semaphoreParticleSystem.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      _semaphoreGUI.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
 
-    // postprocessing semaphore
-    _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      // postprocessing semaphore
+      _semaphorePostprocessing.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
 
-    // resources submit semaphore
-    _semaphoreResourcesReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
-    _waitSemaphoreResourcesReady[i] = false;
+      // resources submit semaphore
+      _semaphoreResourcesReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      _waitSemaphoreResourcesReady[i] = false;
 
-    // application submit semaphore
-    _semaphoreApplicationReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
-    _waitSemaphoreApplicationReady[i] = false;
-  }
+      // application submit semaphore
+      _semaphoreApplicationReady.push_back(std::make_shared<Semaphore>(_engineState->getDevice()));
+      _waitSemaphoreApplicationReady[i] = false;
+    }
 
-  for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
-    _fenceInFlight.push_back(std::make_shared<Fence>(_engineState->getDevice()));
-  }
+    for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
+      _fenceInFlight.push_back(std::make_shared<Fence>(_engineState->getDevice()));
+    }
 
-  _initializeTextures();
+    _initializeTextures();
 
-  _gui = std::make_shared<GUI>(_engineState);
-  _gui->initialize(_commandBufferInitialize);
+    _gui = std::make_shared<GUI>(_engineState);
+    _gui->initialize(_commandBufferInitialize);
 
-  _blurCompute = std::make_shared<BlurCompute>(_textureBlurIn, _textureBlurOut, _engineState);
-  // for postprocessing layout GENERAL is needed
-  for (auto& imageView : _swapchain->getImageViews()) imageView->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
+    _blurCompute = std::make_shared<BlurCompute>(_textureBlurIn, _textureBlurOut, _engineState);
+    // for postprocessing layout GENERAL is needed
+    for (auto& imageView : _swapchain->getImageViews()) imageView->getImage()->overrideLayout(VK_IMAGE_LAYOUT_GENERAL);
 
-  _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn, _swapchain->getImageViews(),
-                                                     _engineState);
-  // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
-  for (auto& imageView : _swapchain->getImageViews())
-    imageView->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, _commandBufferInitialize);
-  _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriberExclusive>(_gui));
+    _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn, _swapchain->getImageViews(),
+                                                       _engineState);
+    // but we expect it to be in VK_IMAGE_LAYOUT_PRESENT_SRC_KHR as start value
+    for (auto& imageView : _swapchain->getImageViews())
+      imageView->getImage()->changeLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                          VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, _commandBufferInitialize);
+    _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriberExclusive>(_gui));
 
-  _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
+    _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
 
-  _gameState = std::make_shared<GameState>(_commandBufferInitialize, _engineState);
+    _gameState = std::make_shared<GameState>(_commandBufferInitialize, _engineState);
 
-  _commandBufferInitialize->endCommands();
+    _commandBufferInitialize->endCommands();
 
-  _initializeFramebuffer();
+    _initializeFramebuffer();
 
-  {
-    std::vector<VkSemaphore> signalSemaphoresInitialize = {
-        _semaphoreResourcesReady[_engineState->getFrameInFlight()]->getSemaphore()};
-    VkSubmitInfo submitInfo{
-        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()],
-        .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphoresInitialize.size()),
-        .pSignalSemaphores = signalSemaphoresInitialize.data()};
+    {
+      std::vector<VkSemaphore> signalSemaphoresInitialize = {
+          _semaphoreResourcesReady[_engineState->getFrameInFlight()]->getSemaphore()};
+      VkSubmitInfo submitInfo{
+          .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+          .commandBufferCount = 1,
+          .pCommandBuffers = &_commandBufferInitialize->getCommandBuffer()[_engineState->getFrameInFlight()],
+          .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphoresInitialize.size()),
+          .pSignalSemaphores = signalSemaphoresInitialize.data()};
 
-    auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+      auto queue = _engineState->getDevice()->getQueue(vkb::QueueType::graphics);
+      vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
 
-    _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
+      _waitSemaphoreResourcesReady[_engineState->getFrameInFlight()] = true;
+    }
+  } catch (std::exception e) {
+    std::cerr << e.what() << std::endl;
   }
 }
 
@@ -1073,38 +1077,42 @@ void Core::_displayFrame(uint32_t* imageIndex) {
 }
 
 void Core::draw() {
+  try {
 #ifdef __ANDROID__
-  {
+    {
 #else
-  while (!glfwWindowShouldClose((GLFWwindow*)(_engineState->getWindow()->getWindow()))) {
-    glfwPollEvents();
+    while (!glfwWindowShouldClose((GLFWwindow*)(_engineState->getWindow()->getWindow()))) {
+      glfwPollEvents();
 #endif
-    _timer->tick();
-    _timerFPSReal->tick();
-    _timerFPSLimited->tick();
-    _engineState->setFrameInFlight(_timer->getFrameCounter() % _engineState->getSettings()->getMaxFramesInFlight());
+      _timer->tick();
+      _timerFPSReal->tick();
+      _timerFPSLimited->tick();
+      _engineState->setFrameInFlight(_timer->getFrameCounter() % _engineState->getSettings()->getMaxFramesInFlight());
 
-    // business/application update loop callback
-    uint32_t imageIndex;
-    while (_getImageIndex(&imageIndex) != VK_SUCCESS)
-      ;
-    // clear removed entities: drawables and shadowables
-    _clearUnusedData();
-    // application update, can be anything
-    _callbackUpdate();
-    // render scene
-    _drawFrame(imageIndex);
-    _timerFPSReal->tock();
-    // if GPU frames are limited by driver it will happen during display
-    _displayFrame(&imageIndex);
+      // business/application update loop callback
+      uint32_t imageIndex;
+      while (_getImageIndex(&imageIndex) != VK_SUCCESS)
+        ;
+      // clear removed entities: drawables and shadowables
+      _clearUnusedData();
+      // application update, can be anything
+      _callbackUpdate();
+      // render scene
+      _drawFrame(imageIndex);
+      _timerFPSReal->tock();
+      // if GPU frames are limited by driver it will happen during display
+      _displayFrame(&imageIndex);
 
-    _timer->sleep(_engineState->getSettings()->getDesiredFPS());
-    _timer->tock();
-    _timerFPSLimited->tock();
-  }
+      _timer->sleep(_engineState->getSettings()->getDesiredFPS());
+      _timer->tock();
+      _timerFPSLimited->tock();
+    }
 #ifndef __ANDROID__
-  vkDeviceWaitIdle(_engineState->getDevice()->getLogicalDevice());
+    vkDeviceWaitIdle(_engineState->getDevice()->getLogicalDevice());
 #endif
+  } catch (std::exception e) {
+    std::cerr << e.what() << std::endl;
+  }
 }
 
 void Core::registerUpdate(std::function<void()> update) { _callbackUpdate = update; }
