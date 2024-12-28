@@ -41,6 +41,7 @@ class Model3DPhysics {
   Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager);
   Model3DPhysics(glm::vec3 translate, float height, float radius, std::shared_ptr<PhysicsManager> physicsManager);
   void postUpdate();
+  bool move(glm::vec3 direction);
   bool moveTo(glm::vec3 endPoint, float error);
   void setRotationSpeed(float rotationSpeed);
   void setMovementSpeed(float movementSpeed);

@@ -47,47 +47,49 @@ Model3DPhysics::Model3DPhysics(glm::vec3 translate,
 
 void Model3DPhysics::setMovementSpeed(float movementSpeed) { _movementSpeed = movementSpeed; }
 
+bool Model3DPhysics::move(glm::vec3 direction) {
+  // Cancel movement in opposite direction of normal when touching something we can't walk up
+  if (getGroundState() == GroundState::OnSteepGround || getGroundState() == GroundState::NotSupported) {
+    auto normal = getGroundNormal();
+    normal.y = 0.0f;
+    float dot = glm::dot(normal, direction);
+    if (dot < 0.0f) {
+      auto change = (dot * normal) / glm::length2(normal);
+      direction -= change;
+    }
+  }
+  // Update velocity
+  // glm::vec3 currentVelocity = getLinearVelocity();
+  glm::vec3 desiredVelocity = _movementSpeed * direction;
+  /*if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f) desiredVelocity.y = currentVelocity.y;
+  glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;*/
+  auto newVelocity = desiredVelocity;
+  setLinearVelocity(newVelocity);
+
+  // rotate
+  auto flatDirection = glm::vec3(direction.x, 0.f, direction.z);
+  if (glm::length(flatDirection) > 0.1f) {
+    flatDirection = glm::normalize(flatDirection);
+    auto currentRotation = getRotate();
+    auto angle = glm::atan(flatDirection.x, flatDirection.z);
+    glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::quat smoothedRotation = glm::slerp(currentRotation, rotation,
+                                            _physicsManager->getDeltaTime() * _rotationSpeed);
+    setRotate(glm::normalize(smoothedRotation));
+  }
+  return true;
+}
+
 bool Model3DPhysics::moveTo(glm::vec3 endPoint, float error) {
-  bool sts = true;
   auto position = getTranslate();
   position.y -= getSize().y / 2.f;
   auto distance = glm::distance(endPoint, position);
   if (distance < error) {
     setLinearVelocity({0.f, 0.f, 0.f});
-    sts = false;
-  } else {
-    glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
-    // Cancel movement in opposite direction of normal when touching something we can't walk up
-    if (getGroundState() == GroundState::OnSteepGround || getGroundState() == GroundState::NotSupported) {
-      auto normal = getGroundNormal();
-      normal.y = 0.0f;
-      float dot = glm::dot(normal, direction);
-      if (dot < 0.0f) {
-        auto change = (dot * normal) / glm::length2(normal);
-        direction -= change;
-      }
-    }
-    // Update velocity
-    glm::vec3 currentVelocity = getLinearVelocity();
-    glm::vec3 desiredVelocity = _movementSpeed * direction;
-    if (!(glm::length2(desiredVelocity) <= 1.0e-12f) || currentVelocity.y < 0.0f) desiredVelocity.y = currentVelocity.y;
-    glm::vec3 newVelocity = 0.75f * currentVelocity + 0.25f * desiredVelocity;
-
-    setLinearVelocity(newVelocity);
-
-    // rotate
-    auto flatDirection = glm::vec3(endPoint.x, 0.f, endPoint.z) - glm::vec3(getTranslate().x, 0.f, getTranslate().z);
-    if (glm::length(flatDirection) > 0.1f) {
-      flatDirection = glm::normalize(flatDirection);
-      auto currentRotation = getRotate();
-      auto angle = glm::atan(flatDirection.x, flatDirection.z);
-      glm::quat rotation = glm::rotate(glm::quat(1.0f, 0.0f, 0.0f, 0.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
-      glm::quat smoothedRotation = glm::slerp(currentRotation, rotation,
-                                              _physicsManager->getDeltaTime() * _rotationSpeed);
-      setRotate(glm::normalize(smoothedRotation));
-    }
+    return false;
   }
-  return sts;
+  glm::vec3 direction = glm::normalize(endPoint - glm::vec3(position.x, position.y, position.z));
+  return move(direction);
 }
 
 void Model3DPhysics::setRotationSpeed(float rotationSpeed) { _rotationSpeed = rotationSpeed; }
