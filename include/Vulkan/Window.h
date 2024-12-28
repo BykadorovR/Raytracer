@@ -24,5 +24,6 @@ class Window {
   void* getWindow();
   bool getResized();
   void setResized(bool resized);
+  void setFullScreen(bool fullScreen);
   ~Window();
 };

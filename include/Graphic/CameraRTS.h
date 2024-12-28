@@ -9,7 +9,7 @@ class CameraRTS : public CameraPerspective, public InputSubscriber {
   std::shared_ptr<EngineState> _engineState;
   glm::vec3 _shift = glm::vec3(0.f, 10.f, 0.f);
   int _threshold = 100;
-  float _moveSpeed = 5.f;
+  float _moveSpeed = 0.5f;
   std::pair<float, float> _offset;
   std::optional<glm::vec3> _zoomPoint;
 

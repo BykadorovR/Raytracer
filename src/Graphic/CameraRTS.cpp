@@ -32,16 +32,14 @@ void CameraRTS::cursorNotify(float xPos, float yPos) {
   if (xPos < _threshold || yPos < _threshold || xPos > wW - _threshold || yPos > wH - _threshold) {
     // need to move camera only if cursor is near the end of the window
     if (xPos < _threshold)
-      _offset.first = -(_threshold - xPos) / wW;
+      _offset.first -= _moveSpeed;
     else if (xPos > wW - _threshold)
-      _offset.first = (xPos - (wW - _threshold)) / wW;
+      _offset.first += _moveSpeed;
     if (yPos < _threshold)
-      _offset.second = -(_threshold - yPos) / wH;
+      _offset.second -= _moveSpeed;
     else if (yPos > wH - _threshold)
-      _offset.second = (yPos - (wH - _threshold)) / wH;
+      _offset.second += _moveSpeed;
 
-    _offset.first *= _moveSpeed;
-    _offset.second *= _moveSpeed;
     _zoomPoint.reset();
   }
 }
