@@ -1,7 +1,12 @@
 #version 450
 
 layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 tessColor;
+layout(location = 1) in vec3 fragNormal;
+layout(location = 2) in vec3 tessColor;
+layout(location = 3) in vec3 fragPosition;
+layout(location = 4) in mat3 fragTBN;
+//mat3 takes 3 slots
+layout(location = 7) in vec4 fragLightDirectionalCoord[2];
 struct PatchDescription {
     int rotation;
     int textureID;
@@ -10,7 +15,7 @@ struct PatchDescription {
 // Q01 - Q11 - Q21
 // Q02 - Q12 - Q22
 // Q11 - current patch
-layout(location = 2) flat in PatchDescription inNeighbor[3][3];
+layout(location = 9) flat in PatchDescription inNeighbor[3][3];
 
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outColorBloom;
@@ -25,6 +30,52 @@ layout(push_constant) uniform constants {
     float stripeTop;
     float stripeBot;
 } push;
+
+struct LightDirectional {
+    //
+    vec3 color; //radiance
+    vec3 position;
+};
+
+struct LightPoint {
+    //attenuation
+    float quadratic;
+    int distance;
+    //parameters
+    float far;
+    //
+    vec3 color; //radiance
+    vec3 position;
+};
+
+struct LightAmbient {
+    vec3 color; //radiance
+};
+
+layout(std140, set = 1, binding = 1) readonly buffer LightBufferDirectional {
+    int lightDirectionalNumber;
+    LightDirectional lightDirectional[];
+};
+
+layout(std140, set = 1, binding = 2) readonly buffer LightBufferPoint {
+    int lightPointNumber;
+    LightPoint lightPoint[];
+};
+
+layout(std140, set = 1, binding = 3) readonly buffer LightBufferAmbient {
+    int lightAmbientNumber;
+    LightAmbient lightAmbient[];
+};
+
+layout(set = 1, binding = 4) uniform sampler2D shadowDirectionalSampler[2];
+layout(set = 1, binding = 5) uniform samplerCube shadowPointSampler[4];
+layout(set = 1, binding = 6) uniform ShadowParameters {
+    int enabledDirectional[2];
+    int enabledPoint[4];
+    //0 - simple, 1 - vsm
+    int algorithmDirectional;
+    int algorithmPoint;
+} shadowParameters;
 
 mat2 rotate(float a) {
     float s = sin(radians(a));
@@ -71,6 +122,13 @@ vec4 getColorSide(ivec2 index1, ivec2 index2, float coord, float rate1, float ra
     float weight2 = (rate2 - coord);
     return outColor = (weight1 * color1 + weight2 * color2) / (rate2 - rate1);
 }
+
+#define getLightDir(index) lightDirectional[index]
+#define getLightPoint(index) lightPoint[index]
+#define getLightAmbient(index) lightAmbient[index]
+#define getMaterial() material
+#define getShadowParameters() shadowParameters
+#include "../../shadow.glsl"
 
 void main() {
     vec2 texCoord = rotate(inNeighbor[1][1].rotation) * fragTexCoord;
@@ -139,6 +197,30 @@ void main() {
     } else {
         outColor = texture(texSampler[textureID], texCoord);
     }
+
+    vec3 normal = fragNormal;
+    vec3 lightFactor = vec3(0.0, 0.0, 0.0);
+    for (int i = 0; i < lightDirectionalNumber; i++) {
+        float bias = 0.005;
+        vec3 lightDir = normalize(getLightDir(i).position - fragPosition);
+        float shadow = 0.0;
+        if (push.enableShadow > 0 && getShadowParameters().enabledDirectional[i] > 0)
+            shadow = calculateTextureShadowDirectional(shadowDirectionalSampler[i], fragLightDirectionalCoord[i], normal, lightDir, bias); 
+        lightFactor += getLightDir(i).color * (1 - shadow);
+    }
+    for (int i = 0; i < lightPointNumber; i++) {
+        float bias = 0.05;
+        float distance = length(getLightPoint(i).position - fragPosition);
+        if (distance > getLightPoint(i).distance) break;
+        vec3 lightDir = normalize(getLightPoint(i).position - fragPosition);
+        float shadow = 0.0;
+        if (push.enableShadow > 0 && getShadowParameters().enabledPoint[i] > 0)
+            shadow = calculateTextureShadowPoint(shadowPointSampler[i], fragPosition, getLightPoint(i).position, getLightPoint(i).far, bias); 
+        float attenuation = 1.0 / (getLightPoint(i).quadratic * distance * distance);
+        lightFactor += getLightPoint(i).color * attenuation * (1 - shadow);
+    }
+
+    outColor *= vec4(lightFactor, 1.0);
 
     // check whether fragment output is higher than threshold, if so output as brightness color
     float brightness = dot(outColor.rgb, vec3(0.2126, 0.7152, 0.0722));

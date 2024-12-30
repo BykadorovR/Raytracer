@@ -23,7 +23,7 @@ layout(set = 0, binding = 7) uniform Material {
     float shininess;
 } material;
 
-layout(push_constant) uniform constants {    
+layout(push_constant) uniform constants {
     layout(offset = 40) int enableShadow;
     int enableLighting;
     vec3 cameraPosition;

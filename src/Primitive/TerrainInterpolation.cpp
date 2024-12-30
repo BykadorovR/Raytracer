@@ -980,6 +980,8 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
                                                            .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
+    _descriptorSetLayout[MaterialType::COLOR].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
     _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, _engineState);
     setMaterial(_defaultMaterialColor);
@@ -1085,7 +1087,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/interpolation/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/interpolation/terrainPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/interpolation/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/interpolation/terrainPhong_evaluation.spv",
+      shader->add("shaders/terrain/interpolation/terrainColor_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PHONG] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
@@ -1215,7 +1217,7 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
       shader->add("shaders/terrain/interpolation/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/interpolation/terrainPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/interpolation/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/interpolation/terrainPhong_evaluation.spv",
+      shader->add("shaders/terrain/interpolation/terrainColor_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PBR] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 

@@ -971,6 +971,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
                                                            .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
+    _descriptorSetLayout[MaterialType::COLOR].push_back(
+        {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
     _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, _engineState);
     setMaterial(_defaultMaterialColor);
@@ -991,14 +993,14 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
           .offset = 0,
           .size = sizeof(TesselationControlPush),
       };
-      pushConstants["evaluateDepth"] = VkPushConstantRange{
+      pushConstants["evaluate"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
           .offset = sizeof(TesselationControlPush),
-          .size = sizeof(TesselationEvaluationPushDepth),
+          .size = sizeof(TesselationEvaluationPush),
       };
-      pushConstants["fragmentColor"] = VkPushConstantRange{
+      pushConstants["fragment"] = VkPushConstantRange{
           .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-          .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPushDepth),
+          .offset = sizeof(TesselationControlPush) + sizeof(TesselationEvaluationPush),
           .size = sizeof(FragmentPush),
       };
 
@@ -1076,7 +1078,7 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
       shader->add("shaders/terrain/composition/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/composition/terrainPhong_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/composition/terrainPhong_evaluation.spv",
+      shader->add("shaders/terrain/composition/terrainColor_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PHONG] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
@@ -1206,7 +1208,7 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
       shader->add("shaders/terrain/composition/terrainColor_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
       shader->add("shaders/terrain/composition/terrainPBR_fragment.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
       shader->add("shaders/terrain/composition/terrainColor_control.spv", VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
-      shader->add("shaders/terrain/composition/terrainPhong_evaluation.spv",
+      shader->add("shaders/terrain/composition/terrainColor_evaluation.spv",
                   VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT);
       _pipeline[MaterialType::PBR] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
 
@@ -1508,30 +1510,12 @@ void TerrainComposition::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
 
-    if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
-      TesselationEvaluationPushDepth pushConstants{.heightScale = _heightScale, .heightShift = _heightShift};
-
-      auto info = pipeline->getPushConstants()["evaluateDepth"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
-    }
-
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
       FragmentPush pushConstants{.enableShadow = _enableShadow,
                                  .enableLighting = _enableLighting,
                                  .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
 
       auto info = pipeline->getPushConstants()["fragment"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
-    }
-
-    if (pipeline->getPushConstants().find("fragmentColor") != pipeline->getPushConstants().end()) {
-      FragmentPush pushConstants{.enableShadow = _enableShadow,
-                                 .enableLighting = _enableLighting,
-                                 .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
-
-      auto info = pipeline->getPushConstants()["fragmentColor"];
       vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
                          info.stageFlags, info.offset, info.size, &pushConstants);
     }
