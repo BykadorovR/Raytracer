@@ -13,7 +13,8 @@ class Animation {
   // separate descriptor for each skin
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
   int _animationIndex = 0;
-  std::map<int, glm::mat4> _matricesJoint;
+  std::map<int, glm::mat4> _matricesGlobal;
+  std::vector<glm::mat4> _matricesJoint;
   bool _play = true;
   std::mutex _mutex;
 
@@ -30,6 +31,8 @@ class Animation {
   void setPlay(bool play);
   void setTime(float time);
   std::tuple<float, float> getTimeRange();
+  std::vector<glm::mat4> getJointMatrices();
+  std::map<int, glm::mat4> getGlobalMatrices();
 
   std::tuple<float, float> getTimeline();
   float getCurrentTime();
@@ -37,5 +40,5 @@ class Animation {
   void calculateJoints(float deltaTime);
   void updateBuffers(int currentImage);
 
-  std::vector<std::vector<std::shared_ptr<Buffer>>> getJointMatricesBuffer();
+  std::vector<std::vector<std::shared_ptr<Buffer>>> getGlobalMatricesBuffer();
 };

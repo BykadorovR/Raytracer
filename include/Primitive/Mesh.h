@@ -30,11 +30,13 @@ class AABB {
  private:
   glm::vec3 _min;
   glm::vec3 _max;
+  bool _valid = false;
 
  public:
   AABB();
   void extend(glm::vec3 point);
   void extend(std::shared_ptr<AABB> aabb);
+  bool valid();
   glm::vec3 getMin();
   glm::vec3 getMax();
 };
@@ -59,7 +61,10 @@ class MeshDynamic3D : public Mesh {
   std::shared_ptr<VertexBufferDynamic<Vertex3D>> _vertexBuffer;
   std::shared_ptr<VertexBufferDynamic<uint32_t>> _indexBuffer;
   std::vector<MeshPrimitive> _primitives;
-  std::shared_ptr<AABB> _aabb;
+  std::shared_ptr<AABB> _aabbPositions;
+  std::map<int, std::shared_ptr<AABB>> _aabbJoints;
+  // special Node matrix for mesh node
+  glm::mat4 _globalMatrix;
 
  public:
   MeshDynamic3D(std::shared_ptr<EngineState> engineState);
@@ -69,13 +74,17 @@ class MeshDynamic3D : public Mesh {
   void setColor(std::vector<glm::vec3> color);
   void setNormal(std::vector<glm::vec3> normal);
   void setPosition(std::vector<glm::vec3> position);
-  void setAABB(std::shared_ptr<AABB> aabb);
+  void setAABBPositions(std::shared_ptr<AABB> aabb);
+  void setAABBJoints(std::map<int, std::shared_ptr<AABB>> aabb);
+  void setGlobalMatrix(glm::mat4 globalMatrix);
   void addPrimitive(MeshPrimitive primitive);
 
   const std::vector<uint32_t>& getIndexData();
   const std::vector<Vertex3D>& getVertexData();
   const std::vector<MeshPrimitive>& getPrimitives();
-  std::shared_ptr<AABB> getAABB();
+  std::shared_ptr<AABB> getAABBPositions();
+  glm::mat4 getGlobalMatrix();
+  std::map<int, std::shared_ptr<AABB>> getAABBJoints();
   std::shared_ptr<VertexBuffer<Vertex3D>> getVertexBuffer();
   std::shared_ptr<VertexBuffer<uint32_t>> getIndexBuffer();
   VkVertexInputBindingDescription getBindingDescription();
@@ -90,7 +99,10 @@ class MeshStatic3D : public Mesh {
   std::shared_ptr<VertexBufferStatic<Vertex3D>> _vertexBuffer;
   std::shared_ptr<VertexBufferStatic<uint32_t>> _indexBuffer;
   std::vector<MeshPrimitive> _primitives;
-  std::shared_ptr<AABB> _aabb;
+  std::shared_ptr<AABB> _aabbPositions;
+  std::map<int, std::shared_ptr<AABB>> _aabbJoints;
+  // special Node matrix for mesh node
+  glm::mat4 _globalMatrix;
 
  public:
   MeshStatic3D(std::shared_ptr<EngineState> engineState);
@@ -100,13 +112,17 @@ class MeshStatic3D : public Mesh {
   void setColor(std::vector<glm::vec3> color, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setNormal(std::vector<glm::vec3> normal, std::shared_ptr<CommandBuffer> commandBufferTransfer);
   void setPosition(std::vector<glm::vec3> position, std::shared_ptr<CommandBuffer> commandBufferTransfer);
-  void setAABB(std::shared_ptr<AABB> aabb);
+  void setAABBPositions(std::shared_ptr<AABB> aabb);
+  void setAABBJoints(std::map<int, std::shared_ptr<AABB>> aabb);
+  void setGlobalMatrix(glm::mat4 globalMatrix);
   void addPrimitive(MeshPrimitive primitive);
 
   const std::vector<uint32_t>& getIndexData();
   const std::vector<Vertex3D>& getVertexData();
   const std::vector<MeshPrimitive>& getPrimitives();
-  std::shared_ptr<AABB> getAABB();
+  std::shared_ptr<AABB> getAABBPositions();
+  glm::mat4 getGlobalMatrix();
+  std::map<int, std::shared_ptr<AABB>> getAABBJoints();
   std::shared_ptr<VertexBuffer<Vertex3D>> getVertexBuffer();
   std::shared_ptr<VertexBuffer<uint32_t>> getIndexBuffer();
   VkVertexInputBindingDescription getBindingDescription();

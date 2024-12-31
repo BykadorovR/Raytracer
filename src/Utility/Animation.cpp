@@ -40,24 +40,21 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   }
 }
 
-std::vector<std::vector<std::shared_ptr<Buffer>>> Animation::getJointMatricesBuffer() { return _ssboJoints; }
+std::vector<std::vector<std::shared_ptr<Buffer>>> Animation::getGlobalMatricesBuffer() { return _ssboJoints; }
 
 void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) {
-  if (node->skin > -1) {
+  if (node->skin > -1 && _matricesGlobal.size() > 0) {
     // Update the joint matrices
-    // glm::mat4 inverseTransform = glm::inverse(_getNodeMatrix(node));
-    glm::mat4 inverseTransform = glm::inverse(_matricesJoint[node->index]);
+    glm::mat4 inverseTransform = glm::inverse(_matricesGlobal[node->index]);
     std::shared_ptr<SkinGLTF> skin = _skins[node->skin];
-    std::vector<glm::mat4> jointMatrices(skin->joints.size());
-    for (size_t i = 0; i < jointMatrices.size(); i++) {
-      // jointMatrices[i] = _getNodeMatrix(skin->joints[i]) * skin->inverseBindMatrices[i];
-      jointMatrices[i] = _matricesJoint[skin->joints[i]->index] * skin->inverseBindMatrices[i];
-      jointMatrices[i] = inverseTransform * jointMatrices[i];
+    _matricesJoint.resize(skin->joints.size());
+    for (size_t i = 0; i < _matricesJoint.size(); i++) {
+      _matricesJoint[i] = inverseTransform * (_matricesGlobal[skin->joints[i]->index] * skin->inverseBindMatrices[i]);
     }
     auto frameInFlight = currentImage % _engineState->getSettings()->getMaxFramesInFlight();
-    int jointNumber = jointMatrices.size();
+    int jointNumber = _matricesJoint.size();
     _ssboJoints[node->skin][frameInFlight]->setData(&jointNumber, sizeof(glm::vec4));
-    _ssboJoints[node->skin][frameInFlight]->setData(jointMatrices.data(), jointMatrices.size() * sizeof(glm::mat4),
+    _ssboJoints[node->skin][frameInFlight]->setData(_matricesJoint.data(), _matricesJoint.size() * sizeof(glm::mat4),
                                                     sizeof(glm::vec4));
   }
 
@@ -67,9 +64,9 @@ void Animation::_updateJoints(int currentImage, std::shared_ptr<NodeGLTF> node) 
 }
 
 void Animation::_fillMatricesJoint(std::shared_ptr<NodeGLTF> node, glm::mat4 matrixParent) {
-  _matricesJoint[node->index] = matrixParent * node->getLocalMatrix();
+  _matricesGlobal[node->index] = matrixParent * node->getLocalMatrix();
   for (auto& child : node->children) {
-    _fillMatricesJoint(child, _matricesJoint[node->index]);
+    _fillMatricesJoint(child, _matricesGlobal[node->index]);
   }
 }
 
@@ -80,6 +77,10 @@ std::vector<std::string> Animation::getAnimations() {
   }
   return names;
 }
+
+std::vector<glm::mat4> Animation::getJointMatrices() { return _matricesJoint; }
+
+std::map<int, glm::mat4> Animation::getGlobalMatrices() { return _matricesGlobal; }
 
 void Animation::setAnimation(std::string name) {
   std::unique_lock<std::mutex> lock(_mutex);
@@ -164,7 +165,7 @@ void Animation::calculateJoints(float deltaTime) {
   _logger->end();
 
   _logger->begin("Update matrixes");
-  _matricesJoint.clear();
+  _matricesGlobal.clear();
   for (auto& node : _nodes) {
     _fillMatricesJoint(node, glm::mat4(1.f));
   }

@@ -687,16 +687,16 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 }
 
 void Model3D::_updateJointsDescriptor() {
-  _descriptorSetJoints.resize(_animation->getJointMatricesBuffer().size());
-  for (int skin = 0; skin < _animation->getJointMatricesBuffer().size(); skin++) {
+  _descriptorSetJoints.resize(_animation->getGlobalMatricesBuffer().size());
+  for (int skin = 0; skin < _animation->getGlobalMatricesBuffer().size(); skin++) {
     _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                                  _descriptorSetLayoutJoints, _engineState);
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
           {0,
-           {{.buffer = _animation->getJointMatricesBuffer()[skin][i]->getData(),
+           {{.buffer = _animation->getGlobalMatricesBuffer()[skin][i]->getData(),
              .offset = 0,
-             .range = _animation->getJointMatricesBuffer()[skin][i]->getSize()}}}};
+             .range = _animation->getGlobalMatricesBuffer()[skin][i]->getSize()}}}};
       _descriptorSetJoints[skin]->createCustom(i, bufferInfo, {});
     }
   }
@@ -895,11 +895,27 @@ MaterialType Model3D::getMaterialType() { return _materialType; }
 
 DrawType Model3D::getDrawType() { return _drawType; }
 
-std::shared_ptr<AABB> Model3D::getAABB() {
+std::shared_ptr<AABB> Model3D::getAABBPositions() {
   std::shared_ptr<AABB> aabbTotal = std::make_shared<AABB>();
   for (auto& mesh : _meshes) {
-    auto aabb = mesh->getAABB();
+    auto aabb = mesh->getAABBPositions();
     aabbTotal->extend(aabb);
+  }
+  return aabbTotal;
+}
+
+std::shared_ptr<AABB> Model3D::getAABBJoints() {
+  auto matrices = _animation->getJointMatrices();
+  std::shared_ptr<AABB> aabbTotal = std::make_shared<AABB>();
+  for (auto& mesh : _meshes) {
+    for (auto [joint, aabb] : mesh->getAABBJoints()) {
+      if (matrices.size() > joint) {
+        auto newMin = (mesh->getGlobalMatrix() * matrices[joint]) * glm::vec4(aabb->getMin(), 1.f);
+        auto newMax = (mesh->getGlobalMatrix() * matrices[joint]) * glm::vec4(aabb->getMax(), 1.f);
+        aabbTotal->extend(newMin);
+        aabbTotal->extend(newMax);
+      }
+    }
   }
   return aabbTotal;
 }

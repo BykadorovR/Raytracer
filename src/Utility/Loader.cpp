@@ -617,6 +617,21 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
                 std::cerr << "Joint component type " << jointComponentType << " not supported!" << std::endl;
                 break;
             }
+            // prepare AABB for every joint
+            auto extendAABBJoints = [&](float weight, float index) {
+              if (weight > 0) {
+                auto aabbJoints = mesh->getAABBJoints();
+                if (aabbJoints.find(index) == aabbJoints.end()) aabbJoints[index] = std::make_shared<AABB>();
+                // auto value = nodeMatrix * glm::vec4(vertex.pos, 1.f);
+                aabbJoints[index]->extend(vertex.pos);
+                mesh->setAABBJoints(aabbJoints);
+              }
+            };
+
+            extendAABBJoints(vertex.jointWeights.x, vertex.jointIndices.x);
+            extendAABBJoints(vertex.jointWeights.y, vertex.jointIndices.y);
+            extendAABBJoints(vertex.jointWeights.z, vertex.jointIndices.z);
+            extendAABBJoints(vertex.jointWeights.w, vertex.jointIndices.w);
           }
           vertex.color = glm::vec3(1.f);
           if (materials.size() > glTFPrimitive.material)
@@ -680,10 +695,10 @@ void LoaderGLTF::_loadNode(const tinygltf::Model& modelInternal,
     if (generateTangent) {
       _generateTangent(indexes, vertices);
     }
-
+    mesh->setGlobalMatrix(nodeMatrix);
     mesh->setIndexes(indexes, commandBufferTransfer);
     mesh->setVertices(vertices, commandBufferTransfer);
-    mesh->setAABB(aabb);
+    mesh->setAABBPositions(aabb);
   }
 
   // we store all node's heads in _nodes array

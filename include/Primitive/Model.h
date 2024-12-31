@@ -129,7 +129,8 @@ class Model3D : public Drawable, public Shadowable {
 
   MaterialType getMaterialType();
   DrawType getDrawType();
-  std::shared_ptr<AABB> getAABB();
+  std::shared_ptr<AABB> getAABBPositions();
+  std::shared_ptr<AABB> getAABBJoints();
 
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;

@@ -8,14 +8,18 @@ AABB::AABB() {
 }
 
 void AABB::extend(glm::vec3 point) {
+  _valid = true;
   for (int i = 0; i < _min.length(); i++) _min[i] = std::min(_min[i], point[i]);
   for (int i = 0; i < _max.length(); i++) _max[i] = std::max(_max[i], point[i]);
 }
 
 void AABB::extend(std::shared_ptr<AABB> aabb) {
+  _valid = true;
   extend(aabb->getMin());
   extend(aabb->getMax());
 }
+
+bool AABB::valid() { return _valid; }
 
 glm::vec3 AABB::getMin() { return _min; }
 
@@ -113,13 +117,21 @@ void MeshStatic3D::setPosition(std::vector<glm::vec3> position, std::shared_ptr<
   _vertexBuffer->setData(_vertexData, commandBufferTransfer);
 }
 
-void MeshStatic3D::setAABB(std::shared_ptr<AABB> aabb) { _aabb = aabb; }
+void MeshStatic3D::setAABBPositions(std::shared_ptr<AABB> aabb) { _aabbPositions = aabb; }
+
+void MeshStatic3D::setAABBJoints(std::map<int, std::shared_ptr<AABB>> aabb) { _aabbJoints = aabb; }
+
+void MeshStatic3D::setGlobalMatrix(glm::mat4 globalMatrix) { _globalMatrix = globalMatrix; }
 
 void MeshStatic3D::addPrimitive(MeshPrimitive primitive) { _primitives.push_back(primitive); }
 
 const std::vector<MeshPrimitive>& MeshStatic3D::getPrimitives() { return _primitives; }
 
-std::shared_ptr<AABB> MeshStatic3D::getAABB() { return _aabb; }
+std::shared_ptr<AABB> MeshStatic3D::getAABBPositions() { return _aabbPositions; }
+
+glm::mat4 MeshStatic3D::getGlobalMatrix() { return _globalMatrix; }
+
+std::map<int, std::shared_ptr<AABB>> MeshStatic3D::getAABBJoints() { return _aabbJoints; }
 
 VkVertexInputBindingDescription MeshStatic3D::getBindingDescription() {
   VkVertexInputBindingDescription bindingDescription{.binding = 0,
@@ -209,13 +221,21 @@ void MeshDynamic3D::setPosition(std::vector<glm::vec3> position) {
   _vertexBuffer->setData(_vertexData);
 }
 
-void MeshDynamic3D::setAABB(std::shared_ptr<AABB> aabb) { _aabb = aabb; }
+void MeshDynamic3D::setAABBPositions(std::shared_ptr<AABB> aabb) { _aabbPositions = aabb; }
+
+void MeshDynamic3D::setAABBJoints(std::map<int, std::shared_ptr<AABB>> aabb) { _aabbJoints = aabb; }
+
+void MeshDynamic3D::setGlobalMatrix(glm::mat4 globalMatrix) { _globalMatrix = globalMatrix; }
 
 void MeshDynamic3D::addPrimitive(MeshPrimitive primitive) { _primitives.push_back(primitive); }
 
 const std::vector<MeshPrimitive>& MeshDynamic3D::getPrimitives() { return _primitives; }
 
-std::shared_ptr<AABB> MeshDynamic3D::getAABB() { return _aabb; }
+std::shared_ptr<AABB> MeshDynamic3D::getAABBPositions() { return _aabbPositions; }
+
+glm::mat4 MeshDynamic3D::getGlobalMatrix() { return _globalMatrix; }
+
+std::map<int, std::shared_ptr<AABB>> MeshDynamic3D::getAABBJoints() { return _aabbJoints; }
 
 VkVertexInputBindingDescription MeshDynamic3D::getBindingDescription() {
   VkVertexInputBindingDescription bindingDescription{.binding = 0,
