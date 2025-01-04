@@ -117,27 +117,21 @@ Main::Main() {
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
 
-  // cube colored light
-  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightVertical);
+  {
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+                       _core->getCommandBufferApplication());
+    _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightHorizontal);
+    _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
-  cubeColoredLightDirectional->getMesh()->setColor(
-      std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
-  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _core->addDrawable(cubeColoredLightDirectional);
-
+    auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, meshCube);
+    cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+    cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    _core->addDrawable(cubeColoredLightDirectional);
+  }
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
   _physicsManager = std::make_shared<PhysicsManager>();
@@ -148,13 +142,14 @@ Main::Main() {
 
   _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
                                                      _physicsManager);
-
-  _cubePlayer = _core->createShape3D(ShapeType::CUBE);
-  _cubePlayer->setTranslate(glm::vec3(-4.f, -14.f, -10.f));
-  _cubePlayer->getMesh()->setColor(
-      std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubePlayer);
+  {
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
+                       _core->getCommandBufferApplication());
+    _cubePlayer = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _cubePlayer->setTranslate(glm::vec3(-4.f, -14.f, -10.f));
+    _core->addDrawable(_cubePlayer);
+  }
   auto callbackPosition = [&](glm::vec2 click) { _endPoint = _terrainPhysics->getHit(click); };
   _inputHandler->setMoveCallback(callbackPosition);
   {
@@ -193,22 +188,22 @@ Main::Main() {
     }
     _modelSimple->setMaterial(materialModelSimple);
 
-    auto aabb = _modelSimple->getAABB();
+    auto aabb = _modelSimple->getAABBPositions();
     auto min = aabb->getMin();
     auto max = aabb->getMax();
-    auto center = (max + min) / 2.f;
     // divide to 2.f because Jolt accept half of the box not entire one
     auto minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                 glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
+                 glm::vec4(min.y, min.y, min.z, 1.f);
     auto maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                 glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
+                 glm::vec4(max.x, max.y, max.z, 1.f);
     _modelSimple->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
     _modelSimple->setScale(glm::vec3(_modelScale, _modelScale, _modelScale));
     // model itself is buggy and it's origin between the foots
     _modelSimple->setOriginShift(glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
     _core->addDrawable(_modelSimple);
 
-    _boundingBox = _core->createShape3D(ShapeType::CUBE);
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    _boundingBox = _core->createShape3D(ShapeType::CUBE, meshCube);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
     _boundingBox->setScale(maxBB - minBB);
     _core->addDrawable(_boundingBox);
@@ -219,11 +214,14 @@ Main::Main() {
     _model3DPhysics->setRotationSpeed(3.f);
     _model3DPhysics->setMovementSpeed(_speed);
 
-    _capsule = _core->createCapsule((maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f);
+    auto meshCapsule = std::make_shared<MeshCapsuleStatic>(
+        (maxBB - minBB).y - (maxBB - minBB).z, (maxBB - minBB).z / 2.f, _core->getCommandBufferApplication(),
+        _core->getEngineState());
+    meshCapsule->setColor(std::vector{meshCapsule->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+                          _core->getCommandBufferApplication());
+    _capsule = _core->createShape3D(ShapeType::CAPSULE, meshCapsule);
     _capsule->setTranslate(glm::vec3(0.f, 0.f, 0.f));
     _capsule->setDrawType(DrawType::WIREFRAME);
-    _capsule->getMesh()->setColor(std::vector{_capsule->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-                                  _core->getCommandBufferApplication());
     _core->addDrawable(_capsule);
   }
 

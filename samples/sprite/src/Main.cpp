@@ -69,24 +69,18 @@ Main::Main() {
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
   // cube colored light
-  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+  meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+                     _core->getCommandBufferApplication());
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, meshCube);
   _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, meshCube);
   _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
-  cubeColoredLightDirectional->getMesh()->setColor(
-      std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
+  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, meshCube);
   cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
   cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
   _core->addDrawable(cubeColoredLightDirectional);

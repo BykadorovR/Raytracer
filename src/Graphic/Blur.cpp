@@ -286,8 +286,8 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
       {shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderHorizontal->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("blur"), _layoutBlur}}, {}, _mesh->getBindingDescription(),
-      _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                             {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+      _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                               {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
       _renderPass);
 
   _pipelineVertical = std::make_shared<PipelineGraphic>(_engineState->getDevice());
@@ -297,8 +297,8 @@ BlurGraphic::BlurGraphic(std::vector<std::shared_ptr<Texture>> src,
       {shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
        shaderVertical->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
       {std::pair{std::string("blur"), _layoutBlur}}, {}, _mesh->getBindingDescription(),
-      _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                             {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+      _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                               {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
       _renderPass);
 }
 

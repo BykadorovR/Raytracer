@@ -169,8 +169,8 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           _descriptorSetLayoutNormalsMesh, pushConstants, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
 
@@ -209,8 +209,8 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shaderNormal->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           _descriptorSetLayoutNormalsMesh, pushConstants, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }
@@ -293,8 +293,8 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout, pushConstants, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
 
       _pipelineWireframe = std::make_shared<PipelineGraphic>(_engineState->getDevice());
@@ -310,8 +310,8 @@ TerrainCompositionDebug::TerrainCompositionDebug(std::shared_ptr<ImageCPU<uint8_
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout, pushConstants, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                    {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                      {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }
@@ -881,8 +881,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayoutShadows, pushConstants, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPassShadow);
     }
 
@@ -927,8 +927,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayoutShadows, pushConstants, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPassShadow);
     }
   }
@@ -1015,8 +1015,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], pushConstants, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }
@@ -1110,8 +1110,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout[MaterialType::PHONG], pushConstants, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }
@@ -1240,8 +1240,8 @@ void TerrainComposition::initialize(std::shared_ptr<CommandBuffer> commandBuffer
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)},
           _descriptorSetLayout[MaterialType::PBR], pushConstants, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex3D, texCoord)}}),
           _renderPass);
     }
   }

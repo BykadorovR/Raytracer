@@ -47,7 +47,7 @@ Shape3DPhysics::~Shape3DPhysics() {
 }
 
 Shape3D::Shape3D(ShapeType shapeType,
-                 std::shared_ptr<MeshStatic3D> mesh,
+                 std::shared_ptr<Mesh3D> mesh,
                  VkCullModeFlags cullMode,
                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                  std::shared_ptr<GameState> gameState,
@@ -152,9 +152,9 @@ Shape3D::Shape3D(ShapeType shapeType,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
           _renderPass);
     }
     // initialize Tangent (per vertex)
@@ -174,9 +174,9 @@ Shape3D::Shape3D(ShapeType shapeType,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
-                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)},
+                                                   {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, tangent)}}),
           _renderPass);
     }
   }
@@ -223,7 +223,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
 
       _pipelineWireframe[_shapeType][MaterialType::COLOR] = std::make_shared<PipelineGraphic>(
           _engineState->getDevice());
@@ -235,7 +235,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -309,7 +309,7 @@ Shape3D::Shape3D(ShapeType shapeType,
               {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                                                              .offset = 0,
                                                              .size = sizeof(FragmentPush)}}},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
       _pipelineWireframe[_shapeType][MaterialType::PHONG] = std::make_shared<PipelineGraphic>(
           _engineState->getDevice());
@@ -325,7 +325,7 @@ Shape3D::Shape3D(ShapeType shapeType,
               {std::string("constants"), VkPushConstantRange{.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
                                                              .offset = 0,
                                                              .size = sizeof(FragmentPush)}}},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -429,7 +429,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           _descriptorSetLayout[MaterialType::PBR],
           std::map<std::string, VkPushConstantRange>{
               {"constants", {.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT, .offset = 0, .size = sizeof(FragmentPush)}}},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
       // wireframe one
       _pipelineWireframe[_shapeType][MaterialType::PBR] = std::make_shared<PipelineGraphic>(_engineState->getDevice());
       _pipelineWireframe[_shapeType][MaterialType::PBR]->setDepthTest(true);
@@ -442,7 +442,7 @@ Shape3D::Shape3D(ShapeType shapeType,
           _descriptorSetLayout[MaterialType::PBR],
           std::map<std::string, VkPushConstantRange>{
               {"constants", {.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT, .offset = 0, .size = sizeof(FragmentPush)}}},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -523,7 +523,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", cameraLayout}}, {}, _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
         _renderPassDepth);
   }
 
@@ -546,7 +546,7 @@ Shape3D::Shape3D(ShapeType shapeType,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", cameraLayout}}, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
         _renderPassDepth);
   }
 }
@@ -685,7 +685,7 @@ void Shape3D::setMaterial(std::shared_ptr<MaterialPBR> material) {
 
 void Shape3D::setDrawType(DrawType drawType) { _drawType = drawType; }
 
-std::shared_ptr<MeshStatic3D> Shape3D::getMesh() { return _mesh; }
+std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 
 void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();

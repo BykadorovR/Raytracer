@@ -287,7 +287,7 @@ void TerrainCPU::_loadTerrain() {
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
 
       _pipelineWireframe = std::make_shared<PipelineGraphic>(_engineState->getDevice());
@@ -299,7 +299,7 @@ void TerrainCPU::_loadTerrain() {
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout, {}, _mesh[0]->getBindingDescription(),
-          _mesh[0]->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _mesh[0]->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
     }
   }

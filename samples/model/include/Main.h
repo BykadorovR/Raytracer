@@ -26,6 +26,8 @@ class Main {
   std::shared_ptr<DirectionalLight> _directionalLight;
   std::shared_ptr<Shape3D> _cubeColoredLightVertical, _cubeColoredLightHorizontal;
   std::shared_ptr<Animation> _animationFish;
+  std::shared_ptr<Model3D> _modelWalking;
+  std::shared_ptr<Shape3D> _capsule;
 
   int _typeIndex = 0;
   std::shared_ptr<Model3D> _modelBottle;

@@ -126,7 +126,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayout}}, {}, _mesh3D->getBindingDescription(),
-          _mesh3D->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _mesh3D->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
     }
   }

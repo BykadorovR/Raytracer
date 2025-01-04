@@ -208,21 +208,18 @@ Main::Main() {
   auto ambientLight = _core->createAmbientLight();
   ambientLight->setColor({0.1f, 0.1f, 0.1f});
   // cube colored light
-  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
+  auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+  meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+                     _core->getCommandBufferApplication());
+
+  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, meshCube);
   _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightVertical);
-
-  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
+  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, meshCube);
   _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
   _core->addDrawable(_cubeColoredLightHorizontal);
-
-  _sphereClickDebug = _core->createShape3D(ShapeType::SPHERE);
+  auto meshSphere = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  _sphereClickDebug = _core->createShape3D(ShapeType::SPHERE, meshSphere);
   _sphereClickDebug->setScale(glm::vec3(0.005f, 0.005f, 0.005f));
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {

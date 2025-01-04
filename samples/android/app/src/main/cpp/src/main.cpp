@@ -56,8 +56,6 @@ std::shared_ptr<Model3DPhysics> _model3DPhysics;
 std::shared_ptr<Shape3DPhysics> _shape3DPhysics;
 std::shared_ptr<PhysicsManager> _physicsManager;
 std::shared_ptr<TerrainPhysics> _terrainPhysics;
-float _modelScale = 2.f;
-float _boundingBoxScale = 1.5f;
 
 int _typeIndex = 0;
 int _patchX = 12, _patchY = 12;
@@ -463,26 +461,31 @@ void initialize() {
 
   std::vector<std::shared_ptr<Shape3D>> spheres(6);
   // non HDR
-  spheres[0] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[0]->getMesh()->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
+  auto mesh0 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh0->setColor({{0.f, 0.f, 0.1f}}, commandBufferTransfer);
+  spheres[0] = _core->createShape3D(ShapeType::SPHERE, mesh0);
   spheres[0]->setTranslate(glm::vec3(0.f, 5.f, 0.f));
-  spheres[1] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[1]->getMesh()->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
+  auto mesh1 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh1->setColor({{0.f, 0.f, 0.5f}}, commandBufferTransfer);
+  spheres[1] = _core->createShape3D(ShapeType::SPHERE, mesh1);
   spheres[1]->setTranslate(glm::vec3(2.f, 5.f, 0.f));
-  spheres[2] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[2]->getMesh()->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
+  auto mesh2 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh2->setColor({{0.f, 0.f, 10.f}}, commandBufferTransfer);
+  spheres[2] = _core->createShape3D(ShapeType::SPHERE, mesh2);
   spheres[2]->setTranslate(glm::vec3(-2.f, 5.f, 0.f));
   // HDR
-  spheres[3] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[3]->getMesh()->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
+  auto mesh3 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh3->setColor({{5.f, 0.f, 0.f}}, commandBufferTransfer);
+  spheres[3] = _core->createShape3D(ShapeType::SPHERE, mesh3);
   spheres[3]->setTranslate(glm::vec3(0.f, 5.f, 2.f));
-  spheres[4] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[4]->getMesh()->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
+  auto mesh4 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh4->setColor({{0.f, 5.f, 0.f}}, commandBufferTransfer);
+  spheres[4] = _core->createShape3D(ShapeType::SPHERE, mesh4);
   spheres[4]->setTranslate(glm::vec3(-4.f, 7.f, -2.f));
-  spheres[5] = _core->createShape3D(ShapeType::SPHERE);
-  spheres[5]->getMesh()->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
+  auto mesh5 = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+  mesh5->setColor({{0.f, 0.f, 20.f}}, commandBufferTransfer);
+  spheres[5] = _core->createShape3D(ShapeType::SPHERE, mesh5);
   spheres[5]->setTranslate(glm::vec3(-4.f, 5.f, -2.f));
-
   for (auto& sphere : spheres) {
     _core->addDrawable(sphere);
   }
@@ -491,22 +494,23 @@ void initialize() {
   _cubemapSkybox = _core->createCubemap({"right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"},
                                         settings->getLoadTextureColorFormat(), 1);
 
-  auto cube = _core->createShape3D(ShapeType::CUBE);
+  auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+  auto cube = _core->createShape3D(ShapeType::CUBE, meshCube);
   auto materialColor = _core->createMaterialColor(MaterialTarget::SIMPLE);
   materialColor->setBaseColor({_cubemapSkybox->getTexture()});
   cube->setMaterial(materialColor);
   cube->setTranslate(glm::vec3(0.f, 3.f, 0.f));
   _core->addDrawable(cube);
 
-  auto equiCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
+  auto equiCube = _core->createShape3D(ShapeType::CUBE, meshCube, VK_CULL_MODE_NONE);
   equiCube->setTranslate(glm::vec3(0.f, 3.f, -3.f));
   _core->addDrawable(equiCube);
 
-  auto diffuseCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
+  auto diffuseCube = _core->createShape3D(ShapeType::CUBE, meshCube, VK_CULL_MODE_NONE);
   diffuseCube->setTranslate(glm::vec3(2.f, 3.f, -3.f));
   _core->addDrawable(diffuseCube);
 
-  auto specularCube = _core->createShape3D(ShapeType::CUBE, VK_CULL_MODE_NONE);
+  auto specularCube = _core->createShape3D(ShapeType::CUBE, meshCube, VK_CULL_MODE_NONE);
   specularCube->setTranslate(glm::vec3(4.f, 3.f, -3.f));
   _core->addDrawable(specularCube);
 
@@ -565,11 +569,12 @@ void initialize() {
                                                        std::tuple{64, 16}, _physicsManager, _core->getGameState(),
                                                        _core->getEngineState());
 
-    _cubePlayer = _core->createShape3D(ShapeType::CUBE);
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
+                       _core->getCommandBufferApplication());
+    _cubePlayer = _core->createShape3D(ShapeType::CUBE, meshCube);
     _cubePlayer->setTranslate(glm::vec3(0.f, 2.f, 0.f));
-    _cubePlayer->getMesh()->setColor(
-        std::vector{_cubePlayer->getMesh()->getVertexData().size(), glm::vec3(0.f, 0.f, 1.f)},
-        _core->getCommandBufferApplication());
+
     _core->addDrawable(_cubePlayer);
 
     _shape3DPhysics = std::make_shared<Shape3DPhysics>(glm::vec3(0.f, 50.f, 0.f), glm::vec3(0.5f, 0.5f, 0.5f),
@@ -587,22 +592,20 @@ void initialize() {
     }
     _modelSimple->setMaterial(materialModelSimple);
 
-    auto aabb = _modelSimple->getAABB();
+    auto aabb = _modelSimple->getAABBPositions();
     auto min = aabb->getMin();
     auto max = aabb->getMax();
-    auto center = (max + min) / 2.f;
-    auto minBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                 glm::vec4(center.x - (max - min).x / 2.f, min.y, min.z, 1.f);
-    auto maxBB = glm::scale(glm::mat4(1.f), glm::vec3(_boundingBoxScale, _modelScale, _modelScale)) *
-                 glm::vec4(center.x + (max - min).x / 2.f, max.y, max.z, 1.f);
 
     _modelSimple->setTranslate(glm::vec3(-4.f, -1.f, -3.f));
     _modelSimple->setOriginShift(glm::vec3(0.f, -((max - min) / 2.f).y, 0.f));
     _core->addDrawable(_modelSimple);
 
-    _boundingBox = _core->createShape3D(ShapeType::CUBE);
+    auto meshCubeBB = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCubeBB->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+                         _core->getCommandBufferApplication());
+    _boundingBox = _core->createShape3D(ShapeType::CUBE, meshCubeBB);
     _boundingBox->setDrawType(DrawType::WIREFRAME);
-    _boundingBox->setScale(maxBB - minBB);
+    _boundingBox->setScale(max - min);
     _core->addDrawable(_boundingBox);
     _model3DPhysics = std::make_shared<Model3DPhysics>(glm::vec3(-4.f, -1.f, -3.f), (max - min) / 2.f, _physicsManager);
   }

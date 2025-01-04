@@ -257,9 +257,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
         _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
         _renderPass);
 
     // it's kind of pointless, but if material is set, double sided property can be handled
@@ -272,9 +272,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
         std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
         _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
         _renderPass);
 
     // initialize Tangent (per vertex)
@@ -294,9 +294,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
           _renderPass);
 
       // it's kind of pointless, but if material is set, double sided property can be handled
@@ -309,9 +309,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT)},
           std::vector{std::pair{std::string("normal"), _descriptorSetLayoutNormalsMesh}}, {},
           _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
+          _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, normal)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, color)}}),
           _renderPass);
     }
   }
@@ -354,7 +354,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
 
       _pipelineCullOff[MaterialType::COLOR] = std::make_shared<PipelineGraphic>(engineState->getDevice());
       _pipelineCullOff[MaterialType::COLOR]->setDepthTest(true);
@@ -363,7 +363,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
 
       _pipelineWireframe[MaterialType::COLOR] = std::make_shared<PipelineGraphic>(engineState->getDevice());
       _pipelineWireframe[MaterialType::COLOR]->setDepthTest(true);
@@ -374,7 +374,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"color", _descriptorSetLayoutColor}, {"joints", _descriptorSetLayoutJoints}}, {},
-          _mesh->getBindingDescription(), _mesh->Mesh::getAttributeDescriptions(attributes), _renderPass);
+          _mesh->getBindingDescription(), _mesh->Mesh3D::getAttributeDescriptions(attributes), _renderPass);
     }
   }
 
@@ -653,9 +653,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", cameraLayout}, {"joints", _descriptorSetLayoutJoints}}, {}, _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
-                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
+                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
         _renderPassDepth);
   }
 
@@ -679,9 +679,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", cameraLayout}, {"joints", _descriptorSetLayoutJoints}}, defaultPushConstants,
         _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
-                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
-                                               {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
+        _mesh->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)},
+                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointIndices)},
+                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex3D, jointWeights)}}),
         _renderPassDepth);
   }
 }
@@ -910,8 +910,9 @@ std::shared_ptr<AABB> Model3D::getAABBJoints() {
   for (auto& mesh : _meshes) {
     for (auto [joint, aabb] : mesh->getAABBJoints()) {
       if (matrices.size() > joint) {
-        auto newMin = (mesh->getGlobalMatrix() * matrices[joint]) * glm::vec4(aabb->getMin(), 1.f);
-        auto newMax = (mesh->getGlobalMatrix() * matrices[joint]) * glm::vec4(aabb->getMax(), 1.f);
+        auto jointMatrix = mesh->getGlobalMatrix() * matrices[joint];
+        auto newMin = jointMatrix * glm::vec4(aabb->getMin(), 1.f);
+        auto newMax = jointMatrix * glm::vec4(aabb->getMax(), 1.f);
         aabbTotal->extend(newMin);
         aabbTotal->extend(newMax);
       }
@@ -941,14 +942,10 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
                          _meshes[node->mesh]->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
-    glm::mat4 nodeMatrix = node->getLocalMatrix();
-    std::shared_ptr<NodeGLTF> currentParent = node->parent;
-    while (currentParent) {
-      nodeMatrix = currentParent->getLocalMatrix() * nodeMatrix;
-      currentParent = currentParent->parent;
-    }
     // pass this matrix to uniforms
-    BufferMVP cameraMVP{.model = getModel() * nodeMatrix, .view = view, .projection = projection};
+    BufferMVP cameraMVP{.model = getModel() * _meshes[node->mesh]->getGlobalMatrix(),
+                        .view = view,
+                        .projection = projection};
 
     cameraUBO[currentFrame]->setData(&cameraMVP);
 

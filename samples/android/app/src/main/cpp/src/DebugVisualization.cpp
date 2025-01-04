@@ -35,6 +35,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
   _farPlaneCCW->enableDepth(false);
 
   auto boxModel = _core->createModelGLTF("box/Box.gltf");
+  auto meshSphere = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
   for (auto light : _core->getPointLights()) {
     _pointValue = light->getColor()[0];
     auto model = _core->createModel3D(boxModel);
@@ -44,7 +45,7 @@ DebugVisualization::DebugVisualization(std::shared_ptr<Camera> camera, std::shar
     core->addDrawable(model);
     _pointLightModels.push_back(model);
 
-    auto sphere = _core->createShape3D(ShapeType::SPHERE, VK_CULL_MODE_NONE);
+    auto sphere = _core->createShape3D(ShapeType::SPHERE, meshSphere, VK_CULL_MODE_NONE);
     _spheres.push_back(sphere);
   }
 

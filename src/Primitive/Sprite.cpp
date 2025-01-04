@@ -93,9 +93,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"normal", _descriptorSetLayoutNormalsMesh}}, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, normal)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)}}),
+          _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, normal)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)}}),
           _renderPass);
     }
 
@@ -115,9 +115,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
            shader->getShaderStageInfo(VK_SHADER_STAGE_GEOMETRY_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"normal", _descriptorSetLayoutNormalsMesh}}, {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
-                                                 {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex2D, tangent)}}),
+          _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                   {VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Vertex2D, tangent)}}),
           _renderPass);
     }
   }
@@ -163,9 +163,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+          _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
 
           _renderPass);
       // wireframe one
@@ -179,9 +179,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           _descriptorSetLayout[MaterialType::COLOR], {}, _mesh->getBindingDescription(),
-          _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
-                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+          _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                   {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
           _renderPass);
     }
   }
@@ -410,9 +410,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", _descriptorSetLayoutDepth}}, {}, _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
-                                               {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+        _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
         _renderPassDepth);
   }
 
@@ -436,9 +436,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
         {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
          shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
         {{"depth", _descriptorSetLayoutDepth}}, defaultPushConstants, _mesh->getBindingDescription(),
-        _mesh->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                               {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
-                                               {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+        _mesh->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                 {VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, color)},
+                                                 {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
         _renderPassDepth);
   }
 }

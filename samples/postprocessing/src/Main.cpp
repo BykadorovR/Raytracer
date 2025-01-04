@@ -69,28 +69,23 @@ Main::Main() {
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
-  // cube colored light
-  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightVertical);
+  {
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+                       _core->getCommandBufferApplication());
+    _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightHorizontal);
+    _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
-  cubeColoredLightDirectional->getMesh()->setColor(
-      std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
-  _core->addDrawable(cubeColoredLightDirectional);
+    auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, meshCube);
+    cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+    _core->addDrawable(cubeColoredLightDirectional);
+  }
 
   auto fillMaterialPhong = [core = _core](std::shared_ptr<MaterialPhong> material) {
     if (material->getBaseColor().size() == 0)
@@ -113,16 +108,17 @@ Main::Main() {
                              core->getResourceManager()->getTextureZero());
   };
 
-  // cube colored
-  auto cubeColored = _core->createShape3D(ShapeType::CUBE);
-  cubeColored->setTranslate(glm::vec3(0.f, 3.f, -3.f));
-  cubeColored->getMesh()->setColor(
-      std::vector{cubeColored->getMesh()->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(cubeColored);
+  {
+    // cube colored
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 0.f, 0.f)},
+                       _core->getCommandBufferApplication());
+    auto cubeColored = _core->createShape3D(ShapeType::CUBE, meshCube);
+    cubeColored->setTranslate(glm::vec3(0.f, 3.f, -3.f));
 
+    _core->addDrawable(cubeColored);
+  }
   // TODO: color is not so bright in comparison with cube
-  // sphere PBR
   auto sphereColorPBR = _core->createTexture("../../shape/assets/rustediron2_basecolor.png",
                                              settings->getLoadTextureColorFormat(), mipMapLevels);
   auto sphereNormalPBR = _core->createTexture("../../shape/assets/rustediron2_normal.png",
@@ -142,12 +138,14 @@ Main::Main() {
   materialSpherePBR->setDiffuseIBL(_core->getResourceManager()->getCubemapZero()->getTexture());
   materialSpherePBR->setSpecularIBL(_core->getResourceManager()->getCubemapZero()->getTexture(),
                                     _core->getResourceManager()->getTextureZero());
-
-  auto sphereTexturedPBR = _core->createShape3D(ShapeType::SPHERE);
-  sphereTexturedPBR->setMaterial(materialSpherePBR);
-  sphereTexturedPBR->setTranslate(glm::vec3(-3.f, 3.f, -3.f));
-  _core->addDrawable(sphereTexturedPBR);
-
+  {
+    // sphere PBR
+    auto meshSphere = std::make_shared<MeshSphere>(_core->getCommandBufferApplication(), _core->getEngineState());
+    auto sphereTexturedPBR = _core->createShape3D(ShapeType::SPHERE, meshSphere);
+    sphereTexturedPBR->setMaterial(materialSpherePBR);
+    sphereTexturedPBR->setTranslate(glm::vec3(-3.f, 3.f, -3.f));
+    _core->addDrawable(sphereTexturedPBR);
+  }
   // draw skeletal dancing model with one animation
   {
     auto gltfModelDancing = _core->createModelGLTF("../../model/assets/BrainStem/BrainStem.gltf");

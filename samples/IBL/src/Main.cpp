@@ -72,29 +72,23 @@ Main::Main() {
   _directionalLight->setColor(glm::vec3(_directionalValue, _directionalValue, _directionalValue));
   _directionalLight->getCamera()->setPosition(glm::vec3(0.f, 20.f, 0.f));
 
-  // cube colored light
-  _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightVertical->getMesh()->setColor(
-      std::vector{_cubeColoredLightVertical->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightVertical);
+  {
+    auto meshCube = std::make_shared<MeshCube>(_core->getCommandBufferApplication(), _core->getEngineState());
+    meshCube->setColor(std::vector{meshCube->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
+                       _core->getCommandBufferApplication());
+    _cubeColoredLightVertical = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _cubeColoredLightVertical->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    _core->addDrawable(_cubeColoredLightVertical);
 
-  _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE);
-  _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  _cubeColoredLightHorizontal->getMesh()->setColor(
-      std::vector{_cubeColoredLightHorizontal->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  _core->addDrawable(_cubeColoredLightHorizontal);
+    _cubeColoredLightHorizontal = _core->createShape3D(ShapeType::CUBE, meshCube);
+    _cubeColoredLightHorizontal->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    _core->addDrawable(_cubeColoredLightHorizontal);
 
-  auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE);
-  cubeColoredLightDirectional->getMesh()->setColor(
-      std::vector{cubeColoredLightDirectional->getMesh()->getVertexData().size(), glm::vec3(1.f, 1.f, 1.f)},
-      _core->getCommandBufferApplication());
-  cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
-  cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
-  _core->addDrawable(cubeColoredLightDirectional);
-
+    auto cubeColoredLightDirectional = _core->createShape3D(ShapeType::CUBE, meshCube);
+    cubeColoredLightDirectional->setScale(glm::vec3(0.3f, 0.3f, 0.3f));
+    cubeColoredLightDirectional->setTranslate(glm::vec3(0.f, 20.f, 0.f));
+    _core->addDrawable(cubeColoredLightDirectional);
+  }
   _equirectangular = _core->createEquirectangular("../assets/newport_loft.hdr");
   auto cubemapConverted = _equirectangular->getCubemap();
   auto materialSkybox = _core->createMaterialColor(MaterialTarget::SIMPLE);

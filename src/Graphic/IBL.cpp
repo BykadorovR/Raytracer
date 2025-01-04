@@ -84,8 +84,8 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {{"brdf", cameraLayout}}, {}, _mesh2D->getBindingDescription(),
-          _mesh2D->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
-                                                   {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
+          _mesh2D->Mesh2D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex2D, pos)},
+                                                     {VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex2D, texCoord)}}),
           _renderPass);
     }
   }
@@ -135,7 +135,7 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
           {shader->getShaderStageInfo(VK_SHADER_STAGE_VERTEX_BIT),
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayoutColor}}, {}, _mesh3D->getBindingDescription(),
-          _mesh3D->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _mesh3D->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
     }
     {
@@ -154,7 +154,7 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
            shader->getShaderStageInfo(VK_SHADER_STAGE_FRAGMENT_BIT)},
           {std::pair{std::string("color"), _descriptorSetLayoutColor}}, defaultPushConstants,
           _mesh3D->getBindingDescription(),
-          _mesh3D->Mesh::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
+          _mesh3D->Mesh3D::getAttributeDescriptions({{VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex3D, pos)}}),
           _renderPass);
     }
   }

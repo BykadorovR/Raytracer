@@ -37,7 +37,7 @@ class Shape3D : public Drawable, public Shadowable {
   std::map<ShapeType, std::vector<std::string>> _shadersLightDirectional, _shadersLightPoint, _shadersNormalsMesh,
       _shadersTangentMesh;
   ShapeType _shapeType;
-  std::shared_ptr<MeshStatic3D> _mesh;
+  std::shared_ptr<Mesh3D> _mesh;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
@@ -65,7 +65,7 @@ class Shape3D : public Drawable, public Shadowable {
 
  public:
   Shape3D(ShapeType shapeType,
-          std::shared_ptr<MeshStatic3D> mesh,
+          std::shared_ptr<Mesh3D> mesh,
           VkCullModeFlags cullMode,
           std::shared_ptr<CommandBuffer> commandBufferTransfer,
           std::shared_ptr<GameState> gameState,
@@ -78,7 +78,7 @@ class Shape3D : public Drawable, public Shadowable {
   void setMaterial(std::shared_ptr<MaterialPBR> material);
   void setDrawType(DrawType drawType);
 
-  std::shared_ptr<MeshStatic3D> getMesh();
+  std::shared_ptr<Mesh3D> getMesh();
 
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
   void drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) override;
