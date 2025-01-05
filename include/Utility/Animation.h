@@ -28,6 +28,7 @@ class Animation {
             std::shared_ptr<EngineState> engineState);
   std::vector<std::string> getAnimations();
   void setAnimation(std::string name);
+  std::string getAnimation();
   void setPlay(bool play);
   void setTime(float time);
   std::tuple<float, float> getTimeRange();

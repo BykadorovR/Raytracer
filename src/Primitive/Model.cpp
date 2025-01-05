@@ -99,6 +99,11 @@ void Model3DPhysics::setTranslate(glm::vec3 translate) {
       _character->GetBodyID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
+bool Model3DPhysics::setShape(float height, float radius) {
+  _size = {radius * 2.f, height + radius * 2.f, radius * 2.f};
+  return _character->SetShape(new JPH::CapsuleShape(height / 2.f, radius), 0.05f);
+}
+
 void Model3DPhysics::setRotate(glm::quat rotate) {
   _physicsManager->getBodyInterface().SetRotation(
       _character->GetBodyID(), JPH::Quat(rotate.x, rotate.y, rotate.z, rotate.w), JPH::EActivation::Activate);
