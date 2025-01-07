@@ -14,6 +14,12 @@ class Animation {
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;
   int _animationIndex = 0;
   std::map<int, glm::mat4> _matricesGlobal;
+  // needed for blending between different animations
+  std::map<std::shared_ptr<NodeGLTF>, glm::vec3> _translationPrevious, _scalePrevious;
+  std::map<std::shared_ptr<NodeGLTF>, glm::quat> _rotationPrevious;
+  int _transitionFrames = 30;
+  int _transitionFramesCounter = _transitionFrames + 1;
+
   std::vector<glm::mat4> _matricesJoint;
   bool _play = true;
   std::mutex _mutex;
@@ -27,8 +33,10 @@ class Animation {
             const std::vector<std::shared_ptr<AnimationGLTF>>& animations,
             std::shared_ptr<EngineState> engineState);
   std::vector<std::string> getAnimations();
-  void setAnimation(std::string name);
+  void setAnimation(std::string name, bool smoothTransition = true);
   std::string getAnimation();
+  // set number of frames for transition between animations
+  void setTransitionFrames(int transitionFrames);
   void setPlay(bool play);
   void setTime(float time);
   std::tuple<float, float> getTimeRange();

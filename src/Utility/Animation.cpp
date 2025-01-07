@@ -82,16 +82,37 @@ std::vector<glm::mat4> Animation::getJointMatrices() { return _matricesJoint; }
 
 std::map<int, glm::mat4> Animation::getGlobalMatrices() { return _matricesGlobal; }
 
-void Animation::setAnimation(std::string name) {
+void Animation::setAnimation(std::string name, bool smoothTransition) {
   std::unique_lock<std::mutex> lock(_mutex);
   for (int i = 0; i < _animations.size(); i++) {
-    if (_animations[i]->name == name) _animationIndex = i;
+    if (_animations[i]->name == name) {
+      if (_animationIndex != i) {
+        _animationIndex = i;
+        if (smoothTransition) {
+          _transitionFramesCounter = 0;
+          _translationPrevious.clear();
+          _scalePrevious.clear();
+          _rotationPrevious.clear();
+          for (const auto& channel : _animations[_animationIndex]->channels) {
+            _translationPrevious[channel.node] = channel.node->translation;
+            _scalePrevious[channel.node] = channel.node->scale;
+            _rotationPrevious[channel.node] = channel.node->rotation;
+          }
+        }
+      }
+      break;
+    }
   }
 }
 
 std::string Animation::getAnimation() {
   std::unique_lock<std::mutex> lock(_mutex);
   return _animations[_animationIndex]->name;
+}
+
+void Animation::setTransitionFrames(int transitionFrames) {
+  _transitionFrames = transitionFrames;
+  _transitionFramesCounter = transitionFrames + 1;
 }
 
 void Animation::setPlay(bool play) {
@@ -185,7 +206,22 @@ void Animation::calculateJoints(float deltaTime) {
         channel.node->scale = sampler.outputsVec4[value];
       }
     }
+
+    // mix with previous position
+    if (_transitionFramesCounter <= _transitionFrames) {
+      float smooth = (float)_transitionFramesCounter / (float)_transitionFrames;
+      auto translateOld = _translationPrevious[channel.node];
+      channel.node->translation = glm::mix(translateOld, channel.node->translation, smooth);
+      _translationPrevious[channel.node] = channel.node->translation;
+      auto scaleOld = _scalePrevious[channel.node];
+      channel.node->scale = glm::mix(scaleOld, channel.node->scale, smooth);
+      _scalePrevious[channel.node] = channel.node->scale;
+      auto rotateOld = _rotationPrevious[channel.node];
+      channel.node->rotation = glm::normalize(glm::slerp(rotateOld, channel.node->rotation, smooth));
+      _rotationPrevious[channel.node] = channel.node->rotation;
+    }
   }
+  if (_transitionFramesCounter <= _transitionFrames) _transitionFramesCounter++;
   _logger->end();
 
   _logger->begin("Update matrixes");

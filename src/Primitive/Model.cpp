@@ -21,10 +21,9 @@ struct FragmentPush {
 Model3DPhysics::Model3DPhysics(glm::vec3 translate, glm::vec3 size, std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
   JPH::CharacterSettings settings;
-  _size = size;
   settings.mShape = new JPH::BoxShape(JPH::Vec3(size.x / 2.f, size.y / 2.f, size.z / 2.f));
   settings.mLayer = Layers::MOVING;
-  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
+  // settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -size.y / 2.f);
   _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
                                   0, &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
@@ -36,10 +35,9 @@ Model3DPhysics::Model3DPhysics(glm::vec3 translate,
                                std::shared_ptr<PhysicsManager> physicsManager) {
   _physicsManager = physicsManager;
   JPH::CharacterSettings settings;
-  _size = {radius * 2.f, height + radius * 2.f, radius * 2.f};
   settings.mShape = new JPH::CapsuleShape(height / 2.f, radius);
   settings.mLayer = Layers::MOVING;
-  settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
+  // settings.mSupportingVolume = JPH::Plane(JPH::Vec3::sAxisY(), -radius);
   _character = new JPH::Character(&settings, JPH::Vec3(translate.x, translate.y, translate.z), JPH::Quat::sIdentity(),
                                   0, &_physicsManager->getPhysicsSystem());
   _character->AddToPhysicsSystem(JPH::EActivation::Activate);
@@ -100,7 +98,12 @@ void Model3DPhysics::setTranslate(glm::vec3 translate) {
 }
 
 bool Model3DPhysics::setShape(float height, float radius) {
-  _size = {radius * 2.f, height + radius * 2.f, radius * 2.f};
+  // need to recalculate shift by Y axis because of possible shape height change
+  auto position = getTranslate();
+  auto aabb = getSize();
+  // divide by two because aabb is symmetric along the center
+  auto heightDiff = ((height + radius * 2.f) - aabb.y) / 2.f;
+  setTranslate({position.x, position.y + heightDiff, position.z});
   return _character->SetShape(new JPH::CapsuleShape(height / 2.f, radius), 0.05f);
 }
 
@@ -119,7 +122,11 @@ glm::vec3 Model3DPhysics::getTranslate() {
   return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
 }
 
-glm::vec3 Model3DPhysics::getSize() { return _size; }
+glm::vec3 Model3DPhysics::getSize() {
+  auto aabb = _character->GetShape()->GetLocalBounds();
+  auto size = aabb.mMax - aabb.mMin;
+  return {size.GetX(), size.GetY(), size.GetZ()};
+}
 
 void Model3DPhysics::postUpdate() { _character->PostSimulation(_collisionTolerance); }
 
