@@ -5,6 +5,7 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                                  std::shared_ptr<EngineState> engineState) {
   _commandBufferTransfer = commandBufferTransfer;
   _engineState = engineState;
+  auto currentFrame = _engineState->getFrameInFlight();
 
   auto pixels = imageCPU->getData().get();
   auto [texWidth, texHeight] = imageCPU->getResolution();
@@ -131,8 +132,6 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
     }
   }
 
-  _logger = std::make_shared<Logger>(engineState);
-
   _camera = std::make_shared<CameraFly>(_engineState);
   _camera->setViewParameters(glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, -1.f), glm::vec3(0.f, 1.f, 0.f));
   _camera->setProjectionParameters(90.f, 0.1f, 100.f);
@@ -142,6 +141,8 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
 }
 
 void Equirectangular::_convertToCubemap() {
+  auto logger = _engineState->getLogger();
+
   _cubemap = std::make_shared<Cubemap>(_engineState->getSettings()->getShadowMapResolution(),
                                        _engineState->getSettings()->getGraphicColorFormat(), 1,
                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
@@ -157,7 +158,7 @@ void Equirectangular::_convertToCubemap() {
   }
 
   auto currentFrame = _engineState->getFrameInFlight();
-  vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(_commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _pipelineEquirectangular->getPipeline());
   auto [width, height] = _engineState->getSettings()->getShadowMapResolution();
   // render equirectangular to cubemap
@@ -179,10 +180,9 @@ void Equirectangular::_convertToCubemap() {
                                          .pClearValues = &clearColor};
 
     // TODO: only one depth texture?
-    vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame], &renderPassInfo,
-                         VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(_commandBufferTransfer->getCommandBuffer(), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    _logger->begin("Render equirectangular", _commandBufferTransfer);
+    logger->begin("Render equirectangular", _commandBufferTransfer);
     // up is inverted for X and Z because of some specific cubemap Y coordinate stuff
     switch (i) {
       case 0:
@@ -216,19 +216,19 @@ void Equirectangular::_convertToCubemap() {
                         .height = static_cast<float>(height),
                         .minDepth = 0.0f,
                         .maxDepth = 1.0f};
-    vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(_commandBufferTransfer->getCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
-    vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer(), 0, 1, &scissor);
     BufferMVP cameraUBO{.model = glm::mat4(1.f), .view = _camera->getView(), .projection = _camera->getProjection()};
     _bufferCubemap[i][currentFrame]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(_commandBufferTransfer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(_commandBufferTransfer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(_commandBufferTransfer->getCommandBuffer()[currentFrame],
-                         _mesh3D->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(_commandBufferTransfer->getCommandBuffer(), _mesh3D->getIndexBuffer()->getBuffer()->getData(),
+                         0, VK_INDEX_TYPE_UINT32);
 
     auto pipelineLayout = _pipelineEquirectangular->getDescriptorSetLayout();
     auto colorLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -236,16 +236,16 @@ void Equirectangular::_convertToCubemap() {
                                       return info.first == std::string("color");
                                     });
     if (colorLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(_commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(_commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               _pipelineEquirectangular->getPipelineLayout(), 0, 1,
                               &_descriptorSetCubemap[i]->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
-    vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer()[currentFrame],
-                     static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0, 0);
-    _logger->end(_commandBufferTransfer);
+    vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer(), static_cast<uint32_t>(_mesh3D->getIndexData().size()),
+                     1, 0, 0, 0);
+    logger->end(_commandBufferTransfer);
 
-    vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer()[currentFrame]);
+    vkCmdEndRenderPass(_commandBufferTransfer->getCommandBuffer());
 
     VkImageMemoryBarrier colorBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                       .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -258,7 +258,7 @@ void Equirectangular::_convertToCubemap() {
                                                            .levelCount = 1,
                                                            .baseArrayLayer = 0,
                                                            .layerCount = 1}};
-    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer()[currentFrame],
+    vkCmdPipelineBarrier(_commandBufferTransfer->getCommandBuffer(),
                          VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,  // srcStageMask
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,          // dstStageMask
                          0, 0, nullptr, 0, nullptr,

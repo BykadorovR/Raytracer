@@ -27,13 +27,14 @@ void TimerFPS::tock() {
 
 int TimerFPS::getFPS() { return _fps; }
 
-Timer::Timer() {
+Timer::Timer(std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
+
   _frameCounter = 0;
   _frameCounterSleep = 0;
   _elapsedCurrent = 0;
   _FPSMaxPrevious = 0;
   _startTime = std::chrono::high_resolution_clock::now();
-  _logger = std::make_shared<Logger>();
 }
 
 void Timer::reset() {
@@ -56,6 +57,7 @@ void Timer::tock() {
 float Timer::getElapsedCurrent() { return _elapsedCurrent; }
 
 void Timer::sleep(int FPSMax) {
+  auto logger = _engineState->getLogger();
   // have to reset timer if FPS has been changed
   if (_FPSMaxPrevious && _FPSMaxPrevious != FPSMax) reset();
   auto end = std::chrono::high_resolution_clock::now();
@@ -63,9 +65,9 @@ void Timer::sleep(int FPSMax) {
   auto elapsedSleep = std::chrono::duration_cast<std::chrono::milliseconds>(end - _startTime).count();
   uint64_t expected = (1000.f / FPSMax) * _frameCounterSleep;
   if (elapsedSleep < expected) {
-    _logger->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
+    logger->begin("Sleep for: " + std::to_string(expected - elapsedSleep));
     std::this_thread::sleep_for(std::chrono::milliseconds(expected - elapsedSleep));
-    _logger->end();
+    logger->end();
   }
 }
 

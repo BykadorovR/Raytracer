@@ -123,20 +123,19 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     _changedMaterial[currentFrame] = false;
   }
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipeline());
   VkViewport viewport{.x = 0.0f,
                       .y = static_cast<float>(std::get<1>(_engineState->getSettings()->getResolution())),
                       .width = static_cast<float>(std::get<0>(_engineState->getSettings()->getResolution())),
                       .height = static_cast<float>(-std::get<1>(_engineState->getSettings()->getResolution())),
                       .minDepth = 0.f,
                       .maxDepth = 1.f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0},
                    .extent = VkExtent2D(std::get<0>(_engineState->getSettings()->getResolution()),
                                         std::get<1>(_engineState->getSettings()->getResolution()))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   BufferMVP cameraUBO{.model = _model,
                       .view = glm::mat4(glm::mat3(_gameState->getCameraManager()->getCurrentCamera()->getView())),
@@ -145,10 +144,10 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = _pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -156,11 +155,10 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                      return info.first == std::string("color");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
                             nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }

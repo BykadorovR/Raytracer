@@ -79,16 +79,15 @@ float Postprocessing::getGamma() { return _gamma; }
 float Postprocessing::getExposure() { return _exposure; }
 
 void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shared_ptr<CommandBuffer> commandBuffer) {
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                    _computePipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline->getPipeline());
 
   if (_computePipeline->getPushConstants().find("compute") != _computePipeline->getPushConstants().end()) {
     ComputePush pushConstants{.gamma = _gamma,
                               .exposure = _exposure,
                               .enableBloom = _engineState->getSettings()->getBloomPasses()};
     auto info = _computePipeline->getPushConstants()["compute"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _computePipeline->getPipelineLayout(),
-                       info.stageFlags, info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), _computePipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   auto pipelineLayout = _computePipeline->getDescriptorSetLayout();
@@ -97,13 +96,12 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                                       return info.first == std::string("texture");
                                     });
   if (computeLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                            _computePipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSet[std::pair(currentFrame, swapchainIndex)]->getDescriptorSets()[0], 0,
-                            nullptr);
+    vkCmdBindDescriptorSets(
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline->getPipelineLayout(), 0, 1,
+        &_descriptorSet[std::pair(currentFrame, swapchainIndex)]->getDescriptorSets()[0], 0, nullptr);
   }
 
   auto [width, height] = _engineState->getSettings()->getResolution();
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / 16.f)),
+  vkCmdDispatch(commandBuffer->getCommandBuffer(), std::max(1, (int)std::ceil(width / 16.f)),
                 std::max(1, (int)std::ceil(height / 16.f)), 1);
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "Vulkan/Device.h"
+#include "Utility/EngineState.h"
 #include "Vulkan/Command.h"
 #include <array>
 #define GLM_ENABLE_EXPERIMENTAL
@@ -124,8 +124,7 @@ class VertexBufferStatic : public VertexBuffer<T> {
     memoryBarrier.pNext = nullptr;
     memoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[this->_engineState->getFrameInFlight()],
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0,
-                         nullptr, 0, nullptr);
+    vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
   }
 };

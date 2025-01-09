@@ -225,21 +225,22 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
 
   _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                               _descriptorSetLayoutGlobalPhong, _engineState);
-  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
-  loggerUtils->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                       _descriptorSetGlobalPhong->getDescriptorSets());
+  _engineState->getDebugUtils()->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                         _descriptorSetGlobalPhong->getDescriptorSets());
   _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                             _descriptorSetLayoutGlobalPBR, _engineState);
-  loggerUtils->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                       _descriptorSetGlobalPBR->getDescriptorSets());
+  _engineState->getDebugUtils()->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                         _descriptorSetGlobalPBR->getDescriptorSets());
   _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
       _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _engineState);
-  loggerUtils->setName("Descriptor set global terrain Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                       _descriptorSetGlobalTerrainPhong->getDescriptorSets());
+  _engineState->getDebugUtils()->setName("Descriptor set global terrain Phong",
+                                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                         _descriptorSetGlobalTerrainPhong->getDescriptorSets());
   _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                                    _descriptorSetLayoutGlobalTerrainPBR, _engineState);
-  loggerUtils->setName("Descriptor set global terrain PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                       _descriptorSetGlobalTerrainPBR->getDescriptorSets());
+  _engineState->getDebugUtils()->setName("Descriptor set global terrain PBR",
+                                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                         _descriptorSetGlobalTerrainPBR->getDescriptorSets());
 
   // stub texture
   _stubTexture = resourceManager->getTextureOne();

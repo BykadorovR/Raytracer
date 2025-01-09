@@ -326,8 +326,7 @@ void TerrainCPU::patchEdge(bool enable) { _enableEdge = enable; }
 void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
-    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipeline->getPipeline());
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
     VkViewport viewport{.x = 0.0f,
@@ -336,10 +335,10 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                         .height = static_cast<float>(-std::get<1>(resolution)),
                         .minDepth = 0.0f,
                         .maxDepth = 1.0f};
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
     BufferMVP cameraUBO{.model = getModel(),
@@ -350,10 +349,10 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     VkBuffer vertexBuffers[] = {_mesh[currentFrame]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
     if (_hasIndexes) {
       VkBuffer indexBuffers = _mesh[currentFrame]->getIndexBuffer()->getBuffer()->getData();
-      vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], indexBuffers, 0, VK_INDEX_TYPE_UINT32);
+      vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), indexBuffers, 0, VK_INDEX_TYPE_UINT32);
     }
 
     // color
@@ -363,19 +362,18 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("color");
                                     });
     if (colorLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     if (_hasIndexes) {
       for (unsigned int strip = 0; strip < _numStrips; ++strip) {
-        vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], _numVertsPerStrip, 1,
-                         strip * _numVertsPerStrip, 0, 0);
+        vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), _numVertsPerStrip, 1, strip * _numVertsPerStrip, 0, 0);
       }
     } else {
       for (int i = 0; i < _numStrips; i++)
-        vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _numVertsPerStrip, 1, i * _numVertsPerStrip, 0);
+        vkCmdDraw(commandBuffer->getCommandBuffer(), _numVertsPerStrip, 1, i * _numVertsPerStrip, 0);
     }
   };
 

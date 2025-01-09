@@ -9,8 +9,6 @@ Animation::Animation(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
   _animations = animations;
   _engineState = engineState;
 
-  _logger = std::make_shared<Logger>();
-
   _ssboJoints.resize(_skins.size());
   for (int i = 0; i < _skins.size(); i++) {
     _ssboJoints[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
@@ -141,8 +139,9 @@ void Animation::calculateJoints(float deltaTime) {
   if (_play == false || _animations.size() == 0 || _animationIndex > static_cast<uint32_t>(_animations.size()) - 1) {
     return;
   }
+  auto logger = _engineState->getLogger();
 
-  _logger->begin("Update translate/scale/rotation");
+  logger->begin("Update translate/scale/rotation");
   std::shared_ptr<AnimationGLTF> animation = _animations[_animationIndex];
   animation->currentTime += deltaTime;
   animation->currentTime = fmod(animation->currentTime, animation->end - animation->start);
@@ -222,14 +221,14 @@ void Animation::calculateJoints(float deltaTime) {
     }
   }
   if (_transitionFramesCounter <= _transitionFrames) _transitionFramesCounter++;
-  _logger->end();
+  logger->end();
 
-  _logger->begin("Update matrixes");
+  logger->begin("Update matrixes");
   _matricesGlobal.clear();
   for (auto& node : _nodes) {
     _fillMatricesJoint(node, glm::mat4(1.f));
   }
-  _logger->end();
+  logger->end();
 }
 
 void Animation::updateBuffers(int currentImage) {

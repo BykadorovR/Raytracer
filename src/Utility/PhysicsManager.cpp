@@ -1,6 +1,64 @@
 #include "Utility/PhysicsManager.h"
 
-PhysicsManager::PhysicsManager() {
+JobSystemThreadPool::JobSystemThreadPool(int inMaxJobs,
+                                         int inMaxBarriers,
+                                         int inNumThreads,
+                                         std::shared_ptr<BS::thread_pool> pool) {
+  JobSystemWithBarrier::Init(inMaxBarriers);
+
+  _pool = pool;
+  _inNumThreads = inNumThreads;
+  _jobs.Init(inMaxJobs, inMaxJobs);
+}
+
+JPH::JobHandle JobSystemThreadPool::CreateJob(const char* inName,
+                                              JPH::ColorArg inColor,
+                                              const JobFunction& inJobFunction,
+                                              JPH::uint32 inNumDependencies) {
+  // Loop until we can get a job from the free list
+  JPH::uint32 index;
+  for (;;) {
+    index = _jobs.ConstructObject(inName, inColor, this, inJobFunction, inNumDependencies);
+    if (index != AvailableJobs::cInvalidObjectIndex) break;
+    JPH_ASSERT(false, "No jobs available!");
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+  }
+  Job* job = &_jobs.Get(index);
+
+  // Construct handle to keep a reference, the job is queued below and may immediately complete
+  JobHandle handle(job);
+
+  // If there are no dependencies, queue the job now
+  if (inNumDependencies == 0) QueueJob(job);
+
+  // Return the handle
+  return handle;
+}
+
+void JobSystemThreadPool::QueueJob(Job* inJob) {
+  // Exchange any job pointer we find with a nullptr
+  if (inJob != nullptr) {
+    inJob->AddRef();
+
+    _pool->submit([job = inJob]() {
+      job->Execute();
+      job->Release();
+    });
+  }
+}
+
+void JobSystemThreadPool::QueueJobs(Job** inJobs, JPH::uint inNumJobs) {
+  // Queue all jobs
+  for (Job **job = inJobs, **job_end = inJobs + inNumJobs; job < job_end; ++job) {
+    QueueJob(*job);
+  }
+}
+
+int JobSystemThreadPool::GetMaxConcurrency() const { return _inNumThreads; }
+
+void JobSystemThreadPool::FreeJob(Job* inJob) { _jobs.DestructObject(inJob); }
+
+PhysicsManager::PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<Settings> settings) {
   // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you
   // want (see Memory.h). This needs to be done before any other Jolt function is called.
   JPH::RegisterDefaultAllocator();
@@ -24,8 +82,8 @@ PhysicsManager::PhysicsManager() {
   // We need a job system that will execute physics jobs on multiple threads. Typically
   // you would implement the JobSystem interface yourself and let Jolt Physics run on top
   // of your own job scheduler. JobSystemThreadPool is an example implementation.
-  _jobSystem = std::make_shared<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
-                                                          JPH::thread::hardware_concurrency() - 1);
+  _jobSystem = std::make_shared<JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
+                                                     settings->getThreadsInPool(), pool);
 
   // This is the max amount of rigid bodies that you can add to the physics system. If you try to add more you'll get an
   // error. Note: This value is low because this is a simple test. For a real project use something in the order of

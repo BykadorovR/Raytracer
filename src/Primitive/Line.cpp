@@ -56,8 +56,7 @@ void Line::setModel(glm::mat4 model) { _model = model; }
 
 void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   auto currentFrame = _engineState->getFrameInFlight();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipeline());
   auto resolution = _engineState->getSettings()->getResolution();
   VkViewport viewport{.x = 0.0f,
                       .y = static_cast<float>(std::get<1>(resolution)),
@@ -65,10 +64,10 @@ void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       .height = static_cast<float>(-std::get<1>(resolution)),
                       .minDepth = 0.0f,
                       .maxDepth = 1.0f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   BufferMVP cameraUBO{.model = _model,
                       .view = _gameState->getCameraManager()->getCurrentCamera()->getView(),
@@ -78,10 +77,10 @@ void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = _pipeline->getDescriptorSetLayout();
   auto cameraLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -89,11 +88,10 @@ void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                      return info.first == std::string("camera");
                                    });
   if (cameraLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }

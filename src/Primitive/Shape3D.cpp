@@ -690,8 +690,7 @@ std::shared_ptr<Mesh3D> Shape3D::getMesh() { return _mesh; }
 void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
   auto drawShape3D = [&](std::shared_ptr<Pipeline> pipeline) {
-    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipeline->getPipeline());
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
     VkViewport viewport{.x = 0.0f,
@@ -700,10 +699,10 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                         .height = static_cast<float>(-std::get<1>(resolution)),
                         .minDepth = 0.0f,
                         .maxDepth = 1.0f};
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
     // light push constants
     if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
@@ -711,8 +710,8 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                  .enableLighting = _enableLighting,
                                  .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
       auto info = pipeline->getPushConstants()["constants"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     BufferMVP cameraUBO{.model = getModel(),
@@ -722,10 +721,10 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
-                         _mesh->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                         VK_INDEX_TYPE_UINT32);
 
     // color
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -734,7 +733,7 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("color");
                                     });
     if (colorLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -745,7 +744,7 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("phong");
                                     });
     if (phongLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetPhong->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -756,10 +755,9 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                             return info.first == std::string("globalPhong");
                                           });
     if (globalLayoutPhong != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
+          &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     // PBR
@@ -768,7 +766,7 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                     return info.first == std::string("pbr");
                                   });
     if (pbrLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetPBR->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -779,10 +777,9 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                           return info.first == std::string("globalPBR");
                                         });
     if (globalLayoutPBR != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
+          &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     // normals and tangents
@@ -791,13 +788,13 @@ void Shape3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                               return info.first == std::string("normal");
                                             });
     if (normalTangentLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetNormalsMesh->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
-    vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame],
-                     static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0,
+                     0);
   };
 
   auto pipeline = _pipeline[_shapeType][_materialType];
@@ -812,8 +809,7 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
   std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
 
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
@@ -834,10 +830,10 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
@@ -846,8 +842,8 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
           // light camera
           .far = static_cast<int>(_gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar())};
       auto info = pipeline->getPushConstants()["constants"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
   }
 
@@ -869,10 +865,10 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto depthLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -881,10 +877,9 @@ void Shape3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
                                   });
   if (depthLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        0, 1, &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 0, 1,
+        &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }

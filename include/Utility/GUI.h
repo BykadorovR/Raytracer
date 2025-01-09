@@ -51,8 +51,8 @@ class GUI : public InputSubscriberExclusive {
   bool drawInputFloat(std::map<std::string, float*> variable);
   bool drawInputInt(std::map<std::string, int*> variable);
   bool drawInputText(std::string label, char* buffer, int size);
-  void updateBuffers(int current);
-  void drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer);
+  void updateBuffers();
+  void drawFrame(std::shared_ptr<CommandBuffer> commandBuffer);
   bool cursorNotify(float xPos, float yPos) override;
   bool mouseNotify(int button, int action, int mods) override;
   bool keyNotify(int key, int scancode, int action, int mods) override;

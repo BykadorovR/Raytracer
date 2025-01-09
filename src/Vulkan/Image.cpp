@@ -60,7 +60,6 @@ void Image::overrideLayout(VkImageLayout layout) { _imageLayout = layout; }
 std::tuple<int, int> Image::getResolution() { return _resolution; }
 
 void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<CommandBuffer> commandBuffer) {
-  int currentFrame = _engineState->getFrameInFlight();
   VkImageMemoryBarrier barrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -78,7 +77,7 @@ void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<Comman
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     VkImageBlit blit{};
@@ -97,8 +96,8 @@ void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<Comman
 
     // i = 0 has SRC layout (we changed it above), i = 1 has DST layout (we changed from undefined to dst in
     // constructor)
-    vkCmdBlitImage(commandBuffer->getCommandBuffer()[currentFrame], getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   getImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    vkCmdBlitImage(commandBuffer->getCommandBuffer(), getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, getImage(),
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
     // change i = 0 to READ OPTIMAL, we won't use this level anymore, next resizes will use next i
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -106,7 +105,7 @@ void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<Comman
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+    vkCmdPipelineBarrier(commandBuffer->getCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     if (mipWidth > 1) mipWidth /= 2;
@@ -120,7 +119,7 @@ void Image::generateMipmaps(int mipMapLevels, int layers, std::shared_ptr<Comman
   barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
   barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+  vkCmdPipelineBarrier(commandBuffer->getCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
   // we changed real image layout above, need to override imageLayout internal field
@@ -236,9 +235,8 @@ void Image::changeLayout(VkImageLayout oldLayout,
       break;
   }
 
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[_engineState->getFrameInFlight()],
-                       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0,
-                       nullptr, 1, &barrier);
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                       VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
 void Image::setData(std::shared_ptr<Buffer> buffer) {}
@@ -265,14 +263,14 @@ void Image::copyFrom(std::shared_ptr<Buffer> buffer,
   }
 
   int currentFrame = _engineState->getFrameInFlight();
-  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer()[currentFrame], buffer->getData(), _image,
+  vkCmdCopyBufferToImage(commandBufferTransfer->getCommandBuffer(), buffer->getData(), _image,
                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, bufferCopyRegions.size(), bufferCopyRegions.data());
   // need to insert memory barrier so read in fragment shader waits for copy
   VkMemoryBarrier memoryBarrier = {.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                                    .pNext = nullptr,
                                    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
                                    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT};
-  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer()[currentFrame], VK_PIPELINE_STAGE_TRANSFER_BIT,
+  vkCmdPipelineBarrier(commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_STAGE_TRANSFER_BIT,
                        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }
 

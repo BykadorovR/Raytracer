@@ -8,6 +8,7 @@
 #include "Utility/ResourceManager.h"
 #include "Utility/Animation.h"
 #include "Utility/GameState.h"
+#include "Vulkan/Sync.h"
 #include "Vulkan/Render.h"
 #include "Vulkan/Swapchain.h"
 #include "Graphic/Postprocessing.h"
@@ -40,11 +41,8 @@ class Core {
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
   std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
       _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
-  std::shared_ptr<CommandBuffer> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
+  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
       _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
-  std::shared_ptr<Logger> _logger, _loggerPostprocessing, _loggerParticles, _loggerGUI, _loggerDebug;
-  std::vector<std::shared_ptr<Logger>> _loggerDirectional;
-  std::vector<std::vector<std::shared_ptr<Logger>>> _loggerPoint;
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
@@ -151,6 +149,7 @@ class Core {
   std::shared_ptr<PointShadow> createPointShadow(std::shared_ptr<PointLight> pointLight, bool blur = false);
   std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
                                                              bool blur = true);
+  std::shared_ptr<PhysicsManager> createPhysicsManager();
 
   std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();

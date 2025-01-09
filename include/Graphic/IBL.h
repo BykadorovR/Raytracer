@@ -23,7 +23,6 @@ class IBL {
   std::shared_ptr<PipelineGraphic> _pipelineDiffuse, _pipelineSpecular, _pipelineSpecularBRDF;
   std::shared_ptr<MaterialColor> _material;
   glm::mat4 _model = glm::mat4(1.f);
-  std::shared_ptr<Logger> _logger;
   std::shared_ptr<Cubemap> _cubemapDiffuse, _cubemapSpecular;
   std::shared_ptr<Texture> _textureSpecularBRDF;
   std::shared_ptr<CameraOrtho> _cameraSpecularBRDF;

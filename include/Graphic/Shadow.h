@@ -12,8 +12,7 @@
 class DirectionalShadow {
  protected:
   std::shared_ptr<EngineState> _engineState;
-  std::shared_ptr<CommandBuffer> _commandBufferDirectional;
-  std::shared_ptr<Logger> _loggerDirectional;
+  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<Texture>> _shadowMapTexture;
   std::vector<std::shared_ptr<Framebuffer>> _shadowMapFramebuffer;
 
@@ -23,15 +22,14 @@ class DirectionalShadow {
                     std::shared_ptr<EngineState> engineState);
   std::vector<std::shared_ptr<Texture>> getShadowMapTexture();
 
-  std::shared_ptr<CommandBuffer> getShadowMapCommandBuffer();
-  std::shared_ptr<Logger> getShadowMapLogger();
+  std::shared_ptr<CommandBuffer> getShadowMapCommandBuffer(int frameInFlight);
   std::vector<std::shared_ptr<Framebuffer>> getShadowMapFramebuffer();
 };
 
 class DirectionalShadowBlur {
  protected:
-  std::shared_ptr<CommandBuffer> _commandBufferDirectional;
-  std::shared_ptr<Logger> _loggerDirectional;
+  std::shared_ptr<EngineState> _engineState;
+  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferDirectional;
   std::vector<std::shared_ptr<Texture>> _textureOut;
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> _shadowMapFramebuffer;
   std::shared_ptr<BlurGraphic> _blur;
@@ -41,8 +39,7 @@ class DirectionalShadowBlur {
                         std::shared_ptr<CommandBuffer> commandBufferTransfer,
                         std::shared_ptr<RenderPass> renderPass,
                         std::shared_ptr<EngineState> engineState);
-  std::shared_ptr<CommandBuffer> getShadowMapBlurCommandBuffer();
-  std::shared_ptr<Logger> getShadowMapBlurLogger();
+  std::shared_ptr<CommandBuffer> getShadowMapBlurCommandBuffer(int frameInFlight);
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> getShadowMapBlurFramebuffer();
   std::shared_ptr<BlurGraphic> getBlur();
   std::vector<std::shared_ptr<Texture>> getShadowMapBlurTextureOut();
@@ -51,8 +48,7 @@ class DirectionalShadowBlur {
 class PointShadow {
  protected:
   std::shared_ptr<EngineState> _engineState;
-  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferPoint;
-  std::vector<std::shared_ptr<Logger>> _loggerPoint;
+  std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
   std::vector<std::shared_ptr<Cubemap>> _shadowMapCubemap;
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> _shadowMapFramebuffer;
   std::shared_ptr<BlurGraphic> _blur;
@@ -62,15 +58,14 @@ class PointShadow {
               std::shared_ptr<RenderPass> renderPass,
               std::shared_ptr<EngineState> engineState);
   std::vector<std::shared_ptr<Cubemap>> getShadowMapCubemap();
-  std::vector<std::shared_ptr<CommandBuffer>> getShadowMapCommandBuffer();
-  std::vector<std::shared_ptr<Logger>> getShadowMapLogger();
+  std::vector<std::shared_ptr<CommandBuffer>> getShadowMapCommandBuffer(int frameInFlight);
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> getShadowMapFramebuffer();
 };
 
 class PointShadowBlur {
  protected:
-  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferPoint;
-  std::vector<std::shared_ptr<Logger>> _loggerPoint;
+  std::shared_ptr<EngineState> _engineState;
+  std::vector<std::vector<std::shared_ptr<CommandBuffer>>> _commandBufferPoint;
   std::vector<std::shared_ptr<Cubemap>> _cubemapOut;
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> _shadowMapFramebuffer;
   std::vector<std::shared_ptr<BlurGraphic>> _blur;
@@ -80,8 +75,7 @@ class PointShadowBlur {
                   std::shared_ptr<CommandBuffer> commandBufferTransfer,
                   std::shared_ptr<RenderPass> renderPass,
                   std::shared_ptr<EngineState> engineState);
-  std::vector<std::shared_ptr<CommandBuffer>> getShadowMapBlurCommandBuffer();
-  std::vector<std::shared_ptr<Logger>> getShadowMapBlurLogger();
+  std::vector<std::shared_ptr<CommandBuffer>> getShadowMapBlurCommandBuffer(int frameInFlight);
   std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> getShadowMapBlurFramebuffer();
   std::vector<std::shared_ptr<BlurGraphic>> getBlur();
   std::vector<std::shared_ptr<Cubemap>> getShadowMapBlurCubemapOut();

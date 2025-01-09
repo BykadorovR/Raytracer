@@ -950,8 +950,8 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
   if (node->mesh >= 0 && _meshes[node->mesh]->getPrimitives().size() > 0) {
     VkBuffer vertexBuffers[] = {_meshes[node->mesh]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame],
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(),
                          _meshes[node->mesh]->getIndexBuffer()->getBuffer()->getData(), 0, VK_INDEX_TYPE_UINT32);
 
     // pass this matrix to uniforms
@@ -969,7 +969,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                               return info.first == std::string("normal");
                                             });
     if (normalTangentLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetNormalsMesh->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -980,7 +980,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                       return info.first == std::string("depth");
                                     });
     if (depthLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets()[currentFrame], 0,
                               nullptr);
     }
@@ -993,10 +993,9 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
 
     if (jointLayout != pipelineLayout.end()) {
       // if node->skin == -1 then use 0 index that contains identity matrix because of animation default behavior
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 1, 1,
-                              &_descriptorSetJoints[std::max(0, node->skin)]->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
+      vkCmdBindDescriptorSets(
+          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
+          &_descriptorSetJoints[std::max(0, node->skin)]->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
@@ -1018,7 +1017,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                           return info.first == std::string("color");
                                         });
         if (layoutColor != pipelineLayout.end()) {
-          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
                                   &_descriptorSetColor[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
         }
@@ -1029,7 +1028,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                           return info.first == std::string("phong");
                                         });
         if (layoutPhong != pipelineLayout.end()) {
-          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
                                   &_descriptorSetPhong[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
         }
@@ -1040,7 +1039,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                         return info.first == std::string("pbr");
                                       });
         if (layoutPBR != pipelineLayout.end()) {
-          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+          vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
                                   &_descriptorSetPBR[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
         }
@@ -1048,10 +1047,9 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
         auto currentPipeline = pipeline;
         // by default double side is false
         if (material->getDoubleSided()) currentPipeline = pipelineCullOff;
-        vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                           currentPipeline->getPipeline());
-        vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], primitive.indexCount, 1, primitive.firstIndex,
-                         0, 0);
+        vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), primitive.indexCount, 1, primitive.firstIndex, 0, 0);
       }
     }
   }
@@ -1102,18 +1100,18 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       .height = static_cast<float>(-std::get<1>(resolution)),
                       .minDepth = 0.0f,
                       .maxDepth = 1.0f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     FragmentPush pushConstants{.enableShadow = _enableShadow,
                                .enableLighting = _enableLighting,
                                .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
     auto info = pipeline->getPushConstants()["constants"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[_engineState->getFrameInFlight()],
-                       pipeline->getPipelineLayout(), info.stageFlags, info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                       info.size, &pushConstants);
   }
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -1125,8 +1123,8 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        2, 1, &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 2, 1,
+        &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // global PBR
@@ -1136,8 +1134,8 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        2, 1, &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 2, 1,
+        &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // Render all nodes at top-level
@@ -1155,8 +1153,7 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
   std::tuple<int, int> resolution;
   if (lightType == LightType::DIRECTIONAL) {
@@ -1193,10 +1190,10 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (lightType == LightType::POINT) {
     if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
@@ -1206,8 +1203,8 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
       // light camera
       pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       auto info = pipeline->getPushConstants()["constants"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
   }
 

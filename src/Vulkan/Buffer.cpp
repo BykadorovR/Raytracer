@@ -26,8 +26,7 @@ void Buffer::copyFrom(std::shared_ptr<Buffer> buffer,
   _stagingBuffer = buffer;
 
   VkBufferCopy copyRegion{.srcOffset = srcOffset, .dstOffset = dstOffset, .size = buffer->getSize() - srcOffset};
-  vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer()[_engineState->getFrameInFlight()], buffer->getData(), _data,
-                  1, &copyRegion);
+  vkCmdCopyBuffer(commandBufferTransfer->getCommandBuffer(), buffer->getData(), _data, 1, &copyRegion);
 }
 
 VkDeviceSize& Buffer::getSize() { return _size; }

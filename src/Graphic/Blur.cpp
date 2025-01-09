@@ -152,8 +152,7 @@ void BlurCompute::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
     groupCountX = 128.f;
     groupCountY = 1.f;
   }
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->getPipeline());
 
   if (_changed[currentFrame]) {
     _updateDescriptors(currentFrame);
@@ -167,7 +166,7 @@ void BlurCompute::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
                                       return info.first == std::string("texture");
                                     });
   if (computeLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE,
                             pipeline->getPipelineLayout(), 0, 1, &descriptorSet->getDescriptorSets()[currentFrame], 0,
                             nullptr);
   }
@@ -177,13 +176,13 @@ void BlurCompute::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
                                       return info.first == std::string("weights");
                                     });
   if (weightsLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE,
                             pipeline->getPipelineLayout(), 1, 1,
                             &_descriptorSetWeights->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   auto [width, height] = _engineState->getSettings()->getResolution();
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(width / groupCountX)),
+  vkCmdDispatch(commandBuffer->getCommandBuffer(), std::max(1, (int)std::ceil(width / groupCountX)),
                 std::max(1, (int)std::ceil(height / groupCountY)), 1);
 }
 
@@ -310,8 +309,7 @@ void BlurGraphic::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
     pipeline = _pipelineHorizontal;
     descriptorSet = _descriptorSetHorizontal;
   }
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
   if (_changed[currentFrame]) {
     _updateDescriptors(currentFrame);
@@ -326,23 +324,22 @@ void BlurGraphic::draw(bool horizontal, std::shared_ptr<CommandBuffer> commandBu
                       .height = static_cast<float>(-std::get<1>(resolution)),
                       .minDepth = 0.0f,
                       .maxDepth = 1.0f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
-  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                           pipeline->getPipelineLayout(), 0, 1, &descriptorSet->getDescriptorSets()[currentFrame], 0,
                           nullptr);
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }

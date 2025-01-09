@@ -1,5 +1,5 @@
 #pragma once
-#include "Utility/Logger.h"
+#include "Utility/EngineState.h"
 #include <chrono>
 #include <thread>
 
@@ -27,10 +27,10 @@ class Timer {
   std::chrono::high_resolution_clock::time_point _startTimeCurrent;
   float _elapsedCurrent;
   int _FPSMaxPrevious;
-  std::shared_ptr<Logger> _logger;
+  std::shared_ptr<EngineState> _engineState;
 
  public:
-  Timer();
+  Timer(std::shared_ptr<EngineState> engineState);
   void tick();
   void tock();
   void reset();

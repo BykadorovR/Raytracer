@@ -458,8 +458,7 @@ void TerrainInterpolationDebug::_updatePatchDescription(int currentFrame) {
 void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
-    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipeline->getPipeline());
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
     VkViewport viewport{.x = 0.0f,
@@ -468,10 +467,10 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                         .height = static_cast<float>(-std::get<1>(resolution)),
                         .minDepth = 0.0f,
                         .maxDepth = 1.0f};
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants{.minTessellationLevel = _minTessellationLevel,
@@ -480,8 +479,8 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                                            .maxTesselationDistance = _maxTesselationDistance};
 
       auto info = pipeline->getPushConstants()["control"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
@@ -491,8 +490,8 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                                               .heightShift = _heightShift};
 
       auto info = pipeline->getPushConstants()["evaluate"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
@@ -505,8 +504,8 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                                       .stripeBot = _stripeBot};
 
       auto info = pipeline->getPushConstants()["fragment"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
@@ -518,7 +517,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
 
     VkBuffer vertexBuffers[] = {_mesh[currentFrame]->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
     // color
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -527,7 +526,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                                       return info.first == std::string("color");
                                     });
     if (colorLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -538,12 +537,12 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
                                               return info.first == std::string("normal");
                                             });
     if (normalTangentLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetNormal->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
-    vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh[currentFrame]->getVertexData().size(), 1, 0, 0);
+    vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh[currentFrame]->getVertexData().size(), 1, 0, 0);
   };
 
   if (_changeMesh[_engineState->getFrameInFlight()]) {
@@ -1490,8 +1489,7 @@ void TerrainInterpolation::setStripes(float stripeLeft, float stripeTop, float s
 void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
   auto drawTerrain = [&](std::shared_ptr<Pipeline> pipeline) {
-    vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                      pipeline->getPipeline());
+    vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
     auto resolution = _engineState->getSettings()->getResolution();
     VkViewport viewport{.x = 0.0f,
@@ -1500,10 +1498,10 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                         .height = static_cast<float>(-std::get<1>(resolution)),
                         .minDepth = 0.0f,
                         .maxDepth = 1.0f};
-    vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-    vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
     if (pipeline->getPushConstants().find("control") != pipeline->getPushConstants().end()) {
       TesselationControlPush pushConstants{.minTessellationLevel = _minTessellationLevel,
@@ -1512,8 +1510,8 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                            .maxTesselationDistance = _maxTesselationDistance};
 
       auto info = pipeline->getPushConstants()["control"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("evaluate") != pipeline->getPushConstants().end()) {
@@ -1523,8 +1521,8 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                               .heightShift = _heightShift};
 
       auto info = pipeline->getPushConstants()["evaluate"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     if (pipeline->getPushConstants().find("fragment") != pipeline->getPushConstants().end()) {
@@ -1537,8 +1535,8 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                  .stripeBot = _stripeBot};
 
       auto info = pipeline->getPushConstants()["fragment"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
 
     // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
@@ -1549,7 +1547,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
     VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
     // color
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -1558,7 +1556,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("color");
                                     });
     if (colorLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -1569,7 +1567,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("phong");
                                     });
     if (phongLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetPhong->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -1581,8 +1579,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                           });
     if (globalLayoutPhong != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(
-          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 1, 1,
+          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
           &_gameState->getLightManager()->getDSGlobalTerrainPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
@@ -1592,7 +1589,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                     return info.first == std::string("pbr");
                                   });
     if (pbrLayout != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
                               &_descriptorSetPBR->getDescriptorSets()[currentFrame], 0, nullptr);
     }
@@ -1604,12 +1601,11 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                         });
     if (globalLayoutPBR != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(
-          commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-          pipeline->getPipelineLayout(), 1, 1,
+          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
           &_gameState->getLightManager()->getDSGlobalTerrainPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
     }
 
-    vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
+    vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh->getVertexData().size(), 1, 0, 0);
   };
 
   if (_changedMaterial[currentFrame]) {
@@ -1639,8 +1635,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
   std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
 
@@ -1660,10 +1655,10 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   glm::mat4 view(1.f);
   glm::mat4 projection(1.f);
@@ -1688,16 +1683,16 @@ void TerrainInterpolation::drawShadow(LightType lightType,
                                          .maxTesselationDistance = _maxTesselationDistance};
 
     auto info = pipeline->getPushConstants()["control"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
-                       info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                       info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("evaluateDepth") != pipeline->getPushConstants().end()) {
     TesselationEvaluationPushDepth pushConstants{.heightScale = _heightScale, .heightShift = _heightShift};
 
     auto info = pipeline->getPushConstants()["evaluateDepth"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
-                       info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                       info.size, &pushConstants);
   }
 
   if (pipeline->getPushConstants().find("fragmentDepth") != pipeline->getPushConstants().end()) {
@@ -1706,8 +1701,8 @@ void TerrainInterpolation::drawShadow(LightType lightType,
         .far = static_cast<int>(far)};
 
     auto info = pipeline->getPushConstants()["fragmentDepth"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
-                       info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                       info.size, &pushConstants);
   }
 
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
@@ -1717,7 +1712,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto normalLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -1726,9 +1721,9 @@ void TerrainInterpolation::drawShadow(LightType lightType,
                                    });
   if (normalLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        0, 1, &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 0, 1,
+        &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getVertexData().size(), 1, 0, 0);
+  vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh->getVertexData().size(), 1, 0, 0);
 }

@@ -211,7 +211,9 @@ void GUI::drawText(std::vector<std::string> text) {
   }
 }
 
-void GUI::updateBuffers(int current) {
+void GUI::updateBuffers() {
+  auto current = _engineState->getFrameInFlight();
+
   ImGui::Render();
   ImDrawData* imDrawData = ImGui::GetDrawData();
 
@@ -248,11 +250,12 @@ void GUI::updateBuffers(int current) {
   }
 }
 
-void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
+void GUI::drawFrame(std::shared_ptr<CommandBuffer> commandBuffer) {
+  auto current = _engineState->getFrameInFlight();
+
   ImGuiIO& io = ImGui::GetIO();
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    _pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline->getPipeline());
 
   VkViewport viewport{.x = 0.0f,
                       .y = 0.0f,
@@ -260,14 +263,14 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
                       .height = static_cast<float>(std::get<1>(_resolution)),
                       .minDepth = 0.0f,
                       .maxDepth = 1.0f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[current], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   // UI scale and translate via push constants
   UniformDataGUI uniformData{.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y),
                              .translate = glm::vec2(-1.0f)};
   _scaleTranslateBuffer[current]->setData(&uniformData);
 
-  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[current], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                           _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,
                           nullptr);
 
@@ -278,10 +281,8 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
 
   if (imDrawData->CmdListsCount > 0) {
     VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[current], 0, 1, &_vertexBuffer[current]->getData(),
-                           offsets);
-    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[current], _indexBuffer[current]->getData(), 0,
-                         VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, &_vertexBuffer[current]->getData(), offsets);
+    vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _indexBuffer[current]->getData(), 0, VK_INDEX_TYPE_UINT16);
 
     for (int32_t i = 0; i < imDrawData->CmdListsCount; i++) {
       const ImDrawList* cmdList = imDrawData->CmdLists[i];
@@ -291,8 +292,8 @@ void GUI::drawFrame(int current, std::shared_ptr<CommandBuffer> commandBuffer) {
             .offset = {.x = std::max((int32_t)(pcmd->ClipRect.x), 0), .y = std::max((int32_t)(pcmd->ClipRect.y), 0)},
             .extent = {.width = (uint32_t)(pcmd->ClipRect.z - pcmd->ClipRect.x),
                        .height = (uint32_t)(pcmd->ClipRect.w - pcmd->ClipRect.y)}};
-        vkCmdSetScissor(commandBuffer->getCommandBuffer()[current], 0, 1, &scissorRect);
-        vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[current], pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
+        vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissorRect);
+        vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), pcmd->ElemCount, 1, indexOffset, vertexOffset, 0);
         indexOffset += pcmd->ElemCount;
       }
       vertexOffset += cmdList->VtxBuffer.Size;

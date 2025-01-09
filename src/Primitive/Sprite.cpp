@@ -18,7 +18,6 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   setName("Sprite");
   _engineState = engineState;
   _gameState = gameState;
-  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
   auto settings = engineState->getSettings();
   // default material if model doesn't have material at all, we still have to send data to shader
   _defaultMaterialPhong = std::make_shared<MaterialPhong>(MaterialTarget::SIMPLE, commandBufferTransfer, engineState);
@@ -68,8 +67,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     // TODO: we can just have one buffer and put it twice to descriptor
     _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                                 _descriptorSetLayoutNormalsMesh, engineState);
-    loggerUtils->setName("Descriptor set sprite normals mesh", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                         _descriptorSetNormalsMesh->getDescriptorSets());
+    engineState->getDebugUtils()->setName("Descriptor set sprite normals mesh",
+                                          VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                          _descriptorSetNormalsMesh->getDescriptorSets());
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh = {
           {0, {{.buffer = _cameraUBOFull[i]->getData(), .offset = 0, .range = _cameraUBOFull[i]->getSize()}}},
@@ -143,8 +143,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState);
-    loggerUtils->setName("Descriptor set sprite color", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                         _descriptorSetColor->getDescriptorSets());
+    engineState->getDebugUtils()->setName("Descriptor set sprite color", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                          _descriptorSetColor->getDescriptorSets());
 
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
@@ -197,8 +197,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
     _cameraUBODepth.push_back({buffer});
     auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                      _descriptorSetLayoutDepth, _engineState);
-    loggerUtils->setName("Descriptor set sprite directional camera " + std::to_string(i),
-                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, cameraSet->getDescriptorSets());
+    engineState->getDebugUtils()->setName("Descriptor set sprite directional camera " + std::to_string(i),
+                                          VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, cameraSet->getDescriptorSets());
     _descriptorSetCameraDepth.push_back({cameraSet});
   }
 
@@ -213,8 +213,9 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
       facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
                                                     _descriptorSetLayoutDepth, _engineState);
-      loggerUtils->setName("Descriptor set sprite point camera " + std::to_string(i) + "x" + std::to_string(j),
-                           VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, facesSet[j]->getDescriptorSets());
+      engineState->getDebugUtils()->setName(
+          "Descriptor set sprite point camera " + std::to_string(i) + "x" + std::to_string(j),
+          VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, facesSet[j]->getDescriptorSets());
     }
     _cameraUBODepth.push_back(facesBuffer);
     _descriptorSetCameraDepth.push_back(facesSet);
@@ -255,8 +256,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     _descriptorSetPhong = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                           descriptorSetLayout, engineState);
-    loggerUtils->setName("Descriptor set sprite Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                         _descriptorSetPhong->getDescriptorSets());
+    engineState->getDebugUtils()->setName("Descriptor set sprite Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                          _descriptorSetPhong->getDescriptorSets());
 
     setMaterial(_defaultMaterialPhong);
 
@@ -358,8 +359,8 @@ Sprite::Sprite(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
     _descriptorSetPBR = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
                                                         descriptorSetLayout, engineState);
-    loggerUtils->setName("Descriptor set sprite PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                         _descriptorSetPBR->getDescriptorSets());
+    engineState->getDebugUtils()->setName("Descriptor set sprite PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                          _descriptorSetPBR->getDescriptorSets());
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
 
@@ -669,17 +670,17 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       .height = static_cast<float>(-std::get<1>(resolution)),
                       .minDepth = 0.0f,
                       .maxDepth = 1.0f};
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     FragmentPush pushConstants{.enableShadow = _enableShadow,
                                .enableLighting = _enableLighting,
                                .cameraPosition = _gameState->getCameraManager()->getCurrentCamera()->getEye()};
     auto info = pipeline->getPushConstants()["constants"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(), info.stageFlags,
-                       info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                       info.size, &pushConstants);
   }
 
   BufferMVP cameraMVP{.model = getModel(), .view = glm::mat4(1.f), .projection = glm::mat4(1.f)};
@@ -692,13 +693,12 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
   // color
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
@@ -707,7 +707,7 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                     return info.first == std::string("color");
                                   });
   if (colorLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -718,7 +718,7 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                     return info.first == std::string("phong");
                                   });
   if (phongLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetPhong->getDescriptorSets()[currentFrame], 0, nullptr);
   }
@@ -730,8 +730,8 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        1, 1, &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
+        &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // PBR
@@ -740,7 +740,7 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                   return info.first == std::string("pbr");
                                 });
   if (pbrLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1, &_descriptorSetPBR->getDescriptorSets()[currentFrame],
                             0, nullptr);
   }
@@ -752,8 +752,8 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        1, 1, &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
+        &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
   // normals and tangents
@@ -762,13 +762,12 @@ void Sprite::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                             return info.first == std::string("normal");
                                           });
   if (normalTangentLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetNormalsMesh->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }
 
 void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shared_ptr<CommandBuffer> commandBuffer) {
@@ -798,8 +797,7 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   auto pipeline = _pipelineDirectional;
   if (lightType == LightType::POINT) pipeline = _pipelinePoint;
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
   std::tuple<int, int> resolution = _engineState->getSettings()->getShadowMapResolution();
   // Cube Maps have been specified to follow the RenderMan specification (for whatever reason),
   // and RenderMan assumes the images' origin being in the upper left so we don't need to swap anything
@@ -819,10 +817,10 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
   }
   viewport.minDepth = 0.0f;
   viewport.maxDepth = 1.0f;
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (pipeline->getPushConstants().find("constants") != pipeline->getPushConstants().end()) {
     if (lightType == LightType::POINT) {
@@ -832,8 +830,8 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
       // light camera
       pushConstants.far = _gameState->getLightManager()->getPointLights()[lightIndex]->getCamera()->getFar();
       auto info = pipeline->getPushConstants()["constants"];
-      vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], pipeline->getPipelineLayout(),
-                         info.stageFlags, info.offset, info.size, &pushConstants);
+      vkCmdPushConstants(commandBuffer->getCommandBuffer(), pipeline->getPipelineLayout(), info.stageFlags, info.offset,
+                         info.size, &pushConstants);
     }
   }
 
@@ -855,10 +853,10 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
-  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer()[currentFrame], _mesh->getIndexBuffer()->getBuffer()->getData(),
-                       0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer->getCommandBuffer(), _mesh->getIndexBuffer()->getBuffer()->getData(), 0,
+                       VK_INDEX_TYPE_UINT32);
 
   auto pipelineLayout = pipeline->getDescriptorSetLayout();
   auto depthLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -867,10 +865,9 @@ void Sprite::drawShadow(LightType lightType, int lightIndex, int face, std::shar
                                   });
   if (depthLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(),
-        0, 1, &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
+        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 0, 1,
+        &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDrawIndexed(commandBuffer->getCommandBuffer()[currentFrame], static_cast<uint32_t>(_mesh->getIndexData().size()),
-                   1, 0, 0, 0);
+  vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);
 }

@@ -7,6 +7,8 @@
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <glm/glm.hpp>
+#include "Utility/Settings.h"
+#include "BS_thread_pool.hpp"
 
 // Layer that objects can be in, determines which other objects it can collide with
 // Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
@@ -96,11 +98,40 @@ class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFil
   }
 };
 
+class JobSystemThreadPool : public JPH::JobSystemWithBarrier {
+ private:
+  std::shared_ptr<BS::thread_pool> _pool;
+  int _inNumThreads;
+  /// Array of jobs (fixed size)
+  using AvailableJobs = JPH::FixedSizeFreeList<Job>;
+  AvailableJobs _jobs;
+
+ public:
+  JobSystemThreadPool(int inMaxJobs, int inMaxBarriers, int inNumThreads, std::shared_ptr<BS::thread_pool> pool);
+  /// Create a new job, the job is started immediately if inNumDependencies == 0 otherwise it starts when
+  /// RemoveDependency causes the dependency counter to reach 0.
+  JPH::JobHandle CreateJob(const char* inName,
+                           JPH::ColorArg inColor,
+                           const JobFunction& inJobFunction,
+                           JPH::uint32 inNumDependencies = 0) override;
+
+  /// Adds a job to the job queue
+  void QueueJob(Job* inJob) override;
+  /// Adds a number of jobs at once to the job queue
+  void QueueJobs(Job** inJobs, JPH::uint inNumJobs) override;
+
+  /// Get maximum number of concurrently executing jobs
+  int GetMaxConcurrency() const override;
+
+  /// Frees a job
+  void FreeJob(Job* inJob) override;
+};
+
 class PhysicsManager {
  private:
   JPH::PhysicsSystem _physicsSystem;
   std::shared_ptr<JPH::TempAllocatorImpl> _tempAllocator;
-  std::shared_ptr<JPH::JobSystemThreadPool> _jobSystem;
+  std::shared_ptr<JobSystemThreadPool> _jobSystem;
   float _deltaTime = 1.0f / 60.0f;
   const int _collisionSteps = 1;
 
@@ -115,7 +146,7 @@ class PhysicsManager {
   ObjectLayerPairFilterImpl _objectVsObjectLayerFilter;
 
  public:
-  PhysicsManager();
+  PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<Settings> settings);
   JPH::BodyInterface& getBodyInterface();
   JPH::PhysicsSystem& getPhysicsSystem();
   glm::vec3 getGravity();

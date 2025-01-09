@@ -8,7 +8,6 @@ class Animation {
   std::vector<std::shared_ptr<SkinGLTF>> _skins;
   std::vector<std::shared_ptr<AnimationGLTF>> _animations;
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
-  std::shared_ptr<Logger> _logger;
   std::shared_ptr<EngineState> _engineState;
   // separate descriptor for each skin
   std::vector<std::vector<std::shared_ptr<Buffer>>> _ssboJoints;

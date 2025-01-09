@@ -154,8 +154,7 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
   float timeDelta = _frameTimer * 2.f;
   _deltaUniformBuffer[currentFrame]->setData(&timeDelta);
 
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
-                    _computePipeline->getPipeline());
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline->getPipeline());
 
   auto pipelineLayout = _computePipeline->getDescriptorSetLayout();
   auto computeLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -163,18 +162,17 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("computeSSBO");
                                     });
   if (computeLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_COMPUTE,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE,
                             _computePipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetCompute->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDispatch(commandBuffer->getCommandBuffer()[currentFrame], std::max(1, (int)std::ceil(_particles.size() / 16.f)),
-                1, 1);
+  vkCmdDispatch(commandBuffer->getCommandBuffer(), std::max(1, (int)std::ceil(_particles.size() / 16.f)), 1, 1);
 }
 
 void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   int currentFrame = _engineState->getFrameInFlight();
-  vkCmdBindPipeline(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+  vkCmdBindPipeline(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                     _graphicPipeline->getPipeline());
   auto resolution = _engineState->getSettings()->getResolution();
   VkViewport viewport{.x = 0.0f,
@@ -184,16 +182,16 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                       .minDepth = 0.f,
                       .maxDepth = 1.f};
 
-  vkCmdSetViewport(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &viewport);
+  vkCmdSetViewport(commandBuffer->getCommandBuffer(), 0, 1, &viewport);
 
   VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(std::get<0>(resolution), std::get<1>(resolution))};
-  vkCmdSetScissor(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, &scissor);
+  vkCmdSetScissor(commandBuffer->getCommandBuffer(), 0, 1, &scissor);
 
   if (_graphicPipeline->getPushConstants().find("vertex") != _graphicPipeline->getPushConstants().end()) {
     VertexPush pushConstants{.pointScale = _pointScale};
     auto info = _graphicPipeline->getPushConstants()["vertex"];
-    vkCmdPushConstants(commandBuffer->getCommandBuffer()[currentFrame], _graphicPipeline->getPipelineLayout(),
-                       info.stageFlags, info.offset, info.size, &pushConstants);
+    vkCmdPushConstants(commandBuffer->getCommandBuffer(), _graphicPipeline->getPipelineLayout(), info.stageFlags,
+                       info.offset, info.size, &pushConstants);
   }
 
   BufferMVP cameraUBO{.model = getModel(),
@@ -203,7 +201,7 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   VkBuffer vertexBuffers[] = {_particlesBuffer[currentFrame]->getData()};
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer()[currentFrame], 0, 1, vertexBuffers, offsets);
+  vkCmdBindVertexBuffers(commandBuffer->getCommandBuffer(), 0, 1, vertexBuffers, offsets);
 
   auto pipelineLayout = _graphicPipeline->getDescriptorSetLayout();
   auto graphicLayout = std::find_if(pipelineLayout.begin(), pipelineLayout.end(),
@@ -211,10 +209,10 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                       return info.first == std::string("graphic");
                                     });
   if (graphicLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer()[currentFrame], VK_PIPELINE_BIND_POINT_GRAPHICS,
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _graphicPipeline->getPipelineLayout(), 0, 1,
                             &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
   }
 
-  vkCmdDraw(commandBuffer->getCommandBuffer()[currentFrame], _particles.size(), 1, 0, 0);
+  vkCmdDraw(commandBuffer->getCommandBuffer(), _particles.size(), 1, 0, 0);
 }

@@ -27,12 +27,12 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
   }
   // create command buffer for rendering to shadow map
   auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-  _commandBufferDirectional = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                              commandPool, _engineState);
-  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
-  loggerUtils->setName("Command buffer directional ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                       _commandBufferDirectional->getCommandBuffer());
-  _loggerDirectional = std::make_shared<Logger>(_engineState);
+  _commandBufferDirectional.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _commandBufferDirectional[i] = std::make_shared<CommandBuffer>(commandPool, _engineState->getDevice());
+    _engineState->getDebugUtils()->setName("Command buffer directional ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                           _commandBufferDirectional[i]->getCommandBuffer());
+  }
   // create framebuffer to render shadow map to
   _shadowMapFramebuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
@@ -41,9 +41,9 @@ DirectionalShadow::DirectionalShadow(std::shared_ptr<CommandBuffer> commandBuffe
         _shadowMapTexture[i]->getImageView()->getImage()->getResolution(), renderPass, _engineState->getDevice());
   }
 }
-std::shared_ptr<CommandBuffer> DirectionalShadow::getShadowMapCommandBuffer() { return _commandBufferDirectional; }
-
-std::shared_ptr<Logger> DirectionalShadow::getShadowMapLogger() { return _loggerDirectional; }
+std::shared_ptr<CommandBuffer> DirectionalShadow::getShadowMapCommandBuffer(int frameInFlight) {
+  return _commandBufferDirectional[frameInFlight];
+}
 
 std::vector<std::shared_ptr<Texture>> DirectionalShadow::getShadowMapTexture() { return _shadowMapTexture; }
 
@@ -68,17 +68,17 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
   // should be unique command pool for every command buffer to work in parallel.
   // the same with logger, it's binded to command buffer (//TODO: maybe fix somehow)
-  auto loggerUtils = std::make_shared<LoggerUtils>(_engineState);
-  _commandBufferPoint.resize(6);
-  _loggerPoint.resize(6);
-  for (int j = 0; j < _commandBufferPoint.size(); j++) {
-    auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
-    _commandBufferPoint[j] = std::make_shared<CommandBuffer>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                             commandPool, _engineState);
-    loggerUtils->setName("Command buffer point " + std::to_string(j), VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         _commandBufferPoint[j]->getCommandBuffer());
-    _loggerPoint[j] = std::make_shared<Logger>(_engineState);
-  };
+  _commandBufferPoint.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _commandBufferPoint[i].resize(6);
+    for (int j = 0; j < _commandBufferPoint.size(); j++) {
+      auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
+      _commandBufferPoint[i][j] = std::make_shared<CommandBuffer>(commandPool, _engineState->getDevice());
+      _engineState->getDebugUtils()->setName("Command buffer point " + std::to_string(j),
+                                             VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                             _commandBufferPoint[i][j]->getCommandBuffer());
+    }
+  }
   // create framebuffer to render shadow map to
   _shadowMapFramebuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
@@ -92,9 +92,9 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   }
 }
 
-std::vector<std::shared_ptr<CommandBuffer>> PointShadow::getShadowMapCommandBuffer() { return _commandBufferPoint; }
-
-std::vector<std::shared_ptr<Logger>> PointShadow::getShadowMapLogger() { return _loggerPoint; }
+std::vector<std::shared_ptr<CommandBuffer>> PointShadow::getShadowMapCommandBuffer(int frameInFlight) {
+  return _commandBufferPoint[frameInFlight];
+}
 
 std::vector<std::shared_ptr<Cubemap>> PointShadow::getShadowMapCubemap() { return _shadowMapCubemap; }
 
@@ -106,6 +106,7 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
                                              std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                              std::shared_ptr<RenderPass> renderPass,
                                              std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   auto resolution = engineState->getSettings()->getShadowMapResolution();
   // create texture, frame buffers and blurs for directional lights shadow maps postprocessing
   std::vector<std::shared_ptr<Framebuffer>> blurLightOut(engineState->getSettings()->getMaxFramesInFlight());
@@ -137,20 +138,19 @@ DirectionalShadowBlur::DirectionalShadowBlur(std::vector<std::shared_ptr<Texture
 
   _blur = std::make_shared<BlurGraphic>(textureIn, _textureOut, commandBufferTransfer, engineState);
   // create buffer pool and command buffer
+  _commandBufferDirectional.resize(engineState->getSettings()->getMaxFramesInFlight());
   auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
-  _commandBufferDirectional = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                              commandPool, engineState);
-  auto loggerUtils = std::make_shared<LoggerUtils>(engineState);
-  loggerUtils->setName("Command buffer blur directional", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                       _commandBufferDirectional->getCommandBuffer());
-  _loggerDirectional = std::make_shared<Logger>(engineState);
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _commandBufferDirectional[i] = std::make_shared<CommandBuffer>(commandPool, engineState->getDevice());
+    engineState->getDebugUtils()->setName("Command buffer blur directional",
+                                          VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                          _commandBufferDirectional[i]->getCommandBuffer());
+  }
 }
 
-std::shared_ptr<CommandBuffer> DirectionalShadowBlur::getShadowMapBlurCommandBuffer() {
-  return _commandBufferDirectional;
+std::shared_ptr<CommandBuffer> DirectionalShadowBlur::getShadowMapBlurCommandBuffer(int frameInFlight) {
+  return _commandBufferDirectional[frameInFlight];
 }
-
-std::shared_ptr<Logger> DirectionalShadowBlur::getShadowMapBlurLogger() { return _loggerDirectional; }
 
 std::vector<std::vector<std::shared_ptr<Framebuffer>>> DirectionalShadowBlur::getShadowMapBlurFramebuffer() {
   return _shadowMapFramebuffer;
@@ -164,6 +164,7 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
                                  std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                  std::shared_ptr<RenderPass> renderPass,
                                  std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   auto resolution = engineState->getSettings()->getShadowMapResolution();
   // create texture, frame buffers and blurs for point lights shadow maps postprocessing
   std::vector<std::vector<std::shared_ptr<Framebuffer>>> blurLightOut(
@@ -211,26 +212,22 @@ PointShadowBlur::PointShadowBlur(std::vector<std::shared_ptr<Cubemap>> cubemapIn
   }
 
   // create buffer pool and command buffer
-  auto loggerUtils = std::make_shared<LoggerUtils>(engineState);
-  _commandBufferPoint.resize(6);
-  _loggerPoint.resize(6);
-  for (int i = 0; i < 6; i++) {
-    auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
-    auto commandBuffer = std::make_shared<CommandBuffer>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                         commandPool, engineState);
-    loggerUtils->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
-                         commandBuffer->getCommandBuffer());
-    _commandBufferPoint[i] = commandBuffer;
-
-    _loggerPoint[i] = std::make_shared<Logger>(engineState);
+  _commandBufferPoint.resize(engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _commandBufferPoint[i].resize(6);
+    for (int j = 0; j < 6; j++) {
+      auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, engineState->getDevice());
+      auto commandBuffer = std::make_shared<CommandBuffer>(commandPool, engineState->getDevice());
+      engineState->getDebugUtils()->setName("Command buffer blur point ", VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
+                                            commandBuffer->getCommandBuffer());
+      _commandBufferPoint[i][j] = commandBuffer;
+    }
   }
 }
 
-std::vector<std::shared_ptr<CommandBuffer>> PointShadowBlur::getShadowMapBlurCommandBuffer() {
-  return _commandBufferPoint;
+std::vector<std::shared_ptr<CommandBuffer>> PointShadowBlur::getShadowMapBlurCommandBuffer(int frameInFlight) {
+  return _commandBufferPoint[frameInFlight];
 }
-
-std::vector<std::shared_ptr<Logger>> PointShadowBlur::getShadowMapBlurLogger() { return _loggerPoint; }
 
 std::vector<std::vector<std::vector<std::shared_ptr<Framebuffer>>>> PointShadowBlur::getShadowMapBlurFramebuffer() {
   return _shadowMapFramebuffer;

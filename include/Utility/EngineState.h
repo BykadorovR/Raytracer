@@ -9,6 +9,7 @@
 #include "Vulkan/Render.h"
 #include "Utility/Settings.h"
 #include "Utility/Input.h"
+#include "Utility/Logger.h"
 
 class EngineState {
  private:
@@ -22,6 +23,8 @@ class EngineState {
   std::shared_ptr<Filesystem> _filesystem;
   std::shared_ptr<MemoryAllocator> _memoryAllocator;
   std::shared_ptr<RenderPassManager> _renderPassManager;
+  std::shared_ptr<Logger> _logger;
+  std::shared_ptr<DebugUtils> _debugUtils;
   int _frameInFlight = 0;
 #ifdef __ANDROID__
   AAssetManager* _assetManager;
@@ -45,6 +48,8 @@ class EngineState {
   std::shared_ptr<DescriptorPool> getDescriptorPool();
   std::shared_ptr<Filesystem> getFilesystem();
   std::shared_ptr<RenderPassManager> getRenderPassManager();
+  std::shared_ptr<Logger> getLogger();
+  std::shared_ptr<DebugUtils> getDebugUtils();
   void setFrameInFlight(int frameInFlight);
   int getFrameInFlight();
 };
