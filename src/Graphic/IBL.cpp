@@ -57,8 +57,9 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                                   .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
                                                   .pImmutableSamplers = nullptr};
     cameraLayout->createCustom({layoutBinding});
-    _descriptorSetBRDF = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                         cameraLayout, engineState);
+    _descriptorSetBRDF.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+      _descriptorSetBRDF[i] = std::make_shared<DescriptorSet>(cameraLayout, engineState);
     _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
     for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
       _cameraBuffer[i] = std::make_shared<Buffer>(
@@ -70,7 +71,7 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
            {VkDescriptorBufferInfo{.buffer = _cameraBuffer[i]->getData(),
                                    .offset = 0,
                                    .range = _cameraBuffer[i]->getSize()}}}};
-      _descriptorSetBRDF->createCustom(i, bufferInfoColor, {});
+      _descriptorSetBRDF[i]->createCustom(bufferInfoColor, {});
     }
 
     {
@@ -92,13 +93,14 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
 
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
-  _cameraBufferCubemap.resize(6);
-  for (int i = 0; i < 6; i++) {
-    _cameraBufferCubemap[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
-    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
-      _cameraBufferCubemap[i][j] = std::make_shared<Buffer>(
+  _cameraBufferCubemap.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _cameraBufferCubemap[i].resize(6);
+    for (int f = 0; f < 6; f++) {
+      _cameraBufferCubemap[i][f] = std::make_shared<Buffer>(
           sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
+    }
   }
 
   // setup diffuse and specular
@@ -116,10 +118,12 @@ IBL::IBL(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutColor->createCustom(layoutColor);
 
-    _descriptorSetColor.resize(6);
-    for (int f = 0; f < 6; f++) {
-      _descriptorSetColor[f] = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                               _descriptorSetLayoutColor, engineState);
+    _descriptorSetColor.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetColor[i].resize(6);
+      for (int f = 0; f < 6; f++) {
+        _descriptorSetColor[i][f] = std::make_shared<DescriptorSet>(_descriptorSetLayoutColor, engineState);
+      }
     }
 
     _updateColorDescriptor(_material);
@@ -221,15 +225,15 @@ std::shared_ptr<Cubemap> IBL::getCubemapSpecular() { return _cubemapSpecular; }
 std::shared_ptr<Texture> IBL::getTextureSpecularBRDF() { return _textureSpecularBRDF; }
 
 void IBL::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
-  for (int f = 0; f < 6; f++) {
-    _descriptorSetColor[f] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                             _descriptorSetLayoutColor, _engineState);
-    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+  _descriptorSetColor.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int f = 0; f < 6; f++) {
+      _descriptorSetColor[i][f] = std::make_shared<DescriptorSet>(_descriptorSetLayoutColor, _engineState);
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
           {0,
-           {VkDescriptorBufferInfo{.buffer = _cameraBufferCubemap[f][i]->getData(),
+           {VkDescriptorBufferInfo{.buffer = _cameraBufferCubemap[i][f]->getData(),
                                    .offset = 0,
-                                   .range = _cameraBufferCubemap[f][i]->getSize()}}}};
+                                   .range = _cameraBufferCubemap[i][f]->getSize()}}}};
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
           {1,
            {VkDescriptorImageInfo{
@@ -237,7 +241,7 @@ void IBL::_updateColorDescriptor(std::shared_ptr<MaterialColor> material) {
                .imageView = _material->getBaseColor()[0]->getImageView()->getImageView(),
                .imageLayout = _material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
 
-      _descriptorSetColor[f]->createCustom(i, bufferInfoColor, textureInfoColor);
+      _descriptorSetColor[i][f]->createCustom(bufferInfoColor, textureInfoColor);
     }
   }
 }
@@ -259,7 +263,7 @@ void IBL::_draw(int face,
   auto currentFrame = _engineState->getFrameInFlight();
   BufferMVP cameraUBO{.model = _model, .view = camera->getView(), .projection = camera->getProjection()};
 
-  _cameraBufferCubemap[face][currentFrame]->setData(&cameraUBO);
+  _cameraBufferCubemap[currentFrame][face]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -276,7 +280,7 @@ void IBL::_draw(int face,
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetColor[face]->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetColor[currentFrame][face]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh3D->getIndexData().size()), 1, 0, 0,
@@ -505,7 +509,7 @@ void IBL::drawSpecularBRDF() {
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(_commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipelineSpecularBRDF->getPipelineLayout(), 0, 1,
-                            &_descriptorSetBRDF->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetBRDF[currentFrame]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer(), static_cast<uint32_t>(_mesh2D->getIndexData().size()), 1,

@@ -60,7 +60,7 @@ class TerrainCPU : public Drawable {
   std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
   std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraBufferDepth;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayout;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor;
   std::shared_ptr<PipelineGraphic> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass;
   float _heightScale = 64.f;
@@ -106,7 +106,7 @@ class TerrainDebug : public Drawable, public InputSubscriber {
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<TerrainPhysics> _terrainPhysics;
   std::shared_ptr<TerrainCPU> _terrainCPU;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor;
 
   std::shared_ptr<Material> _material;
   std::vector<bool> _changedMaterial;
@@ -178,7 +178,7 @@ class TerrainGPU : public Drawable, public Shadowable {
   std::shared_ptr<BufferImage> _heightMapGPU;
   MaterialType _materialType = MaterialType::COLOR;
   std::vector<bool> _changedMaterial;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
 
   float _heightScale = 64.f;
   float _heightShift = 16.f;

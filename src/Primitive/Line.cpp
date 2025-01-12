@@ -17,8 +17,9 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                                 .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
                                                 .pImmutableSamplers = nullptr};
   cameraLayout->createCustom({layoutBinding});
-  _descriptorSetCamera = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                         cameraLayout, engineState);
+  _descriptorSetCamera.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+    _descriptorSetCamera[i] = std::make_shared<DescriptorSet>(cameraLayout, engineState);
   _cameraBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _cameraBuffer[i] = std::make_shared<Buffer>(
@@ -30,7 +31,7 @@ Line::Line(std::shared_ptr<CommandBuffer> commandBufferTransfer,
          {VkDescriptorBufferInfo{.buffer = _cameraBuffer[i]->getData(),
                                  .offset = 0,
                                  .range = _cameraBuffer[i]->getSize()}}}};
-    _descriptorSetCamera->createCustom(i, bufferInfo, {});
+    _descriptorSetCamera[i]->createCustom(bufferInfo, {});
   }
 
   auto shader = std::make_shared<Shader>(engineState);
@@ -90,7 +91,7 @@ void Line::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _pipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCamera->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetCamera[currentFrame]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDrawIndexed(commandBuffer->getCommandBuffer(), static_cast<uint32_t>(_mesh->getIndexData().size()), 1, 0, 0, 0);

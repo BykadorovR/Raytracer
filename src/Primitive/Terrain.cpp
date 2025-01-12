@@ -178,7 +178,7 @@ void TerrainCPU::_updateColorDescriptor() {
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor{
         {0, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}}};
-    _descriptorSetColor->createCustom(i, bufferInfoColor, {});
+    _descriptorSetColor[i]->createCustom(bufferInfoColor, {});
   }
 }
 
@@ -269,8 +269,11 @@ void TerrainCPU::_loadTerrain() {
                                                            .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
-    _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState);
+
+    _descriptorSetColor.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+      _descriptorSetColor[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
+
     // update descriptor set in setMaterial
     _updateColorDescriptor();
 
@@ -364,7 +367,7 @@ void TerrainCPU::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (colorLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetColor[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     if (_hasIndexes) {
@@ -521,10 +524,13 @@ void TerrainDebug::setHeight(float scale, float shift) {
 }
 
 void TerrainDebug::setMaterial(std::shared_ptr<MaterialColor> material) {
-  if (_material) {
-    _material->unregisterUpdate(_descriptorSetColor);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    if (_material) {
+      _material->unregisterUpdate(_descriptorSetColor[i]);
+    }
+    material->registerUpdate(_descriptorSetColor[i],
+                             {._frameInFlight = i, ._materialInfo = {{MaterialTexture::COLOR, 4}}});
   }
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 4}});
   _material = material;
   for (int i = 0; i < _changedMaterial.size(); i++) {
     _changedMaterial[i] = true;
@@ -614,10 +620,13 @@ void TerrainGPU::enableShadow(bool enable) { _enableShadow = enable; }
 void TerrainGPU::enableLighting(bool enable) { _enableLighting = enable; }
 
 void TerrainGPU::setMaterial(std::shared_ptr<MaterialColor> material) {
-  if (_material) {
-    _material->unregisterUpdate(_descriptorSetColor);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    if (_material) {
+      _material->unregisterUpdate(_descriptorSetColor[i]);
+    }
+    material->registerUpdate(_descriptorSetColor[i],
+                             {._frameInFlight = i, ._materialInfo = {{MaterialTexture::COLOR, 4}}});
   }
-  material->registerUpdate(_descriptorSetColor, {{MaterialTexture::COLOR, 4}});
   _material = material;
   _materialType = MaterialType::COLOR;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -626,9 +635,13 @@ void TerrainGPU::setMaterial(std::shared_ptr<MaterialColor> material) {
 }
 
 void TerrainGPU::setMaterial(std::shared_ptr<MaterialPhong> material) {
-  if (_material) _material->unregisterUpdate(_descriptorSetPhong);
-  material->registerUpdate(_descriptorSetPhong,
-                           {{MaterialTexture::COLOR, 4}, {MaterialTexture::NORMAL, 5}, {MaterialTexture::SPECULAR, 6}});
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    if (_material) _material->unregisterUpdate(_descriptorSetPhong[i]);
+    material->registerUpdate(
+        _descriptorSetPhong[i],
+        {._frameInFlight = i,
+         ._materialInfo = {{MaterialTexture::COLOR, 4}, {MaterialTexture::NORMAL, 5}, {MaterialTexture::SPECULAR, 6}}});
+  }
   _material = material;
   _materialType = MaterialType::PHONG;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -637,16 +650,19 @@ void TerrainGPU::setMaterial(std::shared_ptr<MaterialPhong> material) {
 }
 
 void TerrainGPU::setMaterial(std::shared_ptr<MaterialPBR> material) {
-  if (_material) _material->unregisterUpdate(_descriptorSetPBR);
-  material->registerUpdate(_descriptorSetPBR, {{MaterialTexture::COLOR, 4},
-                                               {MaterialTexture::NORMAL, 5},
-                                               {MaterialTexture::METALLIC, 6},
-                                               {MaterialTexture::ROUGHNESS, 7},
-                                               {MaterialTexture::OCCLUSION, 8},
-                                               {MaterialTexture::EMISSIVE, 9},
-                                               {MaterialTexture::IBL_DIFFUSE, 10},
-                                               {MaterialTexture::IBL_SPECULAR, 11},
-                                               {MaterialTexture::BRDF_SPECULAR, 12}});
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    if (_material) _material->unregisterUpdate(_descriptorSetPBR[i]);
+    material->registerUpdate(_descriptorSetPBR[i], {._frameInFlight = i,
+                                                    ._materialInfo = {{MaterialTexture::COLOR, 4},
+                                                                      {MaterialTexture::NORMAL, 5},
+                                                                      {MaterialTexture::METALLIC, 6},
+                                                                      {MaterialTexture::ROUGHNESS, 7},
+                                                                      {MaterialTexture::OCCLUSION, 8},
+                                                                      {MaterialTexture::EMISSIVE, 9},
+                                                                      {MaterialTexture::IBL_DIFFUSE, 10},
+                                                                      {MaterialTexture::IBL_SPECULAR, 11},
+                                                                      {MaterialTexture::BRDF_SPECULAR, 12}}});
+  }
   _material = material;
   _materialType = MaterialType::PBR;
   for (int i = 0; i < _changedMaterial.size(); i++) {

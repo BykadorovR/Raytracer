@@ -90,9 +90,9 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
   _descriptorSetLayout->createCustom(layoutBinding);
 
   _scaleTranslateBuffer.resize(_engineState->getSettings()->getMaxFramesInFlight());
-  _descriptorSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                   _descriptorSetLayout, _engineState);
+  _descriptorSet.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSet[i] = std::make_shared<DescriptorSet>(_descriptorSetLayout, _engineState);
     _scaleTranslateBuffer[i] = std::make_shared<Buffer>(
         sizeof(UniformDataGUI), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
@@ -105,7 +105,7 @@ void GUI::initialize(std::shared_ptr<CommandBuffer> commandBufferTransfer) {
          {{.sampler = _fontTexture->getSampler()->getSampler(),
            .imageView = _fontTexture->getImageView()->getImageView(),
            .imageLayout = _fontTexture->getImageView()->getImage()->getImageLayout()}}}};
-    _descriptorSet->createCustom(i, bufferInfoColor, textureInfoColor);
+    _descriptorSet[i]->createCustom(bufferInfoColor, textureInfoColor);
   }
 
   auto bindingDescriptor = VkVertexInputBindingDescription{.binding = 0,
@@ -271,7 +271,7 @@ void GUI::drawFrame(std::shared_ptr<CommandBuffer> commandBuffer) {
   _scaleTranslateBuffer[current]->setData(&uniformData);
 
   vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[current], 0,
+                          _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet[current]->getDescriptorSets(), 0,
                           nullptr);
 
   // Render commands

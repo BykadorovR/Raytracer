@@ -356,7 +356,7 @@ Main::Main() {
   auto [terrainWidth, terrainHeight] = terrainCPU->getResolution();
   _terrainPositionDebug = glm::vec3(_terrainPositionDebug.x, _terrainPositionDebug.y, _terrainPositionDebug.z);
 
-  _physicsManager = std::make_shared<PhysicsManager>();
+  _physicsManager = _core->createPhysicsManager();
   _terrainPhysics = std::make_shared<TerrainPhysics>(_core->loadImageCPU("../assets/heightmap.png"),
                                                      _terrainPositionDebug, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());

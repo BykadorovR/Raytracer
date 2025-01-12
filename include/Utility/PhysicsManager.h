@@ -3,7 +3,8 @@
 #include <Jolt/RegisterTypes.h>
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Core/JobSystemWithBarrier.h>
+#include <Jolt/Core/FixedSizeFreeList.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <glm/glm.hpp>
@@ -98,7 +99,7 @@ class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFil
   }
 };
 
-class JobSystemThreadPool : public JPH::JobSystemWithBarrier {
+class CustomThreadPool : public JPH::JobSystemWithBarrier {
  private:
   std::shared_ptr<BS::thread_pool> _pool;
   int _inNumThreads;
@@ -107,13 +108,13 @@ class JobSystemThreadPool : public JPH::JobSystemWithBarrier {
   AvailableJobs _jobs;
 
  public:
-  JobSystemThreadPool(int inMaxJobs, int inMaxBarriers, int inNumThreads, std::shared_ptr<BS::thread_pool> pool);
+  CustomThreadPool(int inMaxJobs, int inMaxBarriers, int inNumThreads, std::shared_ptr<BS::thread_pool> pool);
   /// Create a new job, the job is started immediately if inNumDependencies == 0 otherwise it starts when
   /// RemoveDependency causes the dependency counter to reach 0.
   JPH::JobHandle CreateJob(const char* inName,
                            JPH::ColorArg inColor,
                            const JobFunction& inJobFunction,
-                           JPH::uint32 inNumDependencies = 0) override;
+                           JPH::uint32 inNumDependencies) override;
 
   /// Adds a job to the job queue
   void QueueJob(Job* inJob) override;
@@ -125,13 +126,14 @@ class JobSystemThreadPool : public JPH::JobSystemWithBarrier {
 
   /// Frees a job
   void FreeJob(Job* inJob) override;
+  ~CustomThreadPool() override;
 };
 
 class PhysicsManager {
  private:
   JPH::PhysicsSystem _physicsSystem;
   std::shared_ptr<JPH::TempAllocatorImpl> _tempAllocator;
-  std::shared_ptr<JobSystemThreadPool> _jobSystem;
+  std::shared_ptr<CustomThreadPool> _jobSystem;
   float _deltaTime = 1.0f / 60.0f;
   const int _collisionSteps = 1;
 

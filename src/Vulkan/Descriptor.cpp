@@ -22,22 +22,17 @@ DescriptorSetLayout::~DescriptorSetLayout() {
   vkDestroyDescriptorSetLayout(_device->getLogicalDevice(), _descriptorSetLayout, nullptr);
 }
 
-DescriptorSet::DescriptorSet(int number,
-                             std::shared_ptr<DescriptorSetLayout> layout,
-                             std::shared_ptr<EngineState> engineState) {
-  _descriptorSets.resize(number);
+DescriptorSet::DescriptorSet(std::shared_ptr<DescriptorSetLayout> layout, std::shared_ptr<EngineState> engineState) {
   _engineState = engineState;
   _layoutInfo = layout->getLayoutInfo();
 
-  _engineState->getDescriptorPool()->notify(_layoutInfo, number);
+  _engineState->getDescriptorPool()->notify(_layoutInfo, 1);
 
-  std::vector<VkDescriptorSetLayout> layouts(_descriptorSets.size(), layout->getDescriptorSetLayout());
   VkDescriptorSetAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
                                         .descriptorPool = _engineState->getDescriptorPool()->getDescriptorPool(),
-                                        .descriptorSetCount = static_cast<uint32_t>(_descriptorSets.size()),
-                                        .pSetLayouts = layouts.data()};
-  auto sts = vkAllocateDescriptorSets(_engineState->getDevice()->getLogicalDevice(), &allocInfo,
-                                      _descriptorSets.data());
+                                        .descriptorSetCount = 1,
+                                        .pSetLayouts = &layout->getDescriptorSetLayout()};
+  auto sts = vkAllocateDescriptorSets(_engineState->getDevice()->getLogicalDevice(), &allocInfo, &_descriptorSet);
   if (sts != VK_SUCCESS) {
     std::string descriptors = "";
     for (auto [key, value] : _engineState->getDescriptorPool()->getDescriptorsNumber()) {
@@ -49,13 +44,12 @@ DescriptorSet::DescriptorSet(int number,
   }
 }
 
-void DescriptorSet::createCustom(int currentFrame,
-                                 std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
+void DescriptorSet::createCustom(std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
                                  std::map<int, std::vector<VkDescriptorImageInfo>> images) {
   std::vector<VkWriteDescriptorSet> descriptorWrites;
   for (auto [key, value] : buffers) {
     VkWriteDescriptorSet descriptorSet = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                                          .dstSet = _descriptorSets[currentFrame],
+                                          .dstSet = _descriptorSet,
                                           .dstBinding = _layoutInfo[key].binding,
                                           .dstArrayElement = 0,
                                           .descriptorCount = _layoutInfo[key].descriptorCount,
@@ -65,7 +59,7 @@ void DescriptorSet::createCustom(int currentFrame,
   }
   for (auto [key, value] : images) {
     VkWriteDescriptorSet descriptorSet = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                                          .dstSet = _descriptorSets[currentFrame],
+                                          .dstSet = _descriptorSet,
                                           .dstBinding = _layoutInfo[key].binding,
                                           .dstArrayElement = 0,
                                           .descriptorCount = _layoutInfo[key].descriptorCount,
@@ -78,11 +72,10 @@ void DescriptorSet::createCustom(int currentFrame,
                          descriptorWrites.data(), 0, nullptr);
 }
 
-std::vector<VkDescriptorSet>& DescriptorSet::getDescriptorSets() { return _descriptorSets; }
+VkDescriptorSet& DescriptorSet::getDescriptorSets() { return _descriptorSet; }
 
 DescriptorSet::~DescriptorSet() {
-  _engineState->getDescriptorPool()->notify(_layoutInfo, -_descriptorSets.size());
+  _engineState->getDescriptorPool()->notify(_layoutInfo, -1);
   vkFreeDescriptorSets(_engineState->getDevice()->getLogicalDevice(),
-                       _engineState->getDescriptorPool()->getDescriptorPool(), _descriptorSets.size(),
-                       _descriptorSets.data());
+                       _engineState->getDescriptorPool()->getDescriptorPool(), 1, &_descriptorSet);
 }

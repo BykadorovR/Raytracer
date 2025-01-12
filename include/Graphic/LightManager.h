@@ -30,8 +30,8 @@ class LightManager {
   std::shared_ptr<Buffer> _lightDirectionalSSBOViewProjectionStub, _lightPointSSBOViewProjectionStub;
   std::shared_ptr<Texture> _stubTexture;
   std::shared_ptr<Cubemap> _stubCubemap;
-  std::shared_ptr<DescriptorSet> _descriptorSetGlobalPhong, _descriptorSetGlobalPBR, _descriptorSetGlobalTerrainPhong,
-      _descriptorSetGlobalTerrainPBR;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetGlobalPhong, _descriptorSetGlobalPBR,
+      _descriptorSetGlobalTerrainPhong, _descriptorSetGlobalTerrainPBR;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutGlobalPhong, _descriptorSetLayoutGlobalPBR,
       _descriptorSetLayoutGlobalTerrainPhong, _descriptorSetLayoutGlobalTerrainPBR;
   std::vector<std::shared_ptr<Buffer>> _shadowParametersBuffer;

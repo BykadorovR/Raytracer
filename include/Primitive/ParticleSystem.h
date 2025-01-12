@@ -34,8 +34,8 @@ class ParticleSystem : public Drawable {
   std::shared_ptr<Texture> _texture;
   std::vector<std::shared_ptr<Buffer>> _deltaUniformBuffer, _cameraUniformBuffer;
   std::vector<std::shared_ptr<Buffer>> _particlesBuffer;
-  std::shared_ptr<DescriptorSet> _descriptorSetCompute;
-  std::shared_ptr<DescriptorSet> _descriptorSetGraphic;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCompute;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetGraphic;
   std::shared_ptr<PipelineGraphic> _graphicPipeline;
   std::shared_ptr<PipelineCompute> _computePipeline;
   float _frameTimer = 0.f;

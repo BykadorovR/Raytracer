@@ -100,7 +100,7 @@ void Core::initialize() {
       _commandBufferRender.resize(settings->getMaxFramesInFlight());
       for (int i = 0; i < settings->getMaxFramesInFlight(); i++) {
         _commandBufferRender[i] = std::make_shared<CommandBuffer>(_commandPoolRender, _engineState->getDevice());
-        _engineState->getDebugUtils()->setName("Command buffer for render graphic",
+        _engineState->getDebugUtils()->setName("Command buffer for render graphic " + std::to_string(i),
                                                VkObjectType::VK_OBJECT_TYPE_COMMAND_BUFFER,
                                                _commandBufferRender[i]->getCommandBuffer());
       }

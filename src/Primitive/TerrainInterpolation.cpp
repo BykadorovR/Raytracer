@@ -119,9 +119,10 @@ TerrainInterpolationDebug::TerrainInterpolationDebug(std::shared_ptr<ImageCPU<ui
                                                             .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutNormal);
     _descriptorSetLayoutNormalsMesh.push_back({"normal", descriptorSetLayout});
-    _descriptorSetNormal = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                           descriptorSetLayout, engineState);
+
+    _descriptorSetNormal.resize(engineState->getSettings()->getMaxFramesInFlight());
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetNormal[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, engineState);
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
           {0, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}},
           {1, {{.buffer = _cameraBuffer[i]->getData(), .offset = 0, .range = _cameraBuffer[i]->getSize()}}},
@@ -131,7 +132,7 @@ TerrainInterpolationDebug::TerrainInterpolationDebug(std::shared_ptr<ImageCPU<ui
            {{.sampler = _heightMap->getSampler()->getSampler(),
              .imageView = _heightMap->getImageView()->getImageView(),
              .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
-      _descriptorSetNormal->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
+      _descriptorSetNormal[i]->createCustom(bufferInfoNormalsMesh, textureInfoColor);
     }
 
     // initialize Normal (per vertex)
@@ -249,8 +250,11 @@ TerrainInterpolationDebug::TerrainInterpolationDebug(std::shared_ptr<ImageCPU<ui
                                                            .pImmutableSamplers = nullptr}};
     descriptorSetLayout->createCustom(layoutColor);
     _descriptorSetLayout.push_back({"color", descriptorSetLayout});
-    _descriptorSetColor = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, engineState);
+
+    _descriptorSetColor.resize(engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetColor[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, engineState);
+    }
     setMaterial(_defaultMaterialColor);
 
     // initialize Color
@@ -406,7 +410,7 @@ void TerrainInterpolationDebug::_updateColorDescriptor() {
          .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
       {4, {textureBaseColor}}};
 
-  _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  _descriptorSetColor[currentFrame]->createCustom(bufferInfoColor, textureInfoColor);
 }
 
 void TerrainInterpolationDebug::_reallocatePatchDescription(int currentFrame) {
@@ -528,7 +532,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
     if (colorLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetColor[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     // normals and tangents
@@ -539,7 +543,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
     if (normalTangentLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetNormal->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetNormal[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh[currentFrame]->getVertexData().size(), 1, 0, 0);
@@ -571,7 +575,7 @@ void TerrainInterpolationDebug::draw(std::shared_ptr<CommandBuffer> commandBuffe
          {{.sampler = _heightMap->getSampler()->getSampler(),
            .imageView = _heightMap->getImageView()->getImageView(),
            .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
-    _descriptorSetColor->createCustom(currentFrame, {}, textureInfoColor);
+    _descriptorSetColor[currentFrame]->createCustom({}, textureInfoColor);
 
     _terrainCPU->setHeightmap(_terrainPhysics->getHeights());
     _changedHeightmap[currentFrame] = false;
@@ -762,27 +766,6 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
         sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
-  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
-    std::vector<std::shared_ptr<Buffer>> buffer(_engineState->getSettings()->getMaxFramesInFlight());
-    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
-      buffer[j] = std::make_shared<Buffer>(sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                           _engineState);
-    _cameraBufferDepth.push_back({buffer});
-  }
-
-  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
-    std::vector<std::vector<std::shared_ptr<Buffer>>> facesBuffer(6);
-    for (int j = 0; j < 6; j++) {
-      facesBuffer[j].resize(_engineState->getSettings()->getMaxFramesInFlight());
-      for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++)
-        facesBuffer[j][k] = std::make_shared<Buffer>(
-            sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
-    }
-    _cameraBufferDepth.push_back(facesBuffer);
-  }
-
   // layout for Shadows
   {
     auto descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
@@ -805,58 +788,49 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
     descriptorSetLayout->createCustom(layoutShadows);
     _descriptorSetLayoutShadows.push_back({"shadows", descriptorSetLayout});
 
-    for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
-      auto descriptorSetShadows = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                  descriptorSetLayout, _engineState);
-      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _cameraBufferDepth.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    _descriptorSetCameraDepth.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      for (int l = 0; l < _engineState->getSettings()->getMaxDirectionalLights(); l++) {
+        auto buffer = std::make_shared<Buffer>(
+            sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+        _cameraBufferDepth[i].push_back({buffer});
+
+        auto cameraSet = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
-            {0,
-             {{.buffer = _cameraBufferDepth[d][0][i]->getData(),
-               .offset = 0,
-               .range = _cameraBufferDepth[d][0][i]->getSize()}}},
-            {1,
-             {{.buffer = _cameraBufferDepth[d][0][i]->getData(),
-               .offset = 0,
-               .range = _cameraBufferDepth[d][0][i]->getSize()}}}};
+            {0, {{.buffer = buffer->getData(), .offset = 0, .range = buffer->getSize()}}},
+            {1, {{.buffer = buffer->getData(), .offset = 0, .range = buffer->getSize()}}}};
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
             {2,
              {{.sampler = _heightMap->getSampler()->getSampler(),
                .imageView = _heightMap->getImageView()->getImageView(),
                .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
-        descriptorSetShadows->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
+        cameraSet->createCustom(bufferInfoNormalsMesh, textureInfoColor);
+        _descriptorSetCameraDepth[i].push_back({cameraSet});
       }
-      _descriptorSetCameraDepth.push_back({descriptorSetShadows});
-    }
-
-    for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
-      std::vector<std::shared_ptr<DescriptorSet>> facesSet;
-      for (int f = 0; f < 6; f++) {
-        auto descriptorSetShadows = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                    descriptorSetLayout, _engineState);
-        for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      for (int l = 0; l < _engineState->getSettings()->getMaxPointLights(); l++) {
+        std::vector<std::shared_ptr<Buffer>> facesBuffer(6);
+        std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
+        for (int f = 0; f < 6; f++) {
+          facesBuffer[f] = std::make_shared<Buffer>(
+              sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
+          facesSet[f] = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
           std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh{
-              {0,
-               {{.buffer =
-                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData(),
-                 .offset = 0,
-                 .range =
-                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getSize()}}},
-              {1,
-               {{.buffer =
-                     _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]->getData(),
-                 .offset = 0,
-                 .range = _cameraBufferDepth[p + _engineState->getSettings()->getMaxDirectionalLights()][f][i]
-                              ->getSize()}}}};
+              {0, {{.buffer = facesBuffer[f]->getData(), .offset = 0, .range = facesBuffer[f]->getSize()}}},
+              {1, {{.buffer = facesBuffer[f]->getData(), .offset = 0, .range = facesBuffer[f]->getSize()}}}};
           std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor{
               {2,
                {{.sampler = _heightMap->getSampler()->getSampler(),
                  .imageView = _heightMap->getImageView()->getImageView(),
                  .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}}};
-          descriptorSetShadows->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
+
+          facesSet[f]->createCustom(bufferInfoNormalsMesh, textureInfoColor);
         }
-        facesSet.push_back(descriptorSetShadows);
+        _cameraBufferDepth[i].push_back(facesBuffer);
+        _descriptorSetCameraDepth[i].push_back(facesSet);
       }
-      _descriptorSetCameraDepth.push_back(facesSet);
     }
 
     // initialize Shadows (Directional)
@@ -981,8 +955,11 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
     _descriptorSetLayout[MaterialType::COLOR].push_back({"color", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::COLOR].push_back(
         {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
-    _descriptorSetColor = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState);
+
+    _descriptorSetColor.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetColor[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
+    }
     setMaterial(_defaultMaterialColor);
 
     // initialize Color
@@ -1076,8 +1053,11 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
     _descriptorSetLayout[MaterialType::PHONG].push_back({"phong", descriptorSetLayout});
     _descriptorSetLayout[MaterialType::PHONG].push_back(
         {"globalPhong", _gameState->getLightManager()->getDSLGlobalTerrainPhong()});
-    _descriptorSetPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayout, _engineState);
+
+    _descriptorSetPhong.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetPhong[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
+    }
     // update descriptor set in setMaterial
 
     // initialize Phong
@@ -1206,8 +1186,10 @@ void TerrainInterpolation::initialize(std::shared_ptr<CommandBuffer> commandBuff
     _descriptorSetLayout[MaterialType::PBR].push_back(
         {"globalPBR", _gameState->getLightManager()->getDSLGlobalTerrainPBR()});
 
-    _descriptorSetPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                        descriptorSetLayout, _engineState);
+    _descriptorSetPBR.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetPBR[i] = std::make_shared<DescriptorSet>(descriptorSetLayout, _engineState);
+    }
     // update descriptor set in setMaterial
 
     // initialize PBR
@@ -1285,7 +1267,7 @@ void TerrainInterpolation::_updateColorDescriptor() {
          .imageLayout = _heightMap->getImageView()->getImage()->getImageLayout()}}},
       {4, {textureBaseColor}}};
 
-  _descriptorSetColor->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  _descriptorSetColor[currentFrame]->createCustom(bufferInfoColor, textureInfoColor);
 }
 
 void TerrainInterpolation::_updatePhongDescriptor() {
@@ -1336,7 +1318,7 @@ void TerrainInterpolation::_updatePhongDescriptor() {
       {5, {textureBaseNormal}},
       {6, {textureBaseSpecular}}};
 
-  _descriptorSetPhong->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  _descriptorSetPhong[currentFrame]->createCustom(bufferInfoColor, textureInfoColor);
 }
 
 void TerrainInterpolation::_updatePBRDescriptor() {
@@ -1425,7 +1407,7 @@ void TerrainInterpolation::_updatePBRDescriptor() {
          .imageView = material->getSpecularBRDF()->getImageView()->getImageView(),
          .imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout()}}}};
 
-  _descriptorSetPBR->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  _descriptorSetPBR[currentFrame]->createCustom(bufferInfoColor, textureInfoColor);
 }
 
 void TerrainInterpolation::_fillPatchTexturesDescription() {
@@ -1558,7 +1540,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (colorLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetColor->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetColor[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     // Phong
@@ -1569,7 +1551,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (phongLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetPhong->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetPhong[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     // global Phong
@@ -1580,7 +1562,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (globalLayoutPhong != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
-          &_gameState->getLightManager()->getDSGlobalTerrainPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+          &_gameState->getLightManager()->getDSGlobalTerrainPhong()->getDescriptorSets(), 0, nullptr);
     }
 
     // PBR
@@ -1591,7 +1573,7 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
     if (pbrLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetPBR->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetPBR[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     // global PBR
@@ -1600,9 +1582,9 @@ void TerrainInterpolation::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                           return info.first == std::string("globalPBR");
                                         });
     if (globalLayoutPBR != pipelineLayout.end()) {
-      vkCmdBindDescriptorSets(
-          commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
-          &_gameState->getLightManager()->getDSGlobalTerrainPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+      vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              pipeline->getPipelineLayout(), 1, 1,
+                              &_gameState->getLightManager()->getDSGlobalTerrainPBR()->getDescriptorSets(), 0, nullptr);
     }
 
     vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh->getVertexData().size(), 1, 0, 0);
@@ -1708,7 +1690,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   // same buffer to both tessellation shaders because we're not going to change camera between these 2 stages
   BufferMVP cameraUBO{.model = getModel(), .view = view, .projection = projection};
 
-  _cameraBufferDepth[lightIndexTotal][face][currentFrame]->setData(&cameraUBO);
+  _cameraBufferDepth[currentFrame][lightIndexTotal][face]->setData(&cameraUBO);
 
   VkBuffer vertexBuffers[] = {_mesh->getVertexBuffer()->getBuffer()->getData()};
   VkDeviceSize offsets[] = {0};
@@ -1722,7 +1704,7 @@ void TerrainInterpolation::drawShadow(LightType lightType,
   if (normalLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(
         commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 0, 1,
-        &_descriptorSetCameraDepth[lightIndexTotal][face]->getDescriptorSets()[currentFrame], 0, nullptr);
+        &_descriptorSetCameraDepth[currentFrame][lightIndexTotal][face]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDraw(commandBuffer->getCommandBuffer(), _mesh->getVertexData().size(), 1, 0, 0);

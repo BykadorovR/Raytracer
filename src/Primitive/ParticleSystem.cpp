@@ -46,9 +46,9 @@ void ParticleSystem::_initializeGraphic() {
 
   descriptorSetLayoutGraphic->createCustom(layoutGraphic);
 
-  _descriptorSetGraphic = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          descriptorSetLayoutGraphic, _engineState);
+  _descriptorSetGraphic.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetGraphic[i] = std::make_shared<DescriptorSet>(descriptorSetLayoutGraphic, _engineState);
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh = {
         {0,
          {{.buffer = _cameraUniformBuffer[i]->getData(), .offset = 0, .range = _cameraUniformBuffer[i]->getSize()}}}};
@@ -57,7 +57,7 @@ void ParticleSystem::_initializeGraphic() {
          {{.sampler = _texture->getSampler()->getSampler(),
            .imageView = _texture->getImageView()->getImageView(),
            .imageLayout = _texture->getImageView()->getImage()->getImageLayout()}}}};
-    _descriptorSetGraphic->createCustom(i, bufferInfoNormalsMesh, textureInfoColor);
+    _descriptorSetGraphic[i]->createCustom(bufferInfoNormalsMesh, textureInfoColor);
   }
 
   // there is no mesh, so store separately
@@ -123,9 +123,10 @@ void ParticleSystem::_initializeCompute() {
                                                            .pImmutableSamplers = nullptr}};
   setLayoutSSBOCompute->createCustom(layoutBinding);
 
-  _descriptorSetCompute = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                          setLayoutSSBOCompute, _engineState);
+  _descriptorSetCompute.resize(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetCompute[i] = std::make_shared<DescriptorSet>(setLayoutSSBOCompute, _engineState);
+
     std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
         {0, {{.buffer = _deltaUniformBuffer[i]->getData(), .offset = 0, .range = _deltaUniformBuffer[i]->getSize()}}},
         {1,
@@ -134,7 +135,7 @@ void ParticleSystem::_initializeCompute() {
            .range = _particlesBuffer[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()]->getSize()}}},
         {2, {{.buffer = _particlesBuffer[i]->getData(), .offset = 0, .range = _particlesBuffer[i]->getSize()}}}};
     // for 0 frame we have ssbo in + ssbo out, for 1 frame we have ssbo out + ssbo in
-    _descriptorSetCompute->createCustom(i, bufferInfo, {});
+    _descriptorSetCompute[i]->createCustom(bufferInfo, {});
   }
 
   auto shader = std::make_shared<Shader>(_engineState);
@@ -164,7 +165,7 @@ void ParticleSystem::drawCompute(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (computeLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE,
                             _computePipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetCompute->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetCompute[currentFrame]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDispatch(commandBuffer->getCommandBuffer(), std::max(1, (int)std::ceil(_particles.size() / 16.f)), 1, 1);
@@ -211,7 +212,7 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
   if (graphicLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                             _graphicPipeline->getPipelineLayout(), 0, 1,
-                            &_descriptorSetGraphic->getDescriptorSets()[currentFrame], 0, nullptr);
+                            &_descriptorSetGraphic[currentFrame]->getDescriptorSets(), 0, nullptr);
   }
 
   vkCmdDraw(commandBuffer->getCommandBuffer(), _particles.size(), 1, 0, 0);

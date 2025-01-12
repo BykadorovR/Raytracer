@@ -134,7 +134,7 @@ Main::Main() {
   }
   auto heightmapCPU = _core->loadImageCPU("../assets/heightmap.png");
 
-  _physicsManager = std::make_shared<PhysicsManager>();
+  _physicsManager = _core->createPhysicsManager();
   _physicsManager->setDeltaTime(1.f / static_cast<float>(settings->getDesiredFPS()));
   _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale, std::tuple{64, 16},
                                                      _physicsManager, _core->getGameState(), _core->getEngineState());

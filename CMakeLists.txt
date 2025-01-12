@@ -88,6 +88,11 @@ FetchContent_Declare(
         GIT_TAG        v3.11.3
 )
 
+set(CPP_RTTI_ENABLED ON CACHE BOOL "Enable C++ RTTI")
+if (WIN32)
+  #hack to force MD (default mode) instead of MT
+  set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "Override static MSVC runtime library setting" FORCE)
+endif()
 FetchContent_Declare(
   jolt
   GIT_REPOSITORY https://github.com/jrouwe/JoltPhysics.git
@@ -119,25 +124,13 @@ FetchContent_Declare(
   GIT_TAG v3.1.0
 )
 
-FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap volk vulkan-memory-allocator)
+FetchContent_MakeAvailable(glm imgui tinygltf thread-pool mikktspace nvtx json vk-bootstrap volk vulkan-memory-allocator jolt)
 if (ANDROID)
   set_target_properties(vk-bootstrap PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 if (NOT ANDROID)
   FetchContent_MakeAvailable(glfw)
-endif()
-
-#hack to force MD (default mode) instead of MT
-if (NOT WINDOWS_STORE)
-  set(WINDOWS_STORE ON)
-  set(WINDOWS_STORE_CHANGE ON)
-endif()
-
-FetchContent_MakeAvailable(jolt)
-
-if (WINDOWS_STORE_CHANGE)
-  set(WINDOWS_STORE OFF)
 endif()
 
 #affects all projects, add folder "include" to include section in VS

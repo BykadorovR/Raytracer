@@ -20,15 +20,14 @@ class DescriptorSetLayout {
 
 class DescriptorSet {
  private:
-  std::vector<VkDescriptorSet> _descriptorSets;
+  VkDescriptorSet _descriptorSet;
   std::shared_ptr<EngineState> _engineState;
   std::vector<VkDescriptorSetLayoutBinding> _layoutInfo;
 
  public:
-  DescriptorSet(int number, std::shared_ptr<DescriptorSetLayout> layout, std::shared_ptr<EngineState> engineState);
-  void createCustom(int currentFrame,
-                    std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
+  DescriptorSet(std::shared_ptr<DescriptorSetLayout> layout, std::shared_ptr<EngineState> engineState);
+  void createCustom(std::map<int, std::vector<VkDescriptorBufferInfo>> buffers,
                     std::map<int, std::vector<VkDescriptorImageInfo>> images);
-  std::vector<VkDescriptorSet>& getDescriptorSets();
+  VkDescriptorSet& getDescriptorSets();
   ~DescriptorSet();
 };

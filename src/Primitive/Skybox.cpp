@@ -57,8 +57,9 @@ Skybox::Skybox(std::shared_ptr<CommandBuffer> commandBufferTransfer,
                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayout->createCustom(layoutColor);
 
-    _descriptorSet = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                     _descriptorSetLayout, engineState);
+    _descriptorSet.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++)
+      _descriptorSet[i] = std::make_shared<DescriptorSet>(_descriptorSetLayout, engineState);
 
     setMaterial(_defaultMaterialColor);
 
@@ -95,12 +96,14 @@ void Skybox::_updateColorDescriptor() {
        {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
          .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
          .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
-  _descriptorSet->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+  _descriptorSet[currentFrame]->createCustom(bufferInfoColor, textureInfoColor);
 }
 
 void Skybox::setMaterial(std::shared_ptr<MaterialColor> material) {
-  if (_material) _material->unregisterUpdate(_descriptorSet);
-  material->registerUpdate(_descriptorSet, {{MaterialTexture::COLOR, 1}});
+  int frameInFlight = _engineState->getFrameInFlight();
+  if (_material) _material->unregisterUpdate(_descriptorSet[frameInFlight]);
+  material->registerUpdate(_descriptorSet[frameInFlight],
+                           {._frameInFlight = frameInFlight, ._materialInfo = {{MaterialTexture::COLOR, 1}}});
   _materialType = MaterialType::COLOR;
   _material = material;
   for (int i = 0; i < _changedMaterial.size(); i++) {
@@ -156,7 +159,7 @@ void Skybox::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                    });
   if (cameraLayout != pipelineLayout.end()) {
     vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet->getDescriptorSets()[currentFrame], 0,
+                            _pipeline->getPipelineLayout(), 0, 1, &_descriptorSet[currentFrame]->getDescriptorSets(), 0,
                             nullptr);
   }
 

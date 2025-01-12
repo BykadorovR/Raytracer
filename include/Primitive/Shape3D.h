@@ -32,7 +32,7 @@ class Shape3D : public Drawable, public Shadowable {
  private:
   std::shared_ptr<EngineState> _engineState;
   std::shared_ptr<GameState> _gameState;
-
+  std::vector<bool> _changedMaterial;
   std::map<ShapeType, std::map<MaterialType, std::vector<std::string>>> _shadersColor;
   std::map<ShapeType, std::vector<std::string>> _shadersLightDirectional, _shadersLightPoint, _shadersNormalsMesh,
       _shadersTangentMesh;
@@ -41,11 +41,12 @@ class Shape3D : public Drawable, public Shadowable {
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
-  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh, _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+  std::vector<std::vector<std::vector<std::shared_ptr<DescriptorSet>>>> _descriptorSetCameraDepth;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetNormalsMesh, _descriptorSetColor, _descriptorSetPhong,
+      _descriptorSetPBR;
   std::vector<std::shared_ptr<Buffer>> _uniformBufferCamera;
 
   std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
-  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<ShapeType, std::map<MaterialType, std::shared_ptr<PipelineGraphic>>> _pipeline, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
   std::shared_ptr<PipelineGraphic> _pipelineDirectional, _pipelinePoint, _pipelineNormalMesh, _pipelineTangentMesh;
@@ -59,9 +60,9 @@ class Shape3D : public Drawable, public Shadowable {
   bool _enableShadow = true;
   bool _enableLighting = true;
 
-  void _updateColorDescriptor(std::shared_ptr<MaterialColor> material);
-  void _updatePhongDescriptor(std::shared_ptr<MaterialPhong> material);
-  void _updatePBRDescriptor(std::shared_ptr<MaterialPBR> material);
+  void _updateColorDescriptor();
+  void _updatePhongDescriptor();
+  void _updatePBRDescriptor();
 
  public:
   Shape3D(ShapeType shapeType,

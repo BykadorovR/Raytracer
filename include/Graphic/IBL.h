@@ -18,8 +18,8 @@ class IBL {
   std::shared_ptr<CommandBuffer> _commandBufferTransfer;
   std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor;
-  std::shared_ptr<DescriptorSet> _descriptorSetBRDF;
+  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetColor;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetBRDF;
   std::shared_ptr<PipelineGraphic> _pipelineDiffuse, _pipelineSpecular, _pipelineSpecularBRDF;
   std::shared_ptr<MaterialColor> _material;
   glm::mat4 _model = glm::mat4(1.f);

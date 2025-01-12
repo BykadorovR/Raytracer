@@ -20,6 +20,11 @@ enum class MaterialTexture {
   BRDF_SPECULAR
 };
 
+struct MaterialInfoUpdate {
+  int _frameInFlight;
+  std::map<MaterialTexture, int> _materialInfo;
+};
+
 class Material {
  protected:
   struct AlphaCutoff {
@@ -31,7 +36,7 @@ class Material {
 
   std::vector<std::shared_ptr<Buffer>> _uniformBufferCoefficients;
   std::vector<std::shared_ptr<Buffer>> _uniformBufferAlphaCutoff;
-  std::map<std::shared_ptr<DescriptorSet>, std::vector<std::tuple<MaterialTexture, int>>> _descriptorsUpdate;
+  std::map<std::shared_ptr<DescriptorSet>, MaterialInfoUpdate> _descriptorsUpdate;
   std::shared_ptr<EngineState> _engineState;
   std::map<MaterialTexture, std::vector<bool>> _changedTextures;
   std::vector<bool> _changedCoefficients;
@@ -40,12 +45,12 @@ class Material {
   std::map<MaterialTexture, std::vector<std::shared_ptr<Texture>>> _textures;
 
   void _updateAlphaCutoffDescriptors(int currentFrame);
-  void _updateDescriptor(int currentFrame, MaterialTexture type);
+  void _updateDescriptor(int frameInFlight, MaterialTexture type);
   virtual void _updateCoefficientBuffer(int currentFrame) = 0;
 
  public:
   Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::shared_ptr<EngineState> engineState);
-  void registerUpdate(std::shared_ptr<DescriptorSet> descriptor, std::vector<std::tuple<MaterialTexture, int>> type);
+  void registerUpdate(std::shared_ptr<DescriptorSet> descriptor, MaterialInfoUpdate info);
   void unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor);
 
   void setDoubleSided(bool doubleSided);

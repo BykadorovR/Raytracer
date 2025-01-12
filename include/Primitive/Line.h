@@ -14,7 +14,7 @@ class Line : public Drawable {
   std::shared_ptr<Buffer> _stagingBuffer;
   std::shared_ptr<MeshDynamic3D> _mesh;
   std::vector<std::shared_ptr<Buffer>> _cameraBuffer;
-  std::shared_ptr<DescriptorSet> _descriptorSetCamera;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCamera;
   std::shared_ptr<PipelineGraphic> _pipeline;
   std::shared_ptr<RenderPass> _renderPass;
   glm::mat4 _model = glm::mat4(1.f);

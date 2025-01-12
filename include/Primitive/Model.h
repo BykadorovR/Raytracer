@@ -69,12 +69,12 @@ class Model3D : public Drawable, public Shadowable {
   std::vector<std::shared_ptr<NodeGLTF>> _nodes;
   std::vector<std::vector<std::vector<std::shared_ptr<Buffer>>>> _cameraUBODepth;
   std::vector<std::shared_ptr<Buffer>> _cameraUBOFull;
-  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
-  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR,
+  std::vector<std::vector<std::vector<std::shared_ptr<DescriptorSet>>>> _descriptorSetCameraDepth;
+  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR,
       _descriptorSetJoints;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetNormalsMesh;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutJoints;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh;
-  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutColor, _descriptorSetLayoutPhong, _descriptorSetLayoutPBR;
   std::map<MaterialType, std::shared_ptr<PipelineGraphic>> _pipeline, _pipelineCullOff, _pipelineWireframe;
   std::shared_ptr<RenderPass> _renderPass, _renderPassDepth;
@@ -104,7 +104,7 @@ class Model3D : public Drawable, public Shadowable {
                  std::shared_ptr<Pipeline> pipeline,
                  std::shared_ptr<Pipeline> pipelineCullOff,
                  std::shared_ptr<DescriptorSet> cameraDS,
-                 std::vector<std::shared_ptr<Buffer>> cameraUBO,
+                 std::shared_ptr<Buffer> cameraUBO,
                  glm::mat4 view,
                  glm::mat4 projection,
                  std::shared_ptr<NodeGLTF> node);

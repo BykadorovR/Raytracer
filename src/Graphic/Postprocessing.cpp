@@ -11,7 +11,7 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
                                  std::vector<std::shared_ptr<ImageView>> dst) {
   for (int i = 0; i < src.size(); i++) {
     for (int j = 0; j < dst.size(); j++) {
-      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(1, _textureLayout, _engineState);
+      _descriptorSet[std::pair(i, j)] = std::make_shared<DescriptorSet>(_textureLayout, _engineState);
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
           {0,
            {VkDescriptorImageInfo{.imageView = src[i]->getImageView()->getImageView(),
@@ -22,7 +22,7 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
           {2,
            {VkDescriptorImageInfo{.imageView = dst[j]->getImageView(),
                                   .imageLayout = dst[j]->getImage()->getImageLayout()}}}};
-      _descriptorSet[std::pair(i, j)]->createCustom(0, {}, textureInfoColor);
+      _descriptorSet[std::pair(i, j)]->createCustom({}, textureInfoColor);
     }
   }
 }
@@ -96,9 +96,9 @@ void Postprocessing::drawCompute(int currentFrame, int swapchainIndex, std::shar
                                       return info.first == std::string("texture");
                                     });
   if (computeLayout != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE, _computePipeline->getPipelineLayout(), 0, 1,
-        &_descriptorSet[std::pair(currentFrame, swapchainIndex)]->getDescriptorSets()[0], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_COMPUTE,
+                            _computePipeline->getPipelineLayout(), 0, 1,
+                            &_descriptorSet[std::pair(currentFrame, swapchainIndex)]->getDescriptorSets(), 0, nullptr);
   }
 
   auto [width, height] = _engineState->getSettings()->getResolution();

@@ -314,15 +314,14 @@ void Main::update() {
   else if (i > 150.f)
     _animationFish->setPlay(false);
 
+  auto commandBuffer = _core->getCommandBufferApplication();
   auto aabb = _modelWalking->getAABBJoints();
   if (aabb->valid()) {
     auto min = aabb->getMin();
     auto max = aabb->getMax();
-    _core->startRecording();
+    if (commandBuffer->getActive() == false) _core->startRecording();
     std::dynamic_pointer_cast<MeshCapsuleStatic>(_capsule->getMesh())
         ->reset((max - min).y - (max - min).z, (max - min).z / 2.f, _core->getCommandBufferApplication());
-
-    _core->endRecording();
   }
 
   auto [FPSLimited, FPSReal] = _core->getFPS();
@@ -336,7 +335,7 @@ void Main::update() {
   std::map<std::string, int*> materialType;
   materialType["##Type"] = &_typeIndex;
   if (_core->getGUI()->drawListBox({"Color", "Phong", "PBR"}, materialType, 3)) {
-    _core->startRecording();
+    if (commandBuffer->getActive() == false) _core->startRecording();
     switch (_typeIndex) {
       case 0:
         _modelBottle->setMaterial(_materialModelBottleColor);
@@ -348,10 +347,11 @@ void Main::update() {
         _modelBottle->setMaterial(_materialModelBottlePBR);
         break;
     }
-    _core->endRecording();
   }
 
   _core->getGUI()->endWindow();
+
+  if (commandBuffer->getActive()) _core->endRecording();
 }
 
 void Main::reset(int width, int height) { _camera->setAspect((float)width / (float)height); }

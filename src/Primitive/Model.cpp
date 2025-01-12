@@ -237,10 +237,9 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
     _descriptorSetLayoutNormalsMesh->createCustom(layoutNormalsMesh);
 
     // TODO: we can just have one buffer and put it twice to descriptor
-
-    _descriptorSetNormalsMesh = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                                _descriptorSetLayoutNormalsMesh, engineState);
+    _descriptorSetNormalsMesh.resize(engineState->getSettings()->getMaxFramesInFlight());
     for (int i = 0; i < engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetNormalsMesh[i] = std::make_shared<DescriptorSet>(_descriptorSetLayoutNormalsMesh, engineState);
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoNormalsMesh = {
           {0,
            {VkDescriptorBufferInfo{.buffer = _cameraUBOFull[i]->getData(),
@@ -250,7 +249,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
            {VkDescriptorBufferInfo{.buffer = _cameraUBOFull[i]->getData(),
                                    .offset = 0,
                                    .range = _cameraUBOFull[i]->getSize()}}}};
-      _descriptorSetNormalsMesh->createCustom(i, bufferInfoNormalsMesh, {});
+      _descriptorSetNormalsMesh[i]->createCustom(bufferInfoNormalsMesh, {});
     }
 
     // initialize Normal (per vertex)
@@ -343,6 +342,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutColor->createCustom(layoutColor);
 
+    _descriptorSetColor.resize(_engineState->getSettings()->getMaxFramesInFlight());
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
 
@@ -425,6 +425,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayoutPhong->createCustom(layoutPhong);
 
+    _descriptorSetPhong.resize(_engineState->getSettings()->getMaxFramesInFlight());
     setMaterial({_defaultMaterialPhong});
 
     auto shader = std::make_shared<Shader>(_engineState);
@@ -537,6 +538,7 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 
     _descriptorSetLayoutPBR->createCustom(layoutPBR);
 
+    _descriptorSetPBR.resize(_engineState->getSettings()->getMaxFramesInFlight());
     // phong is default, will form default descriptor only for it here
     // descriptors are formed in setMaterial
 
@@ -596,60 +598,35 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
                                                 .pImmutableSamplers = nullptr};
   cameraLayout->createCustom({layoutBinding});
 
-  int lightNumber = _engineState->getSettings()->getMaxDirectionalLights() +
-                    _engineState->getSettings()->getMaxPointLights();
-  for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
-    std::vector<std::shared_ptr<Buffer>> buffer(_engineState->getSettings()->getMaxFramesInFlight());
-    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
-      buffer[j] = std::make_shared<Buffer>(sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                           _engineState);
-    _cameraUBODepth.push_back({buffer});
-  }
+  _cameraUBODepth.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSetCameraDepth.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int l = 0; l < _engineState->getSettings()->getMaxDirectionalLights(); l++) {
+      auto buffer = std::make_shared<Buffer>(sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                             _engineState);
+      _cameraUBODepth[i].push_back({buffer});
 
-  for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
-    std::vector<std::vector<std::shared_ptr<Buffer>>> facesBuffer(6);
-    for (int j = 0; j < 6; j++) {
-      facesBuffer[j].resize(_engineState->getSettings()->getMaxFramesInFlight());
-      for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++)
-        facesBuffer[j][k] = std::make_shared<Buffer>(
+      auto cameraSet = std::make_shared<DescriptorSet>(cameraLayout, _engineState);
+      std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
+          {0, {{.buffer = buffer->getData(), .offset = 0, .range = buffer->getSize()}}}};
+      cameraSet->createCustom(bufferInfo, {});
+      _descriptorSetCameraDepth[i].push_back({cameraSet});
+    }
+    for (int l = 0; l < _engineState->getSettings()->getMaxPointLights(); l++) {
+      std::vector<std::shared_ptr<Buffer>> facesBuffer(6);
+      std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
+      for (int f = 0; f < 6; f++) {
+        facesBuffer[f] = std::make_shared<Buffer>(
             sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
-    }
-    _cameraUBODepth.push_back(facesBuffer);
-  }
-  // initialize descriptor sets
-  {
-    for (int i = 0; i < _engineState->getSettings()->getMaxDirectionalLights(); i++) {
-      auto cameraSet = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                       cameraLayout, _engineState);
-      for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++) {
+        facesSet[f] = std::make_shared<DescriptorSet>(cameraLayout, _engineState);
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
-            {0,
-             {{.buffer = _cameraUBODepth[i][0][j]->getData(),
-               .offset = 0,
-               .range = _cameraUBODepth[i][0][j]->getSize()}}}};
-        cameraSet->createCustom(j, bufferInfo, {});
+            {0, {{.buffer = facesBuffer[f]->getData(), .offset = 0, .range = facesBuffer[f]->getSize()}}}};
+        facesSet[f]->createCustom(bufferInfo, {});
       }
-      _descriptorSetCameraDepth.push_back({cameraSet});
-    }
-
-    for (int i = 0; i < _engineState->getSettings()->getMaxPointLights(); i++) {
-      std::vector<std::shared_ptr<DescriptorSet>> facesSet(6);
-      for (int j = 0; j < 6; j++) {
-        facesSet[j] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(), cameraLayout,
-                                                      _engineState);
-        for (int k = 0; k < _engineState->getSettings()->getMaxFramesInFlight(); k++) {
-          std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
-              {0,
-               {{.buffer = _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j][k]->getData(),
-                 .offset = 0,
-                 .range =
-                     _cameraUBODepth[i + _engineState->getSettings()->getMaxDirectionalLights()][j][k]->getSize()}}}};
-          facesSet[j]->createCustom(k, bufferInfo, {});
-        }
-      }
-      _descriptorSetCameraDepth.push_back(facesSet);
+      _cameraUBODepth[i].push_back(facesBuffer);
+      _descriptorSetCameraDepth[i].push_back(facesSet);
     }
   }
 
@@ -699,17 +676,18 @@ Model3D::Model3D(const std::vector<std::shared_ptr<NodeGLTF>>& nodes,
 }
 
 void Model3D::_updateJointsDescriptor() {
-  _descriptorSetJoints.resize(_animation->getGlobalMatricesBuffer().size());
-  for (int skin = 0; skin < _animation->getGlobalMatricesBuffer().size(); skin++) {
-    _descriptorSetJoints[skin] = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayoutJoints, _engineState);
-    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+  _descriptorSetJoints.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetJoints[i].resize(_animation->getGlobalMatricesBuffer().size());
+    for (int skin = 0; skin < _animation->getGlobalMatricesBuffer().size(); skin++) {
+      _descriptorSetJoints[i][skin] = std::make_shared<DescriptorSet>(_descriptorSetLayoutJoints, _engineState);
+
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfo = {
           {0,
            {{.buffer = _animation->getGlobalMatricesBuffer()[skin][i]->getData(),
              .offset = 0,
              .range = _animation->getGlobalMatricesBuffer()[skin][i]->getSize()}}}};
-      _descriptorSetJoints[skin]->createCustom(i, bufferInfo, {});
+      _descriptorSetJoints[i][skin]->createCustom(bufferInfo, {});
     }
   }
 }
@@ -770,7 +748,7 @@ void Model3D::_updatePBRDescriptor() {
            .imageView = material->getSpecularBRDF()->getImageView()->getImageView(),
            .imageLayout = material->getSpecularBRDF()->getImageView()->getImage()->getImageLayout()}}}};
 
-    _descriptorSetPBR[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+    _descriptorSetPBR[currentFrame][i]->createCustom(bufferInfoColor, textureInfoColor);
   }
 }
 
@@ -805,7 +783,7 @@ void Model3D::_updatePhongDescriptor() {
            .imageView = material->getSpecular()[0]->getImageView()->getImageView(),
            .imageLayout = material->getSpecular()[0]->getImageView()->getImage()->getImageLayout()}}}};
 
-    _descriptorSetPhong[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+    _descriptorSetPhong[currentFrame][i]->createCustom(bufferInfoColor, textureInfoColor);
   }
 }
 
@@ -825,19 +803,23 @@ void Model3D::_updateColorDescriptor() {
          {{.sampler = texture[0]->getSampler()->getSampler(),
            .imageView = texture[0]->getImageView()->getImageView(),
            .imageLayout = texture[0]->getImageView()->getImage()->getImageLayout()}}}};
-    _descriptorSetColor[i]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+    _descriptorSetColor[currentFrame][i]->createCustom(bufferInfoColor, textureInfoColor);
   }
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (material < _materials.size() && material < _descriptorSetColor.size())
-      _materials[material]->unregisterUpdate(_descriptorSetColor[material]);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int material = 0; material < materials.size(); material++) {
+      if (material < _materials.size() && material < _descriptorSetColor[i].size())
+        _materials[material]->unregisterUpdate(_descriptorSetColor[i][material]);
 
-    if (_descriptorSetColor.size() <= material)
-      _descriptorSetColor.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutColor, _engineState));
-    materials[material]->registerUpdate(_descriptorSetColor[material], {{MaterialTexture::COLOR, 1}});
+      if (_descriptorSetColor[i].size() <= material)
+        _descriptorSetColor[i].push_back(std::make_shared<DescriptorSet>(
+
+            _descriptorSetLayoutColor, _engineState));
+      materials[material]->registerUpdate(_descriptorSetColor[i][material],
+                                          {._frameInFlight = i, ._materialInfo = {{MaterialTexture::COLOR, 1}}});
+    }
   }
   _materialType = MaterialType::COLOR;
 
@@ -851,16 +833,21 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialColor>> materials)
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (material < _materials.size() && material < _descriptorSetPhong.size())
-      _materials[material]->unregisterUpdate(_descriptorSetPhong[material]);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int material = 0; material < materials.size(); material++) {
+      if (material < _materials.size() && material < _descriptorSetPhong[i].size())
+        _materials[material]->unregisterUpdate(_descriptorSetPhong[i][material]);
 
-    if (_descriptorSetPhong.size() <= material)
-      _descriptorSetPhong.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                    _descriptorSetLayoutPhong, _engineState));
-    materials[material]->registerUpdate(
-        _descriptorSetPhong[material],
-        {{MaterialTexture::COLOR, 1}, {MaterialTexture::NORMAL, 2}, {MaterialTexture::SPECULAR, 3}});
+      if (_descriptorSetPhong[i].size() <= material)
+        _descriptorSetPhong[i].push_back(std::make_shared<DescriptorSet>(
+
+            _descriptorSetLayoutPhong, _engineState));
+      materials[material]->registerUpdate(_descriptorSetPhong[i][material],
+                                          {._frameInFlight = i,
+                                           ._materialInfo = {{MaterialTexture::COLOR, 1},
+                                                             {MaterialTexture::NORMAL, 2},
+                                                             {MaterialTexture::SPECULAR, 3}}});
+    }
   }
   _materialType = MaterialType::PHONG;
 
@@ -874,22 +861,25 @@ void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPhong>> materials)
 }
 
 void Model3D::setMaterial(std::vector<std::shared_ptr<MaterialPBR>> materials) {
-  for (int material = 0; material < materials.size(); material++) {
-    if (material < _materials.size() && material < _descriptorSetPBR.size())
-      _materials[material]->unregisterUpdate(_descriptorSetPBR[material]);
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    for (int material = 0; material < materials.size(); material++) {
+      if (material < _materials.size() && material < _descriptorSetPBR[i].size())
+        _materials[material]->unregisterUpdate(_descriptorSetPBR[i][material]);
 
-    if (_descriptorSetPBR.size() <= material)
-      _descriptorSetPBR.push_back(std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                  _descriptorSetLayoutPBR, _engineState));
-    materials[material]->registerUpdate(_descriptorSetPBR[material], {{MaterialTexture::COLOR, 1},
-                                                                      {MaterialTexture::NORMAL, 2},
-                                                                      {MaterialTexture::METALLIC, 3},
-                                                                      {MaterialTexture::ROUGHNESS, 4},
-                                                                      {MaterialTexture::OCCLUSION, 5},
-                                                                      {MaterialTexture::EMISSIVE, 6},
-                                                                      {MaterialTexture::IBL_DIFFUSE, 7},
-                                                                      {MaterialTexture::IBL_SPECULAR, 8},
-                                                                      {MaterialTexture::BRDF_SPECULAR, 9}});
+      if (_descriptorSetPBR[i].size() <= material)
+        _descriptorSetPBR[i].push_back(std::make_shared<DescriptorSet>(_descriptorSetLayoutPBR, _engineState));
+      materials[material]->registerUpdate(_descriptorSetPBR[i][material],
+                                          {._frameInFlight = i,
+                                           ._materialInfo = {{MaterialTexture::COLOR, 1},
+                                                             {MaterialTexture::NORMAL, 2},
+                                                             {MaterialTexture::METALLIC, 3},
+                                                             {MaterialTexture::ROUGHNESS, 4},
+                                                             {MaterialTexture::OCCLUSION, 5},
+                                                             {MaterialTexture::EMISSIVE, 6},
+                                                             {MaterialTexture::IBL_DIFFUSE, 7},
+                                                             {MaterialTexture::IBL_SPECULAR, 8},
+                                                             {MaterialTexture::BRDF_SPECULAR, 9}}});
+    }
   }
   _materialType = MaterialType::PBR;
   _materials.clear();
@@ -942,7 +932,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         std::shared_ptr<Pipeline> pipeline,
                         std::shared_ptr<Pipeline> pipelineCullOff,
                         std::shared_ptr<DescriptorSet> cameraDS,
-                        std::vector<std::shared_ptr<Buffer>> cameraUBO,
+                        std::shared_ptr<Buffer> cameraUBO,
                         glm::mat4 view,
                         glm::mat4 projection,
                         std::shared_ptr<NodeGLTF> node) {
@@ -959,7 +949,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                         .view = view,
                         .projection = projection};
 
-    cameraUBO[currentFrame]->setData(&cameraMVP);
+    cameraUBO->setData(&cameraMVP);
 
     auto pipelineLayout = pipeline->getDescriptorSetLayout();
 
@@ -971,7 +961,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
     if (normalTangentLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               pipeline->getPipelineLayout(), 0, 1,
-                              &_descriptorSetNormalsMesh->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetNormalsMesh[currentFrame]->getDescriptorSets(), 0, nullptr);
     }
 
     // depth
@@ -981,8 +971,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
                                     });
     if (depthLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets()[currentFrame], 0,
-                              nullptr);
+                              pipeline->getPipelineLayout(), 0, 1, &cameraDS->getDescriptorSets(), 0, nullptr);
     }
 
     // joints
@@ -995,7 +984,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
       // if node->skin == -1 then use 0 index that contains identity matrix because of animation default behavior
       vkCmdBindDescriptorSets(
           commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 1, 1,
-          &_descriptorSetJoints[std::max(0, node->skin)]->getDescriptorSets()[currentFrame], 0, nullptr);
+          &_descriptorSetJoints[currentFrame][std::max(0, node->skin)]->getDescriptorSets(), 0, nullptr);
     }
 
     for (MeshPrimitive primitive : _meshes[node->mesh]->getPrimitives()) {
@@ -1019,7 +1008,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
         if (layoutColor != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
-                                  &_descriptorSetColor[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
+                                  &_descriptorSetColor[currentFrame][materialIndex]->getDescriptorSets(), 0, nullptr);
         }
 
         // phong
@@ -1030,7 +1019,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
         if (layoutPhong != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
-                                  &_descriptorSetPhong[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
+                                  &_descriptorSetPhong[currentFrame][materialIndex]->getDescriptorSets(), 0, nullptr);
         }
 
         // pbr
@@ -1041,7 +1030,7 @@ void Model3D::_drawNode(std::shared_ptr<CommandBuffer> commandBuffer,
         if (layoutPBR != pipelineLayout.end()) {
           vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                   pipeline->getPipelineLayout(), 0, 1,
-                                  &_descriptorSetPBR[materialIndex]->getDescriptorSets()[currentFrame], 0, nullptr);
+                                  &_descriptorSetPBR[currentFrame][materialIndex]->getDescriptorSets(), 0, nullptr);
         }
 
         auto currentPipeline = pipeline;
@@ -1122,9 +1111,9 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                           return info.first == std::string("globalPhong");
                                         });
   if (globalLayoutPhong != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 2, 1,
-        &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 2, 1,
+                            &_gameState->getLightManager()->getDSGlobalPhong()->getDescriptorSets(), 0, nullptr);
   }
 
   // global PBR
@@ -1133,14 +1122,14 @@ void Model3D::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
                                         return info.first == std::string("globalPBR");
                                       });
   if (globalLayoutPBR != pipelineLayout.end()) {
-    vkCmdBindDescriptorSets(
-        commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipelineLayout(), 2, 1,
-        &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets()[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            pipeline->getPipelineLayout(), 2, 1,
+                            &_gameState->getLightManager()->getDSGlobalPBR()->getDescriptorSets(), 0, nullptr);
   }
 
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull,
+    _drawNode(commandBuffer, pipeline, pipelineCullOff, nullptr, _cameraUBOFull[currentFrame],
               _gameState->getCameraManager()->getCurrentCamera()->getView(),
               _gameState->getCameraManager()->getCurrentCamera()->getProjection(), node);
   }
@@ -1222,7 +1211,7 @@ void Model3D::drawShadow(LightType lightType, int lightIndex, int face, std::sha
   }
   // Render all nodes at top-level
   for (auto& node : _nodes) {
-    _drawNode(commandBuffer, pipeline, pipeline, _descriptorSetCameraDepth[lightIndexTotal][face],
-              _cameraUBODepth[lightIndexTotal][face], view, projection, node);
+    _drawNode(commandBuffer, pipeline, pipeline, _descriptorSetCameraDepth[currentFrame][lightIndexTotal][face],
+              _cameraUBODepth[currentFrame][lightIndexTotal][face], view, projection, node);
   }
 }

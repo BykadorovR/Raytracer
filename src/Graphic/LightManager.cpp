@@ -223,25 +223,28 @@ LightManager::LightManager(std::shared_ptr<ResourceManager> resourceManager, std
         ShadowParameters::getSize(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, _engineState);
 
-  _descriptorSetGlobalPhong = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                              _descriptorSetLayoutGlobalPhong, _engineState);
-  _engineState->getDebugUtils()->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                                         _descriptorSetGlobalPhong->getDescriptorSets());
-  _descriptorSetGlobalPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                            _descriptorSetLayoutGlobalPBR, _engineState);
-  _engineState->getDebugUtils()->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                                         _descriptorSetGlobalPBR->getDescriptorSets());
-  _descriptorSetGlobalTerrainPhong = std::make_shared<DescriptorSet>(
-      _engineState->getSettings()->getMaxFramesInFlight(), _descriptorSetLayoutGlobalTerrainPhong, _engineState);
-  _engineState->getDebugUtils()->setName("Descriptor set global terrain Phong",
-                                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                                         _descriptorSetGlobalTerrainPhong->getDescriptorSets());
-  _descriptorSetGlobalTerrainPBR = std::make_shared<DescriptorSet>(_engineState->getSettings()->getMaxFramesInFlight(),
-                                                                   _descriptorSetLayoutGlobalTerrainPBR, _engineState);
-  _engineState->getDebugUtils()->setName("Descriptor set global terrain PBR",
-                                         VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
-                                         _descriptorSetGlobalTerrainPBR->getDescriptorSets());
-
+  _descriptorSetGlobalPhong.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSetGlobalPBR.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSetGlobalTerrainPhong.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  _descriptorSetGlobalTerrainPBR.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetGlobalPhong[i] = std::make_shared<DescriptorSet>(_descriptorSetLayoutGlobalPhong, _engineState);
+    _engineState->getDebugUtils()->setName("Descriptor set global Phong", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                           _descriptorSetGlobalPhong[i]->getDescriptorSets());
+    _descriptorSetGlobalPBR[i] = std::make_shared<DescriptorSet>(_descriptorSetLayoutGlobalPBR, _engineState);
+    _engineState->getDebugUtils()->setName("Descriptor set global PBR", VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                           _descriptorSetGlobalPBR[i]->getDescriptorSets());
+    _descriptorSetGlobalTerrainPhong[i] = std::make_shared<DescriptorSet>(_descriptorSetLayoutGlobalTerrainPhong,
+                                                                          _engineState);
+    _engineState->getDebugUtils()->setName("Descriptor set global terrain Phong",
+                                           VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                           _descriptorSetGlobalTerrainPhong[i]->getDescriptorSets());
+    _descriptorSetGlobalTerrainPBR[i] = std::make_shared<DescriptorSet>(_descriptorSetLayoutGlobalTerrainPBR,
+                                                                        _engineState);
+    _engineState->getDebugUtils()->setName("Descriptor set global terrain PBR",
+                                           VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET,
+                                           _descriptorSetGlobalTerrainPBR[i]->getDescriptorSets());
+  }
   // stub texture
   _stubTexture = resourceManager->getTextureOne();
   _stubCubemap = resourceManager->getCubemapOne();
@@ -365,7 +368,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[6] = bufferShadowParameters;
     }
-    _descriptorSetGlobalPhong->createCustom(currentFrame, bufferInfo, textureInfo);
+    _descriptorSetGlobalPhong[currentFrame]->createCustom(bufferInfo, textureInfo);
   }
   // global PBR descriptor set
   {
@@ -439,7 +442,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[5] = bufferShadowParameters;
     }
-    _descriptorSetGlobalPBR->createCustom(currentFrame, bufferInfo, textureInfo);
+    _descriptorSetGlobalPBR[currentFrame]->createCustom(bufferInfo, textureInfo);
   }
 
   // Terrain global Phong
@@ -525,7 +528,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[6] = bufferShadowParameters;
     }
-    _descriptorSetGlobalTerrainPhong->createCustom(currentFrame, bufferInfo, textureInfo);
+    _descriptorSetGlobalTerrainPhong[currentFrame]->createCustom(bufferInfo, textureInfo);
   }
   // terrain global PBR descriptor set
   {
@@ -599,7 +602,7 @@ void LightManager::_setLightDescriptors(int currentFrame) {
       bufferShadowParameters[0].range = ShadowParameters::getSize();
       bufferInfo[5] = bufferShadowParameters;
     }
-    _descriptorSetGlobalTerrainPBR->createCustom(currentFrame, bufferInfo, textureInfo);
+    _descriptorSetGlobalTerrainPBR[currentFrame]->createCustom(bufferInfo, textureInfo);
   }
 }
 
@@ -910,22 +913,22 @@ std::shared_ptr<DescriptorSetLayout> LightManager::getDSLGlobalTerrainPBR() {
 
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPhong() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetGlobalPhong;
+  return _descriptorSetGlobalPhong[_engineState->getFrameInFlight()];
 }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalPBR() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetGlobalPBR;
+  return _descriptorSetGlobalPBR[_engineState->getFrameInFlight()];
 }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalTerrainPhong() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetGlobalTerrainPhong;
+  return _descriptorSetGlobalTerrainPhong[_engineState->getFrameInFlight()];
 }
 
 std::shared_ptr<DescriptorSet> LightManager::getDSGlobalTerrainPBR() {
   std::unique_lock<std::mutex> accessLock(_accessMutex);
-  return _descriptorSetGlobalTerrainPBR;
+  return _descriptorSetGlobalTerrainPBR[_engineState->getFrameInFlight()];
 }
 
 void LightManager::draw(int currentFrame) {

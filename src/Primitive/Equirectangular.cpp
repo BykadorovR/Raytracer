@@ -71,15 +71,15 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
 
   // initialize camera UBO and descriptor sets for draw
   // initialize UBO
-  _bufferCubemap.resize(6);
-  for (int i = 0; i < 6; i++) {
-    _bufferCubemap[i].resize(_engineState->getSettings()->getMaxFramesInFlight());
-    for (int j = 0; j < _engineState->getSettings()->getMaxFramesInFlight(); j++)
-      _bufferCubemap[i][j] = std::make_shared<Buffer>(
+  _bufferCubemap.resize(_engineState->getSettings()->getMaxFramesInFlight());
+  for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _bufferCubemap[i].resize(6);
+    for (int f = 0; f < 6; f++) {
+      _bufferCubemap[i][f] = std::make_shared<Buffer>(
           sizeof(BufferMVP), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, engineState);
+    }
   }
-
   // setup color
   {
     _descriptorSetLayout = std::make_shared<DescriptorSetLayout>(_engineState->getDevice());
@@ -95,16 +95,16 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                                                            .pImmutableSamplers = nullptr}};
     _descriptorSetLayout->createCustom(layoutColor);
 
-    _descriptorSetCubemap.resize(6);
-    for (int f = 0; f < 6; f++) {
-      _descriptorSetCubemap[f] = std::make_shared<DescriptorSet>(engineState->getSettings()->getMaxFramesInFlight(),
-                                                                 _descriptorSetLayout, engineState);
-      for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+    _descriptorSetCubemap.resize(_engineState->getSettings()->getMaxFramesInFlight());
+    for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
+      _descriptorSetCubemap[i].resize(6);
+      for (int f = 0; f < 6; f++) {
+        _descriptorSetCubemap[i][f] = std::make_shared<DescriptorSet>(_descriptorSetLayout, engineState);
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
             {0,
-             {VkDescriptorBufferInfo{.buffer = _bufferCubemap[f][i]->getData(),
+             {VkDescriptorBufferInfo{.buffer = _bufferCubemap[i][f]->getData(),
                                      .offset = 0,
-                                     .range = _bufferCubemap[f][i]->getSize()}}}};
+                                     .range = _bufferCubemap[i][f]->getSize()}}}};
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
             {1,
              {VkDescriptorImageInfo{
@@ -112,10 +112,9 @@ Equirectangular::Equirectangular(std::shared_ptr<ImageCPU<float>> imageCPU,
                  .imageView = _texture->getImageView()->getImageView(),
                  .imageLayout = _texture->getImageView()->getImage()->getImageLayout(),
              }}}};
-        _descriptorSetCubemap[f]->createCustom(i, bufferInfoColor, textureInfoColor);
+        _descriptorSetCubemap[i][f]->createCustom(bufferInfoColor, textureInfoColor);
       }
     }
-
     {
       auto shader = std::make_shared<Shader>(engineState);
       shader->add("shaders/IBL/skyboxEquirectangular_vertex.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -221,7 +220,7 @@ void Equirectangular::_convertToCubemap() {
     VkRect2D scissor{.offset = {0, 0}, .extent = VkExtent2D(width, height)};
     vkCmdSetScissor(_commandBufferTransfer->getCommandBuffer(), 0, 1, &scissor);
     BufferMVP cameraUBO{.model = glm::mat4(1.f), .view = _camera->getView(), .projection = _camera->getProjection()};
-    _bufferCubemap[i][currentFrame]->setData(&cameraUBO);
+    _bufferCubemap[currentFrame][i]->setData(&cameraUBO);
 
     VkBuffer vertexBuffers[] = {_mesh3D->getVertexBuffer()->getBuffer()->getData()};
     VkDeviceSize offsets[] = {0};
@@ -238,7 +237,7 @@ void Equirectangular::_convertToCubemap() {
     if (colorLayout != pipelineLayout.end()) {
       vkCmdBindDescriptorSets(_commandBufferTransfer->getCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                               _pipelineEquirectangular->getPipelineLayout(), 0, 1,
-                              &_descriptorSetCubemap[i]->getDescriptorSets()[currentFrame], 0, nullptr);
+                              &_descriptorSetCubemap[currentFrame][i]->getDescriptorSets(), 0, nullptr);
     }
 
     vkCmdDrawIndexed(_commandBufferTransfer->getCommandBuffer(), static_cast<uint32_t>(_mesh3D->getIndexData().size()),

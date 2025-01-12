@@ -197,7 +197,7 @@ void initialize() {
   settings->setAnisotropicSamples(0);
   settings->setDepthFormat(VK_FORMAT_D32_SFLOAT);
   settings->setMaxFramesInFlight(2);
-  settings->setThreadsInPool(0);
+  settings->setThreadsInPool(6);
   settings->setDesiredFPS(60);
   settings->setAssetsPath("");
   settings->setShadersPath("");
@@ -564,7 +564,7 @@ void initialize() {
   {
     auto heightmapCPU = _core->loadImageCPU("heightmap.png");
 
-    _physicsManager = std::make_shared<PhysicsManager>();
+    _physicsManager = _core->createPhysicsManager();
     _terrainPhysics = std::make_shared<TerrainPhysics>(heightmapCPU, _terrainPosition, _terrainScale,
                                                        std::tuple{64, 16}, _physicsManager, _core->getGameState(),
                                                        _core->getEngineState());

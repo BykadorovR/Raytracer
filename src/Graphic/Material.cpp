@@ -4,19 +4,21 @@ void Material::_updateAlphaCutoffDescriptors(int currentFrame) {
   _uniformBufferAlphaCutoff[currentFrame]->setData(&_alphaCutoff);
 }
 
-void Material::_updateDescriptor(int currentFrame, MaterialTexture type) {
+void Material::_updateDescriptor(int frameInFlight, MaterialTexture type) {
   for (auto& [descriptor, info] : _descriptorsUpdate) {
-    for (int elem = 0; elem < info.size(); elem++) {
-      if (std::get<0>(info[elem]) == type) {
-        std::map<int, std::vector<VkDescriptorImageInfo>> images;
-        std::vector<VkDescriptorImageInfo> colorTextureInfo(_textures[type].size());
-        for (int i = 0; i < _textures[type].size(); i++) {
-          colorTextureInfo[i] = {.sampler = _textures[type][i]->getSampler()->getSampler(),
-                                 .imageView = _textures[type][i]->getImageView()->getImageView(),
-                                 .imageLayout = _textures[type][i]->getImageView()->getImage()->getImageLayout()};
+    if (info._frameInFlight == frameInFlight) {
+      for (auto& [material, slot] : info._materialInfo) {
+        if (material == type) {
+          std::map<int, std::vector<VkDescriptorImageInfo>> images;
+          std::vector<VkDescriptorImageInfo> colorTextureInfo(_textures[type].size());
+          for (int i = 0; i < _textures[type].size(); i++) {
+            colorTextureInfo[i] = {.sampler = _textures[type][i]->getSampler()->getSampler(),
+                                   .imageView = _textures[type][i]->getImageView()->getImageView(),
+                                   .imageLayout = _textures[type][i]->getImageView()->getImage()->getImageLayout()};
+          }
+          images[slot] = colorTextureInfo;
+          descriptor->createCustom({}, images);
         }
-        images[std::get<1>(info[elem])] = colorTextureInfo;
-        descriptor->createCustom(currentFrame, {}, images);
       }
     }
   }
@@ -53,9 +55,8 @@ Material::Material(std::shared_ptr<CommandBuffer> commandBufferTransfer, std::sh
 
 void Material::unregisterUpdate(std::shared_ptr<DescriptorSet> descriptor) { _descriptorsUpdate.erase(descriptor); }
 
-void Material::registerUpdate(std::shared_ptr<DescriptorSet> descriptor,
-                              std::vector<std::tuple<MaterialTexture, int>> type) {
-  _descriptorsUpdate[descriptor].insert(_descriptorsUpdate[descriptor].end(), type.begin(), type.end());
+void Material::registerUpdate(std::shared_ptr<DescriptorSet> descriptor, MaterialInfoUpdate info) {
+  _descriptorsUpdate[descriptor] = info;
 }
 
 void Material::setDoubleSided(bool doubleSided) { _doubleSided = doubleSided; }

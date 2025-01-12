@@ -16,11 +16,11 @@ class Sprite : public Drawable, public Shadowable {
   std::shared_ptr<GameState> _gameState;
   std::vector<bool> _changedMaterialRender, _changedMaterialShadow;
   std::mutex _updateShadow;
-  std::shared_ptr<DescriptorSet> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
-  std::shared_ptr<DescriptorSet> _descriptorSetCameraFull;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetColor, _descriptorSetPhong, _descriptorSetPBR;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetCameraFull;
+  std::vector<std::shared_ptr<DescriptorSet>> _descriptorSetNormalsMesh;
+  std::vector<std::vector<std::vector<std::shared_ptr<DescriptorSet>>>> _descriptorSetCameraDepth;
   std::shared_ptr<DescriptorSetLayout> _descriptorSetLayoutNormalsMesh, _descriptorSetLayoutDepth;
-  std::shared_ptr<DescriptorSet> _descriptorSetNormalsMesh;
-  std::vector<std::vector<std::shared_ptr<DescriptorSet>>> _descriptorSetCameraDepth;
   std::map<MaterialType, std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>>>
       _descriptorSetLayout;
   std::vector<std::pair<std::string, std::shared_ptr<DescriptorSetLayout>>> _descriptorSetLayoutNormal;
@@ -56,33 +56,33 @@ class Sprite : public Drawable, public Shadowable {
     for (int d = 0; d < _engineState->getSettings()->getMaxDirectionalLights(); d++) {
       std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
           {0,
-           {{.buffer = _cameraUBODepth[d][0][currentFrame]->getData(),
+           {{.buffer = _cameraUBODepth[currentFrame][d][0]->getData(),
              .offset = 0,
-             .range = _cameraUBODepth[d][0][currentFrame]->getSize()}}}};
+             .range = _cameraUBODepth[currentFrame][d][0]->getSize()}}}};
       std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
           {1,
            {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
              .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
              .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
-      _descriptorSetCameraDepth[d][0]->createCustom(currentFrame, bufferInfoColor, textureInfoColor);
+      _descriptorSetCameraDepth[currentFrame][d][0]->createCustom(bufferInfoColor, textureInfoColor);
     }
 
     for (int p = 0; p < _engineState->getSettings()->getMaxPointLights(); p++) {
       for (int f = 0; f < 6; f++) {
         std::map<int, std::vector<VkDescriptorBufferInfo>> bufferInfoColor = {
             {0,
-             {{.buffer = _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]
+             {{.buffer = _cameraUBODepth[currentFrame][_engineState->getSettings()->getMaxDirectionalLights() + p][f]
                              ->getData(),
                .offset = 0,
-               .range = _cameraUBODepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f][currentFrame]
+               .range = _cameraUBODepth[currentFrame][_engineState->getSettings()->getMaxDirectionalLights() + p][f]
                             ->getSize()}}}};
         std::map<int, std::vector<VkDescriptorImageInfo>> textureInfoColor = {
             {1,
              {{.sampler = material->getBaseColor()[0]->getSampler()->getSampler(),
                .imageView = material->getBaseColor()[0]->getImageView()->getImageView(),
                .imageLayout = material->getBaseColor()[0]->getImageView()->getImage()->getImageLayout()}}}};
-        _descriptorSetCameraDepth[_engineState->getSettings()->getMaxDirectionalLights() + p][f]->createCustom(
-            currentFrame, bufferInfoColor, textureInfoColor);
+        _descriptorSetCameraDepth[currentFrame][_engineState->getSettings()->getMaxDirectionalLights() + p][f]
+            ->createCustom(bufferInfoColor, textureInfoColor);
       }
     }
   }
