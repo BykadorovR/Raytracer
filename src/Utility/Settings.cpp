@@ -46,6 +46,8 @@ void Settings::setAssetsPath(std::string path) { _pathAssets = path; }
 
 void Settings::setShadersPath(std::string path) { _pathShaders = path; }
 
+void Settings::setVerticalSync(bool verticalSync) { _verticalSync = verticalSync; }
+
 std::string Settings::getName() { return _name; }
 
 const std::tuple<int, int>& Settings::getResolution() { return _resolution; }
@@ -105,3 +107,5 @@ int Settings::getPoolSizeDescriptorSets() { return _poolSizeDescriptorSets; }
 std::string Settings::getAssetsPath() { return _pathAssets; }
 
 std::string Settings::getShadersPath() { return _pathShaders; }
+
+bool Settings::getVerticalSync() { return _verticalSync; }

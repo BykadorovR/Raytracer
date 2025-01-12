@@ -10,7 +10,7 @@ Device::Device(std::shared_ptr<Surface> surface, std::shared_ptr<Instance> insta
 
   vkb::PhysicalDeviceSelector deviceSelector(instance->getInstance());
   deviceSelector.set_required_features(deviceFeatures);
-
+  deviceSelector.allow_any_gpu_device_type(false);
   // VK_KHR_SWAPCHAIN_EXTENSION_NAME is added by default
   auto deviceSelectorResult = deviceSelector.set_surface(surface->getSurface()).select();
   if (!deviceSelectorResult) {

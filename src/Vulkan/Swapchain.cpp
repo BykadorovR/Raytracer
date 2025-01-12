@@ -13,6 +13,16 @@ Swapchain::Swapchain(std::shared_ptr<EngineState> engineState) {
                                                 .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR});
   // because we use swapchain in compute shader
   builder.add_image_usage_flags(VK_IMAGE_USAGE_STORAGE_BIT);
+  if (engineState->getSettings()->getVerticalSync()) {
+#if __ANDROID__
+    builder.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR);
+
+#else
+    builder.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR);
+#endif
+  } else {
+    builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
+  }
   auto swapchainResult = builder.build();
   if (!swapchainResult) {
     throw std::runtime_error(swapchainResult.error().message());

@@ -60,6 +60,7 @@ struct Settings {
   int _poolSizeDescriptorSets = 2000;
   std::string _pathAssets = "";
   std::string _pathShaders = "";
+  bool _verticalSync = false;
 
  public:
   // setters
@@ -84,6 +85,7 @@ struct Settings {
                    int poolSizeComputeImage);
   void setAssetsPath(std::string path);
   void setShadersPath(std::string path);
+  void setVerticalSync(bool verticalSync);
   // getters
   const std::tuple<int, int>& getResolution();
   const std::tuple<int, int>& getShadowMapResolution();
@@ -115,4 +117,5 @@ struct Settings {
   int getPoolSizeDescriptorSets();
   std::string getAssetsPath();
   std::string getShadersPath();
+  bool getVerticalSync();
 };
