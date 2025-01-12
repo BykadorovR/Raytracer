@@ -71,7 +71,7 @@ PointShadow::PointShadow(std::shared_ptr<CommandBuffer> commandBufferTransfer,
   _commandBufferPoint.resize(engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
     _commandBufferPoint[i].resize(6);
-    for (int j = 0; j < _commandBufferPoint.size(); j++) {
+    for (int j = 0; j < 6; j++) {
       auto commandPool = std::make_shared<CommandPool>(vkb::QueueType::graphics, _engineState->getDevice());
       _commandBufferPoint[i][j] = std::make_shared<CommandBuffer>(commandPool, _engineState->getDevice());
       _engineState->getDebugUtils()->setName("Command buffer point " + std::to_string(j),
