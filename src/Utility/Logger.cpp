@@ -30,7 +30,24 @@ void Logger::LoggerUtils::end(std::shared_ptr<CommandBuffer> buffer) {
   vkCmdEndDebugUtilsLabelEXT(buffer->getCommandBuffer());
 }
 
-void Logger::LoggerNVTX::begin(std::string name) { nvtxRangePush(name.c_str()); }
+void Logger::LoggerNVTX::begin(std::string name, std::array<float, 4> color) {
+  nvtxEventAttributes_t eventAttrib = {0};
+  eventAttrib.version = NVTX_VERSION;
+  eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE;
+
+  eventAttrib.colorType = NVTX_COLOR_ARGB;
+  uint8_t a = color[3] * 255;  // Alpha
+  uint8_t r = color[0] * 255;  // Red
+  uint8_t g = color[1] * 255;  // Green
+  uint8_t b = color[2] * 255;  // Blue
+  uint32_t convertedColor = (a << 24) | (r << 16) | (g << 8) | b;
+  eventAttrib.color = convertedColor;
+
+  eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII;
+  eventAttrib.message.ascii = name.c_str();
+
+  nvtxRangePushEx(&eventAttrib);
+}
 
 void Logger::LoggerNVTX::end() { nvtxRangePop(); }
 
@@ -51,7 +68,7 @@ void Logger::begin(std::string marker, std::shared_ptr<CommandBuffer> buffer, st
   if (buffer)
     _loggerUtils->begin(marker, buffer, color);
   else
-    _loggerNVTX->begin(marker);
+    _loggerNVTX->begin(marker, color);
 #endif
 }
 

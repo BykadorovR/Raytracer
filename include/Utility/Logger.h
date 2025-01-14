@@ -47,7 +47,7 @@ class Logger {
 
   class LoggerNVTX {
    public:
-    void begin(std::string name);
+    void begin(std::string name, std::array<float, 4> color = {0.f, 0.f, 0.f, 1.f});
     void end();
   };
 
@@ -61,7 +61,7 @@ class Logger {
   Logger(std::shared_ptr<Device> device);
   void begin(std::string marker,
              std::shared_ptr<CommandBuffer> buffer = nullptr,
-             std::array<float, 4> color = {0.0f, 0.0f, 0.0f, 0.0f});
+             std::array<float, 4> color = {0.f, 0.f, 0.f, 1.f});
   void end(std::shared_ptr<CommandBuffer> buffer = nullptr);
   ~Logger() { std::cout << "Desturcotr" << std::endl; }
 };

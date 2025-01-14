@@ -42,7 +42,7 @@ void CustomThreadPool::QueueJob(Job* inJob) {
     inJob->AddRef();
 
     _pool->submit([logger = _logger, job = inJob]() {
-      logger->begin(job->GetName());
+      logger->begin(job->GetName(), nullptr, {1.f, 0.f, 0.f, 1.f});
       job->Execute();
       job->Release();
       logger->end();
