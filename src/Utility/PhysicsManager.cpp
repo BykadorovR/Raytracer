@@ -3,9 +3,10 @@
 CustomThreadPool::CustomThreadPool(int inMaxJobs,
                                    int inMaxBarriers,
                                    int inNumThreads,
+                                   std::shared_ptr<Logger> logger,
                                    std::shared_ptr<BS::thread_pool> pool) {
   JPH::JobSystemWithBarrier::Init(inMaxBarriers);
-
+  _logger = logger;
   _pool = pool;
   _inNumThreads = inNumThreads;
   _jobs.Init(inMaxJobs, inMaxJobs);
@@ -40,9 +41,11 @@ void CustomThreadPool::QueueJob(Job* inJob) {
   if (inJob != nullptr) {
     inJob->AddRef();
 
-    _pool->submit([job = inJob]() {
+    _pool->submit([logger = _logger, job = inJob]() {
+      logger->begin(job->GetName());
       job->Execute();
       job->Release();
+      logger->end();
     });
   }
 }
@@ -60,7 +63,8 @@ void CustomThreadPool::FreeJob(Job* inJob) { _jobs.DestructObject(inJob); }
 
 CustomThreadPool::~CustomThreadPool() {}
 
-PhysicsManager::PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<Settings> settings) {
+PhysicsManager::PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<EngineState> engineState) {
+  _engineState = engineState;
   // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you
   // want (see Memory.h). This needs to be done before any other Jolt function is called.
   JPH::RegisterDefaultAllocator();
@@ -85,7 +89,8 @@ PhysicsManager::PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::share
   // you would implement the JobSystem interface yourself and let Jolt Physics run on top
   // of your own job scheduler. JobSystemThreadPool is an example implementation.
   _jobSystem = std::make_shared<CustomThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers,
-                                                  settings->getThreadsInPool(), pool);
+                                                  engineState->getSettings()->getThreadsInPool(),
+                                                  engineState->getLogger(), pool);
 
   // This is the max amount of rigid bodies that you can add to the physics system. If you try to add more you'll get an
   // error. Note: This value is low because this is a simple test. For a real project use something in the order of

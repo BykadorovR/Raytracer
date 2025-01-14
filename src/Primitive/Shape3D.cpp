@@ -27,6 +27,10 @@ void Shape3DPhysics::setTranslate(glm::vec3 translate) {
       _shapeBody->GetID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
+void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
+  _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
+}
+
 glm::vec3 Shape3DPhysics::getTranslate() {
   auto position = _physicsManager->getBodyInterface().GetPosition(_shapeBody->GetID());
   return glm::vec3(position.GetX(), position.GetY(), position.GetZ());
@@ -35,10 +39,6 @@ glm::vec3 Shape3DPhysics::getTranslate() {
 glm::quat Shape3DPhysics::getRotate() {
   auto rotation = _physicsManager->getBodyInterface().GetRotation(_shapeBody->GetID());
   return glm::quat{rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
-}
-
-void Shape3DPhysics::setLinearVelocity(glm::vec3 velocity) {
-  _physicsManager->getBodyInterface().SetLinearVelocity(_shapeBody->GetID(), {velocity.x, velocity.y, velocity.z});
 }
 
 Shape3DPhysics::~Shape3DPhysics() {

@@ -1335,7 +1335,7 @@ std::shared_ptr<PointShadow> Core::createPointShadow(std::shared_ptr<PointLight>
 }
 
 std::shared_ptr<PhysicsManager> Core::createPhysicsManager() {
-  return std::make_shared<PhysicsManager>(_pool, _engineState->getSettings());
+  return std::make_shared<PhysicsManager>(_pool, _engineState);
 }
 
 std::shared_ptr<DirectionalShadow> Core::createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,

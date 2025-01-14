@@ -97,20 +97,31 @@ void Model3DPhysics::setTranslate(glm::vec3 translate) {
       _character->GetBodyID(), JPH::RVec3(translate.x, translate.y, translate.z), JPH::EActivation::Activate);
 }
 
-bool Model3DPhysics::setShape(float height, float radius) {
+void Model3DPhysics::setShape(float height, float radius) {
   // need to recalculate shift by Y axis because of possible shape height change
   auto position = getTranslate();
   auto aabb = getSize();
   // divide by two because aabb is symmetric along the center
   auto heightDiff = ((height + radius * 2.f) - aabb.y) / 2.f;
   setTranslate({position.x, position.y + heightDiff, position.z});
-  return _character->SetShape(new JPH::CapsuleShape(height / 2.f, radius), 0.05f);
+  _physicsManager->getBodyInterface().SetShape(_character->GetBodyID(), new JPH::CapsuleShape(height / 2.f, radius),
+                                               false, JPH::EActivation::Activate);
 }
 
 void Model3DPhysics::setRotate(glm::quat rotate) {
   _physicsManager->getBodyInterface().SetRotation(
       _character->GetBodyID(), JPH::Quat(rotate.x, rotate.y, rotate.z, rotate.w), JPH::EActivation::Activate);
 }
+
+void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
+  _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});
+}
+
+void Model3DPhysics::setFriction(float friction) {
+  _physicsManager->getBodyInterface().SetFriction(_character->GetBodyID(), friction);
+}
+
+void Model3DPhysics::setUp(glm::vec3 up) { _character->SetUp({up.x, up.y, up.z}); }
 
 glm::quat Model3DPhysics::getRotate() {
   auto rotation = _physicsManager->getBodyInterface().GetRotation(_character->GetBodyID());
@@ -130,10 +141,6 @@ glm::vec3 Model3DPhysics::getSize() {
 
 void Model3DPhysics::postUpdate() { _character->PostSimulation(_collisionTolerance); }
 
-void Model3DPhysics::setFriction(float friction) {
-  _physicsManager->getBodyInterface().SetFriction(_character->GetBodyID(), friction);
-}
-
 GroundState Model3DPhysics::getGroundState() { return (GroundState)_character->GetGroundState(); }
 
 glm::vec3 Model3DPhysics::getGroundNormal() {
@@ -141,15 +148,9 @@ glm::vec3 Model3DPhysics::getGroundNormal() {
   return glm::vec3{normal.GetX(), normal.GetY(), normal.GetZ()};
 }
 
-void Model3DPhysics::setUp(glm::vec3 up) { _character->SetUp({up.x, up.y, up.z}); }
-
 glm::vec3 Model3DPhysics::getGroundVelocity() {
   auto velocity = _character->GetGroundVelocity();
   return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
-}
-
-void Model3DPhysics::setLinearVelocity(glm::vec3 velocity) {
-  _physicsManager->getBodyInterface().SetLinearVelocity(_character->GetBodyID(), {velocity.x, velocity.y, velocity.z});
 }
 
 glm::vec3 Model3DPhysics::getUp() {

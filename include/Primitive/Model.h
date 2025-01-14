@@ -46,7 +46,7 @@ class Model3DPhysics {
   void setMovementSpeed(float movementSpeed);
   void setTranslate(glm::vec3 translate);
   void setRotate(glm::quat rotate);
-  bool setShape(float height, float radius);
+  void setShape(float height, float radius);
   glm::quat getRotate();
   glm::vec3 getTranslate();
   void setLinearVelocity(glm::vec3 velocity);

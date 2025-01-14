@@ -8,8 +8,8 @@
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <glm/glm.hpp>
-#include "Utility/Settings.h"
 #include "BS_thread_pool.hpp"
+#include "Utility/EngineState.h"
 
 // Layer that objects can be in, determines which other objects it can collide with
 // Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
@@ -106,9 +106,14 @@ class CustomThreadPool : public JPH::JobSystemWithBarrier {
   /// Array of jobs (fixed size)
   using AvailableJobs = JPH::FixedSizeFreeList<Job>;
   AvailableJobs _jobs;
+  std::shared_ptr<Logger> _logger;
 
  public:
-  CustomThreadPool(int inMaxJobs, int inMaxBarriers, int inNumThreads, std::shared_ptr<BS::thread_pool> pool);
+  CustomThreadPool(int inMaxJobs,
+                   int inMaxBarriers,
+                   int inNumThreads,
+                   std::shared_ptr<Logger> logger,
+                   std::shared_ptr<BS::thread_pool> pool);
   /// Create a new job, the job is started immediately if inNumDependencies == 0 otherwise it starts when
   /// RemoveDependency causes the dependency counter to reach 0.
   JPH::JobHandle CreateJob(const char* inName,
@@ -131,6 +136,7 @@ class CustomThreadPool : public JPH::JobSystemWithBarrier {
 
 class PhysicsManager {
  private:
+  std::shared_ptr<EngineState> _engineState;
   JPH::PhysicsSystem _physicsSystem;
   std::shared_ptr<JPH::TempAllocatorImpl> _tempAllocator;
   std::shared_ptr<CustomThreadPool> _jobSystem;
@@ -148,7 +154,7 @@ class PhysicsManager {
   ObjectLayerPairFilterImpl _objectVsObjectLayerFilter;
 
  public:
-  PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<Settings> settings);
+  PhysicsManager(std::shared_ptr<BS::thread_pool> pool, std::shared_ptr<EngineState> engineState);
   JPH::BodyInterface& getBodyInterface();
   JPH::PhysicsSystem& getPhysicsSystem();
   glm::vec3 getGravity();
