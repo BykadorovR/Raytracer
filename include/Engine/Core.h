@@ -8,6 +8,7 @@
 #include "Utility/ResourceManager.h"
 #include "Utility/Animation.h"
 #include "Utility/GameState.h"
+#include "Utility/RenderGraph.h"
 #include "Vulkan/Sync.h"
 #include "Vulkan/Render.h"
 #include "Vulkan/Swapchain.h"
@@ -33,21 +34,22 @@ class Core {
   ANativeWindow* _nativeWindow;
 #endif
   std::shared_ptr<EngineState> _engineState;
+  std::shared_ptr<RenderGraph> _renderGraph;
   std::shared_ptr<GameState> _gameState;
   std::shared_ptr<Swapchain> _swapchain;
   std::shared_ptr<ImageView> _depthAttachmentImageView;
   // for compute render pass isn't needed
   std::shared_ptr<RenderPass> _renderPassShadowMap, _renderPassGraphic, _renderPassDebug, _renderPassBlur;
   std::vector<std::shared_ptr<Framebuffer>> _frameBufferGraphic, _frameBufferDebug;
-  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolInitialize,
-      _commandPoolParticleSystem, _commandPoolEquirectangular, _commandPoolPostprocessing, _commandPoolGUI;
-  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferRender, _commandBufferApplication, _commandBufferInitialize,
-      _commandBufferEquirectangular, _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
+  std::shared_ptr<CommandPool> _commandPoolRender, _commandPoolApplication, _commandPoolParticleSystem,
+      _commandPoolPostprocessing, _commandPoolGUI;
+  std::vector<std::shared_ptr<CommandBuffer>> _commandBufferRender, _commandBufferApplication,
+      _commandBufferParticleSystem, _commandBufferPostprocessing, _commandBufferGUI;
 
   std::vector<std::shared_ptr<Semaphore>> _semaphoreImageAvailable, _semaphoreRenderFinished;
   std::vector<std::shared_ptr<Semaphore>> _semaphoreParticleSystem, _semaphorePostprocessing, _semaphoreGUI;
-  std::vector<std::shared_ptr<Semaphore>> _semaphoreResourcesReady, _semaphoreApplicationReady;
-  std::map<int, bool> _waitSemaphoreResourcesReady, _waitSemaphoreApplicationReady;
+  std::vector<std::shared_ptr<Semaphore>> _semaphoreApplicationReady;
+  std::map<int, bool> _waitSemaphoreApplicationReady;
 
   std::vector<std::shared_ptr<Fence>> _fenceInFlight;
 
@@ -79,6 +81,7 @@ class Core {
   std::vector<std::vector<VkSubmitInfo>> _frameSubmitInfoPreCompute, _frameSubmitInfoPostCompute,
       _frameSubmitInfoGraphic, _frameSubmitInfoDebug;
   std::mutex _frameSubmitMutexGraphic;
+  bool _recalculateRenderGraph = false;
 
   void _drawShadowMapDirectional(int index);
   void _drawShadowMapPoint(int index, int face);
@@ -115,7 +118,6 @@ class Core {
   void addShadowable(std::shared_ptr<Shadowable> shadowable);
   // TODO: everything should be drawable
   void addSkybox(std::shared_ptr<Skybox> skybox);
-  void addParticleSystem(std::shared_ptr<ParticleSystem> particleSystem);
   void removeDrawable(std::shared_ptr<Drawable> drawable);
   void removeShadowable(std::shared_ptr<Shadowable> shadowable);
 
@@ -150,6 +152,9 @@ class Core {
   std::shared_ptr<DirectionalShadow> createDirectionalShadow(std::shared_ptr<DirectionalLight> directionalLight,
                                                              bool blur = true);
   std::shared_ptr<PhysicsManager> createPhysicsManager();
+  std::shared_ptr<GUI> createGUI();
+  std::shared_ptr<BlurCompute> createBloomBlur();
+  std::shared_ptr<Postprocessing> createPostprocessing();
 
   std::shared_ptr<CommandBuffer> getCommandBufferApplication();
   std::shared_ptr<ResourceManager> getResourceManager();
@@ -159,11 +164,9 @@ class Core {
   std::vector<std::shared_ptr<PointShadow>> getPointShadows();
   std::vector<std::shared_ptr<DirectionalShadow>> getDirectionalShadows();
   std::shared_ptr<Postprocessing> getPostprocessing();
-  std::shared_ptr<BlurCompute> getBloomBlur();
 
   std::shared_ptr<EngineState> getEngineState();
   std::shared_ptr<GameState> getGameState();
   std::shared_ptr<Camera> getCamera();
-  std::shared_ptr<GUI> getGUI();
   std::tuple<int, int> getFPS();
 };

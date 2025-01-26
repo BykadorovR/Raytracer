@@ -21,7 +21,7 @@ void Postprocessing::_initialize(std::vector<std::shared_ptr<Texture>> src,
                                   .imageLayout = blur[i]->getImageView()->getImage()->getImageLayout()}}},
           {2,
            {VkDescriptorImageInfo{.imageView = dst[j]->getImageView(),
-                                  .imageLayout = dst[j]->getImage()->getImageLayout()}}}};
+                                  .imageLayout = VK_IMAGE_LAYOUT_GENERAL}}}};  // TODO: fix somehow
       _descriptorSet[std::pair(i, j)]->createCustom({}, textureInfoColor);
     }
   }

@@ -217,3 +217,5 @@ void ParticleSystem::draw(std::shared_ptr<CommandBuffer> commandBuffer) {
 
   vkCmdDraw(commandBuffer->getCommandBuffer(), _particles.size(), 1, 0, 0);
 }
+
+std::vector<std::shared_ptr<Buffer>> ParticleSystem::getParticlesBuffer() { return _particlesBuffer; }

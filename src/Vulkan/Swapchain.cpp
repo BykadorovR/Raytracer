@@ -23,6 +23,7 @@ Swapchain::Swapchain(std::shared_ptr<EngineState> engineState) {
   } else {
     builder.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR);
   }
+
   auto swapchainResult = builder.build();
   if (!swapchainResult) {
     throw std::runtime_error(swapchainResult.error().message());

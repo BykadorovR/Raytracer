@@ -55,4 +55,6 @@ class ParticleSystem : public Drawable {
 
   void drawCompute(std::shared_ptr<CommandBuffer> commandBuffer);
   void draw(std::shared_ptr<CommandBuffer> commandBuffer) override;
+
+  std::vector<std::shared_ptr<Buffer>> getParticlesBuffer();
 };

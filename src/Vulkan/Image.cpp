@@ -328,21 +328,23 @@ std::shared_ptr<Image> ImageView::getImage() { return _image; }
 
 ImageView::~ImageView() { vkDestroyImageView(_engineState->getDevice()->getLogicalDevice(), _imageView, nullptr); }
 
-Framebuffer::Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
+Framebuffer::Framebuffer(std::vector<std::shared_ptr<ImageView>> attachments,
                          std::tuple<int, int> renderArea,
                          std::shared_ptr<RenderPass> renderPass,
                          std::shared_ptr<Device> device) {
   _device = device;
   _resolution = renderArea;
-  std::vector<VkImageView> attachments;
-  for (int i = 0; i < input.size(); i++) {
-    attachments.push_back(input[i]->getImageView());
+  _attachments = attachments;
+
+  std::vector<VkImageView> input;
+  for (int i = 0; i < attachments.size(); i++) {
+    input.push_back(attachments[i]->getImageView());
   }
   // depth and image must have equal resolution
   VkFramebufferCreateInfo framebufferInfo{.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                                           .renderPass = renderPass->getRenderPass(),
-                                          .attachmentCount = static_cast<uint32_t>(attachments.size()),
-                                          .pAttachments = attachments.data(),
+                                          .attachmentCount = static_cast<uint32_t>(input.size()),
+                                          .pAttachments = input.data(),
                                           .width = static_cast<uint32_t>(std::get<0>(renderArea)),
                                           .height = static_cast<uint32_t>(std::get<1>(renderArea)),
                                           .layers = 1};
@@ -351,6 +353,8 @@ Framebuffer::Framebuffer(std::vector<std::shared_ptr<ImageView>> input,
     throw std::runtime_error("failed to create framebuffer!");
   }
 }
+
+std::vector<std::shared_ptr<ImageView>> Framebuffer::getAttachments() { return _attachments; }
 
 std::tuple<int, int> Framebuffer::getResolution() { return _resolution; }
 
