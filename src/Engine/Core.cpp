@@ -10,8 +10,6 @@ void Core::setNativeWindow(ANativeWindow* window) { _nativeWindow = window; }
 
 Core::Core(std::shared_ptr<Settings> settings) {
   _engineState = std::make_shared<EngineState>(settings);
-  _renderGraph = std::make_shared<RenderGraph>();
-
 #ifdef __ANDROID__
   _engineState->setNativeWindow(_nativeWindow);
   _engineState->setAssetManager(_assetManager);
@@ -19,6 +17,7 @@ Core::Core(std::shared_ptr<Settings> settings) {
   _engineState->initialize();
   _pool = std::make_shared<BS::thread_pool>(settings->getThreadsInPool());
   _swapchain = std::make_shared<Swapchain>(_engineState);
+  _renderGraph = std::make_shared<RenderGraph>(_swapchain);
   _timer = std::make_shared<Timer>(_engineState);
   _timerFPSReal = std::make_shared<TimerFPS>();
   _timerFPSLimited = std::make_shared<TimerFPS>();
@@ -197,13 +196,13 @@ void Core::initialize() {
     _gameState = std::make_shared<GameState>(_commandBufferApplication[currentFrame], _engineState);
 
     // TODO: shouldn't add always, need to check if needed
-    auto renderPass = _renderGraph->getPass("Render");
+    auto renderPass = _renderGraph->addPass("Render", GraphPassStage::GRAPHIC);
     std::vector<std::shared_ptr<Image>> imagePrimitives;
     for (auto& texture : _textureRender) imagePrimitives.push_back(texture->getImageView()->getImage());
     std::vector<std::shared_ptr<Image>> imageBlur;
     for (auto& texture : _textureBlurIn) imageBlur.push_back(texture->getImageView()->getImage());
     renderPass->addColorTarget("Primitives", imagePrimitives);
-    renderPass->addColorTarget("Blur", imageBlur);
+    renderPass->addColorTarget("Bloom blur input", imageBlur);
     renderPass->setDepthTarget("Depth", _depthAttachmentImageView->getImage());
 
     _recalculateRenderGraph = true;
@@ -1065,6 +1064,7 @@ void Core::draw() {
       // application update, can be anything
       _callbackUpdate();
       if (_recalculateRenderGraph) {
+        _renderGraph->print();
         _renderGraph->calculate();
         _recalculateRenderGraph = false;
       }
@@ -1268,7 +1268,7 @@ std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle>
                                                          _commandBufferApplication[_engineState->getFrameInFlight()],
                                                          _gameState, _engineState);
 
-  auto computeParticlesPass = _renderGraph->getPass("Compute particles");
+  auto computeParticlesPass = _renderGraph->addPass("Compute particles", GraphPassStage::COMPUTE);
   std::vector<std::shared_ptr<Buffer>> inputBuffer(_engineState->getSettings()->getMaxFramesInFlight());
   std::vector<std::shared_ptr<Buffer>> outputBuffer(_engineState->getSettings()->getMaxFramesInFlight());
   for (int i = 0; i < _engineState->getSettings()->getMaxFramesInFlight(); i++) {
@@ -1276,11 +1276,11 @@ std::shared_ptr<ParticleSystem> Core::createParticleSystem(std::vector<Particle>
         particleSystem->getParticlesBuffer()[abs(i - 1) % _engineState->getSettings()->getMaxFramesInFlight()];
     outputBuffer[i] = particleSystem->getParticlesBuffer()[i];
   }
-  computeParticlesPass->addStorageInput("particles", inputBuffer);
-  computeParticlesPass->addStorageOutput("particles", outputBuffer);
+  computeParticlesPass->addStorageInput("Particles", inputBuffer);
+  computeParticlesPass->addStorageOutput("Particles", outputBuffer);
 
   auto drawGraphic = _renderGraph->getPass("Render");
-  drawGraphic->addVertexBufferInput("particles", outputBuffer);
+  drawGraphic->addVertexBufferInput("Particles", outputBuffer);
 
   addDrawable(particleSystem);
 
@@ -1297,31 +1297,31 @@ std::shared_ptr<PointShadow> Core::createPointShadow(std::shared_ptr<PointLight>
   auto shadow = _gameState->getLightManager()->createPointShadow(
       pointLight, _renderPassShadowMap, _commandBufferApplication[_engineState->getFrameInFlight()]);
 
-  auto pointShadowPass = _renderGraph->getPass("Point shadow");
+  auto pointShadowPass = _renderGraph->addPass("Point shadow", GraphPassStage::GRAPHIC);
   std::vector<std::shared_ptr<Image>> imagesShadow;
   for (auto& cubemap : shadow->getShadowMapCubemap()) {
     imagesShadow.push_back(cubemap->getTexture()->getImageView()->getImage());
   }
-  pointShadowPass->addColorTarget("target", imagesShadow);
-
-  auto renderPass = _renderGraph->getPass("Render");
-  renderPass->addTextureInput("point shadow", imagesShadow);
+  pointShadowPass->addColorTarget("Point shadow", imagesShadow);
 
   if (blur) {
     _blurGraphicPoint[shadow] = std::make_shared<PointShadowBlur>(
         shadow->getShadowMapCubemap(), _commandBufferApplication[_engineState->getFrameInFlight()],
         _renderPassShadowMap, _engineState);
 
-    auto pointShadowBlurPass = _renderGraph->getPass("Point shadow blur");
+    auto pointShadowBlurPass = _renderGraph->addPass("Point shadow blur", GraphPassStage::GRAPHIC);
     std::vector<std::shared_ptr<Image>> imagesBlur;
     for (auto& cubemap : _blurGraphicPoint[shadow]->getShadowMapBlurCubemapOut()) {
       imagesBlur.push_back(cubemap->getTexture()->getImageView()->getImage());
     }
-    pointShadowBlurPass->addColorTarget("target", imagesBlur);
-    pointShadowBlurPass->addTextureInput("shadow", imagesShadow);
+    pointShadowBlurPass->addColorTarget("Point shadow blur", imagesBlur);
+    pointShadowBlurPass->addTextureInput("Point shadow", imagesShadow);
 
     auto renderPass = _renderGraph->getPass("Render");
-    renderPass->addTextureInput("point shadow blur", imagesBlur);
+    renderPass->addTextureInput("Point shadow blur", imagesBlur);
+  } else {
+    auto renderPass = _renderGraph->getPass("Render");
+    renderPass->addTextureInput("Point shadow", imagesShadow);
   }
 
   _recalculateRenderGraph = true;
@@ -1337,10 +1337,10 @@ std::shared_ptr<GUI> Core::createGUI() {
   _gui->initialize(_commandBufferApplication[_engineState->getFrameInFlight()]);
   _engineState->getInput()->subscribe(std::dynamic_pointer_cast<InputSubscriberExclusive>(_gui));
 
-  auto guiPass = _renderGraph->getPass("GUI");
+  auto guiPass = _renderGraph->addPass("GUI", GraphPassStage::GRAPHIC);
   std::vector<std::shared_ptr<Image>> images;
   for (auto& imageView : _swapchain->getImageViews()) images.push_back(imageView->getImage());
-  guiPass->addColorTarget("target", images);
+  guiPass->addColorTarget("Framebuffer", images);
 
   _recalculateRenderGraph = true;
   return _gui;
@@ -1348,20 +1348,23 @@ std::shared_ptr<GUI> Core::createGUI() {
 
 std::shared_ptr<BlurCompute> Core::createBloomBlur() {
   _blurCompute = std::make_shared<BlurCompute>(_textureBlurIn, _textureBlurOut, _engineState);
-  auto blurPass = _renderGraph->getPass("Bloom blur");
+  auto blurPass = _renderGraph->addPass("Bloom blur", GraphPassStage::COMPUTE);
   std::vector<std::shared_ptr<Image>> imagesHorizontalOutput;
   for (auto& texture : _textureBlurOut) imagesHorizontalOutput.push_back(texture->getImageView()->getImage());
-  blurPass->addColorTarget("Horizontal", imagesHorizontalOutput);
+  blurPass->addColorTarget("Bloom blur horizontal", imagesHorizontalOutput);
   std::vector<std::shared_ptr<Image>> imagesHorizontalInput;
   for (auto& texture : _textureBlurIn) imagesHorizontalInput.push_back(texture->getImageView()->getImage());
-  blurPass->addTextureInput("Horizontal", imagesHorizontalInput);
+  blurPass->addTextureInput("Bloom blur input", imagesHorizontalInput);
 
   std::vector<std::shared_ptr<Image>> imagesVerticalOutput;
   for (auto& texture : _textureBlurIn) imagesVerticalOutput.push_back(texture->getImageView()->getImage());
-  blurPass->addColorTarget("Vertical", imagesVerticalOutput);
+  blurPass->addColorTarget("Bloom blur vertical", imagesVerticalOutput);
   std::vector<std::shared_ptr<Image>> imagesVerticalInput;
   for (auto& texture : _textureBlurOut) imagesVerticalInput.push_back(texture->getImageView()->getImage());
-  blurPass->addTextureInput("Vertical", imagesVerticalInput);
+  blurPass->addTextureInput("Bloom blur horizontal", imagesVerticalInput);
+
+  auto postprocessing = _renderGraph->getPass("Postprocessing");
+  if (postprocessing) postprocessing->addTextureInput("Bloom blur vertical", imagesVerticalOutput);
 
   _recalculateRenderGraph = true;
   return _blurCompute;
@@ -1370,16 +1373,16 @@ std::shared_ptr<BlurCompute> Core::createBloomBlur() {
 std::shared_ptr<Postprocessing> Core::createPostprocessing() {
   _postprocessing = std::make_shared<Postprocessing>(_textureRender, _textureBlurIn, _swapchain->getImageViews(),
                                                      _engineState);
-  auto postprocessingPass = _renderGraph->getPass("Postprocessing");
+  auto postprocessingPass = _renderGraph->addPass("Postprocessing", GraphPassStage::COMPUTE);
   std::vector<std::shared_ptr<Image>> imagesInput;
   for (auto& texture : _textureRender) imagesInput.push_back(texture->getImageView()->getImage());
-  postprocessingPass->addTextureInput("input", imagesInput);
+  postprocessingPass->addTextureInput("Primitives", imagesInput);
   std::vector<std::shared_ptr<Image>> blurInput;
   for (auto& texture : _textureBlurIn) blurInput.push_back(texture->getImageView()->getImage());
-  postprocessingPass->addTextureInput("blur", blurInput);
+  postprocessingPass->addTextureInput("Bloom blur vertical", blurInput);
   std::vector<std::shared_ptr<Image>> imagesOutput;
   for (auto& imageViews : _swapchain->getImageViews()) imagesOutput.push_back(imageViews->getImage());
-  postprocessingPass->addColorTarget("output", imagesOutput);
+  postprocessingPass->addColorTarget("Framebuffer", imagesOutput);
 
   _recalculateRenderGraph = true;
   return _postprocessing;
@@ -1390,30 +1393,31 @@ std::shared_ptr<DirectionalShadow> Core::createDirectionalShadow(std::shared_ptr
   auto shadow = _gameState->getLightManager()->createDirectionalShadow(
       directionalLight, _renderPassShadowMap, _commandBufferApplication[_engineState->getFrameInFlight()]);
 
-  auto directionalShadowPass = _renderGraph->getPass("Directional shadow");
+  auto directionalShadowPass = _renderGraph->addPass("Directional shadow", GraphPassStage::GRAPHIC);
   std::vector<std::shared_ptr<Image>> imagesShadow;
   for (auto& texture : shadow->getShadowMapTexture()) {
     imagesShadow.push_back(texture->getImageView()->getImage());
   }
-  directionalShadowPass->addColorTarget("target", imagesShadow);
-
-  auto renderPass = _renderGraph->getPass("Render");
-  renderPass->addTextureInput("directional shadow", imagesShadow);
+  directionalShadowPass->addColorTarget("Directional shadow", imagesShadow);
 
   if (blur) {
     _blurGraphicDirectional[shadow] = std::make_shared<DirectionalShadowBlur>(
         shadow->getShadowMapTexture(), _commandBufferApplication[_engineState->getFrameInFlight()],
         _renderPassShadowMap, _engineState);
 
-    auto directionalShadowBlurPass = _renderGraph->getPass("Directional shadow blur");
+    auto directionalShadowBlurPass = _renderGraph->addPass("Directional shadow blur", GraphPassStage::GRAPHIC);
     std::vector<std::shared_ptr<Image>> imagesBlur;
     for (auto& texture : _blurGraphicDirectional[shadow]->getShadowMapBlurTextureOut()) {
       imagesBlur.push_back(texture->getImageView()->getImage());
     }
-    directionalShadowBlurPass->addColorTarget("target", imagesShadow);
-    directionalShadowBlurPass->addTextureInput("shadow", imagesBlur);
+    directionalShadowBlurPass->addColorTarget("Directional shadow blur", imagesBlur);
+    directionalShadowBlurPass->addTextureInput("Directional shadow", imagesShadow);
+
     auto renderPass = _renderGraph->getPass("Render");
-    renderPass->addTextureInput("directional shadow blur", imagesBlur);
+    renderPass->addTextureInput("Directional shadow blur", imagesBlur);
+  } else {
+    auto renderPass = _renderGraph->getPass("Render");
+    renderPass->addTextureInput("Directional shadow", imagesShadow);
   }
 
   _recalculateRenderGraph = true;
