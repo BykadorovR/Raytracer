@@ -9,6 +9,8 @@ if (UNIX)
   cmake_policy(SET CMP0072 NEW)
 endif()
 
+include(FetchContent)
+
 #need for mismatch resolving
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}")
@@ -36,6 +38,19 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
 )
 
+FetchContent_Declare(
+  tinyobjloader
+  GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
+  GIT_TAG  3bb554cf74428d7db13418b4aca1b9752a1d2be8
+)
+
+FetchContent_Declare(
+  stb_image
+  GIT_REPOSITORY https://github.com/nothings/stb.git
+  GIT_TAG  5c205738c191bcb0abc65c4febfa9bd25ff35234
+)
+
+FetchContent_MakeAvailable(tinyobjloader stb_image)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui)
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/CMakeLists.txt
@@ -104,6 +119,8 @@ add_dependencies(${PROJECT_NAME} glfw glm imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glm/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/imgui/src/imgui)
+target_include_directories(${PROJECT_NAME} PRIVATE ${tinyobjloader_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${stb_image_SOURCE_DIR})
 #link glfw libraries
 target_link_libraries(${PROJECT_NAME} debug ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Debug/glfw3dll.lib)
 target_link_libraries(${PROJECT_NAME} optimized ${CMAKE_CURRENT_SOURCE_DIR}/dependencies/glfw/src/glfw-build/src/Release/glfw3dll.lib)

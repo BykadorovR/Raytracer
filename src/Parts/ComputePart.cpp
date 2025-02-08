@@ -580,7 +580,7 @@ ComputePart::ComputePart(std::shared_ptr<Device> device,
   _descriptorSetLayout->createCompute();
 
   _shader = std::make_shared<Shader>(device);
-  _shader->add("../shaders/raytracing.spv", VK_SHADER_STAGE_COMPUTE_BIT);
+  _shader->add("../shaders/raytracing_compute.spv", VK_SHADER_STAGE_COMPUTE_BIT);
   _pipeline = std::make_shared<Pipeline>(_shader, _descriptorSetLayout, device);
   _pipeline->createCompute();
 
